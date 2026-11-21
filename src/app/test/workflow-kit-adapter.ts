@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Avoozl's side of the workflow kit: each function answers one probe of a
 // snapshot case from Avoozl's own code. `workflow-kit.test.mjs` judges the
 // answers against the case, and the scenario runner reuses the readers.
@@ -22,10 +21,106 @@ import { landingAction } from "../landing/landing-action.ts";
 import { specIssuesOf } from "../specs/spec-publication.ts";
 import { stoppedSpecs } from "../specs/label-filters.ts";
 import { tickedText } from "../specs/spec-ticks.ts";
+import type { Case } from "../../../workflow-kit/load.ts";
+import type { Action, TaskText } from "../workers/claim-rules.ts";
+import type { Issue } from "../specs/spec-publication.ts";
+import type { Proposal } from "../specs/plan-quality.ts";
+import { found } from "./view-shapes.ts";
+import type { World } from "./workflow-kit-world.ts";
+
+type Files = Record<string, string>;
+// A case as its case.json reads, for the fields this adapter and the
+// scenario runner use (workflow-kit/README.md documents each).
+export interface KitCase extends Case {
+  runner: {
+    login: string;
+    defaultBranch: string;
+    specsBranch?: string;
+    staleHours?: number;
+  };
+  runners: Record<string, string>;
+  origin: {
+    branches: string[];
+    behind?: string[];
+    mergedPullHeads?: string[];
+    leases?: Record<string, { generation: number; ageHours: number }[]>;
+    claimAgeHours?: Record<string, number>;
+    taskFiles?: Record<string, string[]>;
+    graph: Record<string, string[]>;
+    heads: Record<string, string>;
+  };
+  history?: {
+    commit: string;
+    files: Files;
+    author: string;
+    mergedBy?: string;
+    signer?: string;
+  }[];
+  issues?: Record<string, string[]>;
+  approvers?: string[];
+  approvalTrust?: string;
+  stops?: string[];
+  resume: { task: string; runners: string[] };
+  land: {
+    task: string;
+    mode: string;
+    pr?: string;
+    checks: string;
+    baseMoved?: boolean;
+    claim?: {
+      start: string;
+      head: string;
+      pull?: { merged: boolean; head: string };
+    };
+  };
+  push: { branch: string; by: { runner: string; head: string }[] };
+  revision: { task: string; lease: TaskText };
+  manual: { task: string };
+  writers?: string[];
+  issueList?: Issue[];
+  expect: Record<string, unknown> & {
+    claim?: Record<string, unknown>;
+    specIssues?: Record<string, unknown>;
+  };
+  actions: Action[];
+  repository?: { deleteBranchOnMerge?: boolean };
+  landing?: { mode?: string; pr?: string };
+  steps?: { runner: string; do: string; [key: string]: unknown }[];
+  then: Record<string, unknown> & {
+    leaseHolder?: Record<string, unknown>;
+    leases?: Record<string, unknown>;
+  };
+}
+// What the ready list and a claim read: a scenario builds this view of its
+// world for each runner.
+export interface ReadyCase {
+  runner: KitCase["runner"];
+  origin: { branches: string[]; behind?: string[]; mergedPullHeads?: string[] };
+  issues?: KitCase["issues"];
+  stops?: string[];
+  history?: KitCase["history"];
+  approvers?: string[];
+  approvalTrust?: string;
+  expect?: KitCase["expect"];
+}
+// The fields a case reads, by spec name, then file.
+export type Specs = Record<string, Files>;
+
+// The meta rows Avoozl's catch-up keeps, held in memory.
+export class MetaStore {
+  values = new Map<string, unknown>();
+  getMeta<T = unknown>(key: string): T | null {
+    // The value is whatever setMeta stored under the key.
+    return (this.values.get(key) as T | undefined) ?? null;
+  }
+  setMeta(key: string, value: unknown) {
+    this.values.set(key, value);
+  }
+}
 
 // The rule number in docs/github-workflow.md that each lint code enforces.
 // A code with no entry is reported as itself, so the case shows it.
-const RULE = {
+const RULE: Record<string, string> = {
   "spec.tasks-twice": "1.2",
   "task.duplicate-id": "2.2",
   "task.repeated-id": "2.2",
@@ -45,8 +140,8 @@ const RULE = {
   "link.children": "6.4",
 };
 
-export const specsOf = (files) => {
-  const specs = {};
+export const specsOf = (files: Files) => {
+  const specs: Specs = {};
   for (const [file, text] of Object.entries(files)) {
     const match = /^\.kiro\/specs\/([^/]+)\/(.+)$/.exec(file);
     if (match) (specs[match[1]] ??= {})[match[2]] = text;
@@ -55,7 +150,7 @@ export const specsOf = (files) => {
 };
 
 // Every spec of a case, so a spec group reaches into the spec it links.
-export const linkedOf = (specs) =>
+export const linkedOf = (specs: Specs) =>
   linkedReader(
     Object.entries(specs).map(([name, files]) => ({
       name,
@@ -63,8 +158,8 @@ export const linkedOf = (specs) =>
     })),
   );
 
-function violations(specs) {
-  const out = {},
+function violations(specs: Specs) {
+  const out: Record<string, string[]> = {},
     linked = linkedOf(specs);
   for (const [name, files] of Object.entries(specs)) {
     const { diagnostics } = lintSpec({
@@ -89,12 +184,14 @@ function violations(specs) {
 // signature, and `author` the login the commit's author email names.
 // `specHash` hashes the text without checkbox marks, so a tick changes
 // nothing. A case with no history has every spec approved.
-export async function approved(testCase, specs) {
-  if (!testCase.history)
+export async function approved(testCase: ReadyCase, specs: Specs) {
+  const history = testCase.history;
+  if (!history)
     return Object.fromEntries(Object.keys(specs).map((name) => [name, true]));
-  const commits = new Map(
-      testCase.history.map((entry) => [entry.commit, entry]),
-    ),
+  // Each commit's pull request is numbered by its place in the history.
+  const commits = new Map(history.map((entry) => [entry.commit, entry])),
+    numbered = (number: number) => found(history[number - 1], `#${number}`),
+    entry = (sha: string) => found(commits.get(sha), sha),
     allowed = approverCheck({
       repository: { allowedActors: testCase.approvers },
       repositoryName: "acme/widget",
@@ -103,25 +200,32 @@ export async function approved(testCase, specs) {
         available: () => true,
         permission: async () => ({ permission: "none" }),
         commitPullRequests: async (_repository, sha) =>
-          commits.get(sha)?.mergedBy ? [{ number: sha, merged_at: "now" }] : [],
-        pullRequest: async (_repository, sha) => ({
+          commits.get(sha)?.mergedBy
+            ? [
+                {
+                  number: history.findIndex((item) => item.commit === sha) + 1,
+                  merged_at: "now",
+                },
+              ]
+            : [],
+        pullRequest: async (_repository, number) => ({
           merged: true,
-          merge_commit_sha: sha,
-          merged_by: { login: commits.get(sha).mergedBy },
+          merge_commit_sha: numbered(number).commit,
+          merged_by: { login: numbered(number).mergedBy },
         }),
         commit: async (_repository, sha) => ({
-          author: { login: commits.get(sha).author },
-          committer: { login: commits.get(sha).signer ?? "web-flow" },
+          author: { login: entry(sha).author },
+          committer: { login: entry(sha).signer ?? "web-flow" },
           commit: {
-            verification: { verified: Boolean(commits.get(sha).signer) },
+            verification: { verified: Boolean(entry(sha).signer) },
           },
         }),
       },
     }),
-    state = {},
-    approvedHash = {},
-    last = {};
-  for (const commit of testCase.history)
+    state: Specs = {},
+    approvedHash: Record<string, string> = {},
+    last: Record<string, string> = {};
+  for (const commit of history)
     for (const [name, files] of Object.entries(specsOf(commit.files))) {
       state[name] = { ...state[name], ...files };
       const hash = specHash(state[name]);
@@ -146,12 +250,12 @@ export async function approved(testCase, specs) {
 // Ready tasks as `spec/task`, best first. Avoozl's parser reads each spec and
 // its ranking function counts the tasks each one unblocks. Claims, assignees
 // and ticks are applied here, as the repository's state names them.
-export async function ready(testCase, specs) {
+export async function ready(testCase: ReadyCase, specs: Specs) {
   const login = testCase.runner.login,
     branches = new Set(testCase.origin.branches),
-    leaves = [],
-    ticked = new Set(),
-    edges = [],
+    leaves: (Proposal & { spec: string })[] = [],
+    ticked = new Set<string>(),
+    edges: { from: string; to: string }[] = [],
     linked = linkedOf(specs);
   for (const name of Object.keys(specs).sort()) {
     const parsed = parseSpec({
@@ -160,7 +264,8 @@ export async function ready(testCase, specs) {
       files: specs[name],
       linked,
     });
-    for (const item of parsed.items) if (item.mark === "x") ticked.add(item.id);
+    for (const item of parsed.items)
+      if (item.mark === "x" && item.id) ticked.add(item.id);
     for (const task of parsed.proposals) {
       if (task.kind !== "leaf") continue;
       leaves.push({ ...task, spec: name });
@@ -172,7 +277,7 @@ export async function ready(testCase, specs) {
     isApproved = await approved(testCase, specs),
     merged = new Set(testCase.origin.mergedPullHeads ?? []),
     // Rule 8.3: the spec's issue and every parent spec's that links it.
-    assigned = (name) => {
+    assigned = (name: string): boolean => {
       const who = testCase.issues?.[name];
       return (
         who?.length === 1 &&
@@ -203,29 +308,29 @@ export async function ready(testCase, specs) {
 
 // An origin whose refs create call refuses a ref it already has, and keeps
 // each one it makes.
-export function origin(testCase) {
+export function origin(testCase: Pick<ReadyCase, "origin">) {
   const branches = new Set(testCase.origin.branches),
     behind = new Set(testCase.origin.behind ?? []);
   return {
-    merged: [],
-    branch: async (_repository, name) => {
+    merged: [] as string[],
+    branch: async (_repository: string, name: string) => {
       if (!branches.has(name))
         throw Object.assign(Error("Not Found"), { status: 404 });
       return { commit: { sha: "base" } };
     },
-    compareCommits: async (_repository, branch) => ({
+    compareCommits: async (_repository: string, branch: string) => ({
       ahead_by: behind.has(branch) ? 1 : 0,
     }),
-    async mergeBranch(_repository, { base }) {
+    async mergeBranch(_repository: string, { base }: { base: string }) {
       this.merged.push(base);
       behind.delete(base);
     },
-    createBranch: async (_repository, name) => {
+    createBranch: async (_repository: string, name: string) => {
       if (branches.has(name))
         throw Object.assign(Error("exists"), { status: 422 });
       branches.add(name);
     },
-    branchesUnder: async (_repository, prefix) =>
+    branchesUnder: async (_repository: string, prefix: string) =>
       [...branches]
         .filter((name) => name.startsWith(prefix))
         .map((name) => ({ ref: `refs/heads/${name}` })),
@@ -233,7 +338,7 @@ export function origin(testCase) {
 }
 
 // The resume: the runners of one login try Avoozl's lease call in turn.
-async function resume(testCase) {
+async function resume(testCase: KitCase) {
   const key = testCase.resume.task,
     [spec, id] = key.split("/");
   return resumeClaim(origin(testCase), {
@@ -251,25 +356,23 @@ async function resume(testCase) {
 // integration branch rule picks, caught up first. `raw` returns the claim
 // as Avoozl makes it, with its head and lease, for the scenario runner.
 export async function claim(
-  testCase,
-  specs,
-  order,
-  github = origin(testCase),
+  testCase: ReadyCase,
+  specs: Specs,
+  order: string[],
+  github: ReturnType<typeof origin> | ReturnType<World["github"]> = origin(
+    testCase,
+  ),
   { raw = false } = {},
 ) {
   const linked = linkedOf(specs),
-    meta = new Map(),
-    store = {
-      getMeta: (key) => meta.get(key),
-      setMeta: (k, v) => meta.set(k, v),
-    },
+    store = new MetaStore(),
     candidates = order.map((name) => {
       const [spec, id] = name.split("/");
       return { task: { id, planId: spec }, repository: { github: "o/r" } };
     }),
     fallback = testCase.runner.defaultBranch,
     claimed = await claimFirst(github, candidates, {
-      baseOf: async ({ task }) => {
+      baseOf: async ({ task }: { task: { planId: string } }) => {
         const base = await integrationBase(task.planId, {
           linked,
           exists: (name) => testCase.origin.branches.includes(name),
@@ -289,9 +392,11 @@ export async function claim(
     ? {
         branch: claimed.branch,
         base: claimed.base,
-        mergeBase: github.merged.includes(claimed.base),
+        mergeBase: "merged" in github && github.merged.includes(claimed.base),
         // The lease a case names: only cases about lease numbers ask.
-        ...("lease" in testCase.expect.claim ? { lease: claimed.lease } : {}),
+        ...("lease" in (testCase.expect?.claim ?? {})
+          ? { lease: claimed.lease }
+          : {}),
       }
     : null;
 }
@@ -299,7 +404,7 @@ export async function claim(
 // The landing: Avoozl's landing step for the case's task, on the base its
 // integration branch rule picks; landed work is ticked on the specs branch
 // when the runner names one, else on that base.
-async function landing(testCase, specs) {
+async function landing(testCase: KitCase, specs: Specs) {
   const { land, runner } = testCase,
     base = await integrationBase(land.task.split("/")[0], {
       linked: linkedOf(specs),
@@ -323,7 +428,7 @@ async function landing(testCase, specs) {
 }
 
 // Rule 10.1: the specs the case's stop labels stop.
-const stoppedOf = (testCase, specs) =>
+const stoppedOf = (testCase: Pick<ReadyCase, "stops">, specs: Specs) =>
   stoppedSpecs(
     Object.keys(specs),
     new Set(testCase.stops ?? []),
@@ -332,25 +437,29 @@ const stoppedOf = (testCase, specs) =>
 
 // Rule 14.6: whether an integration branch holds the task file of the
 // task's own spec. A branch missing from `origin.taskFiles` holds them all.
-const holds = (testCase, branch, task) =>
+const holds = (testCase: KitCase, branch: string, task: string) =>
   testCase.origin.taskFiles?.[branch]?.includes(task.split("/")[0]) ?? true;
 
 // Rule 16.5: whether the case's claim holds landed work, from its commit
 // graph and the base's head.
-const landed = (testCase, base) =>
-  Boolean(testCase.land.claim) &&
-  landedWork({
-    graph: testCase.origin.graph,
-    start: testCase.land.claim.start,
-    head: testCase.land.claim.head,
-    baseHead: testCase.origin.heads[base],
-    pull: testCase.land.claim.pull,
-  });
+const landed = (testCase: KitCase, base: string) => {
+  const claimed = testCase.land.claim;
+  return (
+    claimed !== undefined &&
+    landedWork({
+      graph: testCase.origin.graph,
+      start: claimed.start,
+      head: claimed.head,
+      baseHead: testCase.origin.heads[base],
+      pull: claimed.pull,
+    })
+  );
+};
 
 // Rule 15.8: each runner's push to the claim branch is accepted only when it
 // moves the branch forward. Rule 10.2: a holder makes no push while the
 // task's spec is stopped.
-function push(testCase, specs) {
+function push(testCase: KitCase, specs: Specs) {
   const { branch, by } = testCase.push,
     head = testCase.origin.heads?.[branch],
     held = stoppedOf(testCase, specs).has(branch.split("/")[1]);
@@ -367,7 +476,7 @@ function push(testCase, specs) {
 }
 
 // Rule 15.10: the lease's recorded text against the task's text in the spec.
-function revision(testCase, specs) {
+function revision(testCase: KitCase, specs: Specs) {
   const [spec, id] = testCase.revision.task.split("/"),
     task = parseSpec({
       name: spec,
@@ -375,11 +484,11 @@ function revision(testCase, specs) {
       files: specs[spec],
       linked: linkedOf(specs),
     }).proposals.find((item) => item.id === id);
-  return taskRevision(testCase.revision.lease, task);
+  return taskRevision(testCase.revision.lease, found(task, id));
 }
 
 // Rule 4.1: the branch a person ticks a manual task on.
-async function manualTick(testCase, specs) {
+async function manualTick(testCase: KitCase, specs: Specs) {
   const base = await integrationBase(testCase.manual.task.split("/")[0], {
     linked: linkedOf(specs),
     exists: (name) => testCase.origin.branches.includes(name),
@@ -396,10 +505,11 @@ async function manualTick(testCase, specs) {
 
 // Rule 8.2: each spec's issue, by Avoozl's marker reader, where a writer is
 // a login the case lists in `writers`; and the newer duplicates it closes.
-function specIssues(testCase) {
+function specIssues(testCase: KitCase) {
   const writers = new Set(testCase.writers ?? []),
-    { specs, duplicates } = specIssuesOf(testCase.issueList, (issue) =>
-      writers.has(issue.author),
+    { specs, duplicates } = specIssuesOf(
+      testCase.issueList,
+      (issue) => issue.author !== undefined && writers.has(issue.author),
     );
   return {
     specIssues: Object.fromEntries(
@@ -412,15 +522,18 @@ function specIssues(testCase) {
   };
 }
 
-export async function avoozl(testCase) {
-  const specs = specsOf(testCase.files),
-    got = {};
+export async function avoozl(read: Case) {
+  // The case.json shape is the kit's contract; the reader keeps it as JSON.
+  const testCase = read as KitCase,
+    specs = specsOf(testCase.files),
+    got: Record<string, unknown> = {};
   if (testCase.expect.violations) got.violations = violations(specs);
   if (testCase.expect.approved) got.approved = await approved(testCase, specs);
-  if (testCase.expect.ready || testCase.expect.claim)
-    got.ready = await ready(testCase, specs);
-  if (testCase.expect.claim)
-    got.claim = await claim(testCase, specs, got.ready);
+  if (testCase.expect.ready || testCase.expect.claim) {
+    const list = await ready(testCase, specs);
+    got.ready = list;
+    if (testCase.expect.claim) got.claim = await claim(testCase, specs, list);
+  }
   if (testCase.expect.resume) got.resume = await resume(testCase);
   if (testCase.expect.landing) got.landing = await landing(testCase, specs);
   if ("landed" in testCase.expect)

@@ -464,7 +464,11 @@ export async function resumeClaim(
 // head before it, so it is not a fast-forward and is rejected. A rejected
 // takeover reads the head again and pushes on top of it. Returns the
 // takeover commit.
-export async function pushTakeover(root, branch, { env, tries = 3 } = {}) {
+export async function pushTakeover(
+  root,
+  branch,
+  { env, tries = 3 }: { env?: NodeJS.ProcessEnv; tries?: number } = {},
+) {
   const options = env ? { env } : {};
   for (let attempt = 1; ; attempt++) {
     await remoteGit(root, ["fetch", "-q", "origin", branch], options);

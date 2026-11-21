@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The world a workflow kit scenario runs in: a bare local git repository as
 // origin, and a fake GitHub API over it. Branches, leases and pull requests
 // are real refs and commits, so a rejected push is git's own answer. Nothing
@@ -12,7 +11,7 @@ export const REPOSITORY = "o/r";
 
 // Identity and settings for every git command the world and Avoozl's own
 // code run, so a developer's global git configuration changes nothing.
-export const GIT_ENV = {
+export const GIT_ENV: NodeJS.ProcessEnv = {
   ...process.env,
   GIT_AUTHOR_NAME: "Kit",
   GIT_AUTHOR_EMAIL: "kit@example.com",
@@ -24,7 +23,11 @@ export const GIT_ENV = {
   GIT_TERMINAL_PROMPT: "0",
 };
 
-export function gitSync(cwd, args, { env = GIT_ENV } = {}) {
+export function gitSync(
+  cwd: string,
+  args: string[],
+  { env = GIT_ENV }: { env?: NodeJS.ProcessEnv } = {},
+) {
   return execFileSync("git", args, {
     cwd,
     env,
@@ -33,10 +36,31 @@ export function gitSync(cwd, args, { env = GIT_ENV } = {}) {
   }).trim();
 }
 
-const refused = (message, status) =>
+const refused = (message: string, status: number) =>
   Object.assign(new Error(message), { status });
 
+// A pull request the world holds.
+interface WorldPull {
+  number: number;
+  head: string;
+  base: string;
+  draft: boolean;
+  merged: boolean;
+  openedBy: string;
+  mergedBy?: string;
+  headSha?: string;
+  mergeCommit?: string;
+}
+
 export class World {
+  defaultBranch: string;
+  deleteBranchOnMerge: boolean;
+  dir: string;
+  origin: string;
+  // Who made each ref, and the commits GitHub signed, by sha.
+  creators: Map<string, string>;
+  signed: Map<string, string>;
+  pulls: WorldPull[];
   // `files` is the tree of the default branch, by path. Every other name in
   // `branches` starts at the default branch's head.
   constructor({
@@ -44,6 +68,11 @@ export class World {
     branches = [],
     defaultBranch = "main",
     deleteBranchOnMerge = false,
+  }: {
+    files: Record<string, string>;
+    branches?: string[];
+    defaultBranch?: string;
+    deleteBranchOnMerge?: boolean;
   }) {
     this.defaultBranch = defaultBranch;
     this.deleteBranchOnMerge = deleteBranchOnMerge;
@@ -80,7 +109,7 @@ export class World {
         ]);
   }
 
-  git(args) {
+  git(args: string[]) {
     return gitSync(this.origin, args);
   }
 
@@ -89,13 +118,13 @@ export class World {
   }
 
   // A checkout of origin for one runner.
-  clone(name) {
+  clone(name: string) {
     const dir = path.join(this.dir, "runners", name);
     gitSync(this.dir, ["clone", "-q", this.origin, dir]);
     return dir;
   }
 
-  has(ref) {
+  has(ref: string) {
     try {
       this.git(["rev-parse", "--verify", "--quiet", `refs/heads/${ref}`]);
       return true;
@@ -104,7 +133,7 @@ export class World {
     }
   }
 
-  head(branch) {
+  head(branch: string) {
     return this.git(["rev-parse", "--verify", `refs/heads/${branch}`]);
   }
 
@@ -143,7 +172,7 @@ export class World {
   }
 
   // The file tree under `.kiro/specs` of a branch, by path.
-  specFiles(branch) {
+  specFiles(branch: string) {
     const names = this.git([
       "ls-tree",
       "-r",
@@ -170,14 +199,14 @@ export class World {
 
   // The GitHub API as one actor sees it. `actor` names who made each ref and
   // who merged each pull request.
-  github(actor, login = actor) {
+  github(actor: string, login = actor) {
     const world = this;
     return {
-      async branch(_repository, name) {
+      async branch(_repository: string, name: string) {
         if (!world.has(name)) throw refused("Not Found", 404);
         return { commit: { sha: world.head(name) } };
       },
-      async createBranch(_repository, name, sha) {
+      async createBranch(_repository: string, name: string, sha: string) {
         if (world.has(name)) throw refused("Reference already exists", 422);
         try {
           world.git(["update-ref", `refs/heads/${name}`, sha, ""]);
@@ -186,13 +215,14 @@ export class World {
         }
         world.creators.set(name, actor);
       },
-      async deleteBranch(_repository, name) {
+      async deleteBranch(_repository: string, name: string) {
         if (!world.has(name)) throw refused("Reference does not exist", 422);
         world.git(["update-ref", "-d", `refs/heads/${name}`]);
       },
-      branchesUnder: async (_repository, prefix) => world.refs(prefix),
+      branchesUnder: async (_repository: string, prefix: string) =>
+        world.refs(prefix),
       // `ahead_by` counts the commits `head` has that `base` lacks.
-      async compareCommits(_repository, base, head) {
+      async compareCommits(_repository: string, base: string, head: string) {
         return {
           ahead_by: Number(
             world.git([
@@ -208,7 +238,7 @@ export class World {
       },
       // The commit's time and, for a commit GitHub made, its verified
       // signature.
-      async commit(_repository, sha) {
+      async commit(_repository: string, sha: string) {
         const date = world.git(["show", "-s", "--format=%cI", sha]),
           signer = world.signed.get(sha) ?? null;
         return {
@@ -220,7 +250,14 @@ export class World {
           },
         };
       },
-      async createPullRequest(_repository, { head, base, draft = false }) {
+      async createPullRequest(
+        _repository: string,
+        {
+          head,
+          base,
+          draft = false,
+        }: { head: string; base: string; draft?: boolean },
+      ) {
         const number = world.pulls.length + 1;
         world.pulls.push({
           number,
@@ -232,13 +269,17 @@ export class World {
         });
         return { number };
       },
-      async pullRequest(_repository, number) {
+      async pullRequest(_repository: string, number: number) {
         return world.pull(number);
       },
       // GitHub merges a pull request only at the head the caller names. A
       // merge makes a commit GitHub signs, and the repository can delete the
       // head branch afterward, but never its lease refs.
-      async mergePullRequest(_repository, number, { sha }) {
+      async mergePullRequest(
+        _repository: string,
+        number: number,
+        { sha }: { sha?: string },
+      ) {
         const pull = world.pulls[number - 1],
           head = world.head(pull.head);
         if (pull.merged) throw refused("Already merged", 405);
@@ -275,7 +316,7 @@ export class World {
     };
   }
 
-  pull(number) {
+  pull(number: number) {
     const pull = this.pulls[number - 1];
     return {
       number,
@@ -288,7 +329,7 @@ export class World {
     };
   }
 
-  openPull(head) {
+  openPull(head: string) {
     return this.pulls.find((pull) => pull.head === head && !pull.merged);
   }
 }

@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 import { defaultJob, fixedCredentials } from "./github-credentials.ts";
 // A fake GitHub behind the real GitHubClient: the client's `fetch` is
 // answered here, so its pacer, conditional requests and rate handling run
@@ -6,14 +5,86 @@ import { defaultJob, fixedCredentials } from "./github-credentials.ts";
 // GraphQL, write). Every value is fake; nothing reaches the network.
 import { createHash } from "node:crypto";
 import { GitHubClient } from "../github/github.ts";
+import { found } from "./view-shapes.ts";
 
-const json = (value, status = 200, headers = {}) =>
+// An issue or pull request as GitHub's REST API returns it, for the fields
+// this fake keeps. A label or assignee may be a bare name.
+export interface ApiItem {
+  number: number;
+  title: string;
+  body: string;
+  state: string;
+  user: { login: string };
+  author_association: string;
+  labels: (string | { name: string })[];
+  assignees: (string | { login: string })[];
+  comments: number;
+  created_at: string;
+  updated_at: string;
+  html_url: string;
+  pull_request?: { url: string };
+  head?: string;
+  branch?: string;
+  changedFiles?: number;
+  additions?: number;
+  deletions?: number;
+  merged?: boolean;
+  checks?: string[];
+  [key: string]: unknown;
+}
+interface ApiComment {
+  id: number;
+  number: number;
+  body: string;
+  login: string;
+  at?: string;
+  association?: string;
+}
+// A write's JSON body, for the fields this fake reads.
+interface WriteBody {
+  body?: string;
+  labels?: string[];
+  assignees?: string[];
+  event?: string;
+  comments?: unknown[];
+  [key: string]: unknown;
+}
+type Kind = "rest" | "notModified" | "graphql" | "writes";
+const nameOf = (label: string | { name: string }) =>
+  typeof label === "string" ? label : label.name;
+
+const json = (
+  value: unknown,
+  status = 200,
+  headers: Record<string, string> = {},
+) =>
   new Response(value === null ? "" : JSON.stringify(value), {
     status,
     headers: { "content-type": "application/json", ...headers },
   });
 
+// Headers the client sent as a plain object; any other form reads as none.
+function plainHeaders(
+  headers: RequestInit["headers"],
+): Record<string, string | readonly string[]> {
+  return headers && !(headers instanceof Headers) && !Array.isArray(headers)
+    ? headers
+    : {};
+}
+
 export class FakeGitHubApi {
+  repository: string;
+  remaining: number;
+  items: Map<number, ApiItem>;
+  comments: ApiComment[];
+  reviews: Record<string, unknown>[];
+  files: Map<number, { filename: string }[]>;
+  permissions: Map<string, string>;
+  repoLabels: string[];
+  writes: Record<string, unknown>[];
+  calls: Record<Kind, number>;
+  log: { method: string; path: string; kind: Kind }[];
+  clock: number;
   constructor({ repository = "o/app", remaining = 4000 } = {}) {
     this.repository = repository;
     this.remaining = remaining;
@@ -41,9 +112,9 @@ export class FakeGitHubApi {
   }
 
   // An issue or pull request; `pr` makes it a pull request.
-  add(number, extra = {}) {
+  add(number: number, extra: Record<string, unknown> = {}) {
     const at = this.tick();
-    const item = {
+    const item: ApiItem = {
       number,
       title: `Item ${number}`,
       body: `Body of ${number}.`,
@@ -60,27 +131,39 @@ export class FakeGitHubApi {
     };
     if (extra.pr) {
       item.pull_request = { url: "x" };
-      item.head = extra.head ?? `head-${number}`;
-      item.changedFiles = extra.changedFiles ?? 1;
-      item.additions = extra.additions ?? 10;
-      item.deletions = extra.deletions ?? 2;
+      item.head =
+        typeof extra.head === "string" ? extra.head : `head-${number}`;
+      item.changedFiles =
+        typeof extra.changedFiles === "number" ? extra.changedFiles : 1;
+      item.additions =
+        typeof extra.additions === "number" ? extra.additions : 10;
+      item.deletions =
+        typeof extra.deletions === "number" ? extra.deletions : 2;
     }
     delete item.pr;
     this.items.set(number, item);
     return item;
   }
 
-  edit(number, change) {
-    Object.assign(this.items.get(number), change, { updated_at: this.tick() });
+  edit(number: number, change: Partial<ApiItem>) {
+    Object.assign(found(this.items.get(number)), change, {
+      updated_at: this.tick(),
+    });
   }
 
-  client({ job = "check-in", ...options } = {}) {
+  client({
+    job = "check-in",
+    ...options
+  }: {
+    job?: string;
+    timeoutMs?: number;
+  } = {}) {
     return defaultJob(
       job,
       new GitHubClient({
         credentials: fixedCredentials("test-token"),
         apiUrl: "https://api.example.test",
-        fetch: (url, init) => this.fetch(new URL(url), init),
+        fetch: (url, init) => this.fetch(new URL(String(url)), init),
         ...options,
       }),
     );
@@ -95,11 +178,11 @@ export class FakeGitHubApi {
     };
   }
 
-  async fetch(url, init = {}) {
+  async fetch(url: URL, init: RequestInit = {}) {
     const method = init.method || "GET",
-      body = init.body ? JSON.parse(init.body) : null,
+      body = typeof init.body === "string" ? JSON.parse(init.body) : null,
       graph = url.pathname === "/graphql",
-      kind =
+      kind: Kind =
         method === "GET"
           ? "rest"
           : graph && /^\s*(query\b|\{)/.test(body?.query || "")
@@ -110,7 +193,7 @@ export class FakeGitHubApi {
     const answer = graph
       ? this.graphql(body)
       : method === "GET"
-        ? this.get(url, init.headers || {})
+        ? this.get(url, plainHeaders(init.headers))
         : this.write(method, url, body);
     if (answer.status === 304) this.calls.notModified += 1;
     for (const [key, value] of Object.entries(this.headers()))
@@ -120,7 +203,7 @@ export class FakeGitHubApi {
 
   // ---- REST reads ----------------------------------------------------------
 
-  get(url, headers) {
+  get(url: URL, headers: Record<string, string | readonly string[]>) {
     const parts = url.pathname.split("/").filter(Boolean),
       [, , , section, number, sub] = parts;
     if (section === "issues" && !number) return this.list(url, headers);
@@ -158,7 +241,7 @@ export class FakeGitHubApi {
     return json({ message: "Not Found" }, 404);
   }
 
-  list(url, headers) {
+  list(url: URL, headers: Record<string, string | readonly string[]>) {
     const state = url.searchParams.get("state") || "open",
       since = url.searchParams.get("since"),
       perPage = Number(url.searchParams.get("per_page") || 30),
@@ -188,7 +271,7 @@ export class FakeGitHubApi {
 
   // ---- GraphQL ---------------------------------------------------------------
 
-  checks(item) {
+  checks(item: ApiItem) {
     return {
       nodes: [
         {
@@ -209,7 +292,7 @@ export class FakeGitHubApi {
     };
   }
 
-  node(item) {
+  node(item: ApiItem) {
     const pull = Boolean(item.pull_request);
     return {
       __typename: pull ? "PullRequest" : "Issue",
@@ -225,10 +308,12 @@ export class FakeGitHubApi {
       authorAssociation: item.author_association,
       author: { login: item.user.login },
       labels: {
-        nodes: item.labels.map((label) => ({ name: label.name ?? label })),
+        nodes: item.labels.map((label) => ({ name: nameOf(label) })),
       },
       assignees: {
-        nodes: item.assignees.map((user) => ({ login: user.login ?? user })),
+        nodes: item.assignees.map((user) => ({
+          login: typeof user === "string" ? user : user.login,
+        })),
       },
       timelineItems: {
         nodes: this.comments
@@ -264,9 +349,15 @@ export class FakeGitHubApi {
     };
   }
 
-  graphql({ query, variables }) {
+  graphql({
+    query,
+    variables,
+  }: {
+    query: string;
+    variables: { number?: number };
+  }) {
     if (/issueOrPullRequest/.test(query)) {
-      const item = this.items.get(variables.number);
+      const item = this.items.get(Number(variables.number));
       return json({
         data: {
           repository: { issueOrPullRequest: item ? this.node(item) : null },
@@ -277,7 +368,7 @@ export class FakeGitHubApi {
       ...query.matchAll(/p(\d+): pullRequest\(number: (\d+)\)/g),
     ];
     if (aliases.length) {
-      const repository = {};
+      const repository: Record<string, unknown> = {};
       for (const [, alias, number] of aliases) {
         const item = this.items.get(Number(number));
         repository[`p${alias}`] = item
@@ -318,7 +409,7 @@ export class FakeGitHubApi {
           reviewDecision: null,
           autoMergeRequest: null,
           labels: {
-            nodes: item.labels.map((label) => ({ name: label.name ?? label })),
+            nodes: item.labels.map((label) => ({ name: nameOf(label) })),
           },
           closingIssuesReferences: { nodes: [] },
           files: { totalCount: item.changedFiles, nodes: [] },
@@ -343,11 +434,13 @@ export class FakeGitHubApi {
 
   // ---- Writes ------------------------------------------------------------------
 
-  write(method, url, body) {
+  write(method: string, url: URL, body: WriteBody) {
     const parts = url.pathname.split("/").filter(Boolean),
       [, , , section, number, sub, extra] = parts,
       item = this.items.get(Number(number));
-    const record = (entry) => {
+    // A write to an item the test never added is the test's own mistake.
+    const target = () => found(item, `item ${number}`);
+    const record = (entry: Record<string, unknown>) => {
       this.writes.push(entry);
       if (item) item.updated_at = this.tick();
     };
@@ -355,7 +448,7 @@ export class FakeGitHubApi {
       const comment = {
         id: this.comments.length + 1,
         number: Number(number),
-        body: body.body,
+        body: String(body.body),
         login: "owner",
         at: this.tick(),
         association: "OWNER",
@@ -372,33 +465,36 @@ export class FakeGitHubApi {
       );
     }
     if (section === "issues" && sub === "labels" && method === "POST") {
-      const names = new Set(item.labels.map((label) => label.name ?? label));
-      for (const name of body.labels) names.add(name);
-      item.labels = [...names].map((name) => ({ name }));
+      const labeled = target(),
+        names = new Set(labeled.labels.map(nameOf));
+      for (const name of body.labels ?? []) names.add(name);
+      labeled.labels = [...names].map((name) => ({ name }));
       record({ kind: "labels", number: Number(number), labels: body.labels });
-      return json(item.labels);
+      return json(labeled.labels);
     }
     if (section === "issues" && sub === "labels" && method === "DELETE") {
-      const name = decodeURIComponent(extra);
-      item.labels = item.labels.filter(
-        (label) => (label.name ?? label) !== name,
+      const name = decodeURIComponent(extra),
+        unlabeled = target();
+      unlabeled.labels = unlabeled.labels.filter(
+        (label) => nameOf(label) !== name,
       );
       record({ kind: "unlabel", number: Number(number), label: name });
       return json([]);
     }
     if (section === "issues" && sub === "assignees" && method === "POST") {
-      item.assignees = body.assignees.map((login) => ({ login }));
+      const assigned = target();
+      assigned.assignees = (body.assignees ?? []).map((login) => ({ login }));
       record({
         kind: "assign",
         number: Number(number),
         assignees: body.assignees,
       });
-      return json(item);
+      return json(assigned);
     }
     if (section === "issues" && !sub && method === "PATCH") {
-      Object.assign(item, body);
+      const updated = Object.assign(target(), body);
       record({ kind: "update", number: Number(number), ...body });
-      return json(item);
+      return json(updated);
     }
     if (section === "pulls" && sub === "reviews" && method === "POST") {
       const review = {
