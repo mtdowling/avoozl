@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Verify (design §4.26, R86.6, R86.7): what Avoozl checks on a worker's
 // commit before it lands. The diff against the task's base must stay inside
 // the task's declared `paths`; a diff that touches a protected path waits for
@@ -6,9 +5,59 @@
 // worktree when that worktree is at the commit. check-runs.mjs runs these
 // off the tick; delivery judges the record they leave.
 import { PUBLISH_RULES, secretReason } from "../content/content-rules.ts";
-import { baseRef, commandEvidence, git, taskGit } from "../git/git.ts";
+import {
+  baseRef,
+  type CommandRecord,
+  commandEvidence,
+  git,
+  taskGit,
+} from "../git/git.ts";
 import { checkOptions, prepareChecks } from "../workspace/check-isolation.ts";
-import { fail } from "../store/store.ts";
+import { fail, type Store } from "../store/store.ts";
+
+// A declared check: {name, argv}, a plugin check, or a bare argv.
+export type Check =
+  | string[]
+  | {
+      name: string;
+      argv: string[];
+      source?: string;
+      plugin?: { id: string };
+      timeoutSeconds?: number;
+      [key: string]: unknown;
+    };
+// One check's result.
+export interface CheckRecord {
+  name?: string;
+  command?: string;
+  exitCode: number | null;
+  notRun?: string;
+  isolation?: unknown;
+  durationMs?: number;
+  tail?: string;
+  [key: string]: unknown;
+}
+// The repository flow settings these rules read (flow.ts readFlowPolicy).
+interface FlowVerify {
+  verify?: {
+    protectedPaths?: readonly string[];
+    checkTimeouts?: Readonly<Record<string, unknown>>;
+    checkTimeoutSeconds?: number;
+  };
+}
+// A repository whose checks run (check-isolation.ts).
+interface CheckRepository {
+  id?: string;
+  root?: string;
+  baseBranch?: string;
+  isolation?: unknown;
+  checksEnv?: readonly string[];
+}
+// What a command run left, as a check reads it.
+type Ran = Pick<
+  CommandRecord,
+  "exitCode" | "signal" | "stdout" | "stderr" | "isolation"
+>;
 
 // Protected by default in every repository (R86.6): CI workflows and the
 // worktree helper a person approved by hash (R83.4).
@@ -21,10 +70,10 @@ const TAIL_LINES = 20;
 const TAIL_CHARS = 2000;
 const ALLOW = "protected-allow";
 
-const normal = (file) =>
+const normal = (file: unknown) =>
   String(file).replace(/\\/g, "/").replace(/^\.\//, "").replace(/\/+$/, "");
 
-function globSource(pattern) {
+function globSource(pattern: string) {
   let out = "";
   for (let i = 0; i < pattern.length; i++) {
     const c = pattern[i];
@@ -44,7 +93,7 @@ function globSource(pattern) {
 // Whether a repository-relative file matches one path pattern: `*` and `?`
 // within one segment, `**` across segments, and a plain path names that file
 // or everything under that folder.
-export function matchesPath(pattern, file) {
+export function matchesPath(pattern: unknown, file: unknown) {
   const p = normal(pattern),
     f = normal(file);
   if (!p) return false;
@@ -52,11 +101,16 @@ export function matchesPath(pattern, file) {
   return new RegExp(`^${globSource(p)}(?:/.*)?$`).test(f);
 }
 
-const anyMatch = (patterns, file) => patterns.some((p) => matchesPath(p, file));
+const anyMatch = (patterns: readonly string[], file: string) =>
+  patterns.some((p) => matchesPath(p, file));
 
 // Every path the commit adds, changes or removes since it left `baseBranch`
 // (its local branch, else the remote's tracking copy), renames as both sides.
-export async function changedPaths(root, baseBranch, head) {
+export async function changedPaths(
+  root: string,
+  baseBranch: string,
+  head: string,
+) {
   const base = await git(root, [
       "merge-base",
       await baseRef(root, baseBranch),
@@ -75,7 +129,13 @@ export async function changedPaths(root, baseBranch, head) {
 
 // The two path rules over a changed list. A task with no declared paths has
 // no outside rule; protected paths always apply.
-export function pathVerdict(changed, { declared = [], protectedPaths = [] }) {
+export function pathVerdict(
+  changed: string[],
+  {
+    declared = [],
+    protectedPaths = [],
+  }: { declared?: string[]; protectedPaths?: readonly string[] },
+) {
   const guarded = [...DEFAULT_PROTECTED_PATHS, ...protectedPaths];
   return {
     changed: changed.length,
@@ -88,13 +148,26 @@ export function pathVerdict(changed, { declared = [], protectedPaths = [] }) {
 
 // The paths a run's head may touch: the task's own. A task that declares
 // none has no path rule.
-const declaredPaths = (task) => task.paths || [];
+const declaredPaths = (task: { paths?: string[] }) => task.paths || [];
 
 // The path verdict for one run, with a person's allowance for this exact
 // commit applied: an allowed commit's protected paths no longer hold it.
-export async function verifyPaths(store, { task, repository, commit, flow }) {
+export async function verifyPaths(
+  store: Store,
+  {
+    task,
+    repository,
+    commit,
+    flow,
+  }: {
+    task: { id: string; paths?: string[] };
+    repository: CheckRepository;
+    commit: string;
+    flow?: FlowVerify | null;
+  },
+) {
   const { base, paths } = await changedPaths(
-      repository.root,
+      String(repository.root),
       repository.baseBranch || "main",
       commit,
     ),
@@ -118,7 +191,12 @@ export async function verifyPaths(store, { task, repository, commit, flow }) {
 // What a finished run's paths mean before its checks count, or null:
 // outside declared paths fails the writer's attempt; a protected path holds
 // the delivery for a person without spending an attempt.
-export function pathOutcome(run) {
+export function pathOutcome(
+  run:
+    | { paths?: { outside?: string[]; protected?: string[] } }
+    | null
+    | undefined,
+) {
   const paths = run?.paths;
   if (paths?.outside?.length)
     return {
@@ -136,16 +214,22 @@ export function pathOutcome(run) {
 // A check's own timeout in ms: `verify.checkTimeouts` by the check's name
 // (a key written as its command text still matches), else the caller's,
 // else `verify.checkTimeoutSeconds`.
-export function checkTimeout(name, flow, fallbackMs, command = name) {
+export function checkTimeout(
+  name: string,
+  flow: FlowVerify | null | undefined,
+  fallbackMs?: number,
+  command = name,
+) {
   const timeouts = flow?.verify?.checkTimeouts,
     own = timeouts?.[name] ?? timeouts?.[command];
-  if (Number.isInteger(own)) return own * 1000;
-  if (Number.isInteger(fallbackMs)) return fallbackMs;
+  if (typeof own === "number" && Number.isInteger(own)) return own * 1000;
+  if (typeof fallbackMs === "number" && Number.isInteger(fallbackMs))
+    return fallbackMs;
   return (flow?.verify?.checkTimeoutSeconds ?? 1200) * 1000;
 }
 
 // One output line as it may be stored: a secret or a home path never is.
-function redactLine(line, dir) {
+function redactLine(line: string, dir: string) {
   if (secretReason(line)) return "[redacted]";
   if (
     PUBLISH_RULES.some((r) => r.category === "secret" && r.pattern.test(line))
@@ -158,7 +242,7 @@ function redactLine(line, dir) {
     .replace(/\b[A-Za-z]:\\+Users\\+[^\\\s]+\\+/g, "~\\");
 }
 
-export function outputTail(text, dir = "\u0000") {
+export function outputTail(text: unknown, dir = "\u0000") {
   const lines = String(text || "")
     .split(/\r?\n/)
     .filter((line) => line.trim())
@@ -172,7 +256,7 @@ export function outputTail(text, dir = "\u0000") {
 // failure, else its first line, redacted and cut to 200 characters; null
 // when the check carries no text. Reads only what the check already holds
 // (a GitHub check run's output, a status description, a local run's tail).
-export function firstErrorLine(...texts) {
+export function firstErrorLine(...texts: unknown[]) {
   const lines = texts
     .flatMap((text) => String(text ?? "").split(/\r?\n/))
     .map((line) => line.trim())
@@ -185,7 +269,7 @@ export function firstErrorLine(...texts) {
 
 // The last `lines` lines of output, redacted like a check's tail, for a log
 // excerpt sent back to a worker.
-export function outputExcerpt(text, dir = "\u0000", lines = 200) {
+export function outputExcerpt(text: unknown, dir = "\u0000", lines = 200) {
   return String(text || "")
     .split(/\r?\n/)
     .filter((line) => line.trim())
@@ -195,8 +279,12 @@ export function outputExcerpt(text, dir = "\u0000", lines = 200) {
 }
 
 // Why a check that ended without an exit code did not run (R38.1).
-function notRunCause(result, elapsed, timeoutMs) {
-  if (result.signal && elapsed >= timeoutMs)
+function notRunCause(
+  result: Partial<Ran>,
+  elapsed: number,
+  timeoutMs: number | undefined,
+) {
+  if (result.signal && timeoutMs !== undefined && elapsed >= timeoutMs)
     return `timed out after ${Math.round(timeoutMs / 1000)} s`;
   if (result.signal) return `stopped by ${result.signal}`;
   return (
@@ -207,7 +295,7 @@ function notRunCause(result, elapsed, timeoutMs) {
 }
 
 // Each check (a {name, argv} or a bare argv) recorded as not run, for `why`.
-export const notRunChecks = (checks, why) =>
+export const notRunChecks = (checks: Check[], why: string): CheckRecord[] =>
   checks.map((check) => {
     const argv = Array.isArray(check) ? check : check.argv;
     return {
@@ -225,12 +313,30 @@ export const notRunChecks = (checks, why) =>
 // in the repository's isolation (check-isolation.mjs); a failed prepare runs
 // no check.
 export async function runEach(
-  dir,
-  checks,
-  { timeoutFor, run = commandEvidence, env, repository, plugin } = {},
-) {
-  const out = [],
-    notRunAll = (why) => notRunChecks(checks, why.slice(0, 300));
+  dir: string,
+  checks: Check[],
+  {
+    timeoutFor,
+    run = commandEvidence,
+    env,
+    repository,
+    plugin,
+  }: {
+    timeoutFor: (name: string, command: string, ownSeconds?: number) => number;
+    run?: (
+      dir: string,
+      argv: string[],
+      options: Parameters<typeof commandEvidence>[2],
+    ) => Promise<CommandRecord>;
+    env?: readonly string[];
+    repository?: CheckRepository | null;
+    plugin?:
+      | ((check: Check, dir: string, timeoutMs: number) => Promise<CheckRecord>)
+      | null;
+  },
+): Promise<CheckRecord[]> {
+  const out: CheckRecord[] = [],
+    notRunAll = (why: string) => notRunChecks(checks, why.slice(0, 300));
   if (repository && checks.length) {
     const ready = await prepareChecks(repository, dir, {
       run: run === commandEvidence ? undefined : run,
@@ -247,7 +353,7 @@ export async function runEach(
     // A plugin check runs through `plugin(check, dir, timeoutMs)`
     // (plugin-check-run.mjs): its own command, environment, network and
     // listener watch (plugin-checks D4).
-    if (check?.source === "plugin") {
+    if (!Array.isArray(check) && check?.source === "plugin") {
       out.push(
         plugin
           ? await plugin(
@@ -257,7 +363,7 @@ export async function runEach(
             )
           : {
               name: check.name,
-              command: `plugin ${check.plugin.id}`,
+              command: `plugin ${check.plugin?.id}`,
               exitCode: null,
               notRun: "plugin checks run only in Avoozl's check runs",
             },
@@ -281,14 +387,22 @@ export async function runEach(
 
 // One finished command as a check result: the isolation it ran under, its
 // exit code or why it did not run, its time and its redacted tail.
-export function checkResult(result, elapsed, timeoutMs, dir) {
+export function checkResult(
+  result: Partial<Ran>,
+  elapsed: number,
+  timeoutMs: number | undefined,
+  dir: string,
+) {
   const tail = outputTail(
     (result.stdout || "") + "\n" + (result.stderr || ""),
     dir,
   );
   return {
     ...(result.isolation !== undefined ? { isolation: result.isolation } : {}),
-    exitCode: Number.isInteger(result.exitCode) ? result.exitCode : null,
+    exitCode:
+      typeof result.exitCode === "number" && Number.isInteger(result.exitCode)
+        ? result.exitCode
+        : null,
     ...(Number.isInteger(result.exitCode)
       ? {}
       : { notRun: notRunCause(result, elapsed, timeoutMs) }),
@@ -299,13 +413,25 @@ export function checkResult(result, elapsed, timeoutMs, dir) {
 
 // The task worktree, when checks may run warm in it: it is at `commit` and
 // has no tracked change a check could mix into the result. Null otherwise.
-export async function warmWorktree(store, taskId, commit) {
-  const worktree = store.get("task_worktrees", taskId);
+export async function warmWorktree(
+  store: Store,
+  taskId: string,
+  commit: string,
+) {
+  const worktree = store.get<{
+    id: string;
+    path?: string;
+    repository?: string;
+  }>("task_worktrees", taskId);
   if (!worktree?.path) return null;
   try {
-    const inTask = (args) =>
-        taskGit(worktree.path, args, {
-          checkout: store.get("repositories", worktree.repository)?.root,
+    const path = worktree.path,
+      inTask = (args: string[]) =>
+        taskGit(path, args, {
+          checkout: store.get<{ id: string; root?: string }>(
+            "repositories",
+            worktree.repository,
+          )?.root,
         }),
       head = await inTask(["rev-parse", "HEAD"]),
       dirty = await inTask(["status", "--porcelain", "--untracked-files=no"]);
@@ -315,7 +441,7 @@ export async function warmWorktree(store, taskId, commit) {
   }
 }
 
-function protectedAllowance(store, taskId, commit) {
+function protectedAllowance(store: Store, taskId: string, commit: string) {
   try {
     return store.get("flow_records", `${ALLOW}:${taskId}:${commit}`) || null;
   } catch {
@@ -326,10 +452,28 @@ function protectedAllowance(store, taskId, commit) {
 // A person lets one exact commit's protected paths land (R86.6): the
 // delivery leaves its decision and the next tick checks that commit again.
 // Never a session's.
+// A delivery held for a person, as this check reads it.
+interface HeldDelivery {
+  id: string;
+  taskId: string;
+  state?: string;
+  commit?: string;
+  verifications?: { outcome?: string; commit?: string; cause?: string }[];
+  [key: string]: unknown;
+}
+
 export function allowProtectedPaths(
-  store,
-  input = {},
-  { caller = null, mcp = false, local = false } = {},
+  store: Store,
+  input: { reason?: unknown; taskId?: unknown } = {},
+  {
+    caller = null,
+    mcp = false,
+    local = false,
+  }: {
+    caller?: { sessionKey?: unknown } | null;
+    mcp?: boolean;
+    local?: boolean;
+  } = {},
 ) {
   if (mcp || caller?.sessionKey)
     fail("Only a person lets a protected path land.", 403);
@@ -337,12 +481,19 @@ export function allowProtectedPaths(
   if (!reason || reason.length > 300)
     fail("Say why in at most 300 characters.");
   return store.transaction(() => {
-    const delivery = store.get("task_deliveries", String(input.taskId || ""));
+    const delivery = store.get<HeldDelivery>(
+      "task_deliveries",
+      String(input.taskId || ""),
+    );
     if (!delivery) fail(`${input.taskId} has no delivery.`, 404);
     const held = (delivery.verifications || []).findLast(
       (v) => v.outcome === "protected",
     );
-    if (delivery.state !== "decision" || held?.commit !== delivery.commit)
+    if (
+      !held ||
+      delivery.state !== "decision" ||
+      held.commit !== delivery.commit
+    )
       fail(`${delivery.taskId} is not held for a protected path.`, 409);
     const at = new Date().toISOString(),
       record = {
