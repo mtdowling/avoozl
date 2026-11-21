@@ -69,6 +69,17 @@ const CONTEXT_RELAY = fileURLToPath(
 );
 const stamp = () => new Date().toISOString();
 
+// The package.json paths Node reads to find a module's type: each folder
+// above `file` up to the first that has one.
+function packageLookups(file) {
+  const out = [];
+  for (let dir = path.dirname(file); ; dir = path.dirname(dir)) {
+    const candidate = path.join(dir, "package.json");
+    out.push(candidate);
+    if (fs.existsSync(candidate) || path.dirname(dir) === dir) return out;
+  }
+}
+
 export function supervisorPaths(stateDirectory) {
   if (typeof stateDirectory !== "string" || !stateDirectory)
     fail("The machine state directory is required for the supervisor.");
@@ -953,7 +964,15 @@ export function openSupervisor({
           ...(settings.readable ?? []),
           ...(context?.readable ?? []),
           // The relay and the node that runs it, and the config naming it.
-          ...(contextMcp ? [CONTEXT_RELAY, process.execPath] : []),
+          // Node reads the package.json files above a .ts file for its
+          // module type, so those stay readable too.
+          ...(contextMcp
+            ? [
+                CONTEXT_RELAY,
+                ...packageLookups(CONTEXT_RELAY),
+                process.execPath,
+              ]
+            : []),
         ],
         sockets: contextMcp ? [contextMcp.socket] : [],
         network: sandboxNetwork(
