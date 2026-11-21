@@ -218,6 +218,8 @@ export class Operations {
     at: number;
     policy: ReturnType<typeof readGitHubPolicyOrNull>;
   } | null;
+  // The plugin loader (plugins.ts).
+  plugins: unknown;
   constructor(
     store: Store,
     {
