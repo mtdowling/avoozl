@@ -1,12 +1,15 @@
-// @ts-nocheck: typing debt
 // The OTLP exporter's memory queue (spec otel-export, OT10.3): at most 500
 // items, an item being one trace or up to 100 points. When it is full the
 // oldest item goes. Nothing here does I/O.
 export const MAX_ITEMS = 500;
 const POINTS_PER_ITEM = 100;
 
+export type QueueItem =
+  | { type: "trace"; trace: unknown; units: number; sealed?: boolean }
+  | { type: "points"; points: unknown[]; units: number; sealed?: boolean };
+
 export function createQueue(max = MAX_ITEMS) {
-  const items = [];
+  const items: QueueItem[] = [];
   // Drop the oldest item that is not in flight; returns the units it held.
   function overflow() {
     let dropped = 0;
@@ -19,11 +22,11 @@ export function createQueue(max = MAX_ITEMS) {
   }
   return {
     // Each returns the number of traces or points dropped to make room.
-    addTrace(trace) {
+    addTrace(trace: unknown) {
       items.push({ type: "trace", trace, units: 1 });
       return overflow();
     },
-    addPoint(point) {
+    addPoint(point: unknown) {
       const last = items.at(-1);
       if (
         last?.type === "points" &&
@@ -38,12 +41,12 @@ export function createQueue(max = MAX_ITEMS) {
       return overflow();
     },
     // The oldest `count` items, sealed so that they stop growing.
-    take(count) {
+    take(count: number) {
       const taken = items.slice(0, count);
       for (const item of taken) item.sealed = true;
       return taken;
     },
-    remove(taken) {
+    remove(taken: QueueItem[]) {
       for (const item of taken) {
         const at = items.indexOf(item);
         if (at >= 0) items.splice(at, 1);

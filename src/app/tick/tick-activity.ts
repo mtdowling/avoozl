@@ -1,10 +1,18 @@
-// @ts-nocheck: typing debt
 // What the tick tells Activity and Needs you about its own health. A tick
 // that fails, stalls past its interval, or recovers writes one Activity row
 // (source "tick"). A run of identical failures is one row whose count grows,
 // not one row per tick. A tick that works writes nothing. Three failures in
 // a row open a Needs you item that clears when a tick works.
 import { recordActivity, removeActivity } from "../store/activity-log.ts";
+import type { Store } from "../store/store.ts";
+
+type Health = {
+  failures: number;
+  error: string | null;
+  failedAt: string | null;
+  since: string | null;
+  rowKey: string | null;
+};
 
 const KEY = "tick.health";
 const MINUTE = 60_000;
@@ -15,7 +23,7 @@ const STALL_MS = 10 * MINUTE;
 // Failures in a row before Needs you opens.
 export const NEEDS_YOU_AFTER = 3;
 
-const EMPTY = Object.freeze({
+const EMPTY: Readonly<Health> = Object.freeze({
   failures: 0,
   error: null,
   failedAt: null,
@@ -23,21 +31,27 @@ const EMPTY = Object.freeze({
   rowKey: null,
 });
 
-const tickFailures = (store) => ({
+const tickFailures = (store: Store): Health => ({
   ...EMPTY,
-  ...(store.getMeta(KEY) || {}),
+  ...(store.getMeta<Partial<Health>>(KEY) || {}),
 });
 
 // The first line of the error, short enough for one Activity row.
-const firstLine = (message) =>
+const firstLine = (message: unknown) =>
   String(message || "unknown error")
     .split("\n")[0]
     .trim()
     .slice(0, 120) || "unknown error";
 
-const iso = (ms) => new Date(ms).toISOString();
+const iso = (ms: number) => new Date(ms).toISOString();
 
-function log(store, kind, summary, at, key) {
+function log(
+  store: Store,
+  kind: string,
+  summary: string,
+  at: string,
+  key: string,
+) {
   try {
     return recordActivity(store, {
       source: "tick",
@@ -54,11 +68,15 @@ function log(store, kind, summary, at, key) {
 
 // Called for each run the tick records, with the time of the run before it. `locked`, `held` and `unreadable`
 // runs say nothing about whether the tick works, so they change nothing.
-export function noteTickRun(store, run, previousAt = null) {
+export function noteTickRun(
+  store: Store,
+  run: { outcome?: string; at?: string; error?: unknown },
+  previousAt: string | null = null,
+) {
   if (store.readOnly || (run.outcome !== "ok" && run.outcome !== "error"))
     return;
   const was = tickFailures(store),
-    now = Date.parse(run.at) || Date.now(),
+    now = Date.parse(run.at ?? "") || Date.now(),
     gap = previousAt ? now - Date.parse(previousAt) : 0,
     next = { ...was };
   if (gap > STALL_MS)
@@ -80,7 +98,7 @@ export function noteTickRun(store, run, previousAt = null) {
     // The same message replaces its row with a higher count; a new message
     // starts a new row.
     const summary = `Tick failed${next.failures > 1 ? ` ${next.failures} times in a row` : ""}: ${error}`;
-    if (same) removeActivity(store, was.rowKey);
+    if (same && was.rowKey) removeActivity(store, was.rowKey);
     log(store, "tick.failed", summary, iso(now), next.rowKey);
   } else if (was.failures > 0) {
     log(
@@ -96,7 +114,7 @@ export function noteTickRun(store, run, previousAt = null) {
 }
 
 // Needs you after three failures in a row, until a tick works.
-export function tickFailedItems(store) {
+export function tickFailedItems(store: Store) {
   const h = tickFailures(store);
   if (h.failures < NEEDS_YOU_AFTER) return [];
   return [

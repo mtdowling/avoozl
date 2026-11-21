@@ -310,7 +310,7 @@ export function declaredSources(
       else githubSeen.set(key, row.id);
     } else if (repositories && source.via !== GITHUB_VIA) {
       const repository = repositories.find(
-        (entry: { id: string; github?: string }) =>
+        (entry) =>
           entry.id === source.repository ||
           (entry.github && lower(entry.github) === lower(source.repository)),
       );
