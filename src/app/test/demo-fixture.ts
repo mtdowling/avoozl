@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // A made-up sample workspace for page tests: the Recipe Box specs, a fake
 // GitHub, and a gate that turns every change into a sentence saying what
 // would happen. Built once in a temporary folder; it never opens the
@@ -17,6 +16,30 @@ import { recordActivity } from "../store/activity-log.ts";
 import { emptySnapshot } from "../workspace/workspace.ts";
 import { sampleSpecs } from "./sample-specs.ts";
 import { specsDirectory } from "../specs/specs-path.ts";
+import { found } from "./view-shapes.ts";
+
+// One fake issue or pull request check, as the demo's GitHub holds them.
+interface DemoIssue {
+  number: number;
+  title: string;
+  state: string;
+  html_url: string;
+  url: string;
+  body: string;
+  labels: { name: string }[];
+  assignees: { login: string }[];
+  user: { login: string };
+  updated_at: string;
+  created_at: string;
+  parent?: number;
+}
+interface DemoCheck {
+  name: string;
+  status: string;
+  conclusion: string | null;
+}
+// A read the fake answers: the repository, then a number or ref.
+type Read = (repository?: string, arg?: string | number) => unknown;
 
 // The page's workspace ID for the sample. A catalog ID must start with a
 // letter (host-config.mjs), so no real workspace can have this one.
@@ -40,7 +63,7 @@ export function defaultDemoRoot(tmp = os.tmpdir()) {
 
 // The sample's own paths. Machine settings (plugins, driver, prompts) live
 // inside it too, so nothing reaches the person's settings folder.
-function demoPaths(root) {
+function demoPaths(root: string) {
   return {
     root,
     settings: path.join(root, ".avoozl", "demo-machine"),
@@ -55,7 +78,7 @@ function demoPaths(root) {
 
 // The sample's workspace configuration. Its home is the sample folder, so
 // no machine-wide Avoozl settings are read into it.
-function demoConfig(root) {
+function demoConfig(root: string) {
   return workspaceConfig({
     workspace: root,
     home: root,
@@ -64,7 +87,7 @@ function demoConfig(root) {
 }
 
 // The install receipt, or null when the folder holds no finished sample.
-export function demoReceipt(root) {
+export function demoReceipt(root: string) {
   const config = demoConfig(root);
   if (!fs.existsSync(config.dbPath)) return null;
   const store = new Store(config.dbPath);
@@ -80,7 +103,16 @@ export function demoReceipt(root) {
 // `build` is the sample builder; tests pass one that fails part way.
 export async function installDemo(
   root = defaultDemoRoot(),
-  { now = Date.now(), build = buildDemo } = {},
+  {
+    now = Date.now(),
+    build = buildDemo,
+  }: {
+    now?: number;
+    build?: (
+      root: string,
+      options: { finalRoot: string; now: number },
+    ) => Promise<void>;
+  } = {},
 ) {
   const existing = demoReceipt(root);
   if (existing) return { root, receipt: existing, existing: true };
@@ -113,7 +145,12 @@ export async function installDemo(
 
 // --- Fake GitHub ------------------------------------------------------------
 
-const ISSUE = (number, title, state, extra = {}) => ({
+const ISSUE = (
+  number: number,
+  title: string,
+  state: string,
+  extra: Partial<DemoIssue> = {},
+): DemoIssue => ({
   number,
   title,
   state,
@@ -127,7 +164,14 @@ const ISSUE = (number, title, state, extra = {}) => ({
   created_at: "2026-01-02T10:00:00Z",
   ...extra,
 });
-const PULL = (number, title, head, checks, state = "open", times = {}) => ({
+const PULL = (
+  number: number,
+  title: string,
+  head: string,
+  checks: DemoCheck[],
+  state = "open",
+  times: { created_at?: string; merged_at?: string } = {},
+) => ({
   number,
   title,
   state,
@@ -141,7 +185,7 @@ const PULL = (number, title, head, checks, state = "open", times = {}) => ({
 });
 
 // Leaf titles, from the sample specs' tasks.md.
-const LEAF_TITLES = {
+const LEAF_TITLES: Record<string, string> = {
   "recipe-import.1.1": "Import a recipe from a link",
   "recipe-import.1.2": "Parse ingredients into lines",
   "recipe-import.2.1": "Show import errors in plain words",
@@ -155,7 +199,7 @@ const LEAF_TITLES = {
 };
 const DONE = new Set(["recipe-import.1.1", "recipe-import.1.2"]);
 // Each pull request's checks: passing, failing, and still running.
-const CHECKS = {
+const CHECKS: Record<number, DemoCheck[]> = {
   20: [{ name: "test", status: "COMPLETED", conclusion: "SUCCESS" }],
   21: [{ name: "test", status: "COMPLETED", conclusion: "SUCCESS" }],
   22: [
@@ -171,7 +215,7 @@ const DEMO_INSTANCES = Object.freeze([
   { id: "inst-00000000b002", name: "Juno" },
 ]);
 const DIGEST = "0".repeat(64);
-const releasedBy = (instance, taskId) =>
+const releasedBy = (_instance: string, taskId: string) =>
   renderMarker({
     version: 2,
     taskId,
@@ -208,23 +252,27 @@ function demoGitHubData(now = Date.now()) {
     }),
   ];
   // Who released the claimed issues. #31 has no marker: a person's issue.
-  for (const [number, instance] of [
+  const released: [number, string][] = [
     [4, DEMO_INSTANCES[0].id],
     [30, DEMO_INSTANCES[1].id],
-  ]) {
-    const issue = issues.find((entry) => entry.number === number);
+  ];
+  for (const [number, instance] of released) {
+    const issue = found(issues.find((entry) => entry.number === number));
     issue.body = `${releasedBy(instance, `demo.${number}`)}\n${issue.body}`;
   }
-  const pulls = Object.entries(DEMO_LINKS)
-    .filter(([, link]) => link.pull)
-    .map(([taskId, link]) =>
-      PULL(
-        link.pull,
-        LEAF_TITLES[taskId],
-        `task/${taskId}`,
-        CHECKS[link.pull],
-        DONE.has(taskId) ? "merged" : "open",
-      ),
+  const pulls: (ReturnType<typeof PULL> & { user?: { login: string } })[] =
+    Object.entries(DEMO_LINKS).flatMap(([taskId, link]) =>
+      link.pull === undefined
+        ? []
+        : [
+            PULL(
+              link.pull,
+              LEAF_TITLES[taskId],
+              `task/${taskId}`,
+              CHECKS[link.pull],
+              DONE.has(taskId) ? "merged" : "open",
+            ),
+          ],
     );
   // A contributor's pull request.
   pulls.push({
@@ -301,7 +349,7 @@ export const GITHUB_WRITE_METHODS = Object.freeze([
   "paginateCursor",
 ]);
 
-function refuseWrite(name) {
+function refuseWrite(name: string) {
   return Object.assign(
     Error(`Demo mode: GitHub is fake here, so ${name} wrote nothing.`),
     {
@@ -314,11 +362,12 @@ function refuseWrite(name) {
 // A GitHub client over demoGitHubData(). Reads answer from the sample; a
 // write, a raw call, or any method it does not know is refused.
 export function demoGitHub(sample = demoGitHubData()) {
-  const issue = (n) =>
+  const issue = (n: unknown) =>
     sample.issues.find((i) => i.number === Number(n)) || null;
-  const pull = (n) => sample.pulls.find((p) => p.number === Number(n)) || null;
+  const pull = (n: unknown) =>
+    sample.pulls.find((p) => p.number === Number(n)) || null;
   const open = () => sample.issues.filter((i) => i.state === "open");
-  const reads = {
+  const reads: Record<string, Read> = {
     available: () => true,
     signedIn: () => true,
     rateLimit: async () => ({ remaining: 5000, limit: 5000 }),
@@ -381,15 +430,15 @@ export function demoGitHub(sample = demoGitHubData()) {
     commitStatus: async () => ({ state: "success", statuses: [] }),
   };
   // `calls` names every method asked for, so tests can see no write ran.
-  const calls = [];
+  const calls: string[] = [];
   return new Proxy(
     { demo: true, sample, calls },
     {
       get(target, name) {
-        if (name in target) return target[name];
+        if (name in target) return Reflect.get(target, name);
         if (typeof name !== "string" || name === "then") return undefined;
         if (Object.hasOwn(reads, name))
-          return (...args) => {
+          return (...args: Parameters<Read>) => {
             calls.push(name);
             return reads[name](...args);
           };
@@ -436,7 +485,7 @@ const SAYS = [
   ["activity.settings", "change Activity settings"],
 ];
 
-function demoPreview(operation) {
+function demoPreview(operation: string) {
   const said =
     SAYS.find(([prefix]) => operation.startsWith(prefix))?.[1] ||
     `run ${operation}`;
@@ -444,7 +493,7 @@ function demoPreview(operation) {
 }
 
 // Whether the demo runs an operation for real: only reads of the sample.
-function demoRuns(operation) {
+function demoRuns(operation: string) {
   try {
     return (
       classifyOperation(operation) === "observe" &&
@@ -457,7 +506,7 @@ function demoRuns(operation) {
 
 // An error the backend sends back as the preview. Status 409 so the page
 // treats it like any refused change and shows its sentence.
-export function demoRefusal(operation) {
+export function demoRefusal(operation: string) {
   return Object.assign(Error(demoPreview(operation)), {
     status: 409,
     demo: true,
@@ -468,7 +517,7 @@ export function demoRefusal(operation) {
 // Operations over the sample with no reach outside it: the fake GitHub,
 // no notifier, crew reader, session stopper or driver, and machine
 // settings inside the sample folder.
-export function demoOperations(root) {
+export function demoOperations(root: string) {
   const config = demoConfig(root),
     paths = demoPaths(root),
     store = new Store(config.dbPath);
@@ -480,17 +529,18 @@ export function demoOperations(root) {
     configDirectory: paths.settings,
     pluginSettingsFile: paths.pluginSettingsFile,
     notifier: null,
-    crewReader: null,
     sessionStopper: null,
-    driver: null,
-    models: () => ["demo-model-large", "demo-model-small"],
   });
   const demo = {
     store,
     ops,
     github: ops.github,
     // Reads run; every other operation answers with its preview.
-    async execute(operation, input = {}, expectedRevision) {
+    async execute(
+      operation: string,
+      input: Record<string, unknown> = {},
+      expectedRevision?: number,
+    ) {
       if (!demoRuns(operation)) throw demoRefusal(operation);
       return ops.execute(operation, input, expectedRevision);
     },
@@ -501,17 +551,21 @@ export function demoOperations(root) {
 
 // --- The sample -------------------------------------------------------------
 
-function git(cwd, ...args) {
+function git(cwd: string, ...args: string[]) {
   execFileSync("git", args, { cwd, stdio: "ignore" });
 }
 
-const hoursAgo = (now, hours) => new Date(now - hours * 3600_000).toISOString();
+const hoursAgo = (now: number, hours: number) =>
+  new Date(now - hours * 3600_000).toISOString();
 
 // Build the sample in `root` (the staging folder). Stored paths name
 // `finalRoot`, where the folder lands after the rename.
 export async function buildDemo(
-  root,
-  { finalRoot = root, now = Date.now() } = {},
+  root: string,
+  {
+    finalRoot = root,
+    now = Date.now(),
+  }: { finalRoot?: string; now?: number } = {},
 ) {
   const paths = demoPaths(root);
   fs.mkdirSync(paths.settings, { recursive: true });
@@ -577,7 +631,10 @@ export async function buildDemo(
     // approve path as a person's, inside this throwaway folder only. The
     // epic goes last, after its members. The pantry draft stays a draft.
     for (const name of [...members, "recipe-box"]) {
-      const plan = await ops.execute("plan.create", { spec: name });
+      const plan = await ops.execute<{ id: string; hash: string }>(
+        "plan.create",
+        { spec: name },
+      );
       await ops.execute("plan.approve", {
         id: plan.id,
         expectedHash: plan.hash,
@@ -610,7 +667,9 @@ export async function buildDemo(
 }
 
 // The fake issue and pull request behind each sample leaf.
-export const DEMO_LINKS = Object.freeze({
+export const DEMO_LINKS: Readonly<
+  Record<string, { issue: number; pull?: number }>
+> = Object.freeze({
   "recipe-import.1.1": { issue: 2, pull: 20 },
   "recipe-import.1.2": { issue: 3, pull: 21 },
   "recipe-import.2.1": { issue: 4, pull: 22 },
@@ -624,10 +683,10 @@ export const DEMO_LINKS = Object.freeze({
 });
 
 // Task states, GitHub records, deliveries, intake, and Flow.
-function seedState(store, now) {
-  const at = (h) => hoursAgo(now, h);
+function seedState(store: Store, now: number) {
+  const at = (h: number) => hoursAgo(now, h);
   store.mutate("Demo sample state", (data) => {
-    const states = {
+    const states: Record<string, Record<string, unknown>> = {
       "recipe-import.1.1": { status: "accepted" },
       "recipe-import.1.2": { status: "accepted" },
       "recipe-import.2.1": { status: "review" },
@@ -689,10 +748,11 @@ function seedState(store, now) {
       pull: { url: `https://github.com/${DEMO_REPOSITORY}/pull/22` },
       last: { kinds: ["check"], at: at(1.5), to: "worker" },
     });
-    for (const [n, title, label] of [
+    const intake: [number, string, string][] = [
       [30, "Pantry photos crash the importer", "bug"],
       [31, "Dark mode for the meal grid", "idea"],
-    ])
+    ];
+    for (const [n, title, label] of intake)
       store.put("incoming_items", {
         id: `github\0${DEMO_REPOSITORY}#${n}`,
         source: "github",
@@ -723,11 +783,12 @@ function seedState(store, now) {
     ["recipe-import.1.1", "recipe-import.1.2", review, running].forEach(
       (taskId, i) => {
         const start = now - (30 - i * 6) * 3600_000;
-        for (const [stage, offset, length] of [
+        const stages: [string, number, number][] = [
           ["queued", 0, 0.3],
           ["coding", 0.3, 1.5 + i * 0.4],
           ["tests", 1.8 + i * 0.4, 0.4],
-        ]) {
+        ];
+        for (const [stage, offset, length] of stages) {
           if (taskId === running && stage === "tests") continue;
           const ended =
             taskId === running && stage === "coding"
@@ -779,8 +840,8 @@ function seedState(store, now) {
   });
 }
 
-function seedActivity(store, now) {
-  const rows = [
+function seedActivity(store: Store, now: number) {
+  const rows: [string, string, string, number][] = [
     ["local", "plan.approve", "Approved spec recipe-import", 26],
     [
       "github",
