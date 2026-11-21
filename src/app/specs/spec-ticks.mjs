@@ -59,8 +59,16 @@ export function ticksOf(name, text) {
 // stay byte-identical. A parent is ticked when every child is (Requirement
 // 113.9). `ids` are task IDs as tasks.md names them; returns the text and the
 // IDs it ticked. `file` is the file's name, so a `## Tasks` section is read
-// as the task list.
-export function tickedText(name, text, ids, file = TASKS_FILE) {
+// as the task list. With `groups`, every open group whose children are all
+// ticked is ticked too, as landings on bases that lacked each other's tick
+// can leave one (workflow rule 3.2).
+export function tickedText(
+  name,
+  text,
+  ids,
+  file = TASKS_FILE,
+  { groups = false } = {},
+) {
   const items = specItems(name, taskText(file, text)),
     lines = text.split("\n"),
     ticked = [],
@@ -90,7 +98,8 @@ export function tickedText(name, text, ids, file = TASKS_FILE) {
     for (const parent of keyed) {
       const children = keyed.filter((c) => c.parent?.key === parent.key);
       if (
-        above.has(parent.key) &&
+        (above.has(parent.key) || groups) &&
+        children.length &&
         parent.mark !== "x" &&
         children.every((c) => c.mark === "x")
       ) {
@@ -296,6 +305,27 @@ export function tickedHead(
   });
 }
 
+// Workflow rule 3.2: a group left open on `branch` with every child ticked,
+// as two children landing on bases that lacked each other's tick leave one,
+// is ticked in a commit of its own that changes only its box. `text` is the
+// task list as read on the branch. Pushed once, never forced; a refused push
+// waits for the next read. Returns the IDs it ticked.
+export async function tickOpenGroups(
+  root,
+  { branch, spec, files, text, env, commitPrefix = "" },
+) {
+  if (!tickedText(spec, text, [], TASKS_FILE, { groups: true }).ticked.length)
+    return [];
+  const out = await tickBranch(root, {
+    branch,
+    files: [{ spec, ids: [], file: taskFile(files), groups: true }],
+    tries: 1,
+    env,
+    commitPrefix,
+  });
+  return out?.ticked ?? [];
+}
+
 export async function tickBranch(
   root,
   { branch, files, remote = "origin", tries = 5, env, commitPrefix = "" },
@@ -306,12 +336,18 @@ export async function tickBranch(
     const out = await inDetached(root, base, async (dir) => {
       const ticked = [];
       let found = 0;
-      for (const { spec, ids, file: name = TASKS_FILE } of files) {
+      for (const { spec, ids, file: name = TASKS_FILE, groups } of files) {
         const relative = `${specsPath(dir)}/${spec}/${name}`,
           file = path.join(dir, relative);
         if (!fs.existsSync(file)) continue;
         found += 1;
-        const tick = tickedText(spec, fs.readFileSync(file, "utf8"), ids, name);
+        const tick = tickedText(
+          spec,
+          fs.readFileSync(file, "utf8"),
+          ids,
+          name,
+          { groups },
+        );
         if (!tick.ticked.length) continue;
         fs.writeFileSync(file, tick.text);
         await git(dir, ["add", relative]);

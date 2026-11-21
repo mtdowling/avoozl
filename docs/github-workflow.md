@@ -180,7 +180,10 @@ can run side by side. Task `p-6` waits for both reports.
   every task inside it when that task is a group.
 - **[3.2](github-workflow-scenarios.md#rule-32)** A runner MUST NOT claim or
   work a group. A group's box MUST be ticked when every child is ticked and open
-  otherwise, and a runner MUST refuse a spec where it is not.
+  otherwise, and a runner MUST refuse a spec where it is not. When landings
+  leave a group open with every child ticked, as two children landing on bases
+  that lack each other's tick do, a runner that reads it SHOULD tick the box in
+  a commit of its own that changes only that box.
 - **[3.3](github-workflow-scenarios.md#rule-33)** A group's children run in
   order, unless its title ends with `(**PARALLEL**)`. The children of a tagged
   group run side by side, and each waits for what the group waits for.
