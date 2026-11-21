@@ -33,7 +33,12 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
-import { installHarness, isolatedMachine, proofCommands } from "./machine.ts";
+import {
+  installHarness,
+  isolatedMachine,
+  proofCommands,
+  tickTimer,
+} from "./machine.ts";
 import { ROWS } from "./ms-roles-rows.ts";
 import { realClaude, realCodex } from "./real-claude.ts";
 
@@ -618,7 +623,7 @@ async function prove() {
   // The timer, as launchd, systemd or cron runs it: `avoozl tick` every 10
   // seconds, one after another, each with the agent's credentials in its
   // own environment. No front end runs.
-  const timer = tickTimer(agentEnv(), 10_000);
+  const timer = tickTimer(CLI, P.tickLog, 10_000, agentEnv());
   event("timer.start", { everySeconds: 10 });
   const minutes = AGENT === "fake" ? 8 : 60;
   const expected = {};
@@ -803,29 +808,5 @@ async function prove() {
 
 // Run `avoozl tick` every `everyMs` until stop(), each as its own process that
 // exits after its pass, the way an operating-system timer runs it.
-function tickTimer(env, everyMs) {
-  let stopped = false;
-  const runs = (async () => {
-    while (!stopped) {
-      const out = fs.openSync(P.tickLog, "a");
-      await new Promise((resolve) => {
-        const tick = spawn(process.execPath, [CLI, "tick"], {
-          env,
-          stdio: ["ignore", out, out],
-        });
-        tick.once("exit", resolve);
-        tick.once("error", resolve);
-      });
-      fs.closeSync(out);
-      if (!stopped) await sleep(everyMs);
-    }
-  })();
-  return {
-    stop: async () => {
-      stopped = true;
-      await runs;
-    },
-  };
-}
 
 await prove();
