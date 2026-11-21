@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Direct links to work and decisions (spec direct-links, D1 to D3).
 //
 // A link carries a workspace and a reference to one decision occurrence or
@@ -21,13 +20,48 @@ const CREW_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
 // this after the alert is a newer occurrence.
 const SLACK_MS = 2000;
 
+// The decision reference a notice row keeps.
+interface DecisionReference {
+  id: string;
+  task: string | null;
+  slot: string | null;
+  record: string | null;
+}
+// A notice row, as far as a link resolves it.
+interface NoticeRow {
+  decision?: DecisionReference;
+  queuedAt: string;
+}
+// An open Needs you item.
+interface Item {
+  id?: string;
+  taskId?: string | null;
+  slot?: string;
+  openedAt?: string;
+  [key: string]: unknown;
+}
+// One displayed attempt.
+interface Attempt {
+  slot?: string;
+  crew?: string;
+  status?: string;
+  executor?: string;
+  process?: unknown;
+  crewUnreachable?: boolean;
+  role?: string;
+}
+
 const newDecisionId = () => randomBytes(16).toString("base64url");
 
 // The page path that opens one decision: dashboard-relative, so Kiro Crew
 // and the standalone page resolve it against their own address.
-export function decisionPath(workspaceId, id) {
+export function decisionPath(
+  workspaceId: string | null | undefined,
+  id: string,
+) {
   const query = new URLSearchParams();
-  if (WORKSPACE_ID.test(workspaceId ?? "")) query.set("workspace", workspaceId);
+  if (workspaceId && WORKSPACE_ID.test(workspaceId))
+    query.set("workspace", workspaceId);
   query.set("decision", id);
   return `${APP_PATH}?${query}`;
 }
@@ -36,7 +70,7 @@ export function decisionPath(workspaceId, id) {
 // null. Only the app page with a valid workspace and decision qualifies, so
 // the sign-in redirect that uses it can never leave the page (no open
 // redirect).
-export function pageTarget(url) {
+export function pageTarget(url: URL) {
   if (url.pathname !== APP_PATH && url.pathname !== `${APP_PATH}/`) return null;
   const decision = url.searchParams.get("decision"),
     workspace = url.searchParams.get("workspace");
@@ -47,15 +81,19 @@ export function pageTarget(url) {
 
 // The decision reference a notice row holds: its occurrence ID, the task,
 // session and stable record it names, recorded when the alert is created.
-export const decisionReference = (notice) => ({
+export const decisionReference = (notice: {
+  task?: string | null;
+  slot?: string | null;
+  record?: unknown;
+}): DecisionReference => ({
   id: newDecisionId(),
   task: notice.task ?? null,
   slot: notice.slot ?? null,
-  record: notice.record ?? null,
+  record: (notice.record as string | null | undefined) ?? null,
 });
 
-const after = (item, at) =>
-  Boolean(item.openedAt) && Date.parse(item.openedAt) > at + SLACK_MS;
+const after = (item: Item, at: number) =>
+  Boolean(item.openedAt) && Date.parse(String(item.openedAt)) > at + SLACK_MS;
 
 // Which open Needs you item an alert's link names, from the notice rows and
 // the current items. A row opened after the alert, or a row a newer alert
@@ -63,12 +101,16 @@ const after = (item, at) =>
 // the decision as closed instead of opening a newer one.
 // Returns {state: "open", item} | {state: "closed", taskId, newer} |
 // {state: "unknown"}.
-export function resolveDecision(rows, items, id) {
+export function resolveDecision(
+  rows: NoticeRow[],
+  items: Item[],
+  id: string | null | undefined,
+) {
   const link = DECISION_ID.test(id ?? "")
     ? rows.find((row) => row.decision?.id === id)
     : null;
   if (!link) return { state: "unknown" };
-  const { task, slot, record } = link.decision,
+  const { task, slot, record } = link.decision as DecisionReference,
     at = Date.parse(link.queuedAt);
   const newer = rows.some(
     (row) =>
@@ -98,14 +140,15 @@ export function resolveDecision(rows, items, id) {
 
 // --- Machine settings -------------------------------------------------------
 
-const record = (v) => Boolean(v) && typeof v === "object" && !Array.isArray(v);
+const record = (v: unknown): v is Record<string, unknown> =>
+  Boolean(v) && typeof v === "object" && !Array.isArray(v);
 
-function webAddress(value, where) {
-  let url;
+function webAddress(value: unknown, where: string) {
+  let url: URL;
   try {
-    url = new URL(value);
+    url = new URL(String(value));
   } catch {
-    fail(`${where} is not a URL.`);
+    return fail(`${where} is not a URL.`);
   }
   const loopback = ["127.0.0.1", "localhost", "[::1]"].includes(url.hostname);
   if (url.protocol !== "https:" && !(url.protocol === "http:" && loopback))
@@ -118,13 +161,16 @@ function webAddress(value, where) {
 // `links` in the machine file (never .avoozl.json): where this machine opens
 // a worker chat. {dashboard?, desktop?}.
 // Returns the checked value; throws naming the key.
-export function validateLinks(value, source = "Avoozl configuration") {
+export function validateLinks(
+  value: unknown,
+  source = "Avoozl configuration",
+): { dashboard?: string; desktop?: boolean } {
   if (value === undefined) return {};
   if (!record(value)) fail(`${source}: links must be an object.`);
   for (const key of Object.keys(value))
     if (!["dashboard", "desktop"].includes(key))
       fail(`${source}: links.${key} is not a setting.`);
-  const out = {};
+  const out: { dashboard?: string; desktop?: boolean } = {};
   if (value.dashboard !== undefined)
     out.dashboard = webAddress(value.dashboard, `${source}: links.dashboard`);
   if (value.desktop !== undefined) {
@@ -135,12 +181,12 @@ export function validateLinks(value, source = "Avoozl configuration") {
   return out;
 }
 
-const chatKey = (slot) =>
+const chatKey = (slot: string) =>
   slot.startsWith("dashboard:") ? slot.slice("dashboard:".length) : slot;
 
 // The Kiro Crew route for a chat: the local chat, or the exact chat on a
 // connected Remote Crew (Kiro Crew 0.13 `/chat?crew=&crewSid=`).
-export function chatRoute(slot, crew = null) {
+export function chatRoute(slot: unknown, crew: string | null = null) {
   const key = chatKey(String(slot ?? ""));
   if (!SLOT_KEY.test(key)) return null;
   if (crew && crew !== "local") {
@@ -157,10 +203,17 @@ export function chatRoute(slot, crew = null) {
 // app's registered link. A link names one exact session, so an old link
 // never opens a newer attempt.
 export function attemptDestination(
-  session,
-  { standalone = false, links = {} } = {},
+  session: Attempt,
+  {
+    standalone = false,
+    links = {},
+  }: {
+    standalone?: boolean;
+    links?: { dashboard?: string; desktop?: boolean };
+  } = {},
 ) {
-  const crew = session.crew && session.crew !== "local" ? session.crew : null,
+  const crew: string | null =
+      session.crew && session.crew !== "local" ? session.crew : null,
     machine = crew ?? "this machine",
     ended = ["closed", "lost", "gone"].includes(session.status ?? "");
   if (session.executor === "process")
@@ -196,7 +249,7 @@ export function attemptDestination(
     return {
       action: "chat",
       label: "Open in Kiro Crew",
-      href: `kirocrew://chat?${new URLSearchParams({ sid: chatKey(session.slot) })}`,
+      href: `kirocrew://chat?${new URLSearchParams({ sid: chatKey(String(session.slot)) })}`,
       machine,
     };
   return {

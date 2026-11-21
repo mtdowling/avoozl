@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Report by command line (R88.2, R88.3, design §4.26): a chat or a person runs
 // `avoozl runner report TASK done|blocked` from the task's worktree. Avoozl
 // matches the report to the task by the worktree path and by the report token
@@ -10,8 +9,15 @@ import fs from "node:fs";
 import path from "node:path";
 import { fail } from "../store/store.ts";
 import { listSessionBindings } from "../sessions/session-bindings.ts";
+import type { SessionBinding } from "../sessions/session-bindings.ts";
+import type { Store } from "../store/store.ts";
+import type { Operations } from "../api/operations.ts";
 
-const slotKey = (slot) =>
+// A batch's binding names the tasks its leader reports for.
+type Bound = SessionBinding & { batch?: { tasks?: string[] } };
+type Worktree = { id: string; path?: string };
+
+const slotKey = (slot: string) =>
   slot.startsWith("dashboard:") ? slot.slice("dashboard:".length) : slot;
 const SECRET = "report.secret";
 
@@ -22,10 +28,14 @@ const SECRET = "report.secret";
 // A role other than the worker gets its own token, so one role's token
 // never reports for another.
 export function issueReportToken(
-  store,
-  { taskId, attempt = 1, role = "worker" },
+  store: Store,
+  {
+    taskId,
+    attempt = 1,
+    role = "worker",
+  }: { taskId: string; attempt?: number; role?: string },
 ) {
-  const secret = store.getMeta(SECRET);
+  const secret = store.getMeta<string>(SECRET);
   if (!secret) return null;
   return crypto
     .createHmac("sha256", secret)
@@ -38,7 +48,7 @@ export function issueReportToken(
     .slice(0, 48);
 }
 
-const real = (p) => {
+const real = (p: string) => {
   try {
     return fs.realpathSync(p);
   } catch {
@@ -47,7 +57,7 @@ const real = (p) => {
 };
 
 // True when `cwd` is the worktree or inside it, after symlinks resolve.
-function inside(worktree, cwd) {
+function inside(worktree: string, cwd: string) {
   const root = real(worktree),
     here = real(cwd);
   if (!root || !here) return false;
@@ -57,13 +67,21 @@ function inside(worktree, cwd) {
 
 // The session binding a command-line report speaks for. Every refusal is a 403
 // with one fixed message per cause, and none echoes the token.
-export function matchCliReport(store, { taskId, token, cwd, role = "worker" }) {
-  if (typeof taskId !== "string" || !taskId) fail("Name the task.");
+export function matchCliReport(
+  store: Store,
+  {
+    taskId,
+    token,
+    cwd,
+    role = "worker",
+  }: { taskId?: unknown; token?: unknown; cwd: string; role?: string },
+) {
+  if (typeof taskId !== "string" || !taskId) return fail("Name the task.");
   if (typeof token !== "string" || !/^[0-9a-f]{48}$/.test(token))
     fail("The report token is missing or malformed.", 403);
   // A batch's session is bound to its leader and reports for each member
   // with the leader's token (WP4.1).
-  const binding = listSessionBindings(store)
+  const binding = (listSessionBindings(store) as Bound[])
     .filter(
       (b) =>
         b.role === role &&
@@ -71,13 +89,13 @@ export function matchCliReport(store, { taskId, token, cwd, role = "worker" }) {
     )
     .sort((x, y) => (y.attempt || 0) - (x.attempt || 0))[0];
   if (!binding || !store.getMeta(SECRET))
-    fail("The report token does not match this task.", 403);
+    return fail("The report token does not match this task.", 403);
   const want = Buffer.from(
       issueReportToken(store, {
         taskId: binding.taskId,
         attempt: binding.attempt,
         role,
-      }),
+      }) ?? "",
     ),
     got = Buffer.from(token);
   if (want.length !== got.length || !crypto.timingSafeEqual(want, got))
@@ -85,7 +103,7 @@ export function matchCliReport(store, { taskId, token, cwd, role = "worker" }) {
   // A read role owns no worktree; its token is its own role's, so it is
   // matched by the token alone.
   if (role !== "worker") return binding;
-  const worktree = store.get("task_worktrees", binding.taskId)?.path;
+  const worktree = store.get<Worktree>("task_worktrees", binding.taskId)?.path;
   if (!worktree || !inside(worktree, cwd))
     fail("Run the report from this task's worktree.", 403);
   return binding;
@@ -95,22 +113,26 @@ export function matchCliReport(store, { taskId, token, cwd, role = "worker" }) {
 // line already acts on the database. Matched by the worktree alone, and only
 // for a take this machine's command line made, so a tick-opened chat still
 // needs its token.
-function matchTakeReport(store, { taskId, cwd }) {
-  if (typeof taskId !== "string" || !taskId) fail("Name the task.");
+function matchTakeReport(
+  store: Store,
+  { taskId, cwd }: { taskId?: unknown; cwd: string },
+) {
+  if (typeof taskId !== "string" || !taskId) return fail("Name the task.");
   const binding = listSessionBindings(store)
     .filter((b) => b.taskId === taskId && b.role === "worker")
     .sort((x, y) => (y.attempt || 0) - (x.attempt || 0))[0];
-  if (!binding) fail(`No one has taken ${taskId}. Run avoozl take.`, 409);
+  if (!binding)
+    return fail(`No one has taken ${taskId}. Run avoozl take.`, 409);
   if (binding.conductor !== "cli")
     fail("This task's worker reports with the --token in its brief.", 403);
-  const worktree = store.get("task_worktrees", taskId)?.path;
+  const worktree = store.get<Worktree>("task_worktrees", taskId)?.path;
   if (!worktree || !inside(worktree, cwd))
     fail("Run the report from this task's worktree.", 403);
   return binding;
 }
 
 // The caller identity reportSession reads, built from the matched binding.
-export const cliReportCaller = (binding) => ({
+export const cliReportCaller = (binding: { slot: string }) => ({
   sessionKey: `dashboard:${slotKey(binding.slot)}`,
 });
 
@@ -121,11 +143,33 @@ export const cliReportCaller = (binding) => ({
 // Operations on this workspace's store. The commit of a done report is read
 // from the worktree's HEAD, never taken from the caller.
 export async function reportByToken(
-  store,
-  ops,
-  { taskId, state, token, cwd, text, role = "worker", review = null },
+  store: Store,
+  ops: Operations,
+  {
+    taskId,
+    state,
+    token,
+    cwd,
+    text,
+    role = "worker",
+    review = null,
+  }: {
+    taskId?: unknown;
+    state?: unknown;
+    token?: unknown;
+    cwd: string;
+    text?: string;
+    role?: string;
+    review?: {
+      verdict?: unknown;
+      findings?: unknown;
+      closures?: unknown;
+      text?: unknown;
+    } | null;
+  },
 ) {
-  if (!["done", "blocked"].includes(state)) fail("State is done or blocked.");
+  if (typeof state !== "string" || !["done", "blocked"].includes(state))
+    fail("State is done or blocked.");
   if (role !== "worker" && !/^review:[A-Za-z0-9._-]+$/.test(role))
     fail("--role is worker or review:<id>.");
   if (role !== "worker" && token === undefined)
@@ -151,7 +195,7 @@ export async function reportByToken(
                   ...(review.text === undefined ? {} : { text: review.text }),
                 }
               : {}),
-            commit: await new Promise((resolve, reject) =>
+            commit: await new Promise<string>((resolve, reject) =>
               execFile("git", ["rev-parse", "HEAD"], { cwd }, (error, out) =>
                 error ? reject(error) : resolve(out.trim()),
               ),

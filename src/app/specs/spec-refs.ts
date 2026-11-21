@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Task IDs and the requirement and design refs on a tasks.md item
 // (Requirement 115, design §4.43). A named ID may be bare or a code span.
 // The title may end in `[R91.5, R94.4a]`, the requirements it builds, then
@@ -26,12 +25,13 @@ export const NAMED = /^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)+$/;
 export const LETTERED = /^[A-Z]\d+[a-z]?$/;
 
 // How Avoozl writes an item's ID in tasks.md: a code span (Workflow v1 2.1).
-export const taskToken = (key) => `\`${key}\``;
+export const taskToken = (key: string) => `\`${key}\``;
 // The first entry of a trailing [...] or (...) that is read as refs. Any
 // other trailing brackets are title text.
 const REF_START = /^(?:§|[A-Z]+\d)/;
 const RANGE = /\s*(?:–|\bto\b)\s*/;
-const FORM = {
+type Kind = "requirement" | "design";
+const FORM: Record<Kind, RegExp> = {
   requirement: /^[A-Z]+\d+(?:\.\d+[a-z]?)?$/,
   design: /^(?:§(?:[A-Z]+\d+|\d+)(?:\.\d+)*|F\d+)$/,
 };
@@ -41,7 +41,7 @@ const CRITERION = /^(\d+[a-z]?)\.\s/;
 const FACT_ROW = /^\|\s*(F\d+)\s*\|/;
 const SECTION = /^§?((?:[A-Z]+\d+|\d+)(?:\.\d+)*)\.?(?:\s|$)/;
 
-function trailing(text, open, close) {
+function trailing(text: string, open: string, close: string) {
   if (!text.endsWith(close)) return null;
   const at = text.lastIndexOf(open),
     inner = at < 0 ? "" : text.slice(at + 1, -1);
@@ -58,10 +58,10 @@ const END_TAG = /\s*(\(\*\*(?:MANUAL|PARALLEL)\*\*\))$/;
 // An item's title without its refs, and the refs as written. A tag after the
 // refs stays at the end of the title. `tagBeforeRefs` is set when a tag
 // stands before the refs instead, which lint refuses.
-export function splitRefs(text) {
+export function splitRefs(text: unknown) {
   let title = String(text).trim(),
-    design = [],
-    requirements = [];
+    design: string[] = [],
+    requirements: string[] = [];
   const tag = END_TAG.exec(title);
   if (tag) title = title.slice(0, tag.index);
   const designs = trailing(title, "(", ")");
@@ -76,7 +76,7 @@ export function splitRefs(text) {
 }
 
 // The lines of a text outside code fences, numbered from 1.
-function* unfenced(text) {
+function* unfenced(text: unknown): Generator<[string, number]> {
   let fenced = false,
     line = 0;
   for (const raw of String(text ?? "").split("\n")) {
@@ -90,9 +90,9 @@ function* unfenced(text) {
 }
 
 // Ref -> line, for each ID a requirements file defines.
-export function requirementIds(text) {
-  const ids = new Map();
-  let current = null;
+export function requirementIds(text: unknown) {
+  const ids = new Map<string, number>();
+  let current: { id: string; level: number } | null = null;
   for (const [raw, line] of unfenced(text)) {
     const heading = HEADING.exec(raw);
     if (heading) {
@@ -107,15 +107,15 @@ export function requirementIds(text) {
     const fact = FACT_ROW.exec(raw);
     if (fact) ids.set(fact[1], line);
     const criterion = current && CRITERION.exec(raw);
-    if (criterion && !ids.has(`${current.id}.${criterion[1]}`))
+    if (current && criterion && !ids.has(`${current.id}.${criterion[1]}`))
       ids.set(`${current.id}.${criterion[1]}`, line);
   }
   return ids;
 }
 
 // Ref -> line, for each section and fact a design file defines.
-export function designIds(text) {
-  const ids = new Map();
+export function designIds(text: unknown) {
+  const ids = new Map<string, number>();
   for (const [raw, line] of unfenced(text)) {
     const heading = HEADING.exec(raw),
       section = heading && SECTION.exec(heading[2]),
@@ -126,16 +126,16 @@ export function designIds(text) {
   return ids;
 }
 
-const ENDS = (entry) => {
+const ENDS = (entry: string) => {
   const [first, second, ...extra] = entry.split(RANGE);
   if (extra.length) return null;
   if (second === undefined) return [first];
   // `R47.1–47.6`: the second end takes the first end's letters.
-  const prefix = /^§?[A-Z]*/.exec(first)[0];
+  const prefix = /^§?[A-Z]*/.exec(first)?.[0] ?? "";
   return [first, /^\d/.test(second) ? prefix + second : second];
 };
 
-const WRITE = {
+const WRITE: Record<Kind, string> = {
   requirement:
     "Write a requirement as R12 or R12.3 (DL2 or DL2.3 where its heading is Requirement DL2), or a fact as F13.",
   design:
@@ -145,7 +145,10 @@ const WRITE = {
 // The refs of one item, resolved against the spec's files: each is
 // {kind, ref, file, line}; line is null for a ref that names nothing. A
 // problem is {code, message} for lint.
-export function resolveRefs(item, files) {
+export function resolveRefs(
+  item: { key?: string; refs?: { requirements?: string[]; design?: string[] } },
+  files: Record<string, string | undefined>,
+) {
   const prose =
       files["requirements.md"] !== undefined ? "requirements.md" : "bugfix.md",
     kinds = {
@@ -160,9 +163,12 @@ export function resolveRefs(item, files) {
         ids: designIds(files["design.md"]),
       },
     },
-    refs = [],
-    problems = [];
-  for (const [kind, { entries, file, ids }] of Object.entries(kinds))
+    refs: { kind: Kind; ref: string; file: string; line: number | null }[] = [],
+    problems: { code: string; ref: string; message: string }[] = [];
+  for (const [kind, { entries, file, ids }] of Object.entries(kinds) as [
+    Kind,
+    (typeof kinds)[Kind],
+  ][])
     for (const entry of entries) {
       // Only tasks.md is required: a ref is checked against its file when
       // the spec has one, and names the missing file when it does not.
