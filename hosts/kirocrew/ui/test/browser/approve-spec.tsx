@@ -8,7 +8,7 @@ import type { PlansClient, SpecPlan } from '../../src/plans-api.ts'
 
 const query = new URLSearchParams(location.search)
 document.documentElement.dataset.theme = query.get('theme') ?? 'light'
-const calls = ((window as unknown as { __approveCalls: unknown[] }).__approveCalls = [])
+const calls: unknown[] = ((window as unknown as { __approveCalls: unknown[] }).__approveCalls = [])
 const hash = 'a'.repeat(64)
 const oldHash = 'b'.repeat(64)
 const movedHash = 'c'.repeat(64)
@@ -97,10 +97,14 @@ function Harness() {
     spec: 'fixture-spec',
     title: 'Fixture',
     hash,
+    revision: 2,
+    state: 'draft',
     files: FILES,
+    quality: { canApprove: true, counts: { error: 0, warning: 0, info: 0 }, diagnostics: [] },
+    disk: { folder: '.kiro/specs/fixture-spec', exists: true, hash, changed: false, critique: null },
     approvals: [{ id: 'a1', hash: oldHash, at: 'then', approvedBy: 'person' }],
     history: [{ revision: 1, hash: oldHash, files: OLD_FILES }],
-  } as SpecPlan
+  } satisfies SpecPlan
   const done = (text: string | null) => {
     calls.push({ done: text })
     setOpen(false)

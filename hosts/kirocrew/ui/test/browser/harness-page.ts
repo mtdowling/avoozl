@@ -1,23 +1,38 @@
-// @ts-nocheck: typing debt
 // One headless page on the built harness for a test file: `skip` names why
 // the file is skipped when no Chrome is found; `state.page` is the page once
 // the file's tests run.
 import { after, before } from 'node:test'
-import { buildHarness } from './build.ts'
-import { findChrome, launch } from './chrome.ts'
+import { buildHarness, type Harness } from './build.ts'
+import { findChrome, launch, type Browser, type Page } from './chrome.ts'
 
-export function harnessPage(what) {
+export function harnessPage(what: string) {
   const chrome = findChrome()
-  const state = { skip: chrome ? false : `no Chrome found; set AVOOZL_CHROME to run the ${what} tests` }
+  let harness: Harness | undefined, browser: Browser | undefined, page: Page | undefined
+  // A test reads these only once `before` has made them.
+  const made = <T>(value: T | undefined, name: string): T => {
+    if (value === undefined) throw Error(`No ${name} before the ${what} tests run.`)
+    return value
+  }
   before(async () => {
-    if (state.skip) return
-    state.harness = await buildHarness()
-    state.browser = await launch(chrome)
-    state.page = await state.browser.page()
+    if (!chrome) return
+    harness = await buildHarness()
+    browser = await launch(chrome)
+    page = await browser.page()
   })
   after(async () => {
-    await state.browser?.close()
-    state.harness?.remove()
+    await browser?.close()
+    harness?.remove()
   })
-  return state
+  return {
+    skip: chrome ? false : `no Chrome found; set AVOOZL_CHROME to run the ${what} tests`,
+    get harness() {
+      return made(harness, 'harness')
+    },
+    get browser() {
+      return made(browser, 'browser')
+    },
+    get page() {
+      return made(page, 'page')
+    },
+  }
 }

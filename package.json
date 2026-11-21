@@ -27,7 +27,8 @@
     "nocheck": "node scripts/check/nocheck.ts",
     "format": "biome format --write",
     "format:check": "biome format",
-    "typecheck": "tsc --noEmit -p tsconfig.json"
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "typecheck:ui": "tsc --noEmit -p hosts/kirocrew/ui/tsconfig.json"
   },
   "dependencies": {
     "react": "^19.3.1"

@@ -7,8 +7,9 @@ import { harnessPage } from './browser/harness-page.ts'
 
 const state = harnessPage('content rules guide')
 const { skip } = state
-const wait = (ms) => state.page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
-const reader = (expr) => state.page.evaluate(`(() => { const r = document.querySelector('[data-document-reader]'); return r ? ${expr} : null })()`)
+const wait = (ms: number) => state.page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
+// null while the reader is shut.
+const reader = <T = unknown>(expr: string) => state.page.evaluate<T | null>(`(() => { const r = document.querySelector('[data-document-reader]'); return r ? ${expr} : null })()`)
 
 test('Content rules guide opens docs/content-rules.md in the reader', { skip }, async () => {
   await state.page.open(state.harness.url({ page: 'app', roles: 'single', rules: 'one' }), { width: 1280, height: 900 })
@@ -28,9 +29,9 @@ test('Content rules guide opens docs/content-rules.md in the reader', { skip }, 
   )
   assert.ok(clicked, 'the button is there')
   await state.page.until(`Boolean(document.querySelector('[data-document-reader] [role=heading]'))`)
-  assert.match(await reader('r.textContent'), /docs\/content-rules\.md/)
-  const headings = await reader(`JSON.stringify([...r.querySelectorAll('[role=heading]')].map((h) => h.textContent))`)
-  for (const heading of ['Content rules', 'Rule sets', 'Allow lines']) assert.ok(JSON.parse(headings).includes(heading), heading)
+  assert.match((await reader<string>('r.textContent')) ?? '', /docs\/content-rules\.md/)
+  const headings = await reader<string>(`JSON.stringify([...r.querySelectorAll('[role=heading]')].map((h) => h.textContent))`)
+  for (const heading of ['Content rules', 'Rule sets', 'Allow lines']) assert.ok(JSON.parse(headings ?? '[]').includes(heading), heading)
   assert.equal(await reader(`Boolean([...r.querySelectorAll('button')].find((b) => b.textContent.includes('Reveal')))`), false, 'a bundled file has nothing to reveal')
   await reader(`[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Close').click()`)
   await wait(300)

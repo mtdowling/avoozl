@@ -5,7 +5,7 @@
 // write is recorded in window.__writes as { operation, input, workspaceId }.
 import { answer } from './stubs.tsx'
 
-type Body = { operation?: string; input?: Record<string, unknown>; workspaceId?: string }
+type Body = { operation?: string; input?: unknown; workspaceId?: string }
 const hashOf = (n: number) => `h${n}`
 
 export function installInlineFixture() {
