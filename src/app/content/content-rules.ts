@@ -1936,7 +1936,19 @@ export function pushLines(root, base, head, refs) {
 // {ok, findings, unavailable, notify}, or a 422 in "refuse" mode.
 export function enforceDiff(
   store,
-  { repository, head, taskId, mode = "decide", refs },
+  {
+    repository,
+    head,
+    taskId,
+    mode = "decide",
+    refs,
+  }: {
+    repository: { root: string; [key: string]: unknown };
+    head: string;
+    taskId?: string;
+    mode?: string;
+    refs?: string[];
+  },
 ) {
   const base = diffBase(repository, head),
     added = pushLines(

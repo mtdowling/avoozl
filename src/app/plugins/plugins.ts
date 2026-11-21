@@ -1006,6 +1006,13 @@ export function pluginHost({
   budgetMs = TICK_BUDGET_MS,
   guard = true,
   checkListeners = listeningSockets,
+}: {
+  workspaceRoot?: string | null;
+  settingsFile?: string;
+  timeoutMs?: number;
+  budgetMs?: number;
+  guard?: boolean;
+  checkListeners?: unknown;
 } = {}) {
   const options = { workspaceRoot, settingsFile };
   return {
