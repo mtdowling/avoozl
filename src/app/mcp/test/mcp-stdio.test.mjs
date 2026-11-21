@@ -14,6 +14,8 @@ import { Store } from "../../store/store.mjs";
 import { Operations } from "../../api/operations.mjs";
 import { workspaceConfig } from "../../settings/config.mjs";
 import { ownMachineEnv } from "../../test/own-machine.mjs";
+import { waitFor } from "../../test/fixtures.mjs";
+import { loopLockPaths, readRecord } from "../../executors/pass-lock.mjs";
 
 const CLI = fileURLToPath(new URL("../../../../cli.mjs", import.meta.url));
 
@@ -177,6 +179,8 @@ test("--url and AVOOZL_URL are refused naming avoozl mcp", (t) => {
 
 test("the Kiro Crew cron's tick call runs the pass and returns the chat intents", async (t) => {
   const m = machine(t);
+  const added = m.run(["workspace", "add", "mcp-stdio", "--root", m.workspace]);
+  assert.equal(added.status, 0, added.stderr);
   const replies = await mcp(
     m,
     ["--kirocrew", "--workspace", m.workspace],
@@ -192,5 +196,28 @@ test("the Kiro Crew cron's tick call runs the pass and returns the chat intents"
     "notify",
     "observe",
   ]);
-  assert.ok(fs.existsSync(path.join(m.stateDirectory, "supervisor")));
+  await waitFor(
+    () => fs.existsSync(path.join(m.stateDirectory, "supervisor")),
+    { label: "the detached machine pass to start" },
+  );
+  const holder = await waitFor(
+    () =>
+      readRecord(
+        loopLockPaths(workspaceConfig({ workspace: m.workspace }).dbPath)
+          .record,
+      ),
+    { label: "the detached machine pass to take the workspace lock" },
+  );
+  await waitFor(
+    () => {
+      try {
+        process.kill(holder.pid, 0);
+        return false;
+      } catch (error) {
+        if (error.code === "ESRCH") return true;
+        throw error;
+      }
+    },
+    { timeoutMs: 50_000, label: "the detached machine pass to exit" },
+  );
 });
