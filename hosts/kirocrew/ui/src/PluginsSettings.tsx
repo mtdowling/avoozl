@@ -26,9 +26,9 @@ import { PluginChecksFacts } from './PluginChecks.tsx'
 import { ContextPartFacts } from './ContextPart.tsx'
 import { errorMessage } from './workspace-api.ts'
 import { AskForHelp, DangerBtn, IconLabel, TipBtn } from './ui/controls.tsx'
-import { BookOpen, MessagesSquare, Trash2 } from './icons.ts'
+import { MessagesSquare, Trash2 } from './icons.ts'
 import { useMedia } from './use-media.ts'
-import { DocumentReader } from './DocumentReader.tsx'
+import { GuideButton } from './GuideButton.tsx'
 import { DESIGN_PLUGIN_TIP, PLUGIN_GUIDE, PLUGIN_GUIDE_TIP, pluginDesignMessage } from './design-chat.ts'
 import pluginGuide from '../../../../docs/plugins.md?raw'
 import { ErrorText } from './ui/ErrorText'
@@ -195,7 +195,6 @@ export default function PluginsSettings({ workspaceId }: { workspaceId: string }
   const [acting, setActing] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
   const [note, setNote] = useState<string | null>(null)
-  const [guide, setGuide] = useState(false)
   const { openChat } = useChatLauncher()
   const design = () =>
     openChat({
@@ -222,13 +221,8 @@ export default function PluginsSettings({ workspaceId }: { workspaceId: string }
         <IconLabel icon={MessagesSquare} tooltip={DESIGN_PLUGIN_TIP} onClick={design}>
           Design a plugin
         </IconLabel>
-        <IconLabel icon={BookOpen} tooltip={PLUGIN_GUIDE_TIP} onClick={() => setGuide(true)}>
-          Plugin guide
-        </IconLabel>
+        <GuideButton workspaceId={workspaceId} document={PLUGIN_GUIDE} text={pluginGuide} tooltip={PLUGIN_GUIDE_TIP} label="Plugin guide" />
       </Row>
-      {guide ? (
-        <DocumentReader workspaceId={workspaceId} target={{ document: PLUGIN_GUIDE, lineStart: null, lineEnd: null }} text={pluginGuide} onClose={() => setGuide(false)} />
-      ) : null}
       {error ? <ErrorText size="xs">{error}</ErrorText> : null}
       {actionError ? <ErrorText size="xs">{actionError}</ErrorText> : null}
       {note ? (

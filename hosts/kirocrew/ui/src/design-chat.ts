@@ -3,11 +3,14 @@
 // app's own skill named and the page's context; the person reads the draft
 // before sending it. Kept free of JSX so node can test it directly.
 
-// The guide Plugin guide opens in the full-file reader, bundled into the UI.
+// The guides Plugin guide and Content rules guide open in the full-file
+// reader, bundled into the UI.
 export const PLUGIN_GUIDE = 'docs/plugins.md'
+export const CONTENT_RULES_GUIDE = 'docs/content-rules.md'
 
 export const DESIGN_PLUGIN_TIP = 'Open a chat that helps you plan a plugin and write its files. It approves nothing.'
 export const PLUGIN_GUIDE_TIP = `Read ${PLUGIN_GUIDE}: the plugin contract, parts, sources and approval`
+export const CONTENT_RULES_GUIDE_TIP = `Read ${CONTENT_RULES_GUIDE}: rule sets, terms files, allow lines and where rules check`
 export const DESIGN_RULES_TIP =
   'Open a chat that suggests rules for you to paste here and save. What you type there stays in its transcript, so type truly private words straight into the editor.'
 
