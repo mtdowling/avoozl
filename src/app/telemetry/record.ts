@@ -1,14 +1,35 @@
-// @ts-nocheck: typing debt
 // The recording API (spec otel-export, OT1): the one path every writer of
 // timing calls. Each call is checked against the allowlist, written by the
 // SQLite exporter, and then handed to the other registered exporters. This
 // folder imports nothing from src/app/flow/.
 import crypto from "node:crypto";
-import { createSqliteExporter } from "./sqlite-exporter.ts";
+import {
+  createSqliteExporter,
+  type Row,
+  type SpanRow,
+} from "./sqlite-exporter.ts";
 import { STAGES } from "./stages.ts";
+import type { Store } from "../store/store.ts";
+
+type Kind = "span" | "point" | "export";
+// An exporter after SQLite: each hook is optional and may be async.
+export interface Exporter {
+  name: string;
+  onSpan?(row: Row): unknown;
+  onDropSpan?(row: { key: string }): unknown;
+  onPoint?(row: Row): unknown;
+  onTrace?(trace: {
+    root: Row;
+    spans: SpanRow[];
+    models: Record<string, string>;
+  }): unknown;
+  [key: string]: unknown;
+}
+type SqliteExporter = ReturnType<typeof createSqliteExporter>;
+type Context = { sqlite: SqliteExporter; others: Exporter[] };
 
 // The one table of fields (§D8). No other code adds a field.
-export const FIELDS = Object.freeze({
+export const FIELDS: Readonly<Record<Kind, string[]>> = Object.freeze({
   span: [
     "key",
     "taskId",
@@ -72,44 +93,46 @@ const MAX = 128;
 // A point with no stage span around its time, and a stage of its own.
 export const UNATTRIBUTED = "unattributed";
 
-const fail = (message) => {
+const fail = (message: string): never => {
   throw Error(`Telemetry: ${message}`);
 };
 
-function text(field, value) {
-  if (typeof value !== "string") fail(`${field} must be a string.`);
+function text(field: string, value: unknown): string {
+  if (typeof value !== "string") return fail(`${field} must be a string.`);
   if (!value || value.length > MAX)
     fail(`${field} must be 1 to ${MAX} characters.`);
   if (CONTROL.test(value)) fail(`${field} holds a control character.`);
   return value;
 }
-function time(field, value) {
+function time(field: string, value: unknown) {
   if (!Number.isFinite(Date.parse(text(field, value))))
     fail(`${field} must be a time.`);
-  return value;
+  return value as string;
 }
-function pattern(field, value, regex) {
+function pattern(field: string, value: unknown, regex: RegExp) {
   if (!regex.test(text(field, value)))
     fail(`${field} holds a character that is not allowed.`);
-  return value;
+  return value as string;
 }
-function integer(field, value) {
-  if (!Number.isInteger(value) || value < 0)
+function integer(field: string, value: unknown) {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 0)
     fail(`${field} must be a whole number.`);
-  return value;
+  return value as number;
 }
 
 // One check per field; each returns the value to store.
-const CHECKS = {
+type Check = (value: unknown, extra?: string[]) => unknown;
+const CHECKS: Record<string, Check> = {
   key: (v) => text("key", v),
   id: (v) => text("id", v),
   taskId: (v) => text("taskId", v),
   repo: (v) => text("repo", v),
   spec: (v) => pattern("spec", v, SPEC),
   stage: (v, extra = []) => {
-    text("stage", v);
-    if (![...STAGES, ...extra].includes(v)) fail(`stage ${v} is not known.`);
-    return v;
+    const stage = text("stage", v);
+    if (![...STAGES, ...extra].includes(stage))
+      fail(`stage ${stage} is not known.`);
+    return stage;
   },
   role: (v) => pattern("role", v, NAME),
   harness: (v) => pattern("harness", v, NAME),
@@ -135,8 +158,8 @@ const CHECKS = {
   attrs: (v) => {
     if (!v || typeof v !== "object" || Array.isArray(v))
       fail("attrs must be an object.");
-    const out = {};
-    for (const [key, value] of Object.entries(v)) {
+    const out: Record<string, string | boolean> = {};
+    for (const [key, value] of Object.entries(v as object)) {
       if (!ATTRS.includes(key)) fail(`attrs.${key} is not an allowed field.`);
       if (typeof value === "boolean") out[key] = value;
       else out[key] = text(`attrs.${key}`, value);
@@ -147,11 +170,11 @@ const CHECKS = {
 
 // Refuse an unknown field, and a value its field does not allow. A field set
 // to null or undefined is left out.
-function clean(kind, input) {
+function clean(kind: Kind, input: unknown): Row {
   if (!input || typeof input !== "object" || Array.isArray(input))
     fail(`a ${kind} must be an object.`);
-  const out = {};
-  for (const [field, value] of Object.entries(input)) {
+  const out: Row = {};
+  for (const [field, value] of Object.entries(input as object)) {
     if (!FIELDS[kind].includes(field))
       fail(`${field} is not a field of a ${kind}.`);
     if (value === undefined || value === null) continue;
@@ -163,21 +186,21 @@ function clean(kind, input) {
   return out;
 }
 
-const sha = (...parts) =>
+const sha = (...parts: unknown[]) =>
   crypto.createHash("sha256").update(parts.join("\n")).digest("hex");
 // The first 16 bytes of sha256 over the repository, spec and task (§D7).
-export const traceId = (repo, spec, taskId) =>
+export const traceId = (repo: unknown, spec: unknown, taskId: unknown) =>
   sha("avoozl.trace", repo ?? "", spec ?? "", taskId).slice(0, 32);
 // The row's own ID. The OTLP exporter derives the ID it sends from the key and
 // the instance ID, so a row does not depend on a state file.
-export const spanId = (key) => sha("avoozl.span", key).slice(0, 16);
-export const rootKey = (taskId) => `root:${taskId}`;
+export const spanId = (key: string) => sha("avoozl.span", key).slice(0, 16);
+export const rootKey = (taskId: unknown) => `root:${taskId}`;
 
-const contexts = new WeakMap();
+const contexts = new WeakMap<Store, Context>();
 
 // The recording state of one store: its SQLite exporter, registered first,
 // and the exporters after it.
-function context(store) {
+function context(store: Store): Context {
   let value = contexts.get(store);
   if (!value) {
     value = { sqlite: createSqliteExporter(store), others: [] };
@@ -187,25 +210,31 @@ function context(store) {
 }
 
 // Tests pass small limits or a clock before the first write.
-export function openTelemetry(store, options) {
-  const value = { sqlite: createSqliteExporter(store, options), others: [] };
+export function openTelemetry(
+  store: Store,
+  options?: Parameters<typeof createSqliteExporter>[1],
+) {
+  const value: Context = {
+    sqlite: createSqliteExporter(store, options),
+    others: [],
+  };
   contexts.set(store, value);
   return value;
 }
 
-export const sqliteExporter = (store) => context(store).sqlite;
+export const sqliteExporter = (store: Store) => context(store).sqlite;
 
 // The exporters after SQLite, by name. SQLite cannot be unregistered.
-export const exporters = (store) => [
+export const exporters = (store: Store) => [
   context(store).sqlite,
   ...context(store).others,
 ];
-export function registerExporter(store, exporter) {
+export function registerExporter(store: Store, exporter: Exporter) {
   const { others } = context(store);
   if (exporter.name === "sqlite") fail("sqlite is already registered.");
   if (!others.includes(exporter)) others.push(exporter);
 }
-export function unregisterExporter(store, name) {
+export function unregisterExporter(store: Store, name: string) {
   const value = context(store);
   value.others = value.others.filter((exporter) => exporter.name !== name);
 }
@@ -213,17 +242,24 @@ export function unregisterExporter(store, name) {
 // shortcut: a hook runs inside the caller's transaction, so a rollback after
 // it leaves the other exporter with a record the database lacks; upgrade when
 // an exporter must not see a rolled-back write.
-function notify(store, hook, row) {
+function notify(
+  store: Store,
+  hook: "onSpan" | "onDropSpan" | "onPoint" | "onTrace",
+  row: unknown,
+) {
   for (const exporter of context(store).others) {
     try {
-      const result = exporter[hook]?.(row);
+      const result = (
+        exporter[hook] as ((row: unknown) => unknown) | undefined
+      )?.call(exporter, row) as { catch?: unknown } | undefined;
       // An async hook is not waited for.
-      if (typeof result?.catch === "function") result.catch(() => {});
+      if (typeof result?.catch === "function")
+        (result as Promise<unknown>).catch(() => {});
     } catch {}
   }
 }
 
-const SPAN_FIELD = {
+const SPAN_FIELD: Record<string, string> = {
   taskId: "task_id",
   startedAt: "started_at",
   endedAt: "ended_at",
@@ -231,14 +267,14 @@ const SPAN_FIELD = {
 
 // Record or replace the span of `key`. Returns false when the stored row
 // already holds these values.
-export function span(store, input) {
+export function span(store: Store, input: unknown) {
   const given = clean("span", input);
   for (const field of ["key", "taskId", "stage", "startedAt"])
     if (given[field] === undefined) fail(`a span needs ${field}.`);
-  const row = { name: `avoozl.stage.${given.stage}`, attempt: null };
+  const row: Row = { name: `avoozl.stage.${given.stage}`, attempt: null };
   for (const [field, value] of Object.entries(given))
     row[SPAN_FIELD[field] ?? field] = value;
-  row.span_id = spanId(given.key);
+  row.span_id = spanId(given.key as string);
   row.trace_id = traceId(given.repo, given.spec, given.taskId);
   row.parent_span_id = spanId(rootKey(given.taskId));
   const changed = context(store).sqlite.writeSpan(row);
@@ -246,18 +282,18 @@ export function span(store, input) {
   return changed;
 }
 
-export function dropSpan(store, key) {
+export function dropSpan(store: Store, key: unknown) {
   const removed = context(store).sqlite.removeSpan(text("key", key));
   if (removed) notify(store, "onDropSpan", { key });
   return removed > 0;
 }
 
 // Record one observation by its ID. Returns false for a repeat.
-export function point(store, input) {
+export function point(store: Store, input: unknown) {
   const given = clean("point", input);
   for (const field of ["id", "name", "kind", "value", "at"])
     if (given[field] === undefined) fail(`a point needs ${field}.`);
-  const row = { ...given, task_id: given.taskId };
+  const row: Row = { ...given, task_id: given.taskId };
   delete row.taskId;
   if (given.taskId)
     row.trace_id = traceId(given.repo, given.spec, given.taskId);
@@ -268,21 +304,33 @@ export function point(store, input) {
 }
 
 // The tasks whose root span is recorded.
-export const finishedTasks = (store) =>
-  new Set(
+export const finishedTasks = (store: Store) =>
+  new Set<string>(
     store.db
       .prepare(
         "SELECT task_id FROM telemetry_spans WHERE parent_span_id IS NULL",
       )
       .all()
-      .map((row) => row.task_id),
+      .map((row) => String(row.task_id)),
   );
 
-const seconds = (from, to) => (Date.parse(to) - Date.parse(from)) / 1000;
+const seconds = (from: string, to: string) =>
+  (Date.parse(to) - Date.parse(from)) / 1000;
 
 // Record a task's root span and its task-level points once (§D2). A second
 // call finds the root and records nothing. Returns false for a repeat.
-export function finishTask(store, input) {
+export function finishTask(
+  store: Store,
+  input: {
+    taskId: string;
+    repo?: string | null;
+    spec?: string | null;
+    finishedAt: string;
+    outcome?: string;
+    firstPass?: unknown;
+    manual?: boolean;
+  },
+) {
   const { taskId, repo, spec, finishedAt, outcome, firstPass, manual } = input;
   clean("span", {
     key: rootKey(taskId),
@@ -324,7 +372,7 @@ export function finishTask(store, input) {
     };
     sqlite.writeSpan(root);
     const base = { taskId, repo, spec, at: finishedAt };
-    const attrs = { outcome: done };
+    const attrs: Record<string, string | boolean> = { outcome: done };
     if (pass !== null) attrs.first_pass = pass;
     const prefix = `${trace}:`;
     if (stages.length) {
@@ -337,7 +385,7 @@ export function finishTask(store, input) {
         value: seconds(startedAt, finishedAt),
         attrs,
       });
-      const totals = new Map();
+      const totals = new Map<string, number>();
       for (const s of stages)
         if (s.ended_at)
           totals.set(
@@ -366,7 +414,7 @@ export function finishTask(store, input) {
     });
     // shortcut: a point is in the span of its attempt by time alone; upgrade
     // when two spans of one task overlap.
-    const models = {};
+    const models: Record<string, string> = {};
     if (context(store).others.length)
       for (const s of stages) {
         const model =

@@ -1,14 +1,13 @@
-// @ts-nocheck: typing debt
 // ot-5.2: canary and credential tests (OT9.2, OT9.5, OT6.4, OT12.4).
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { Store } from "../../store/store.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
 import { startTelemetry } from "../index.ts";
 import { finishTask, point, span } from "../record.ts";
-import { startCollector } from "./fake-collector.ts";
+import { type Collector, startCollector } from "./fake-collector.ts";
 
 const CANARIES = {
   title: "CANARY-TITLE",
@@ -20,14 +19,14 @@ const CANARIES = {
 };
 
 // Everything a person could read after the run, as one string.
-function everything(store, extra) {
+function everything(store: Store, extra: unknown[]) {
   const rows = ["telemetry_spans", "telemetry_points"].map((table) =>
     store.db.prepare(`SELECT * FROM ${table}`).all(),
   );
   return JSON.stringify([rows, ...extra]);
 }
 
-function setup(t, collector, headers) {
+function setup(t: TestContext, collector: Collector, headers?: string) {
   const configDirectory = temporaryDirectory("avoozl-config-");
   const stateDirectory = temporaryDirectory("avoozl-state-");
   fs.writeFileSync(
@@ -36,7 +35,7 @@ function setup(t, collector, headers) {
   );
   const store = new Store(":memory:");
   t.after(() => store.close());
-  const logs = [];
+  const logs: string[] = [];
   const handle = startTelemetry({
     store,
     configDirectory,

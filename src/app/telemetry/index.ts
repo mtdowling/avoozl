@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Starts telemetry for one store (spec otel-export, OT4, OT10, §D6): the
 // SQLite exporter is already registered when the database opens, and this
 // starts the 5-second timer that registers or unregisters the OTLP exporter
@@ -14,14 +13,31 @@ import {
 import { createSender } from "./send.ts";
 import { LIMITS } from "./sqlite-exporter.ts";
 import { instanceId } from "./state.ts";
+import type { Store } from "../store/store.ts";
 
-const handles = new WeakMap();
+type Active = {
+  queue: ReturnType<typeof createQueue>;
+  sender: ReturnType<typeof createSender>;
+};
+type Config = ReturnType<typeof readTelemetryConfig>;
+export type TelemetryHandle = {
+  step: () => Promise<void>;
+  status: () => ReturnType<typeof telemetryStatusReply>;
+  flush: (limit?: number) => Promise<void>;
+  stop: () => void;
+};
+
+const handles = new WeakMap<Store, TelemetryHandle>();
 const INTERVAL_MS = 5000;
 const FLUSH_MS = 5000;
 
 // The words of Settings and the CLI, by status, with the state a registered
 // exporter is in replacing `ready`.
-function telemetryStatusReply(store, config, active) {
+function telemetryStatusReply(
+  store: Store,
+  config: Config,
+  active: Active | null,
+) {
   const sender = active?.sender.status();
   return {
     status: sender && config.status === "ready" ? sender.state : config.status,
@@ -55,10 +71,19 @@ export function startTelemetry({
   log,
   fetchImpl,
   intervalMs = INTERVAL_MS,
-}) {
+}: {
+  store: Store;
+  configDirectory: string;
+  stateDirectory: string;
+  env?: NodeJS.ProcessEnv;
+  version?: string;
+  log?: (line: string) => void;
+  fetchImpl?: typeof fetch;
+  intervalMs?: number;
+}): TelemetryHandle {
   const known = handles.get(store);
   if (known) return known;
-  let active = null;
+  let active: Active | null = null;
   let config = readTelemetryConfig(configDirectory, env);
 
   function stopExporter() {
@@ -82,7 +107,7 @@ export function startTelemetry({
       log,
       fetchImpl,
     });
-    const lost = (units) => units && sender.dropped(units);
+    const lost = (units: number) => units && sender.dropped(units);
     registerExporter(store, {
       name: "otlp",
       onTrace: (trace) => lost(queue.addTrace(trace)),
@@ -104,7 +129,7 @@ export function startTelemetry({
 
   const timer = setInterval(step, intervalMs);
   timer.unref();
-  const handle = {
+  const handle: TelemetryHandle = {
     step,
     status: () => telemetryStatusReply(store, config, active),
     // Send what is queued, for a process that is about to end. Bounded, and
@@ -118,7 +143,7 @@ export function startTelemetry({
           active.sender.pass(),
           new Promise((resolve) => setTimeout(resolve, limit).unref()),
         ]);
-        if (active?.queue.units() >= before) break;
+        if ((active?.queue.units() ?? 0) >= before) break;
       }
     },
     stop() {
@@ -133,11 +158,17 @@ export function startTelemetry({
   return handle;
 }
 
-export const telemetryHandle = (store) => handles.get(store) ?? null;
+export const telemetryHandle = (store: Store) => handles.get(store) ?? null;
 
 // The status for a process that does not run the exporter: the setting and
 // the environment as this process sees them, and the local counts.
-export function telemetryStatus(store, { configDirectory, env = process.env }) {
+export function telemetryStatus(
+  store: Store,
+  {
+    configDirectory,
+    env = process.env,
+  }: { configDirectory: string; env?: NodeJS.ProcessEnv },
+) {
   const handle = telemetryHandle(store);
   if (handle) return handle.status();
   return telemetryStatusReply(

@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Token and credit counts as points (spec otel-export, OT8.6, §D4). For each
 // session the tick opened, the executor's usage call hands back its turn
 // rows; each row becomes up to three points: `avoozl.tokens` input and
@@ -7,14 +6,27 @@
 import { listSessionBindings } from "../sessions/session-bindings.ts";
 import { listStageSpans } from "./sqlite-exporter.ts";
 import { UNATTRIBUTED, point } from "./record.ts";
+import type { Store } from "../store/store.ts";
+import type { SessionBinding } from "../sessions/session-bindings.ts";
+
+type StageSpan = ReturnType<typeof listStageSpans>[number];
+type Trace = { repo?: string | null; spec?: string | null };
+// One turn row the executor's usage call reads.
+type Turn = {
+  ts?: unknown;
+  model?: unknown;
+  input?: unknown;
+  output?: unknown;
+  credits?: unknown;
+} | null;
 
 const NAME = /^[A-Za-z0-9._:/-]{1,128}$/;
-const count = (v) =>
+const count = (v: unknown) =>
   typeof v === "number" && Number.isFinite(v) && v > 0 ? v : 0;
 
 // The stage of the binding's attempt whose span holds `ts`, latest start
 // first; else `unattributed`.
-function stageAt(spans, binding, ts) {
+function stageAt(spans: StageSpan[], binding: SessionBinding, ts: string) {
   const holding = spans
     .filter(
       (s) =>
@@ -29,31 +41,38 @@ function stageAt(spans, binding, ts) {
 
 // Record one session's turn rows. `trace` is the task's {repo, spec}, as its
 // spans carry them. Returns how many points were added.
-export function recordUsage(store, binding, rows, trace = {}) {
+export function recordUsage(
+  store: Store,
+  binding: SessionBinding,
+  rows: unknown,
+  trace: Trace = {},
+) {
   if (!Array.isArray(rows) || !rows.length) return 0;
   const spans = listStageSpans(store.db, { taskId: binding.taskId }),
     role = NAME.test(binding.role ?? "") ? binding.role : null;
   let added = 0;
   store.transaction(() => {
-    for (const row of rows) {
+    for (const row of rows as Turn[]) {
       if (!row || typeof row.ts !== "string" || !row.ts) continue;
+      const ts = row.ts;
       const base = {
-        at: row.ts,
+        at: ts,
         taskId: binding.taskId,
         ...trace,
         role,
-        stage: stageAt(spans, binding, row.ts),
+        stage: stageAt(spans, binding, ts),
         model:
           typeof row.model === "string" && NAME.test(row.model)
             ? row.model
             : null,
       };
-      const id = `${binding.slot}@${row.ts}`;
-      for (const [name, value, direction] of [
+      const id = `${binding.slot}@${ts}`;
+      const counts: [string, number, string | null][] = [
         ["avoozl.tokens", count(row.input), "input"],
         ["avoozl.tokens", count(row.output), "output"],
         ["avoozl.credits", count(row.credits), null],
-      ]) {
+      ];
+      for (const [name, value, direction] of counts) {
         if (!value) continue;
         try {
           added += point(store, {
@@ -70,7 +89,8 @@ export function recordUsage(store, binding, rows, trace = {}) {
         } catch (error) {
           // A row whose time or ID the allowlist refuses is skipped; a
           // database failure still throws.
-          if (!String(error.message).startsWith("Telemetry:")) throw error;
+          if (!String((error as Error).message).startsWith("Telemetry:"))
+            throw error;
         }
       }
     }
@@ -81,8 +101,12 @@ export function recordUsage(store, binding, rows, trace = {}) {
 // Read each session the tick opened, until it ends, and record its turns.
 // `readTurns(slot)` is the executor's usage call; `traceOf(taskId)` gives the
 // task's {repo, spec}. Returns {points, errors}.
-export async function observeUsage(store, readTurns, traceOf = () => ({})) {
-  const errors = [];
+export async function observeUsage(
+  store: Store,
+  readTurns: (slot: string) => Promise<unknown>,
+  traceOf: (taskId: string) => Trace = () => ({}),
+) {
+  const errors: { slot: string; error: string }[] = [];
   let points = 0;
   for (const binding of listSessionBindings(store)) {
     if (binding.source !== "tick") continue;
@@ -96,12 +120,12 @@ export async function observeUsage(store, readTurns, traceOf = () => ({})) {
         traceOf(binding.taskId),
       );
       if (
-        ["closed", "lost", "gone"].includes(binding.status) ||
+        ["closed", "lost", "gone"].includes(String(binding.status)) ||
         binding.report?.kind === "done"
       )
         store.setMeta(done, true);
     } catch (error) {
-      errors.push({ slot: binding.slot, error: error.message });
+      errors.push({ slot: binding.slot, error: (error as Error).message });
     }
   }
   return { points, errors };

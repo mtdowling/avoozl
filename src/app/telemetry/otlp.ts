@@ -1,10 +1,27 @@
-// @ts-nocheck: typing debt
 // Builds OTLP/HTTP JSON bodies from recorded rows (spec otel-export, OT7, OT8,
 // §D7, §D9). Every attribute passes the export allowlist in `record.ts`.
 // Wire rules: IDs are lowercase hex, 64-bit integers and times are decimal
 // strings, field names are camelCase.
 import crypto from "node:crypto";
 import { FIELDS, rootKey } from "./record.ts";
+import type { Row, SpanRow } from "./sqlite-exporter.ts";
+
+// Who sends: the machine's instance ID and its resource attributes.
+export type SendContext = {
+  instanceId: string;
+  serviceName?: string;
+  resource?: Record<string, string>;
+};
+type Instrument = { kind: string; unit: string; attributes: string[] };
+type Attribute = {
+  key: string;
+  value: {
+    boolValue?: boolean;
+    intValue?: string;
+    doubleValue?: number;
+    stringValue?: string;
+  };
+};
 
 const SCOPE = { name: "avoozl" };
 const DELTA = 1;
@@ -15,7 +32,7 @@ export const BOUNDS = [
 const EXPORTABLE = new Set(FIELDS.export);
 
 // The instruments (OT8.1): name, kind, unit and the attributes each carries.
-const INSTRUMENTS = {
+const INSTRUMENTS: Record<string, Instrument> = {
   "avoozl.task.lead_time": {
     kind: "histogram",
     unit: "s",
@@ -56,10 +73,11 @@ const INSTRUMENTS = {
   },
 };
 
-const nanos = (iso) => (BigInt(Date.parse(iso)) * 1_000_000n).toString();
+const nanos = (iso: unknown) =>
+  (BigInt(Date.parse(String(iso))) * 1_000_000n).toString();
 
 // One attribute, or nothing when the value is empty.
-function attribute(name, value) {
+function attribute(name: string, value: unknown): Attribute | null {
   if (value === null || value === undefined || value === "") return null;
   const key = `avoozl.${name}`;
   if (typeof value === "boolean") return { key, value: { boolValue: value } };
@@ -70,23 +88,30 @@ function attribute(name, value) {
 }
 
 // Only names on the export allowlist are built; the rest is dropped.
-function attributes(values) {
+function attributes(values: Record<string, unknown>) {
   return Object.entries(values)
     .filter(([name]) => EXPORTABLE.has(name))
     .map(([name, value]) => attribute(name, value))
-    .filter(Boolean);
+    .filter((found): found is Attribute => found !== null);
 }
 
 // The ID Avoozl sends: the machine's instance ID and the span's key (§D7).
-const sendSpanId = (instance, key) =>
+const sendSpanId = (instance: string, key: string) =>
   crypto
     .createHash("sha256")
     .update(`${instance}\n${key}`)
     .digest("hex")
     .slice(0, 16);
 
-function resource({ instanceId, serviceName = "avoozl", resource: extra }) {
-  const text = (key, stringValue) => ({ key, value: { stringValue } });
+function resource({
+  instanceId,
+  serviceName = "avoozl",
+  resource: extra,
+}: SendContext) {
+  const text = (key: string, stringValue: string) => ({
+    key,
+    value: { stringValue },
+  });
   return {
     attributes: [
       ...Object.entries(extra ?? {})
@@ -98,11 +123,13 @@ function resource({ instanceId, serviceName = "avoozl", resource: extra }) {
   };
 }
 
-function spanBody(row, ids, extra) {
+type Ids = { of: (key: string) => string; root: string };
+
+function spanBody(row: Row, ids: Ids, extra: Record<string, unknown>) {
   const parent = row.parent_span_id === null ? null : ids.root;
   return {
     traceId: row.trace_id,
-    spanId: ids.of(row.key),
+    spanId: ids.of(String(row.key)),
     ...(parent ? { parentSpanId: parent } : {}),
     name: row.name,
     kind: 1,
@@ -116,13 +143,21 @@ function spanBody(row, ids, extra) {
 // end, or one that ends before it starts, is left out. `models` maps a span
 // ID to the one model its token points name. Returns null when no stage span
 // is sendable (OT7.6).
-export function buildTrace({ root, spans, models = {} }, context) {
-  const ids = {
+export function buildTrace(
+  {
+    root,
+    spans,
+    models = {},
+  }: { root: Row; spans: SpanRow[]; models?: Record<string, string> },
+  context: SendContext,
+) {
+  const ids: Ids = {
     of: (key) => sendSpanId(context.instanceId, key),
     root: sendSpanId(context.instanceId, rootKey(root.task_id)),
   };
-  const sendable = (row) =>
-    row.ended_at && Date.parse(row.ended_at) >= Date.parse(row.started_at);
+  const sendable = (row: Row) =>
+    Boolean(row.ended_at) &&
+    Date.parse(String(row.ended_at)) >= Date.parse(String(row.started_at));
   const stages = spans.filter(sendable);
   if (!stages.length || !sendable(root)) return null;
   const common = { repo: root.repo, spec: root.spec, "task.id": root.task_id };
@@ -160,7 +195,9 @@ export function buildTrace({ root, spans, models = {} }, context) {
   };
 }
 
-function histogram(point, base) {
+type PointRow = Row & { name: string; value: number };
+
+function histogram(point: PointRow, base: Record<string, unknown>) {
   const buckets = BOUNDS.map(() => 0).concat(0);
   const at = BOUNDS.findIndex((bound) => point.value <= bound);
   buckets[at < 0 ? BOUNDS.length : at] = 1;
@@ -177,13 +214,13 @@ function histogram(point, base) {
 
 // The body for up to 100 points, one metric for each instrument. A point of a
 // name that is not an instrument is left out.
-export function buildMetrics(points, context) {
-  const metrics = new Map();
+export function buildMetrics(points: PointRow[], context: SendContext) {
+  const metrics = new Map<string, Record<string, unknown>[]>();
   for (const point of points) {
     const instrument = INSTRUMENTS[point.name];
     if (!instrument) continue;
-    const given = {
-      ...(point.attrs ? JSON.parse(point.attrs) : {}),
+    const given: Record<string, unknown> = {
+      ...(point.attrs ? JSON.parse(String(point.attrs)) : {}),
       repo: point.repo,
       spec: point.spec,
       stage: point.stage,
@@ -202,7 +239,7 @@ export function buildMetrics(points, context) {
     };
     if (!metrics.has(point.name)) metrics.set(point.name, []);
     metrics
-      .get(point.name)
+      .get(point.name)!
       .push(
         instrument.kind === "histogram"
           ? histogram(point, base)
