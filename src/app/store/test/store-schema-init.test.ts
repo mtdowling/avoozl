@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
@@ -12,21 +11,21 @@ import { temporaryDirectory } from "../../test/temporary.ts";
 
 const filename = () =>
   path.join(temporaryDirectory("avoozl-schema-"), "workspace.sqlite");
-const schema = (db) =>
+const schema = (db: DatabaseSync) =>
   db
     .prepare(
       "SELECT type, name, tbl_name, sql FROM sqlite_master ORDER BY name",
     )
     .all();
-function healthy(db) {
+function healthy(db: DatabaseSync) {
   assert.equal(
-    db.prepare("PRAGMA integrity_check").get().integrity_check,
+    db.prepare("PRAGMA integrity_check").get()?.integrity_check,
     "ok",
   );
-  assert.equal(db.prepare("PRAGMA journal_mode").get().journal_mode, "wal");
-  assert.equal(db.prepare("PRAGMA synchronous").get().synchronous, 2);
-  assert.equal(db.prepare("PRAGMA foreign_keys").get().foreign_keys, 1);
-  assert.equal(db.prepare("PRAGMA busy_timeout").get().timeout, 5000);
+  assert.equal(db.prepare("PRAGMA journal_mode").get()?.journal_mode, "wal");
+  assert.equal(db.prepare("PRAGMA synchronous").get()?.synchronous, 2);
+  assert.equal(db.prepare("PRAGMA foreign_keys").get()?.foreign_keys, 1);
+  assert.equal(db.prepare("PRAGMA busy_timeout").get()?.timeout, 5000);
 }
 
 test("fresh schema and reopened workspace keep the same schema, data and durability", () => {
@@ -47,7 +46,10 @@ test("fresh schema and reopened workspace keep the same schema, data and durabil
     healthy(store.db);
     assert.deepEqual(schema(store.db), expected);
     assert.deepEqual(store.getMeta("preserved"), { value: "fake" });
-    assert.equal(store.get("plans", "fake-plan").hash, "fake-hash");
+    assert.equal(
+      store.get<{ hash: string }>("plans", "fake-plan")?.hash,
+      "fake-hash",
+    );
   } finally {
     store.close();
   }
@@ -73,10 +75,13 @@ test("legacy schema gains missing tables and retains activity and idea migration
     healthy(store.db);
     assert.deepEqual(schema(store.db), expected);
     assert.deepEqual(store.read().tasks, snapshot().tasks);
-    assert.equal(store.get("plans", "fake-plan").hash, "fake-hash");
+    assert.equal(
+      store.get<{ hash: string }>("plans", "fake-plan")?.hash,
+      "fake-hash",
+    );
     assert.equal(store.getMeta("activity.upgrade"), true);
     assert.deepEqual(
-      store.list("incoming_items").map((row) => row.id),
+      store.list<{ id: string }>("incoming_items").map((row) => row.id),
       ["ticket"],
     );
     store.setMeta("activity.upgrade", false);
@@ -113,11 +118,11 @@ test("failed schema initialization rolls back every new object and closes its ha
   try {
     assert.deepEqual(schema(check), expected);
     assert.equal(
-      check.prepare("SELECT legacy FROM events").get().legacy,
+      check.prepare("SELECT legacy FROM events").get()?.legacy,
       "kept",
     );
     assert.equal(
-      check.prepare("PRAGMA integrity_check").get().integrity_check,
+      check.prepare("PRAGMA integrity_check").get()?.integrity_check,
       "ok",
     );
     check.exec("BEGIN IMMEDIATE; DROP TABLE events; COMMIT");

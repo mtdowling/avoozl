@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The activity log (design §4.19, Requirement 71): one SQLite table of who
 // did what, from the page, the CLI, MCP, GitHub and plugin sync.
 //
@@ -17,8 +16,83 @@ import {
   check,
   secretReason,
 } from "../content/content-rules.ts";
+import type { Store } from "./store.ts";
 
-const ACTIVITY_SOURCES = Object.freeze([
+type Row = Record<string, unknown>;
+
+export interface ActivityInput {
+  source?: string;
+  actor?: string | null;
+  kind?: string;
+  summary?: string;
+  targetId?: string | null;
+  link?: string | null;
+  key?: string;
+  at?: string;
+}
+
+export interface ActivityRow {
+  seq?: number;
+  at: string;
+  source: string;
+  actor: string | null;
+  kind: string;
+  summary: string;
+  targetId: string | null;
+  link: string | null;
+  redacted: boolean;
+}
+
+export interface ActivityFilter {
+  source?: string;
+  kind?: string;
+  actor?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export interface ActivityPage {
+  items: ActivityRow[];
+  total: number;
+  sources: string[];
+  kinds: string[];
+  actors: string[];
+  counts: Record<"source" | "kind" | "actor", Record<string, number>>;
+}
+
+interface Verdict {
+  state: string | null;
+  key: string | null;
+  pullRequest: string | null;
+  actor: string | null;
+  reason: string | null;
+  issue: string | null;
+}
+
+interface Mark {
+  at?: string;
+  actor?: string | null;
+}
+
+export interface TickSnapshot {
+  tasks: Record<string, { github: Verdict | null; conflicts: string[] }>;
+  board: Record<
+    string,
+    { paused: Mark | null; ignored: Mark | null; release: string | null }
+  >;
+  items: number;
+}
+
+interface Operated {
+  kind: string;
+  summary: string;
+  targetId?: string | null;
+}
+
+// Operation input and result: whatever the caller sent, read by key.
+type OperationInput = Record<string, any>;
+
+const ACTIVITY_SOURCES: readonly string[] = Object.freeze([
   "local",
   "github",
   "plugin",
@@ -34,22 +108,22 @@ const KIND = /^[a-z][a-z0-9-]*(?:\.[a-z0-9-]+)*$/;
 const TARGET = /^[A-Za-z0-9][A-Za-z0-9._:@/#-]{0,199}$/;
 const SNAPSHOT = "activity.snapshot";
 const UPGRADE = "activity.upgrade";
-const EMPTY = Object.freeze({ tasks: {}, board: {}, items: 0 });
+const EMPTY: TickSnapshot = Object.freeze({ tasks: {}, board: {}, items: 0 });
 const DAY = 86_400_000;
 
-const text = (value, limit) =>
+const text = (value: unknown, limit: number) =>
   typeof value === "string" && value.trim()
     ? value.trim().slice(0, limit)
     : null;
 
-function ensureActivityTable(store) {
+function ensureActivityTable(store: Store) {
   store.db.exec(
     `CREATE TABLE IF NOT EXISTS activity_log(seq INTEGER PRIMARY KEY AUTOINCREMENT,at TEXT NOT NULL,source TEXT NOT NULL,actor TEXT,kind TEXT NOT NULL,summary TEXT NOT NULL,target_id TEXT,link TEXT,redacted INTEGER NOT NULL DEFAULT 0,key TEXT UNIQUE);
      CREATE INDEX IF NOT EXISTS activity_log_at ON activity_log(at);`,
   );
 }
 
-function httpsLink(value) {
+function httpsLink(value: unknown) {
   const link = text(value, 500);
   if (!link) return null;
   try {
@@ -60,7 +134,7 @@ function httpsLink(value) {
 }
 
 // Why a field may not be stored, or null. Never the matched text.
-function screen(store, values) {
+function screen(store: Store, values: (string | null)[]) {
   for (const value of values) {
     if (!value) continue;
     if (secretReason(value)) return "secret";
@@ -85,10 +159,10 @@ function screen(store, values) {
 // kind, so a caller's test finds it; returns the stored row, or null when
 // the store is read-only or the keyed row is already there.
 export function recordActivity(
-  store,
-  { source, actor, kind, summary, targetId, link, key, at } = {},
-) {
-  if (!ACTIVITY_SOURCES.includes(source))
+  store: Store,
+  { source, actor, kind, summary, targetId, link, key, at }: ActivityInput = {},
+): ActivityRow | null {
+  if (!source || !ACTIVITY_SOURCES.includes(source))
     throw Error(
       `Activity source must be one of ${ACTIVITY_SOURCES.join(", ")}.`,
     );
@@ -98,7 +172,7 @@ export function recordActivity(
   if (!said) throw Error("Activity needs a summary.");
   if (store.readOnly) return null;
   ensureActivityTable(store);
-  const row = {
+  const row: ActivityRow = {
     at:
       typeof at === "string" && Number.isFinite(Date.parse(at))
         ? new Date(at).toISOString()
@@ -139,7 +213,7 @@ export function recordActivity(
 
 // Drops the row saved under `key`, so a repeated event can be saved again
 // with its new count.
-export function removeActivity(store, key) {
+export function removeActivity(store: Store, key: string) {
   if (store.readOnly || !key) return;
   try {
     store.db.prepare("DELETE FROM activity_log WHERE key=?").run(key);
@@ -147,7 +221,7 @@ export function removeActivity(store, key) {
 }
 
 // For built-in callers: a row that cannot be written never fails the action.
-function quietly(store, row) {
+function quietly(store: Store, row: ActivityInput) {
   try {
     return recordActivity(store, row);
   } catch {
@@ -155,25 +229,31 @@ function quietly(store, row) {
   }
 }
 
-const rowOf = (r) => ({
-  seq: r.seq,
-  at: r.at,
-  source: r.source,
-  actor: r.actor,
-  kind: r.kind,
-  summary: r.summary,
-  targetId: r.target_id,
-  link: r.link,
+const rowOf = (r: Row): ActivityRow => ({
+  seq: r.seq as number,
+  at: r.at as string,
+  source: r.source as string,
+  actor: r.actor as string | null,
+  kind: r.kind as string,
+  summary: r.summary as string,
+  targetId: r.target_id as string | null,
+  link: r.link as string | null,
   redacted: r.redacted === 1,
 });
 
 // Newest first, filtered, at most 100 a page, with the values each filter
 // can take.
 export function listActivity(
-  store,
-  { source, kind, actor, limit = ACTIVITY_PAGE, offset = 0 } = {},
-) {
-  const empty = {
+  store: Store,
+  {
+    source,
+    kind,
+    actor,
+    limit = ACTIVITY_PAGE,
+    offset = 0,
+  }: ActivityFilter = {},
+): ActivityPage {
+  const empty: ActivityPage = {
     items: [],
     total: 0,
     sources: [],
@@ -186,8 +266,8 @@ export function listActivity(
   } catch {
     return empty;
   }
-  const where = [],
-    args = [];
+  const where: string[] = [],
+    args: string[] = [];
   for (const [column, value] of [
     ["source", source],
     ["kind", kind],
@@ -200,23 +280,23 @@ export function listActivity(
   const clause = where.length ? ` WHERE ${where.join(" AND ")}` : "",
     size = Math.max(1, Math.min(Number(limit) || ACTIVITY_PAGE, ACTIVITY_PAGE)),
     skip = Math.max(0, Number(offset) || 0),
-    distinct = (column) =>
+    distinct = (column: string) =>
       store.db
         .prepare(
           `SELECT DISTINCT ${column} AS v FROM activity_log WHERE ${column} IS NOT NULL ORDER BY v`,
         )
         .all()
-        .map((r) => r.v),
+        .map((r) => r.v as string),
     // How many rows hold each value, over the whole log, for the nav's
     // counts beside each choice.
-    counts = (column) =>
+    counts = (column: string) =>
       Object.fromEntries(
         store.db
           .prepare(
             `SELECT ${column} AS v, count(*) AS n FROM activity_log WHERE ${column} IS NOT NULL GROUP BY ${column}`,
           )
           .all()
-          .map((r) => [r.v, r.n]),
+          .map((r) => [r.v as string, r.n as number]),
       );
   return {
     items: store.db
@@ -227,7 +307,7 @@ export function listActivity(
       .map(rowOf),
     total: store.db
       .prepare(`SELECT count(*) AS n FROM activity_log${clause}`)
-      .get(...args).n,
+      .get(...args)?.n as number,
     sources: distinct("source"),
     kinds: distinct("kind"),
     actors: distinct("actor"),
@@ -240,7 +320,7 @@ export function listActivity(
 }
 
 const GITHUB_REPOSITORY = /^[A-Za-z0-9_.-]{1,100}\/[A-Za-z0-9_.-]{1,100}$/;
-const githubName = (value) =>
+const githubName = (value: unknown) =>
   typeof value === "string" &&
   GITHUB_REPOSITORY.test(value) &&
   !value.split("/").some((part) => part === "." || part === "..")
@@ -251,10 +331,14 @@ const githubName = (value) =>
 // checkout's GitHub remote and the configured GitHub repositories), never
 // from row text, and each row's own: its task's repository, else the only
 // one. A workspace with no GitHub remote gets none, so its rows stay text.
-export function withGithubRepositories(store, page, tasks = []) {
-  const list = (table) => {
+export function withGithubRepositories(
+  store: Store,
+  page: ActivityPage,
+  tasks: { id: string; repository?: string; repositoryId?: string }[] = [],
+) {
+  const list = (table: string) => {
     try {
-      return store.list(table);
+      return store.list<{ id: string; github?: string }>(table);
     } catch {
       return [];
     }
@@ -274,7 +358,7 @@ export function withGithubRepositories(store, page, tasks = []) {
   const ofTask = new Map(
     tasks.map((task) => [
       task.id,
-      checkouts.get(task.repository ?? task.repositoryId) ?? null,
+      checkouts.get(task.repository ?? task.repositoryId ?? "") ?? null,
     ]),
   );
   return {
@@ -288,24 +372,34 @@ export function withGithubRepositories(store, page, tasks = []) {
 }
 
 // `activity.retentionDays` from a `.avoozl.json` value, or the default.
-export function activityRetention(config) {
+export function activityRetention(config?: {
+  activity?: { retentionDays?: unknown };
+}) {
   const days = config?.activity?.retentionDays;
-  return Number.isInteger(days) && days >= 1 && days <= MAX_RETENTION_DAYS
+  return typeof days === "number" &&
+    Number.isInteger(days) &&
+    days >= 1 &&
+    days <= MAX_RETENTION_DAYS
     ? days
     : DEFAULT_RETENTION_DAYS;
 }
 
-export function validateActivitySettings(activity) {
+export function validateActivitySettings(activity: unknown) {
   if (activity === undefined) return;
   if (!activity || typeof activity !== "object" || Array.isArray(activity))
     throw Error("activity must be an object.");
   for (const key of Object.keys(activity))
     if (key !== "retentionDays")
       throw Error(`activity.${key} is not a setting.`);
-  const days = activity.retentionDays;
+  const days = (activity as { retentionDays?: unknown }).retentionDays;
   if (
     days !== undefined &&
-    !(Number.isInteger(days) && days >= 1 && days <= MAX_RETENTION_DAYS)
+    !(
+      typeof days === "number" &&
+      Number.isInteger(days) &&
+      days >= 1 &&
+      days <= MAX_RETENTION_DAYS
+    )
   )
     throw Error(
       `activity.retentionDays must be a whole number of days, 1–${MAX_RETENTION_DAYS}.`,
@@ -314,7 +408,7 @@ export function validateActivitySettings(activity) {
 
 // Delete rows older than the retention. Returns how many went.
 export function pruneActivity(
-  store,
+  store: Store,
   { days = DEFAULT_RETENTION_DAYS, now = Date.now() } = {},
 ) {
   if (store.readOnly) return 0;
@@ -334,12 +428,12 @@ export function pruneActivity(
 // operation to its kind and a summary built from IDs only; free text a
 // person typed (a reason, a title) is never copied.
 
-const idOf = (input) =>
+const idOf = (input: OperationInput) =>
   [input?.id, input?.taskId, input?.planId, input?.stopId].find(
     (value) => typeof value === "string" && value,
   ) ?? null;
 
-const SETTINGS = {
+const SETTINGS: Record<string, string> = {
   "configuration.update": "workspace configuration",
   "github.settings.update": "GitHub",
   "flow.settings.update": "Flow",
@@ -351,7 +445,7 @@ const SETTINGS = {
   "activity.settings.update": "activity",
 };
 
-const scopeText = (stop) =>
+const scopeText = (stop: OperationInput | null | undefined) =>
   !stop
     ? "the workspace"
     : stop.scope === "task"
@@ -362,7 +456,11 @@ const scopeText = (stop) =>
           ? `spec ${stop.planId ?? stop.spec}`
           : "the workspace";
 
-function operationRow(name, input, result) {
+function operationRow(
+  name: string,
+  input: OperationInput,
+  result?: OperationInput | null,
+): Operated | null {
   const id = idOf(input);
   if (
     name === "task.start" ||
@@ -471,11 +569,14 @@ function operationRow(name, input, result) {
 
 // One row for a successful operation from the page, the CLI or MCP.
 export function recordOperation(
-  store,
-  name,
-  input,
-  result,
-  { context = {}, operator = "" } = {},
+  store: Store,
+  name: string,
+  input?: OperationInput | null,
+  result?: OperationInput | null,
+  {
+    context = {},
+    operator = "",
+  }: { context?: OperationInput; operator?: string } = {},
 ) {
   const row = operationRow(name, input || {}, result);
   if (!row) return null;
@@ -496,7 +597,7 @@ export function recordOperation(
 // diffed against the last tick's. Read with SQL where it can, so a tick with
 // no change parses no record.
 
-const pickVerdict = (v) =>
+const pickVerdict = (v: OperationInput | null | undefined): Verdict | null =>
   v && typeof v === "object"
     ? {
         state: v.state ?? null,
@@ -508,51 +609,53 @@ const pickVerdict = (v) =>
       }
     : null;
 
-const fields = (list) =>
+const fields = (list: unknown): string[] =>
   (Array.isArray(list) ? list : [])
     .map((c) => (typeof c?.field === "string" ? c.field : null))
-    .filter(Boolean)
+    .filter((field): field is string => Boolean(field))
     .sort();
 
-const json = (value) => {
+const json = (value: unknown): any => {
   try {
-    return value == null ? null : JSON.parse(value);
+    return value == null ? null : JSON.parse(String(value));
   } catch {
     return null;
   }
 };
 
-export function tickSnapshot(store) {
+export function tickSnapshot(store: Store): TickSnapshot | null {
   let data;
   try {
     data = store.read();
   } catch {
     return null;
   }
-  const tasks = {};
-  for (const task of data.tasks) {
+  const tasks: TickSnapshot["tasks"] = {};
+  for (const task of data.tasks as OperationInput[]) {
     const github = pickVerdict(task.githubVerdict),
       conflicts = fields(task.projectionConflicts);
     if (github || conflicts.length) tasks[task.id] = { github, conflicts };
   }
-  const all = (sql) => {
+  const all = (sql: string): Row[] => {
     try {
       return store.db.prepare(sql).all();
     } catch {
       return [];
     }
   };
-  const board = {};
+  const board: TickSnapshot["board"] = {};
   for (const r of all(
     "SELECT json_extract(body,'$.taskId') AS task, json_extract(body,'$.paused') AS paused, json_extract(body,'$.ignored') AS ignored, json_extract(body,'$.releaseDraft') AS release FROM receipts WHERE json_extract(body,'$.kind')='project-item'",
   ))
     if (r.task)
-      board[r.task] = {
+      board[String(r.task)] = {
         paused: json(r.paused),
         ignored: json(r.ignored),
         release: r.release == null ? null : String(r.release).slice(0, 200),
       };
-  const items = all("SELECT max(rowid) AS n FROM incoming_items")[0]?.n ?? 0;
+  const items = Number(
+    all("SELECT max(rowid) AS n FROM incoming_items")[0]?.n ?? 0,
+  );
   return { tasks, board, items };
 }
 
@@ -561,14 +664,18 @@ export function tickSnapshot(store) {
 // task, field and values, so the very same conflict coming back within the
 // retention window is not recorded again; add a time to the key if that
 // matters.
-export function recordTickChanges(store, before, after) {
+export function recordTickChanges(
+  store: Store,
+  before: TickSnapshot | null,
+  after: TickSnapshot | null,
+) {
   if (!before || !after) return 0;
   let written = 0;
-  const add = (row) => {
+  const add = (row: ActivityInput) => {
     if (quietly(store, row)) written += 1;
   };
   for (const [id, now] of Object.entries(after.tasks)) {
-    const was = before.tasks[id] || {},
+    const was: Partial<TickSnapshot["tasks"][string]> = before.tasks[id] || {},
       g = now.github,
       pg = was.github;
     if (g && (g.state !== pg?.state || g.key !== pg?.key)) {
@@ -613,7 +720,7 @@ export function recordTickChanges(store, before, after) {
         });
   }
   for (const [id, now] of Object.entries(after.board)) {
-    const was = before.board[id] || {};
+    const was: Partial<TickSnapshot["board"][string]> = before.board[id] || {};
     if (now.paused && now.paused.at !== was.paused?.at)
       add({
         source: "github",
@@ -681,13 +788,16 @@ export function recordTickChanges(store, before, after) {
 // one only when it changed (an idle tick writes nothing), and prune.
 // A new workspace starts from an empty snapshot; a database that had state
 // before the log existed starts from that state (Store sets the flag).
-export function recordTickActivity(store, config) {
+export function recordTickActivity(
+  store: Store,
+  config?: Parameters<typeof activityRetention>[0],
+) {
   if (store.readOnly) return 0;
   let written = 0;
   try {
     const now = tickSnapshot(store);
     if (now) {
-      let before = store.getMeta(SNAPSHOT);
+      let before = store.getMeta<TickSnapshot>(SNAPSHOT);
       if (!before && store.getMeta(UPGRADE)) before = now;
       before ||= EMPTY;
       written = recordTickChanges(store, before, now);

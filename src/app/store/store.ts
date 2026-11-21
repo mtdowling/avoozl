@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 import crypto from "node:crypto";
 import { reconcileSpecDependencies } from "../../spec-dependencies.ts";
 import { DatabaseSync } from "node:sqlite";
@@ -7,30 +6,49 @@ import path from "node:path";
 import { summarizeErrors, validate } from "../../model.ts";
 import { TELEMETRY_SCHEMA, pruneOnOpen } from "../telemetry/sqlite-exporter.ts";
 import { keepNamedEpics, ownLegacyEpics } from "../epics/epics.ts";
+import type { Snapshot } from "../../types.ts";
 
-export const canonical = (value) => JSON.stringify(normalize(value));
-function normalize(value) {
+// One stored record: an {id, body} row's body, read back as JSON. A caller
+// that knows the table names its shape with get<T>() and list<T>().
+export interface StoredRecord {
+  id: string;
+  [key: string]: unknown;
+}
+// A row as SQLite returns it.
+type SqlRow = Record<string, unknown>;
+// The snapshot as stored, with the metadata the workspace keeps beside it.
+export type StoredSnapshot = Snapshot & {
+  revision: number;
+  updatedAt?: string;
+  changelog?: { at: string; kind: string; summary: string }[];
+  epics?: { id?: string; planId?: unknown; [key: string]: unknown }[];
+};
+// An error that carries the HTTP status a caller answers with.
+export type StatusError = Error & { status: number; details?: unknown };
+
+export const canonical = (value: unknown) => JSON.stringify(normalize(value));
+function normalize(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(normalize);
   if (value && typeof value === "object")
     return Object.fromEntries(
       Object.keys(value)
         .sort()
-        .map((k) => [k, normalize(value[k])]),
+        .map((k) => [k, normalize((value as Record<string, unknown>)[k])]),
     );
   return value;
 }
-export function fail(message, status = 400) {
-  const error = Error(message);
-  error.status = status;
-  throw error;
+export function fail(message: string, status = 400): never {
+  throw Object.assign(Error(message), { status }) as StatusError;
 }
+// The `code` of a Node system error, or undefined.
+const codeOf = (error: unknown) => (error as NodeJS.ErrnoException)?.code;
 const stamp = () => new Date().toISOString();
-function writable(filename) {
+function writable(filename: string) {
   try {
     fs.accessSync(filename, fs.constants.W_OK);
     return true;
   } catch (error) {
-    return error.code === "ENOENT";
+    return codeOf(error) === "ENOENT";
   }
 }
 // Make `file` readable by its owner only, creating it empty first when it is
@@ -38,12 +56,12 @@ function writable(filename) {
 // hold modes (FAT, some network mounts) keeps what it has. On Windows Node
 // maps only the read-only flag, so this is a no-op there and the file keeps
 // the access of its folder (R83.3).
-export function privateFile(file) {
+export function privateFile(file: string) {
   try {
     fs.closeSync(fs.openSync(file, "a", 0o600));
     fs.chmodSync(file, 0o600);
   } catch (error) {
-    if (!["EPERM", "ENOTSUP", "EROFS", "EACCES"].includes(error.code))
+    if (!["EPERM", "ENOTSUP", "EROFS", "EACCES"].includes(codeOf(error) ?? ""))
       throw error;
   }
 }
@@ -51,7 +69,7 @@ export function privateFile(file) {
 // The private folders above a workspace database: `.avoozl`, and `.avoozl/local`
 // when the database sits there. A database named elsewhere with --db has none,
 // because its folder may be shared with other files.
-function privateFolders(filename) {
+function privateFolders(filename: string) {
   const folder = path.dirname(path.resolve(filename)),
     parent = path.dirname(folder);
   if (path.basename(folder) === ".avoozl") return [folder];
@@ -61,7 +79,7 @@ function privateFolders(filename) {
 }
 
 // Tighten a workspace's folders and database files on open.
-function tightenWorkspace(filename) {
+function tightenWorkspace(filename: string) {
   for (const folder of privateFolders(filename))
     try {
       fs.chmodSync(folder, 0o700);
@@ -157,7 +175,7 @@ const REMOVABLE_TABLES = new Set(
 );
 
 // Rename a stored record's `projectId` keys, at any depth, to `repositoryId`.
-function renameProjectIds(value) {
+function renameProjectIds(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(renameProjectIds);
   if (!value || typeof value !== "object") return value;
   return Object.fromEntries(
@@ -173,19 +191,19 @@ function renameProjectIds(value) {
 // one transaction: the table becomes `repositories` and its owner/name field
 // `github`, the lock column `repository_id`, every stored `projectId` key
 // `repositoryId`, and `repository.*` events `repository.*`.
-function renameProjects(db) {
+function renameProjects(db: DatabaseSync) {
   const tables = new Set(
     db
       .prepare("SELECT name FROM sqlite_master WHERE type='table'")
       .all()
-      .map((row) => row.name),
+      .map((row) => String(row.name)),
   );
   if (!tables.has("projects")) return;
   db.exec("BEGIN IMMEDIATE");
   try {
     db.exec("ALTER TABLE projects RENAME TO repositories");
     for (const row of db.prepare("SELECT id, body FROM repositories").all()) {
-      const { repository, ...body } = JSON.parse(row.body);
+      const { repository, ...body } = JSON.parse(String(row.body));
       if (repository !== undefined) body.github ??= repository;
       db.prepare("UPDATE repositories SET body=? WHERE id=?").run(
         JSON.stringify(body),
@@ -220,8 +238,8 @@ function renameProjects(db) {
         )
         .all())
         update.run(
-          JSON.stringify(renameProjectIds(JSON.parse(row.value))),
-          row.id,
+          JSON.stringify(renameProjectIds(JSON.parse(String(row.value)))),
+          Number(row.id),
         );
     }
     if (tables.has("events"))
@@ -236,7 +254,17 @@ function renameProjects(db) {
 }
 
 export class Store {
-  constructor(filename) {
+  filename: string;
+  readOnly: boolean;
+  db: DatabaseSync;
+  // Nesting depth of transaction(): 0 outside one.
+  depth = 0;
+  // The last read snapshot, and its rows as stored, while the revision holds.
+  cache: StoredSnapshot | null = null;
+  stored: { revision: number; rows: Map<string, string> } | null = null;
+  // Set by startTelemetry: ends the timer that holds this store.
+  telemetryStop?: () => void;
+  constructor(filename: string) {
     if (filename !== ":memory:") {
       // New `.avoozl` folders are private; any other new folder keeps the default.
       for (const folder of privateFolders(filename))
@@ -323,7 +351,7 @@ export class Store {
         this.db
           .prepare("SELECT name FROM sqlite_master WHERE type='table'")
           .all()
-          .map((row) => row.name),
+          .map((row) => String(row.name)),
       );
       const stale = DROPPED_TABLES.filter((name) => present.has(name));
       if (stale.length) {
@@ -372,7 +400,7 @@ export class Store {
   // does the same.
   keepLegacyEpics() {
     if (this.readOnly) return;
-    const epics = this.getMeta("snapshot")?.epics;
+    const epics = this.getMeta<StoredSnapshot>("snapshot")?.epics;
     if (!epics) return;
     if (!epics.some((epic) => epic && typeof epic.planId !== "string")) return;
     try {
@@ -382,7 +410,7 @@ export class Store {
       );
     } catch {}
   }
-  transaction(fn) {
+  transaction<T>(fn: () => T): T {
     // A nested call is a savepoint, so an outer transaction can run several
     // inner ones and still roll all of them back.
     if (this.depth) {
@@ -409,7 +437,7 @@ export class Store {
       this.depth = 0;
     }
   }
-  outerTransaction(fn) {
+  outerTransaction<T>(fn: () => T): T {
     this.db.exec("BEGIN IMMEDIATE");
     try {
       const result = fn();
@@ -422,18 +450,19 @@ export class Store {
       throw error;
     }
   }
-  getMeta(key) {
+  // A meta value is whatever JSON its writer stored; the caller names it.
+  getMeta<T = unknown>(key: string): T | null {
     const row = this.db.prepare("SELECT value FROM meta WHERE key=?").get(key);
-    return row ? JSON.parse(row.value) : null;
+    return row ? JSON.parse(String(row.value)) : null;
   }
   // Every meta entry whose key starts with `prefix`, as [key, value].
-  metaEntries(prefix) {
+  metaEntries(prefix: string): [string, unknown][] {
     return this.db
       .prepare("SELECT key, value FROM meta WHERE substr(key, 1, ?) = ?")
       .all(prefix.length, prefix)
-      .map((row) => [row.key, JSON.parse(row.value)]);
+      .map((row) => [String(row.key), JSON.parse(String(row.value))]);
   }
-  setMeta(key, value) {
+  setMeta(key: string, value: unknown) {
     this.db
       .prepare(
         "INSERT INTO meta VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
@@ -443,20 +472,25 @@ export class Store {
   initialized() {
     return Boolean(this.getMeta("snapshot"));
   }
-  read() {
-    const metadata = this.getMeta("snapshot");
+  read(): StoredSnapshot {
+    const metadata = this.getMeta<StoredSnapshot>("snapshot");
     if (!metadata)
       fail(
         "Initialize this Avoozl workspace first: run avoozl init PATH, then avoozl rebuild --workspace PATH.",
         503,
       );
     if (this.cache?.revision === metadata.revision) return this.cache;
-    const data = { ...metadata, tasks: [], documents: {}, edges: [] },
-      stored = new Map();
+    const data: StoredSnapshot = {
+        ...metadata,
+        tasks: [],
+        documents: {},
+        edges: [],
+      },
+      stored = new Map<string, string>();
     for (const row of this.db
       .prepare("SELECT * FROM entities ORDER BY kind,ordinal")
       .all()) {
-      const value = JSON.parse(row.body);
+      const value = JSON.parse(String(row.body));
       stored.set(row.kind + "\0" + row.id, row.ordinal + "\0" + row.body);
       // A row stored while the field was named `prose` loads as summary.
       if (row.kind === "task") {
@@ -467,7 +501,8 @@ export class Store {
         // Every task runs its repository's checks; a row's own is ignored.
         delete value.checks;
         data.tasks.push(value);
-      } else if (row.kind === "document") data.documents[row.id] = value;
+      } else if (row.kind === "document")
+        data.documents[String(row.id)] = value;
       else if (row.kind === "edge") data.edges.push(value);
     }
     this.cache = data;
@@ -476,13 +511,14 @@ export class Store {
     this.stored = { revision: metadata.revision, rows: stored };
     return data;
   }
-  write(data) {
+  write(data: StoredSnapshot) {
     const errors = validate(data);
     if (errors.length) fail(summarizeErrors(errors), 422);
     const { tasks, documents, edges, ...metadata } = data,
       known =
         this.stored &&
-        this.stored.revision === this.getMeta("snapshot")?.revision
+        this.stored.revision ===
+          this.getMeta<StoredSnapshot>("snapshot")?.revision
           ? this.stored.rows
           : null;
     this.setMeta("snapshot", metadata);
@@ -495,7 +531,7 @@ export class Store {
       ["task", tasks.map((t) => [t.id, t])],
       ["document", Object.entries(documents)],
       ["edge", edges.map((e, i) => [e.id || "edge-" + i, e])],
-    ])
+    ] as [string, [string, unknown][]][])
       rows.forEach(([id, value], i) => {
         const key = kind + "\0" + id,
           body = JSON.stringify(value);
@@ -506,10 +542,10 @@ export class Store {
       if (!seen.has(row.kind + "\0" + row.id))
         this.db
           .prepare("DELETE FROM entities WHERE kind=? AND id=?")
-          .run(row.kind, row.id);
+          .run(String(row.kind), String(row.id));
     this.cache = null;
   }
-  commit(data, summary, expectedRevision) {
+  commit(data: StoredSnapshot, summary: string, expectedRevision?: number) {
     if (this.read().revision !== (expectedRevision ?? data.revision))
       fail("Database changed. Reload and review before saving.", 409);
     // No write drops an epic a stored task names, and each epic from
@@ -526,7 +562,11 @@ export class Store {
     this.write(data);
     return data.revision;
   }
-  mutate(summary, fn, expectedRevision) {
+  mutate<T>(
+    summary: string,
+    fn: (data: StoredSnapshot) => T,
+    expectedRevision?: number,
+  ): T {
     return this.transaction(() => {
       const next = structuredClone(this.read());
       if (expectedRevision !== undefined && next.revision !== expectedRevision)
@@ -537,7 +577,7 @@ export class Store {
     });
   }
   // The first snapshot of a new workspace database.
-  initialize(snapshot) {
+  initialize(snapshot: StoredSnapshot) {
     this.transaction(() => {
       this.write(snapshot);
       this.setMeta("mode", "active");
@@ -550,17 +590,29 @@ export class Store {
     if (!this.getMeta("report.secret"))
       this.setMeta("report.secret", crypto.randomBytes(32).toString("hex"));
   }
-  event(runId, kind, body) {
+  event(runId: string | null, kind: string, body: Record<string, unknown>) {
     const at = stamp();
     const result = this.db
       .prepare("INSERT INTO events(run_id,kind,at,body) VALUES (?,?,?,?)")
       .run(runId, kind, at, JSON.stringify(body));
     return { seq: Number(result.lastInsertRowid), runId, kind, at, ...body };
   }
-  events({ after = 0, before, runId, limit = 500, latest = false } = {}) {
+  events({
+    after = 0,
+    before,
+    runId,
+    limit = 500,
+    latest = false,
+  }: {
+    after?: number | string;
+    before?: number | string;
+    runId?: string;
+    limit?: number | string;
+    latest?: boolean;
+  } = {}) {
     const backward = latest || before !== undefined,
       where = ["seq>?"],
-      args = [Number(after) || 0];
+      args: (string | number)[] = [Number(after) || 0];
     if (runId) {
       where.push("run_id=?");
       args.push(runId);
@@ -585,24 +637,27 @@ export class Store {
       runId: r.run_id,
       kind: r.kind,
       at: r.at,
-      ...JSON.parse(r.body),
+      ...JSON.parse(String(r.body)),
     }));
   }
-  get(table, id) {
+  get<T = StoredRecord>(table: string, id: unknown): T | null {
     if (!READ_TABLES.has(table)) fail("Unknown record type");
     // A missing or non-text ID names no record; SQLite would throw on it.
     if (typeof id !== "string" && typeof id !== "number") return null;
     const row = this.db.prepare(`SELECT body FROM ${table} WHERE id=?`).get(id);
-    return row ? JSON.parse(row.body) : null;
+    return row ? JSON.parse(String(row.body)) : null;
   }
-  list(table) {
+  list<T = StoredRecord>(table: string): T[] {
     if (!READ_TABLES.has(table)) fail("Unknown record type");
     return this.db
       .prepare(`SELECT body FROM ${table} ORDER BY rowid DESC`)
       .all()
-      .map((r) => JSON.parse(r.body));
+      .map((r) => JSON.parse(String(r.body)));
   }
-  put(table, item) {
+  put<T extends { id: string; [key: string]: unknown }>(
+    table: string,
+    item: T,
+  ): T {
     const body = JSON.stringify(item);
     if (BODY_TABLES.has(table))
       this.db
@@ -615,19 +670,19 @@ export class Store {
         .prepare(
           `INSERT INTO ${table} VALUES (?,?,?,?) ON CONFLICT(id) DO UPDATE SET state=excluded.state,body=excluded.body`,
         )
-        .run(item.id, item.taskId, item.state, body);
+        .run(item.id, String(item.taskId), String(item.state), body);
     else if (table === "approvals")
       this.db
         .prepare("INSERT INTO approvals VALUES (?,?,?,?)")
-        .run(item.id, item.planId, item.hash, body);
+        .run(item.id, String(item.planId), String(item.hash), body);
     else if (table === "evidence")
       this.db
         .prepare("INSERT INTO evidence VALUES (?,?,?)")
-        .run(item.id, item.taskId, body);
+        .run(item.id, String(item.taskId), body);
     else fail("Unknown record type");
     return item;
   }
-  remove(table, id) {
+  remove(table: string, id: string) {
     if (!REMOVABLE_TABLES.has(table)) fail("Unknown record type");
     return (
       this.db.prepare(`DELETE FROM ${table} WHERE id=?`).run(id).changes > 0
@@ -645,24 +700,25 @@ export class Store {
         copy.db
           .prepare("SELECT name FROM sqlite_master WHERE type='table'")
           .all()
-          .map((row) => row.name),
+          .map((row) => String(row.name)),
       );
     copy.db.exec("PRAGMA foreign_keys=OFF");
-    for (const { name, sql } of tables) {
-      if (!present.has(name)) copy.db.exec(sql);
+    for (const table of tables) {
+      const name = String(table.name);
+      if (!present.has(name)) copy.db.exec(String(table.sql));
       const rows = this.db.prepare(`SELECT * FROM "${name}"`).all();
       if (!rows.length) continue;
       const columns = Object.keys(rows[0]),
         insert = copy.db.prepare(
           `INSERT OR REPLACE INTO "${name}" (${columns.map((c) => `"${c}"`).join(",")}) VALUES (${columns.map(() => "?").join(",")})`,
         );
-      for (const row of rows) insert.run(...columns.map((c) => row[c]));
+      for (const row of rows)
+        insert.run(...columns.map((c) => row[c] as string | number | null));
     }
     copy.db.exec("PRAGMA foreign_keys=ON");
     return copy;
   }
   close() {
-    // Set by startTelemetry: ends the timer that holds this store.
     this.telemetryStop?.();
     this.db.close();
   }

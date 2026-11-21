@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 import fs from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -6,7 +5,45 @@ import { randomUUID } from "node:crypto";
 
 const stamp = () => new Date().toISOString();
 
-function assertLocalStatePath(filename) {
+// One workspace as the machine catalog lists it.
+export interface CatalogWorkspace {
+  id: string;
+  root: string;
+  name: string;
+  enabled: boolean;
+  state: string;
+  displayOrder: number;
+  instanceEpoch: string | null;
+  revision: number | null;
+  health: unknown;
+  aggregate: unknown;
+  observedAt: string | null;
+  updatedAt: string;
+}
+interface WorkspaceRow {
+  id: string;
+  root: string;
+  name: string;
+  enabled: number;
+  state: string;
+  display_order: number;
+  instance_epoch: string | null;
+  revision: number | null;
+  health_json: string | null;
+  aggregate_json: string | null;
+  observed_at: string | null;
+  updated_at: string;
+}
+// The workspaces a machine configuration names, by ID.
+interface CatalogConfig {
+  workspaces?: Record<
+    string,
+    { root: string; name?: string; enabled?: boolean }
+  >;
+  defaultWorkspace?: string | null;
+}
+
+function assertLocalStatePath(filename: string) {
   const absolute = path.resolve(filename);
   for (const candidate of [path.dirname(absolute), absolute]) {
     if (!fs.existsSync(candidate)) continue;
@@ -19,17 +56,19 @@ function assertLocalStatePath(filename) {
   return absolute;
 }
 
-function parsed(value, fallback = null) {
+function parsed(value: unknown, fallback: unknown = null): unknown {
   if (value == null) return fallback;
   try {
-    return JSON.parse(value);
+    return JSON.parse(String(value));
   } catch {
     return fallback;
   }
 }
 
 export class CatalogStore {
-  constructor(filename) {
+  filename: string;
+  db: DatabaseSync;
+  constructor(filename: string) {
     this.filename = assertLocalStatePath(filename);
     fs.mkdirSync(path.dirname(this.filename), { recursive: true, mode: 0o700 });
     this.db = new DatabaseSync(this.filename);
@@ -74,7 +113,7 @@ export class CatalogStore {
       );`);
   }
 
-  transaction(fn) {
+  transaction<T>(fn: () => T): T {
     this.db.exec("BEGIN IMMEDIATE");
     try {
       const result = fn();
@@ -90,7 +129,7 @@ export class CatalogStore {
     this.db.close();
   }
 
-  setMeta(key, value) {
+  setMeta(key: string, value: unknown) {
     this.db
       .prepare(
         "INSERT INTO meta(key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
@@ -98,12 +137,16 @@ export class CatalogStore {
       .run(key, JSON.stringify(value));
   }
 
-  getMeta(key) {
+  getMeta(key: string) {
     const row = this.db.prepare("SELECT value FROM meta WHERE key=?").get(key);
     return row ? parsed(row.value) : null;
   }
 
-  record(workspaceId, kind, body = {}) {
+  record(
+    workspaceId: string | null,
+    kind: string,
+    body: Record<string, unknown> = {},
+  ) {
     const at = stamp();
     const result = this.db
       .prepare(
@@ -119,7 +162,11 @@ export class CatalogStore {
     };
   }
 
-  receipt(workspaceId, action, body = {}) {
+  receipt(
+    workspaceId: string,
+    action: string,
+    body: Record<string, unknown> = {},
+  ) {
     const at = stamp();
     const id = `${workspaceId}:${action}:${at}:${randomUUID()}`;
     this.db
@@ -130,10 +177,16 @@ export class CatalogStore {
     return { id, workspaceId, action, at, ...body };
   }
 
-  sync(config, { reason = "configuration-sync", audit = false } = {}) {
+  sync(
+    config: CatalogConfig,
+    {
+      reason = "configuration-sync",
+      audit = false,
+    }: { reason?: string; audit?: boolean } = {},
+  ) {
     const entries = Object.entries(config.workspaces || {});
     return this.transaction(() => {
-      const seen = new Set();
+      const seen = new Set<string>();
       const existingState = this.db.prepare(
         "SELECT state FROM workspaces WHERE id=?",
       );
@@ -176,8 +229,10 @@ export class CatalogStore {
         );
       });
       for (const row of this.db.prepare("SELECT id FROM workspaces").all())
-        if (!seen.has(row.id))
-          this.db.prepare("DELETE FROM workspaces WHERE id=?").run(row.id);
+        if (!seen.has(String(row.id)))
+          this.db
+            .prepare("DELETE FROM workspaces WHERE id=?")
+            .run(String(row.id));
       this.setMeta("defaultWorkspace", config.defaultWorkspace || null);
       this.setMeta("lastRebuiltAt", stamp());
       if (audit)
@@ -189,35 +244,36 @@ export class CatalogStore {
     });
   }
 
-  rebuild(config) {
+  rebuild(config: CatalogConfig) {
     return this.sync(config, { reason: "explicit-rebuild", audit: true });
   }
 
-  list() {
-    return this.db
-      .prepare("SELECT * FROM workspaces ORDER BY display_order,id")
-      .all()
-      .map((row) => ({
-        id: row.id,
-        root: row.root,
-        name: row.name,
-        enabled: Boolean(row.enabled),
-        state: row.state,
-        displayOrder: row.display_order,
-        instanceEpoch: row.instance_epoch,
-        revision: row.revision,
-        health: parsed(row.health_json),
-        aggregate: parsed(row.aggregate_json, {}),
-        observedAt: row.observed_at,
-        updatedAt: row.updated_at,
-      }));
+  list(): CatalogWorkspace[] {
+    return (
+      this.db
+        .prepare("SELECT * FROM workspaces ORDER BY display_order,id")
+        .all() as unknown as WorkspaceRow[]
+    ).map((row) => ({
+      id: row.id,
+      root: row.root,
+      name: row.name,
+      enabled: Boolean(row.enabled),
+      state: row.state,
+      displayOrder: row.display_order,
+      instanceEpoch: row.instance_epoch,
+      revision: row.revision,
+      health: parsed(row.health_json),
+      aggregate: parsed(row.aggregate_json, {}),
+      observedAt: row.observed_at,
+      updatedAt: row.updated_at,
+    }));
   }
 
-  get(id) {
+  get(id: string) {
     return this.list().find((workspace) => workspace.id === id) || null;
   }
 
-  setState(id, state, body = {}) {
+  setState(id: string, state: string, body: Record<string, unknown> = {}) {
     const allowed = new Set([
       "closed",
       "opening",
@@ -239,13 +295,19 @@ export class CatalogStore {
   }
 
   observe(
-    id,
+    id: string,
     {
       state = "ready",
       instanceEpoch = null,
       revision = null,
       health = null,
       aggregate = {},
+    }: {
+      state?: string;
+      instanceEpoch?: string | null;
+      revision?: number | null;
+      health?: unknown;
+      aggregate?: unknown;
     } = {},
   ) {
     return this.transaction(() => {
@@ -274,6 +336,6 @@ export class CatalogStore {
     return this.db
       .prepare("PRAGMA quick_check")
       .all()
-      .map((row) => row.quick_check);
+      .map((row) => String(row.quick_check));
   }
 }

@@ -83,7 +83,11 @@ export const PUBLISH_RULES = Object.freeze(
     ["absolute-path", "macos-temp", /\/private\/(?:tmp|var)\//],
     ["absolute-path", "linux-home", /\/home\/[a-z][a-z0-9_-]*\//],
     ["absolute-path", "windows-home", /\b[A-Za-z]:\\+Users\\+/],
-  ].map(([category, rule, pattern]) => ({ category, rule, pattern })),
+  ].map(([category, rule, pattern]) => ({
+    category: category as string,
+    rule: rule as string,
+    pattern: pattern as RegExp,
+  })),
 );
 
 // ---------------------------------------------------------------------------
