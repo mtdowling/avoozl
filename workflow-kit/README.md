@@ -113,6 +113,7 @@ them. A spec is approved as rule 7.3 says, with the authors in `approvers`.
 | `landing` | The `action`, `base`, `tick`, `mergeBase` and `deleteClaimBranch` for the `land` task, and `mergeGuard` `head-sha` when the runner merges a pull request, or only `{"action": "none"}` when checks fail, or only `{"action": "hold"}` while its spec is stopped |
 | `specIssues` | For each spec name, the number of the issue that is its spec issue, or `null` |
 | `duplicates` | The numbers of the issues the runner closes as duplicates, in order |
+| `groupTicks` | For each spec name, the IDs of the groups the runner ticks in their own commit, open groups whose children are all ticked |
 
 A case checks only the probes in its `expect`. `landing.action` is one of
 `fast-forward-base`, `open-draft-pull-request`, `open-pull-request`,

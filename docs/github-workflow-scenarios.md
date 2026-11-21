@@ -1004,6 +1004,34 @@ Then
 
 - Probe `landing` is `{"action":"fast-forward-base","base":"client-v2","tick":"own-commit","mergeBase":false,"deleteClaimBranch":true}`.
 
+### A group two landings left open with every child ticked is ticked in its own commit
+
+Rules: [3.2](github-workflow.md#3-order). Case: `group-box-left-open`.
+
+Given
+
+- The runner acts as `acme-alice`.
+- The default branch is `main`.
+- Origin holds the branches `main`.
+- The issue of spec `parser` is assigned to `acme-alice`.
+
+The tasks of `parser`:
+
+```markdown
+- [x] `p-1` Read the token table
+- [ ] `p-2` Report problems side by side (**PARALLEL**)
+- [ ] `p-3` Recover after an unknown token
+```
+
+When
+
+- The runner answers `violations`, `groupTicks`.
+
+Then
+
+- Probe `violations` is `{"parser":["3.2"]}`.
+- Probe `groupTicks` is `{"parser":["p-2"]}`.
+
 ### With no branch named for the spec, tasks land on the default branch
 
 Rules: [14.1](github-workflow.md#14-integration-branches). Case: `integration-absent`.
@@ -2733,6 +2761,7 @@ Then
 
 ### Rule 3.2
 
+- [A group two landings left open with every child ticked is ticked in its own commit](#a-group-two-landings-left-open-with-every-child-ticked-is-ticked-in-its-own-commit)
 - [The task below a parallel group is ready once every child is ticked](#the-task-below-a-parallel-group-is-ready-once-every-child-is-ticked)
 - [A parallel group's children are ready together, in file order](#a-parallel-groups-children-are-ready-together-in-file-order)
 - [Each broken rule is refused, and clean specs are not](#each-broken-rule-is-refused-and-clean-specs-are-not)

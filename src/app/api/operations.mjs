@@ -137,6 +137,7 @@ import {
   baseHead,
   baseTasks,
   tickCommits,
+  tickOpenGroups,
 } from "../specs/spec-ticks.mjs";
 import { canonical, fail } from "../store/store.ts";
 import { WORKSPACE_LOCK, readDeliveryPolicy } from "../tick/tick.mjs";
@@ -416,6 +417,17 @@ export class Operations {
           land,
           commits: () =>
             tickCommits(spec.root, read.head, plan.spec, plan.files),
+        });
+        await tickOpenGroups(spec.root, {
+          branch,
+          spec: plan.spec,
+          files: plan.files,
+          text: read.text,
+          commitPrefix: this.store
+            .list("repositories")
+            .find((repository) => repository.root === spec.root)?.commitPrefix,
+        }).catch(() => {
+          // Refused or raced: tried again when the branch head moves.
         });
         this.ticksSeen.set(plan.id, seen);
       } catch {
