@@ -47,8 +47,8 @@ try {
       await page.open(harness.url({ page: 'app', graph: 'drafts', theme }), { width, height, dark: theme === 'dark' })
       await page.until(`Boolean(document.querySelector('[data-shell]'))`)
       if (phone) await page.evaluate(`document.querySelector('[data-top-rail-bar]')?.click()`)
-      await page.until(`Boolean(document.querySelector('[data-nav-item="dashboard/graph"]'))`)
-      await page.evaluate(`document.querySelector('[data-nav-item="dashboard/graph"]').click()`)
+      await page.until(`Boolean(document.querySelector('[data-nav-group="graph"]'))`)
+      await page.evaluate(`document.querySelector('[data-nav-group="graph"]').click()`)
       await page.until(`Boolean(document.querySelector('[data-frontier]'))`)
       await shoot('1-frontier')
       await page.evaluate(`document.querySelector('[data-graph-tab="all"]').click()`)
@@ -71,7 +71,7 @@ try {
       }
       if (phone) {
         await page.evaluate(`document.querySelector('[data-top-rail-bar]')?.click()`)
-        await page.until(`Boolean(document.querySelector('[data-nav-item="dashboard/graph"]'))`)
+        await page.until(`Boolean(document.querySelector('[data-nav-group="graph"]'))`)
         await shoot(before ? '3-menu' : '5-menu')
         if (!before) {
           await page.until(`Boolean(document.querySelector('[data-rail-drafts]'))`)

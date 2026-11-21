@@ -120,5 +120,5 @@ test('the dialog offers Stop all agents, which asks first and warns', () => {
     }),
     'All agents stopped by dashboard: runaway. 1 chat stopped; 1 could not be stopped. 4 tasks paused.',
   )
-  assert.match(source('FlowView.tsx'), /stop\.full \? 'Resume all agents\?'/)
+  assert.match(source('StopLine.tsx'), /stop\.full \? 'Resume all agents\?'/)
 })

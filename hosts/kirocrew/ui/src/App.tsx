@@ -13,19 +13,16 @@ import type { NavGroup } from './NavAccordion.tsx'
 import { LeftNav, NavLine } from './LeftNav.tsx'
 import { PageRefreshIcon, useHasPageRefresh } from './page-refresh.tsx'
 import { usePhone } from './list-detail.ts'
-import DashboardView, { type DashboardTarget } from './DashboardView'
 import PlansView, { type PlanTarget } from './PlansView'
 import GraphPage from './FocusTree.tsx'
 import { parseGraphLink } from './focus-tree.ts'
 import WaitingView from './WaitingView.tsx'
-import FlowView, { LineBanner } from './FlowView.tsx'
-import { DASHBOARD_PAGES, TABS, WAITING_SECTIONS, dashboardPage, dashboardTab, navTab, tabLabel, type Tab, type WaitingSection } from './nav-api.ts'
+import { TABS, WAITING_SECTIONS, tabLabel, type Tab, type WaitingSection } from './nav-api.ts'
 import { WorkspacePill } from './WorkspacePill.tsx'
 import { NavSlotProvider } from './nav-slot.tsx'
 import DeliveryView from './DeliveryView.tsx'
 import { VIEW_ICONS } from './icons.ts'
-import ActivityView from './ActivityView.tsx'
-import { useOpenStops } from './StopLine.tsx'
+import { LineBanner, useOpenStops } from './StopLine.tsx'
 import type { NewPlanForm } from './new-plan-api.ts'
 import SettingsView, { GITHUB_TABS, SETTINGS_TABS, type SettingsTab } from './SettingsView'
 import { parseSpecTab, readTab, specTabLink } from './tabs.ts'
@@ -87,9 +84,9 @@ function AvoozlPage() {
   const api = useAppApi()
   const client = useMemo(() => workspaceClient(api), [api])
   const saved = useMemo(() => readPageState(storage()), [])
-  // The page always opens on the Dashboard; the tab is remembered only while
-  // the page stays open.
-  const [tab, setTab] = useState<Tab>('dashboard')
+  // The page always opens on Plans; the tab is remembered only while the page
+  // stays open.
+  const [tab, setTab] = useState<Tab>('plans')
   // Settings starts on Workspaces each visit (settingsTabOnEnter).
   const [settingsTab, setSettingsTab] = useState<SettingsTab>(SETTINGS_HOME)
   // The sub-page the nav shows for Needs you.
@@ -99,8 +96,8 @@ function AvoozlPage() {
   const [drill, setDrill] = useState<Drill | null>(null)
   // Open conflicts, for the yellow count after the Conflicts tab's label.
   const [conflicts, setConflicts] = useState(0)
-  // Each Plan a goal press opens the New plan drawer once.
-  const [planGoal, setPlanGoal] = useState<{ n: number; seed?: Partial<NewPlanForm> }>({ n: 0 })
+  // No control here opens the New plan drawer; Plans opens it itself.
+  const [planGoal] = useState<{ n: number; seed?: Partial<NewPlanForm> }>({ n: 0 })
   const views = useMemo(() => viewsClient(api), [api])
 
   const waitingCount = conflicts
@@ -168,7 +165,6 @@ function AvoozlPage() {
     }
     go({ focus: null, drill: null, tab: 'plans' })
   }
-  const navigate = (target: DashboardTarget, taskId?: string) => go({ focus: taskId ?? null, drill: null, tab: target })
   // A Plans row's Graph button: set the shared filter, then open the plan
   // graph. The filter bar shows it, and Clear undoes it.
   const scopeTo = (target: PlanTarget, filter: TaskFilter) => {
@@ -178,11 +174,6 @@ function AvoozlPage() {
   // On the Graph already, a drill is the Graph's own Back step.
   const openDrill = (next: Drill) => go({ focus: null, drill: next, tab: 'graph' })
   const openSettings = (section: string) => go({ focus: null, drill: null, tab: 'settings', settingsTab: section as SettingsTab })
-  const planEpic = () => {
-    // The same New plan drawer, opened on the Specs tab.
-    setPlanGoal((request) => ({ n: request.n + 1 }))
-    go({ focus: null, drill: null, tab: 'plans' })
-  }
   const chooseTab = (key: Tab) =>
     go({
       focus: null,
@@ -257,21 +248,18 @@ function AvoozlPage() {
   const showRail = phone && railOpen
   // Refresh on a phone: an icon in its own small section at the bottom of
   // the menu. A desktop has it on the top line. Stop the line is on
-  // Dashboards › Delivery.
+  // In flight.
   const lineControls = hasRefresh && (
     <NavLine>
       <PageRefreshIcon />
     </NavLine>
   )
-  // A stopped line shows its banner on every page: Home and Flow draw their
-  // own, the shell draws it everywhere else.
+  // A stopped line shows its banner on every page.
   const stops = useOpenStops(active)
-  const ownBanner = tab === 'dashboard' || tab === 'flow'
-  // Radar's nav model: Dashboards, Needs you, Flow and Settings open in the
-  // nav to their sub-pages; Specs, Activity and Dashboards › Delivery open
-  // to their filters (a slot the page fills); the other pages are plain entries.
+  // Radar's nav model: Needs you and Settings open in the nav to their
+  // sub-pages; Plans, Graph and In flight open to their filters (a slot the
+  // page fills).
   const kids: Partial<Record<Tab, { key: string; label: string }[]>> = {
-    dashboard: DASHBOARD_PAGES,
     waiting: WAITING_SECTIONS.map((x) => ({
       key: x.key,
       label: x.title,
@@ -283,16 +271,15 @@ function AvoozlPage() {
     key: t.key,
     text: t.label,
     children: kids[t.key],
-    slot: t.key === 'plans' || t.key === 'activity' || t.key === 'dashboard' || t.key === 'flow',
+    slot: t.key === 'plans' || t.key === 'graph' || t.key === 'delivery',
     aria: t.key === 'waiting' && waitingCount > 0 ? `Needs you, ${waitingCount} items` : undefined,
     label: <NavLabel view={t.key} text={t.label} count={t.key === 'waiting' ? waitingCount : 0} />,
   }))
-  const child = tab === 'settings' ? settingsTab : tab === 'waiting' ? waitingSection : dashboardPage(tab)
+  const child = tab === 'settings' ? settingsTab : tab === 'waiting' ? waitingSection : null
   // A header or sub-page pick: the page, and its sub-page when it has one.
   const pickNav = (key: string, sub?: string) => {
     if (sub === undefined) return chooseTab(key as Tab)
-    if (key === 'dashboard') go({ tab: dashboardTab(sub), focus: null, drill: null })
-    else if (key === 'settings') go({ tab: 'settings', settingsTab: sub as SettingsTab, focus: null, drill: null })
+    if (key === 'settings') go({ tab: 'settings', settingsTab: sub as SettingsTab, focus: null, drill: null })
     else go({ tab: 'waiting', waitingSection: sub as WaitingSection, focus: null, drill: null })
   }
   // The workspace pill, first in the nav and in the phone's menu.
@@ -307,13 +294,13 @@ function AvoozlPage() {
                 // A phone keeps one thin row: the menu button. The brand card and the
                 // line controls are at the bottom of the menu it opens.
                 <Box as="header" flex minW0 items="center" gap="2" px="2" py="1" data-phone-header>
-                  <RailButton groups={groups} value={navTab(tab)} child={child} open={railOpen} onOpenChange={setRailOpen} />
+                  <RailButton groups={groups} value={tab} child={child} open={railOpen} onOpenChange={setRailOpen} />
                 </Box>
               )}
               {showRail && (
                 <RailList
                   groups={groups}
-                  value={navTab(tab)}
+                  value={tab}
                   child={child}
                   onPick={pickNav}
                   onOpenChange={setRailOpen}
@@ -328,7 +315,7 @@ function AvoozlPage() {
               )}
               {/* Desktop: the left nav, then the page. A phone has the hamburger. */}
               <Box css-display={showRail ? 'none' : undefined} flex minH0 flex1 flexCol={phone} px={phone ? undefined : '6'} data-shell>
-                {!phone && <LeftNav groups={groups} value={navTab(tab)} child={child} onPick={pickNav} top={pill} brand={<BrandCard workspaceId={active} />} />}
+                {!phone && <LeftNav groups={groups} value={tab} child={child} onPick={pickNav} top={pill} brand={<BrandCard workspaceId={active} />} />}
                 <Box flex minH0 minW0 flex1 flexCol pb={phone ? undefined : '2'} data-shell-main>
                   <Box flex flexWrap items="center" gap="3" pb="2" px={phone ? '4' : '2'} data-main-top>
                     {/* The workspace is the pill at the top of the nav (Radar's switcher). */}
@@ -338,7 +325,7 @@ function AvoozlPage() {
                       {!phone && <PageRefreshIcon />}
                     </Box>
                   </Box>
-                  {!ownBanner && !needsWorkspace && stops.length > 0 && (
+                  {!needsWorkspace && stops.length > 0 && (
                     <Box pb="2" px={phone ? '4' : '2'} data-shell-line-banner>
                       <LineBanner stops={stops} workspaceId={active} />
                     </Box>
@@ -379,8 +366,6 @@ function AvoozlPage() {
                           ) : undefined
                         }
                       />
-                    ) : tab === 'dashboard' ? (
-                      <DashboardView workspaceId={active} onNavigate={navigate} onDrill={openDrill} onOpenSettings={openSettings} onPlanEpic={planEpic} />
                     ) : tab === 'plans' ? (
                       <PlansView workspaceId={active} onScope={scopeTo} onDrill={openDrill} newPlanRequest={planGoal} onOpenSettings={openSettings} />
                     ) : tab === 'graph' ? (
@@ -392,8 +377,6 @@ function AvoozlPage() {
                         onDrill={setDrill}
                         onOpenSpecs={() => chooseTab('plans')}
                       />
-                    ) : tab === 'flow' ? (
-                      <FlowView workspaceId={active} />
                     ) : tab === 'waiting' ? (
                       <WaitingView
                         workspaceId={active}
@@ -413,8 +396,6 @@ function AvoozlPage() {
                       />
                     ) : tab === 'delivery' ? (
                       <DeliveryView workspaceId={active} />
-                    ) : tab === 'activity' ? (
-                      <ActivityView workspaceId={active} />
                     ) : (
                       <SettingsView
                         workspaceId={active}

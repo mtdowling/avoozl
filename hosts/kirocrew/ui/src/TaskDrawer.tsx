@@ -40,7 +40,6 @@ import { errorMessage } from './workspace-api.ts'
 import { IconLabel, SectionBox, ShowMore, TipBtn, useAskChat, usePages } from './ui/controls.tsx'
 import { resultMessage, settleTargets, whyLine } from './conflicts-api.ts'
 import { itemRef } from './chat-api.ts'
-import { TimingFold } from './FlowView.tsx'
 import { FileText, MessageSquare, Network, Pause, Pencil, Play, Plus, RotateCcw } from './icons.ts'
 import { linkHref } from './views-api.ts'
 import { ManualTask } from './ManualTask.tsx'
@@ -533,11 +532,6 @@ function TaskPanel(props: {
                 </>
               ) : null}
             </SectionBox>
-            {detail.timing && (
-              <SectionBox id="timing" title="Timing">
-                <TimingFold timing={detail.timing} />
-              </SectionBox>
-            )}
           </>
         )}
         {tab === 'links' && (

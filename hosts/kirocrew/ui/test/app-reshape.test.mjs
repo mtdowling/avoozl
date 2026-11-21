@@ -28,23 +28,10 @@ const open = (query = {}) => page.open(harness.url({ page: 'app', ...query }), {
 const click = (expression) => page.evaluate(`(() => { const b = ${expression}; b.click(); return true })()`)
 const text = `document.body.innerText`
 
-test('the nav row has Dashboards, Specs, Needs you, Flow, Activity and Settings, and no Trace', { skip }, async () => {
+test('the nav row has Specs, Graph, In flight, Needs you and Settings, and no Trace', { skip }, async () => {
   await open({ basic: '1' })
-  await page.until(`${tabs}.length === 6`)
-  assert.deepEqual(await page.evaluate(tabs), ['Dashboards', 'Specs', 'Needs you', 'Flow', 'Activity', 'Settings'])
-  assert.deepEqual(page.errors, [])
-})
-
-test('an empty Home shows its sections and no setup cards', { skip }, async () => {
-  await open({ basic: '1' })
-  await page.until(`Boolean(document.querySelector('[data-home-section="landing-queue"]'))`)
-  const body = await page.evaluate(text)
-  assert.ok(body.includes('Landing queue'))
-  // No setup card, and Radar's crew cell, its wording and its graph link are gone.
-  assert.equal(await page.evaluate(`document.querySelectorAll('[data-setup-card]').length`), 0, 'no setup card')
-  for (const gone of ['Plan an epic', 'Radar crew', 'coded by Issue Radar', 'Issue Radar graph', 'driver session']) assert.ok(!body.includes(gone), gone)
-  // The driver chat is gone: no driver cell and no Start.
-  assert.equal(await page.evaluate(`document.querySelectorAll('[data-driver-session], [data-driver-start]').length`), 0)
+  await page.until(`${tabs}.length === 5`)
+  assert.deepEqual(await page.evaluate(tabs), ['Specs', 'Graph', 'In flight', 'Needs you', 'Settings'])
   assert.deepEqual(page.errors, [])
 })
 

@@ -1,4 +1,4 @@
-// The left nav is Issue Radar's accordion: Dashboards, Flow, Needs you and Settings open
+// The left nav is Issue Radar's accordion: Plans, In flight, Needs you and Settings open
 // in the nav to their pages, one section is open at a time, and the content
 // shows only the picked page (no tab bar or section list in it). Each pick is
 // a Back step. On a phone the same accordion is in the menu. Skipped when no
@@ -30,10 +30,10 @@ const has = (selector) => page.evaluate(`Boolean(document.querySelector(${JSON.s
 test('Settings opens in the nav; the page shows one section; Needs you does the same and shuts Settings', { skip }, async () => {
   await page.open(harness.url({ app: '1', basic: '1' }), { width: 1280, height: 800 })
   await page.until(`Boolean(document.querySelector('[data-nav-group="settings"]'))`)
-  // Home is Dashboards' first page, so Dashboards is the one open section.
+  // The page opens on Plans, so Plans is the one open section.
   assert.deepEqual(
     await page.evaluate(`[...document.querySelectorAll('[data-nav-children]')].map((x) => x.dataset.navChildren)`),
-    ['dashboard'],
+    ['plans'],
     'every section starts shut except the page you are on',
   )
   await click('[data-nav-group="settings"]')
@@ -93,8 +93,8 @@ for (const [width, height, scope] of [
   [1280, 800, '[data-left-nav]'],
   [390, 844, '[data-top-rail-list]'],
 ])
-  test(`at ${width} px one pill is open: Specs, then Activity, then Dashboards, then a pill opened by hand`, { skip }, async () => {
-    await page.open(harness.url({ app: '1', basic: '1', specs: '1', activity: '1' }), { width, height })
+  test(`at ${width} px one pill is open: Plans, then In flight, then Needs you, then a pill opened by hand`, { skip }, async () => {
+    await page.open(harness.url({ app: '1', basic: '1', specs: '1' }), { width, height })
     await page.until(`Boolean(document.querySelector('[data-shell-main]'))`)
     const menu = async () => {
       if (width >= 768 || (await has('[data-top-rail-list]'))) return
@@ -108,18 +108,18 @@ for (const [width, height, scope] of [
       await settle()
     }
     await menu()
-    assert.deepEqual(await openPills(scope), ['dashboard'], 'Home: Dashboards alone')
-    for (const key of ['plans', 'activity', 'dashboard']) {
+    assert.deepEqual(await openPills(scope), ['plans'], 'Plans alone')
+    for (const key of ['delivery', 'waiting', 'plans']) {
       await go(key)
       assert.deepEqual(await openPills(scope), [key], `after going to ${key}, only its pill is open`)
     }
     // A page inside a pill keeps that pill the only one open.
-    await click(`${scope} [data-nav-item="dashboard/graph"]`)
+    await click(`${scope} [data-nav-group="graph"]`)
     await settle()
     await menu()
-    assert.deepEqual(await openPills(scope), ['dashboard'], 'Graph: Dashboards alone')
+    assert.deepEqual(await openPills(scope), ['graph'], 'Graph: its own pill alone')
     await go('settings')
-    assert.deepEqual(await openPills(scope), ['settings'], 'opening Settings by hand shuts Dashboards')
+    assert.deepEqual(await openPills(scope), ['settings'], 'opening Settings by hand shuts the rest')
     assert.equal(await page.evaluate(`document.querySelectorAll('${scope} [aria-expanded="true"][data-nav-group]').length`), 1, 'one header says it is expanded')
     assert.deepEqual(page.errors, [])
   })

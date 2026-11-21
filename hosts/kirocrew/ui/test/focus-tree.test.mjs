@@ -165,8 +165,8 @@ async function openGraph(width = 1280) {
   await page.open(harness.url({ page: 'app', graph: 'chains' }), { width, height: 900, dark: false })
   await page.until(`Boolean(document.querySelector('[data-shell]'))`)
   if (width < 768) await page.evaluate(`document.querySelector('[data-top-rail-bar]')?.click()`)
-  await page.until(`Boolean(document.querySelector('[data-nav-item="dashboard/graph"]'))`)
-  await page.evaluate(`(window.__ops = [], document.querySelector('[data-nav-item="dashboard/graph"]').click(), true)`)
+  await page.until(`Boolean(document.querySelector('[data-nav-group="graph"]'))`)
+  await page.evaluate(`(window.__ops = [], document.querySelector('[data-nav-group="graph"]').click(), true)`)
   await page.until(`Boolean(document.querySelector('[data-frontier]'))`)
 }
 const rooted = (id) => page.until(`document.querySelector('[data-focus-tree]')?.dataset.focusTree === ${JSON.stringify(id)}`)

@@ -59,7 +59,7 @@ try {
       // A draft spec's task: a task card opens the full task details instead.
       await start({ graph: 'drafts' }, width, theme)
       if (phone(width)) await goTo(width, 'Graph')
-      else await page.evaluate(`document.querySelector('[data-nav-item="dashboard/graph"]').click()`)
+      else await page.evaluate(`document.querySelector('[data-nav-group="graph"]').click()`)
       await page.until(`Boolean(document.querySelector('[data-frontier]'))`, 30000)
       await page.evaluate(`document.querySelector('[data-frontier-row="S3"] button').click()`)
       await page.evaluate(`[...document.querySelectorAll('[data-frontier-why] button')].find((b) => b.textContent.startsWith('open tree')).click()`)
@@ -77,8 +77,8 @@ try {
       await page.evaluate(
         `(() => { const h = document.querySelector('${scope} [data-nav-head][data-nav-group="dashboard"]'); if (h && !h.hasAttribute('data-open')) h.click(); return true })()`,
       )
-      await page.until(`Boolean(document.querySelector('${scope} [data-nav-item="dashboard/delivery"]'))`, 30000)
-      await page.evaluate(`document.querySelector('${scope} [data-nav-item="dashboard/delivery"]').click()`)
+      await page.until(`Boolean(document.querySelector('${scope} [data-nav-group="delivery"]'))`, 30000)
+      await page.evaluate(`document.querySelector('${scope} [data-nav-group="delivery"]').click()`)
       await page.until(`Boolean(document.querySelector('[data-stop-line]'))`, 30000)
       await page.evaluate(`document.querySelector('[data-stop-line]').click()`)
       await page.until(`Boolean(${TOP})`, 30000)

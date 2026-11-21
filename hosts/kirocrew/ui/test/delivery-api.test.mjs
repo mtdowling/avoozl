@@ -307,18 +307,18 @@ test('the state icons are labelled, theme-colored, and still under reduced motio
   assert.match(view, /list\(`\$\{lane\.id\}:\$\{group\.id\}`, group\.cards, group\.id\)/)
 })
 
-// Task 41.6: Delivery is a Dashboards page again, with its filters in the
-// left nav as rail rows and chips, no native dropdown.
-test('Delivery is a Dashboards page with nav rail filters', async () => {
-  const { DASHBOARD_PAGES } = await import('../src/nav-api.ts')
-  assert.ok(DASHBOARD_PAGES.some((page) => page.key === 'delivery'))
+// In flight is a nav entry of its own, with its filters in the left nav as
+// rail rows and chips, no native dropdown.
+test('In flight is a nav entry with nav rail filters', async () => {
+  const { TABS } = await import('../src/nav-api.ts')
+  assert.ok(TABS.some((page) => page.key === 'delivery' && page.label === 'In flight'))
   const view = readFileSync(new URL('../src/DeliveryView.tsx', import.meta.url), 'utf8')
-  assert.match(view, /<NavSlotFor section="dashboard">/)
+  assert.match(view, /<NavSlotFor section="delivery">/)
   assert.match(view, /<RailChips\s+id="epics"/)
   assert.doesNotMatch(view, /<select|FilterBar id=|Radar|driver/i)
   const app = readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8')
   assert.match(app, /tab === 'delivery' \? \(\s*<DeliveryView workspaceId=\{active\} \/>/)
-  assert.match(app, /t\.key === 'dashboard'/)
+  assert.match(app, /t\.key === 'delivery'/)
 })
 
 test('chip counts keep only values a card has, in the choices order', async () => {

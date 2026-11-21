@@ -12,7 +12,7 @@ const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url)
 
 test('every drawer section is a SectionBox, open at first, inside the shared tab bar', () => {
   const drawer = source('TaskDrawer.tsx')
-  for (const key of ['summary', 'description', 'links', 'task-links', 'delivery', 'timing', 'conflicts', 'timeline', 'review', 'fields'])
+  for (const key of ['summary', 'description', 'links', 'task-links', 'delivery', 'conflicts', 'timeline', 'review', 'fields'])
     assert.match(drawer, new RegExp(`<SectionBox id="${key}" title=`), key)
   // The shared tab bar (Tabs.tsx), not a pattern of its own.
   assert.match(drawer, /<Tabs id="task-tabs"/)
@@ -29,10 +29,9 @@ test('every drawer section is a SectionBox, open at first, inside the shared tab
 })
 
 test('every place that opens task details uses the one drawer', () => {
-  for (const name of ['GraphView.tsx', 'PlansView.tsx', 'DashboardView.tsx', 'ConflictsView.tsx', 'FlowView.tsx', 'ActivityView.tsx', 'FocusTree.tsx'])
-    assert.match(source(name), /drawer\.openTask\(/, name)
+  for (const name of ['GraphView.tsx', 'PlansView.tsx', 'InFlight.tsx', 'ConflictsView.tsx', 'FocusTree.tsx']) assert.match(source(name), /drawer\.openTask\(/, name)
   // Only the drawer and Needs you's history read a task's detail.
-  for (const name of ['GraphView.tsx', 'PlansView.tsx', 'DashboardView.tsx', 'FlowView.tsx']) assert.doesNotMatch(source(name), /tasks\.detail\(/, name)
+  for (const name of ['GraphView.tsx', 'PlansView.tsx', 'InFlight.tsx']) assert.doesNotMatch(source(name), /tasks\.detail\(/, name)
 })
 
 const chrome = findChrome()

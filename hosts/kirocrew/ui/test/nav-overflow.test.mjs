@@ -57,7 +57,7 @@ for (const [width, height] of [
 ])
   for (const dark of [false, true])
     test(`at ${width} px ${dark ? 'dark' : 'light'}: nav pills and their rows stay inside, and rows line up`, { skip }, async () => {
-      await page.open(harness.url({ page: 'app', theme: dark ? 'dark' : 'light', needs: '12', long: '1', specs: '1', activity: '1' }), { width, height, dark })
+      await page.open(harness.url({ page: 'app', theme: dark ? 'dark' : 'light', needs: '12', long: '1', specs: '1' }), { width, height, dark })
       await page.until(`Boolean(document.querySelector('[data-shell-main]'))`)
       if (width < 768) {
         await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
@@ -74,7 +74,7 @@ for (const [width, height] of [
       })()`)
       assert.deepEqual(pill, { first: true, cut: true, inMain: false })
       const lefts = {}
-      for (const section of ['Dashboards', 'Specs', 'Needs you', 'Flow', 'Activity', 'Settings']) {
+      for (const section of ['Specs', 'Graph', 'In flight', 'Needs you', 'Settings']) {
         if (width < 768 && !(await page.evaluate(`Boolean(document.querySelector('[data-top-rail-list]'))`)))
           await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
         await open(width, section)
@@ -84,7 +84,7 @@ for (const [width, height] of [
         )
         if (left !== null) lefts[section] = left
       }
-      assert.ok(Object.keys(lefts).length >= 3, JSON.stringify(lefts))
+      assert.ok(Object.keys(lefts).length >= 2, JSON.stringify(lefts))
       assert.equal(new Set(Object.values(lefts)).size, 1, `rows start at one x in every section: ${JSON.stringify(lefts)}`)
       // The Needs you count is whole and inside its pill's header.
       const count = await page.evaluate(
@@ -92,124 +92,6 @@ for (const [width, height] of [
       )
       assert.deepEqual(count, { inside: true, text: '12' })
     })
-
-// Activity's filters in the open nav, as rows and chips like the Specs rail:
-// no dropdowns; the source rows share one left and right edge, the headers
-// and chips share one left edge with the Keep activity field, and nothing
-// passes the pill. The nav's pills are 2px taller above and below than a
-// 28px button.
-for (const [width, height] of [
-  [390, 844],
-  [1280, 800],
-])
-  for (const dark of [false, true])
-    test(`at ${width} px ${dark ? 'dark' : 'light'}: Activity filters are rows and chips that line up, pills are 32 px`, { skip }, async () => {
-      await page.open(harness.url({ page: 'app', theme: dark ? 'dark' : 'light', needs: '3', activity: '1' }), { width, height, dark })
-      await page.until(`Boolean(document.querySelector('[data-shell-main]'))`)
-      if (width < 768) {
-        await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
-        await page.until(`Boolean(document.querySelector('[data-top-rail-list]'))`)
-      }
-      await open(width, 'Activity')
-      await page.until(`document.querySelectorAll('${scope(width)} [data-nav-filters] [data-rail-chip]').length >= 3`)
-      const got = await page.evaluate(`(() => {
-        const rail = document.querySelector('${scope(width)} [data-nav-filters="avoozl-activity"]')
-        const box = (el) => el.getBoundingClientRect()
-        const rows = [...rail.querySelectorAll('[data-rail-source]')].map(box)
-        return {
-          selects: rail.querySelectorAll('select').length,
-          rowLefts: [...new Set(rows.map((r) => Math.round(r.left)))],
-          rowRights: [...new Set(rows.map((r) => Math.round(r.right)))],
-          heads: [...new Set([...rail.querySelectorAll('[data-rail-head]')].map((h) => Math.round(box(h).left)))],
-          chips: [...new Set([...rail.querySelectorAll('[data-rail-chip]')].map((c) => Math.round(box(c).left)))],
-          keep: Math.round(box(rail.querySelector('#avoozl-activity-keep')).left),
-          pressed: rail.querySelector('[data-rail-source=""]').getAttribute('aria-pressed'),
-        }
-      })()`)
-      assert.equal(got.selects, 0, 'no dropdowns')
-      assert.equal(got.pressed, 'true', 'All is filled while no source is picked')
-      assert.equal(got.rowLefts.length, 1, `rows share a left edge: ${JSON.stringify(got)}`)
-      assert.equal(got.rowRights.length, 1, `rows share a right edge: ${JSON.stringify(got)}`)
-      assert.equal(got.heads.length, 1, `headers share a left edge: ${JSON.stringify(got)}`)
-      assert.deepEqual(got.chips, got.heads, `chips line up with the headers: ${JSON.stringify(got)}`)
-      assert.equal(got.keep, got.heads[0], `Keep activity lines up with the headers: ${JSON.stringify(got)}`)
-      assert.deepEqual(await page.evaluate(OVERFLOWS(width)), [], 'nothing passes the pill')
-      const heights = await page.evaluate(
-        `(() => { const nav = document.querySelector('${scope(width)}'); return { heads: [...new Set([...nav.querySelectorAll('[data-nav-head]')].map((h) => Math.round(h.getBoundingClientRect().height)))], rows: [...new Set([...nav.querySelectorAll('[data-nav-children] > [data-nav-item]')].map((h) => Math.round(h.getBoundingClientRect().height)))], workspace: Math.round(nav.querySelector('[data-workspace-pill]').getBoundingClientRect().height) } })()`,
-      )
-      assert.deepEqual(heights, { heads: [32], rows: heights.rows.length ? [32] : [], workspace: 32 })
-    })
-
-// Activity's Refresh sits on the top line, as on Home, not on a row of its
-// own under it; no pause icon is there (it is on Delivery). A phone has it in
-// the menu.
-for (const [width, height] of [
-  [390, 844],
-  [1280, 800],
-])
-  for (const dark of [false, true])
-    test(`at ${width} px ${dark ? 'dark' : 'light'}: Activity's Refresh is on the top line, as on Home`, { skip }, async () => {
-      await page.open(harness.url({ page: 'app', theme: dark ? 'dark' : 'light', needs: '3', activity: '1' }), { width, height, dark })
-      await page.until(`Boolean(document.querySelector('[data-shell-main]'))`)
-      if (width < 768) {
-        await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
-        await page.until(`Boolean(document.querySelector('[data-top-rail-list]'))`)
-      }
-      await open(width, 'Activity')
-      if (width < 768 && (await page.evaluate(`Boolean(document.querySelector('[data-top-rail-list]'))`)))
-        await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
-      await page.until(`Boolean(document.querySelector('#avoozl-activity-title'))`)
-      // No Refresh in the page's own heading row.
-      assert.equal(
-        await page.evaluate(`document.querySelector('#avoozl-activity-title').closest('div, header')?.querySelectorAll('[data-refresh]').length ?? 0`),
-        0,
-        'no Refresh in the heading',
-      )
-      if (width < 768) {
-        await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
-        await page.until(`Boolean(document.querySelector('[data-top-rail-list] [data-refresh]'))`)
-        return
-      }
-      const got = await page.evaluate(`(() => {
-        const refresh = document.querySelectorAll('[data-refresh]')
-        return { count: refresh.length, inLine: Boolean(refresh[0].closest('[data-main-actions]')), pause: document.querySelectorAll('[data-main-top] [data-stop-line]').length }
-      })()`)
-      assert.equal(got.count, 1, JSON.stringify(got))
-      assert.ok(got.inLine, `on the top line: ${JSON.stringify(got)}`)
-      assert.equal(got.pause, 0, 'no pause on the top line')
-    })
-
-// Home's reads, by name. A new read on Home (or one that calls GitHub) has
-// to be added here on purpose. landing.view reads Avoozl's own store only
-// (landing-view.test.mjs checks it makes no GitHub call).
-const HOME_READS = new Set([
-  'workspaces.list',
-  'flow.view',
-  'graph.view',
-  'delivery.view',
-  'conflicts.view',
-  'plan.list',
-  'repositories.list',
-  'github.settings.get',
-  'radar.releasequeue',
-  'integration.view',
-  // Phase and branch plugin check results beside the branches.
-  'plugin.checks.stages',
-  'landing.view',
-])
-
-test('Home sends only its own reads', { skip }, async () => {
-  await page.open(harness.url({ page: 'app', theme: 'light', needs: '3' }), { width: 1280, height: 800 })
-  await page.until(`document.body.textContent.includes('Needs you (3)')`, 10000)
-  await wait(600)
-  const ops = await page.evaluate('window.__ops || []')
-  assert.deepEqual(
-    ops.filter((op) => !HOME_READS.has(op)),
-    [],
-  )
-  // The landing and CI row is there too.
-  assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-home-pair="landing-ci"]'))`), true)
-})
 
 // Every icon on the page draws a glyph: the host's lucide-react icon, never
 // the harness's stand-in circle, and never an empty <svg>. Needs the
@@ -226,13 +108,15 @@ const ICONS = `(() => {
   return out.slice(0, 10)
 })()`
 
-test('every icon on Home, in the nav and the phone menu draws a glyph', { skip: skip || (realLucide ? false : 'lucide-react is not installed (npm ci installs it)') }, async () => {
+test('every icon on Specs, in the nav and the phone menu draws a glyph', {
+  skip: skip || (realLucide ? false : 'lucide-react is not installed (npm ci installs it)'),
+}, async () => {
   for (const [width, height] of [
     [1280, 800],
     [390, 844],
   ]) {
     await page.open(harness.url({ page: 'app', theme: 'light', needs: '3' }), { width, height })
-    await page.until(`document.body.textContent.includes('Needs you (3)') || Boolean(document.querySelector('[data-top-rail-bar]'))`)
+    await page.until(`Boolean(document.querySelector('[data-plans-list]')) || Boolean(document.querySelector('[data-top-rail-bar]'))`)
     await wait(500)
     if (width < 768) {
       await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)

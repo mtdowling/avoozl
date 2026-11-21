@@ -10269,7 +10269,6 @@
   "hosts/kirocrew/ui/test/epics.test.mjs",
   "hosts/kirocrew/ui/test/github-rate.test.mjs",
   "hosts/kirocrew/ui/test/graph-layout.test.mjs",
-  "hosts/kirocrew/ui/test/home-api.test.mjs",
   "hosts/kirocrew/ui/test/list-detail.test.mjs",
   "hosts/kirocrew/ui/test/markdown.test.mjs",
   "hosts/kirocrew/ui/test/new-plan.test.mjs",

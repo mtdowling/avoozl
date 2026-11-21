@@ -32,8 +32,8 @@ async function openGraph(page, harness, { width, height, theme }) {
   await page.open(harness.url({ page: 'app', graph: 'chains', theme }), { width, height, dark: theme === 'dark' })
   await page.until(`Boolean(document.querySelector('[data-shell]'))`)
   if (width < 768) await page.evaluate(`document.querySelector('[data-top-rail-bar]')?.click()`)
-  await page.until(`Boolean(document.querySelector('[data-nav-item="dashboard/graph"]'))`)
-  await page.evaluate(`document.querySelector('[data-nav-item="dashboard/graph"]').click()`)
+  await page.until(`Boolean(document.querySelector('[data-nav-group="graph"]'))`)
+  await page.evaluate(`document.querySelector('[data-nav-group="graph"]').click()`)
   await page.until(`Boolean(document.querySelector('[data-frontier]'))`)
 }
 const settle = (page) => page.evaluate('new Promise((r) => setTimeout(r, 250))')

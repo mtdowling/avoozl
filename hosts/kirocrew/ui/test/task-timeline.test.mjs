@@ -10,5 +10,5 @@ const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url)
 test('there is no Trace nav entry, page, drawer or Done list', () => {
   assert.ok(!TABS.some((t) => t.key === 'trace' || t.label === 'Trace'))
   for (const name of ['TraceView.tsx', 'TraceDone.tsx', 'trace-api.ts']) assert.equal(existsSync(new URL(`../src/${name}`, import.meta.url)), false, name)
-  for (const name of ['App.tsx', 'DashboardView.tsx']) assert.doesNotMatch(source(name), /Trace(View|Drawer|Page)|onTrace|radar\.trace|trace\.done/, name)
+  for (const name of ['App.tsx', 'InFlight.tsx']) assert.doesNotMatch(source(name), /Trace(View|Drawer|Page)|onTrace|radar\.trace|trace\.done/, name)
 })

@@ -8,8 +8,8 @@ import test from 'node:test'
 
 const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
 
-test('Graph nodes, Home lists and Conflicts items open the drawer', () => {
-  for (const name of ['GraphView.tsx', 'DashboardView.tsx', 'ConflictsView.tsx']) assert.match(source(name), /drawer\.openTask\(/, name)
+test('Graph nodes, In flight rows and Conflicts items open the drawer', () => {
+  for (const name of ['GraphView.tsx', 'InFlight.tsx', 'ConflictsView.tsx']) assert.match(source(name), /drawer\.openTask\(/, name)
   assert.match(source('GraphView.tsx'), /drawer\.addTask\(/)
   assert.match(source('PlansView.tsx'), /drawer\.addTask\(/)
   assert.match(source('App.tsx'), /<TaskDrawerProvider workspaceId=\{active\} onFocus=/)
@@ -56,7 +56,7 @@ test('the drawer shows every section, and a linked task opens in it', () => {
 })
 
 test('In flight rows have Info and a Session link to their chat', () => {
-  const dashboard = source('DashboardView.tsx')
+  const dashboard = source('InFlight.tsx')
   assert.match(dashboard, /<IconBtn icon=\{DetailsIcon\} label=\{`Details for \$\{row\.title\}`\} tooltip="Open the task drawer" onClick=\{onInfo\} \/>/)
   // A remote chat attaches only through Kiro Crew's MC-10 (R41.14); a
   // `process` child has no chat, so it has no Session link (R98.1).
@@ -64,8 +64,6 @@ test('In flight rows have Info and a Session link to their chat', () => {
   // (direct-links D2); a `process` child shows its log instead.
   assert.match(dashboard, /<AttemptLink session=\{row\.session\} title=\{row\.title\} \/>/)
   assert.match(source('WorkerLink.tsx'), /href=\{linkHref\(action\.href\)\}/)
-  // Needs you comes first in reading order, In flight beside it.
-  assert.ok(dashboard.indexOf('Needs you (') < dashboard.indexOf('In flight ('))
 })
 
 test('a Graph node click opens its task in the drawer, and a drag does not', () => {
@@ -91,8 +89,6 @@ test('a spec row opens the spec in the detail column', () => {
   // App sets the tabs' shared filter, then opens the tab.
   const app = source('App.tsx')
   assert.match(app, /<PlansView\s+workspaceId=\{active\}\s+onScope=\{scopeTo\}\s+onDrill=\{openDrill\}\s+newPlanRequest=\{planGoal\}/)
-  // Plan a goal opens the same New plan drawer on the Plans tab, not a chat.
-  assert.match(app, /setPlanGoal\(\(request\) => \(\{ n: request\.n \+ 1 \}\)\)\s*go\(\{ focus: null, drill: null, tab: 'plans' \}\)/)
   assert.doesNotMatch(app, /openChat/)
   assert.match(plans, /if \(props\.newPlanRequest\?\.n\) setCreating\(\{ seed: props\.newPlanRequest\.seed \}\)/)
   assert.match(app, /if \(active\) setSharedFilter\(active, filter\)/)
@@ -117,6 +113,6 @@ test('a review group opens in the drawer with its tasks and a confirmed Mark rev
   assert.match(drawer, /<ReviewPanel/)
   assert.match(source('NeedsYouContext.tsx'), /onClick=\{\(\) => drawer\.openTask\(task\.id\)\}/)
   assert.match(source('ConflictsView.tsx'), /ask\(confirmSettle\('reviewed', count/)
-  for (const name of ['ConflictsView.tsx', 'DashboardView.tsx']) assert.match(source(name), /drawer\.openReview\(/, name)
+  assert.match(source('ConflictsView.tsx'), /drawer\.openReview\(/)
   assert.match(source('GraphView.tsx'), /task\.review && <Badge>review<\/Badge>/)
 })

@@ -38,8 +38,8 @@ const SIZES = [
   { width: 390, height: 800, theme: 'dark', dark: true },
   { width: 1280, height: 900, theme: 'light', dark: false },
 ]
-const SCREENS = [{ name: 'Home', query: { page: 'app', basic: '1' }, ready: `Boolean(document.querySelector('[data-home-section="landing-queue"]'))` }]
-const TABS = ['Specs', 'Needs you', 'Flow', 'Activity', 'Settings']
+const SCREENS = [{ name: 'Specs', query: { page: 'app', basic: '1' }, ready: `Boolean(document.querySelector('[data-plans-list]'))` }]
+const TABS = ['Graph', 'In flight', 'Needs you', 'Settings']
 
 for (const size of SIZES) {
   for (const screen of SCREENS)
@@ -51,7 +51,7 @@ for (const size of SIZES) {
 
   test(`no button on the other tabs and Settings sections is taller than ${MAX} px at ${size.width} px ${size.theme}`, { skip }, async () => {
     await page.open(harness.url({ page: 'app', basic: '1', theme: size.theme }), { width: size.width, height: size.height, dark: size.dark })
-    await page.until(`Boolean(document.querySelector('[data-home-section="landing-queue"]'))`)
+    await page.until(`Boolean(document.querySelector('[data-plans-list]'))`)
     const found = []
     const settle = () => new Promise((resolve) => setTimeout(resolve, 300))
     // On a phone the nav is behind the rail button; open it when it is shut.

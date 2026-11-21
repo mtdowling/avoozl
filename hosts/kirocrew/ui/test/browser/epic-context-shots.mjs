@@ -25,7 +25,7 @@ const before = label === 'before'
 const VIEWS = [
   ['context', 'Settings', 'Epic context', '[data-epic-context-settings]'],
   ['plugins', 'Settings', 'Plugins', '[data-plugin-context]'],
-  ['graph', 'Dashboards', 'Graph', '[data-epic-context]'],
+  ['graph', null, 'Graph', '[data-epic-context]'],
 ].filter(([view]) => !(before && view === 'context'))
 const harness = await buildHarness({ hostCss: await shotCss() })
 const browser = await launch(findChrome())

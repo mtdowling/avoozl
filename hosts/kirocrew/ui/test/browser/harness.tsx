@@ -12,6 +12,7 @@ import { createRoot } from 'react-dom/client'
 import { createPortal } from 'react-dom'
 import { answer, Btn, Card, Refusal, replyFor, useAppApi } from './stubs.tsx'
 import { answerSignIn } from './signin-fixture.ts'
+import { InFlightRow } from '../../src/InFlight.tsx'
 import { NavHistoryProvider, APP_ATTR } from '../../src/NavHistory.tsx'
 import { SpecLinkContext } from '../../src/spec-link.ts'
 import { ConfirmProvider, DangerBtn, InfoTip } from '../../src/ui/controls.tsx'
@@ -26,8 +27,6 @@ import PlansView, { ArchivePlanDialog, DeletePlanDialog } from '../../src/PlansV
 import { DocumentReader } from '../../src/DocumentReader.tsx'
 import { StopLineButton } from '../../src/StopLine.tsx'
 import WorkspaceView from '../../src/WorkspaceView.tsx'
-import ActivityView from '../../src/ActivityView.tsx'
-import DashboardView, { InFlightRow } from '../../src/DashboardView.tsx'
 import { LAYER } from '../../src/layers.ts'
 import PluginsSettings from '../../src/PluginsSettings.tsx'
 import SettingsView, { RateBlock, RepositoryEditor } from '../../src/SettingsView.tsx'
@@ -1786,19 +1785,6 @@ if (query.get('page') === 'activity' || query.get('activity') === '1') {
     return { hash: 'h', retentionDays: keepDays, default: 30 }
   })
 }
-function ActivityPage() {
-  return (
-    <div {...{ [APP_ATTR]: '' }} style={{ padding: 16, background: 'var(--bg)', color: 'var(--text)' }}>
-      <NavHistoryProvider>
-        <ConfirmProvider>
-          <TaskDrawerProvider workspaceId="w" onFocus={() => undefined}>
-            <ActivityView workspaceId="w" />
-          </TaskDrawerProvider>
-        </ConfirmProvider>
-      </NavHistoryProvider>
-    </div>
-  )
-}
 
 // ?page=specs: the Specs tab alone.
 if (query.get('page') === 'specs' || query.get('specs') === '1') {
@@ -1956,20 +1942,6 @@ function SpecsPage() {
         <ConfirmProvider>
           <TaskDrawerProvider workspaceId="w" onFocus={() => undefined}>
             <PlansView workspaceId="w" />
-          </TaskDrawerProvider>
-        </ConfirmProvider>
-      </NavHistoryProvider>
-    </div>
-  )
-}
-
-function HomePage() {
-  return (
-    <div {...{ [APP_ATTR]: '' }} style={{ padding: 16, background: 'var(--bg)', color: 'var(--text)' }}>
-      <NavHistoryProvider>
-        <ConfirmProvider>
-          <TaskDrawerProvider workspaceId="w" onFocus={() => undefined}>
-            <DashboardView workspaceId="w" onNavigate={() => undefined} />
           </TaskDrawerProvider>
         </ConfirmProvider>
       </NavHistoryProvider>
@@ -2227,10 +2199,6 @@ createRoot(document.getElementById('root')!).render(
     <CrewsRulesPage />
   ) : intake ? (
     <IntakePage />
-  ) : page === 'home' ? (
-    <HomePage />
-  ) : page === 'activity' ? (
-    <ActivityPage />
   ) : page && page !== 'app' && page !== 'demo' ? (
     <SettingsPage name={page} />
   ) : query.get('app') ? (

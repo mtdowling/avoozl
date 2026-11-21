@@ -212,7 +212,7 @@ export default function GraphPage(props: {
 
   return (
     <Stack aria-labelledby="avoozl-graph-title" as="section" gap={3} data-graph-page>
-      <NavSlotFor section="dashboard">
+      <NavSlotFor section="graph">
         <div role="group" aria-label="Graph filters" data-nav-filters="avoozl-graph" data-rail>
           <RailStyle />
           <RailBlock first id="graph-filters" icon={ListFilter} title="Graph">

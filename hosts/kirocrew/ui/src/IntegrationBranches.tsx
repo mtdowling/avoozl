@@ -1,4 +1,4 @@
-// Integration branches on the Dashboard (RC16.8): per epic with a branch, the
+// Integration branches on In flight (RC16.8): per epic with a branch, the
 // tasks merged into it, how far it is behind the default branch, and the state
 // of its head's checks. Read only. Nothing shows without a branch.
 import { useCallback, useMemo } from 'react'

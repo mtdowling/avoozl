@@ -40,6 +40,8 @@ import { NO_GROUP, NO_REPOSITORY, filterActive, filterChoices, planKey, type Tas
 import { STATES } from './graph-layout.ts'
 import { DISCLOSURE, DisclosureMark } from './ui/Disclosure.tsx'
 import { IconLabel, SectionHeading, ShowMore, TaskTitleLink, ViewHeading, usePages } from './ui/controls.tsx'
+import InFlightSessions from './InFlight.tsx'
+import IntegrationBranches from './IntegrationBranches.tsx'
 import { DetailsIcon, FileText, Folder, Layers, ListFilter, Pause, Play, RefreshCw, RotateCcw, X } from './icons.ts'
 import { chatClient } from './chat-api.ts'
 import { DEFER_TIP, RESUME_TIP, RETRY_TIP, START_TIP } from './delivery-api.ts'
@@ -391,7 +393,7 @@ function DeliveryFilters(props: { filter: TaskFilter; onChange: (filter: TaskFil
   const states = new Map<string, number>()
   for (const card of cards) states.set(card.state, (states.get(card.state) ?? 0) + 1)
   return (
-    <NavSlotFor section="dashboard">
+    <NavSlotFor section="delivery">
       <div role="search" aria-label="Filter delivery" data-nav-filters="avoozl-delivery" data-rail>
         <RailStyle />
         <RailBlock
@@ -582,8 +584,10 @@ export default function DeliveryView({ workspaceId }: { workspaceId: string | nu
           )
         }
       >
-        Delivery
+        In flight
       </ViewHeading>
+      <InFlightSessions workspaceId={workspaceId} />
+      <IntegrationBranches workspaceId={workspaceId} />
       {(error || message) && (
         <Box role={error || !message?.ok ? 'alert' : 'status'} as="p" size="sm" tone={error || !message?.ok ? 'danger' : 'muted'}>
           {error ?? message?.text}

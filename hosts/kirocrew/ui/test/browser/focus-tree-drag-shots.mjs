@@ -32,8 +32,8 @@ async function openTree(page, { width, height, theme }) {
   await page.open(harness.url({ page: 'app', graph: 'chains', theme }), { width, height, dark: theme === 'dark' })
   await page.until(`Boolean(document.querySelector('[data-shell]'))`)
   if (width < 768) await page.evaluate(`document.querySelector('[data-top-rail-bar]')?.click()`)
-  await page.until(`Boolean(document.querySelector('[data-nav-item="dashboard/graph"]'))`)
-  await page.evaluate(`document.querySelector('[data-nav-item="dashboard/graph"]').click()`)
+  await page.until(`Boolean(document.querySelector('[data-nav-group="graph"]'))`)
+  await page.evaluate(`document.querySelector('[data-nav-group="graph"]').click()`)
   await page.until(`Boolean(document.querySelector('[data-frontier]'))`)
   await page.evaluate(
     `(() => { const i = document.querySelector('[data-graph-jump]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, 'billing'); i.dispatchEvent(new Event('input', { bubbles: true })); i.form.requestSubmit(); return true })()`,

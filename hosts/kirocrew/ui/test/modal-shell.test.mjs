@@ -177,7 +177,16 @@ test('the task modal from Needs you in the full app', { skip }, async () => {
     [390, true],
   ]) {
     await page.open(harness.url({ page: 'app', needs: '1', theme: dark ? 'dark' : 'light' }), { width, height: 900, dark })
-    const find = `[...document.querySelectorAll('button')].find((b) => b.getAttribute('aria-label') === 'Details for Item 1')`
+    // The page opens on Specs; open Needs you › Decisions from the nav.
+    await page.until(`Boolean(document.querySelector('[data-left-nav], [data-top-rail-bar]'))`)
+    if (width < 768) await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
+    await page.until(`Boolean(document.querySelector('[data-nav-group="waiting"]'))`)
+    await page.evaluate(`document.querySelector('[data-nav-group="waiting"]').click()`)
+    await page.until(`Boolean(document.querySelector('[data-nav-item="waiting/decisions"]'))`)
+    await page.evaluate(`document.querySelector('[data-nav-item="waiting/decisions"]').click()`)
+    await page.until(`Boolean(document.querySelector('[data-conflict-pick]'))`, 30000)
+    await page.evaluate(`document.querySelector('[data-conflict-pick]').click()`)
+    const find = `[...document.querySelectorAll('[data-avoozl-pane] button')].find((b) => b.textContent.trim() === 'Task details')`
     await page.until(`Boolean(${find})`, 30000)
     await page.evaluate(`(() => { const b = ${find}; b.focus(); b.click(); return true })()`)
     await page.until(`Boolean(${TOP}) && ${TOP}.querySelector('[data-modal-header] h2').textContent.includes('Review with team')`, 30000)
@@ -186,7 +195,7 @@ test('the task modal from Needs you in the full app', { skip }, async () => {
     assert.deepEqual(await footerButtons(), ['Close', 'Add task after this'])
     await page.key('Escape', 'Escape', 27)
     await page.until(CLOSED)
-    assert.equal(await page.evaluate(`document.activeElement?.getAttribute('aria-label')`), 'Details for Item 1', 'focus returns to the opener')
+    assert.equal(await page.evaluate(`document.activeElement?.textContent.trim()`), 'Task details', 'focus returns to the opener')
   }
 })
 
@@ -212,8 +221,8 @@ test('the Approve dialog keeps its buttons in the footer beside Cancel', { skip 
 test('the Graph node modal: the node is the title, Close in the footer', { skip }, async () => {
   await page.open(harness.url({ page: 'app', graph: 'drafts' }), { width: 1280, height: 900 })
   await page.until(`Boolean(document.querySelector('[data-shell]'))`, 30000)
-  await page.until(`Boolean(document.querySelector('[data-nav-item="dashboard/graph"]'))`, 30000)
-  await page.evaluate(`document.querySelector('[data-nav-item="dashboard/graph"]').click()`)
+  await page.until(`Boolean(document.querySelector('[data-nav-group="graph"]'))`, 30000)
+  await page.evaluate(`document.querySelector('[data-nav-group="graph"]').click()`)
   await page.until(`Boolean(document.querySelector('[data-frontier]'))`, 30000)
   await page.evaluate(`document.querySelector('[data-frontier-row="S3"] button').click()`)
   await page.evaluate(`[...document.querySelectorAll('[data-frontier-why] button')].find((b) => b.textContent.startsWith('open tree')).click()`)

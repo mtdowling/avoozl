@@ -26,9 +26,6 @@ test('no view uses the host CardTitle, whose bottom margin lifts a title above i
 })
 
 test('headings with buttons pass them as the heading actions', () => {
-  const flow = source('FlowView.tsx'),
-    charts = source('FlowCharts.tsx')
-  assert.match(charts, /<SectionHeading title="Over time" actions=\{<UnitPicker/)
   for (const [file, view] of [
     ['ConflictsView.tsx', 'conflicts'],
     ['PlansView.tsx', 'plans'],
@@ -61,10 +58,6 @@ test('Specs heading: New spec, then an icon-only Refresh last; New task only in 
   for (const name of views) assert.doesNotMatch(source(name), />\s*Add task\s*</, name)
 })
 
-test('Flow shows no Tokens and credits card', () => {
-  assert.doesNotMatch(source('FlowCharts.tsx') + source('FlowView.tsx'), /Tokens and credits/)
-})
-
 test('a Needs you title opens what it is about', () => {
   const base = { key: 'k', kind: 'decision', title: 'T', detail: 'd', tab: 'conflicts', href: null }
   assert.deepEqual(attentionTarget({ ...base, taskId: 'W1' }), { kind: 'task', id: 'W1' })
@@ -72,16 +65,6 @@ test('a Needs you title opens what it is about', () => {
   assert.deepEqual(attentionTarget({ ...base, kind: 'content-match', taskId: null }), { kind: 'tab', tab: 'waiting' })
   assert.equal(attentionTip({ ...base, taskId: 'W1' }), 'Open W1 in the drawer')
   assert.equal(attentionTip({ ...base, kind: 'review', taskId: null, group: {} }), 'Open the list of tasks to review')
-  const dashboard = source('DashboardView.tsx')
-  // A button role on an inline link, so a long title wraps beside its tag:
-  // Tab reaches it, Enter and Space press it, and its name is the title.
-  assert.match(
-    dashboard,
-    /<(?:a|PlainLink)\s+role="button"\s+tabIndex=\{0\}[\s\S]{0,200}onClick=\{onTitle\}[\s\S]{0,300}event\.key === 'Enter' \|\| event\.key === ' '[\s\S]{0,200}data-attention-title\s*>\s*\{item\.title\}/,
-  )
-  assert.match(dashboard, /onTitle=\{\(\) => \{\s*const target = attentionTarget\(item\)/)
-  assert.match(dashboard, /target\.kind === 'review' && item\.group\) drawer\.openReview/)
-  assert.match(dashboard, /target\.kind === 'task'\) drawer\.openTask\(target\.id\)/)
 })
 
 test('Settings > Flow puts each sub-section in its own titled box', () => {

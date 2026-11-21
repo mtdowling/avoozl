@@ -7,6 +7,7 @@ import { after, before, test } from 'node:test'
 import { checkDot } from '../src/dashboard-api.ts'
 import { buildHarness } from './browser/build.mjs'
 import { findChrome, launch } from './browser/chrome.mjs'
+import { inFlight } from './browser/in-flight-nav.mjs'
 
 const checks = (extra = {}) => ({ state: 'pass', dot: 'pass', head: 'a'.repeat(40), ageMs: 4 * 60000, current: true, url: null, ...extra })
 
@@ -39,6 +40,7 @@ after(async () => {
 for (const width of [1280, 390])
   test(`each In flight row has PR and branch chips that open a new tab and fit at ${width} px`, { skip }, async () => {
     await page.open(harness.url({ page: 'app', links: '1' }), { width, height: 900 })
+    await inFlight(page)
     await page.until(`document.querySelectorAll('[data-in-flight-row]').length === 5`, 30000)
     const chips = await page.evaluate(`[...document.querySelectorAll('[data-in-flight-row]')].map((row) => {
       const box = row.getBoundingClientRect(), pr = row.querySelector('[data-pr-chip]'), branch = row.querySelector('[data-branch-chip]')

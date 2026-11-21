@@ -44,7 +44,7 @@ test('only Kiro Crew routes, the desktop chat link and http(s) are hrefs', () =>
 })
 
 test('In flight and the task drawer use the attempt action, and Needs you keeps a linked item in view', () => {
-  const flight = readFileSync(new URL('../src/DashboardView.tsx', import.meta.url), 'utf8')
+  const flight = readFileSync(new URL('../src/InFlight.tsx', import.meta.url), 'utf8')
   assert.match(flight, /Waiting for worker chat/)
   assert.match(flight, /<AttemptLink session=\{row\.session\}/)
   assert.match(flight, /View worker log/)

@@ -27,35 +27,6 @@ export const CSS_LaneStyle = `
 [data-lane-dot]{flex:none;width:8px;height:8px;border-radius:9999px;background:var(--lane-line)}
 `
 
-export const CSS_HomeCss = `
-[data-home]{display:flex;flex-direction:column;gap:20px;min-width:0}
-[data-home-tiles]{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;margin:0;padding:0;list-style:none}
-[data-home-tiles]>li>span{height:100%}
-[data-home-section]{display:flex;flex-direction:column;min-width:0}
-[data-home-head]{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:0 0 8px;min-width:0}
-[data-home-head] h3{margin:0;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-strong,var(--muted))}
-[data-home-hint]{font-size:11px;color:var(--muted);text-align:right;overflow-wrap:anywhere}
-[data-home-hint] button{text-decoration:underline;color:inherit}
-[data-home-pair]{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:stretch}
-[data-home-box]{flex:1;min-height:0;border:1px solid var(--border);border-radius:10px;background:var(--card);padding:2px 14px;overflow-y:auto}
-[data-home-pair] [data-home-box]{max-height:22rem}
-[data-home-list]{margin:0;padding:0;list-style:none}
-[data-home-row]{display:flex;gap:10px;align-items:baseline;padding:9px 0;border-top:1px solid var(--border);font-size:13px;min-width:0}
-[data-home-row]:first-child{border-top:0}
-[data-home-row-main]{flex:1;min-width:0;overflow-wrap:anywhere}
-[data-home-row-side]{flex:none;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
-[data-home-sub]{display:block;font-size:12px;color:var(--muted)}
-[data-home-num]{flex:none;min-width:1.5em;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
-[data-home-pr]{flex:none;font-size:12px;font-variant-numeric:tabular-nums;text-decoration:underline}
-[data-home-empty]{margin:0;padding:10px 0;font-size:13px;color:var(--muted)}
-[data-home-needs]{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:0;padding:0;list-style:none}
-[data-home-need]{display:flex;flex-direction:column;gap:6px;height:100%;padding:12px 14px;border:1px solid var(--border);border-left:3px solid var(--tile-orange,var(--warning));border-radius:10px;background:var(--card);min-width:0;overflow-wrap:anywhere}
-[data-home-need-detail]{font-size:12px;color:var(--muted);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
-[data-home-need-foot]{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:auto;padding-top:4px}
-@media (max-width:1180px){[data-home-tiles]{grid-template-columns:repeat(3,minmax(0,1fr))}[data-home-needs]{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media (max-width:767px){[data-home]{gap:16px}[data-home-tiles]{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}[data-home-needs],[data-home-pair]{grid-template-columns:minmax(0,1fr)}[data-home-pair] [data-home-box]{max-height:none}}
-`
-
 // Hover and keyboard focus use Kiro Crew's theme variables, as in Radar's
 // sidebar. The selected item keeps its tint; a hover on it only deepens it.
 export const CSS_NavStyle = `[data-nav-head]{display:flex;align-items:center;gap:6px;width:100%;min-width:0;flex-shrink:0;box-sizing:border-box;height:${NAV_PILL}px;padding:0 12px;border:0;background:none;color:var(--muted);font-size:12px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;text-align:left;cursor:pointer;transition:background-color .12s,color .12s}
@@ -126,23 +97,6 @@ export const CSS_SpecRailStyle = `[data-spec-rail]>[data-rail-section]:last-chil
 [data-spec-menu-item][aria-disabled=true]{color:var(--muted);cursor:default;background:none}
 [data-spec-menu-item][data-danger]{color:var(--danger)}`
 
-export const CSS_StatusCellsStyle = `
-[data-sc-row]{container-type:inline-size}
-[data-sc-grid]{display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));gap:8px}
-@container (max-width:420px){[data-sc-grid]{grid-template-columns:minmax(0,1fr)}}
-[data-sc]{display:flex;flex-wrap:nowrap;align-items:center;align-content:flex-start;gap:0 8px;min-width:0;padding:4px 8px;border:1px solid var(--border);border-radius:8px;font-size:12px;line-height:18px;color:var(--text)}
-[data-sc-title]{flex:0 1 auto;display:inline-flex;align-items:center;gap:6px;min-width:0;max-width:100%;font-weight:600;color:var(--text-strong,var(--text));overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-[data-sc-dot]{flex:none;width:8px;height:8px;border-radius:50%;background:var(--muted)}
-[data-sc-dot][data-tone=ok]{background:var(--ok)}
-[data-sc-dot][data-tone=warn]{background:var(--warning,#b7791f)}
-[data-sc-dot][data-tone=danger]{background:var(--danger)}
-[data-sc-actions]{flex:none;display:inline-flex;flex-wrap:nowrap;align-items:center;gap:4px;margin-left:auto}
-[data-sc-act]{display:inline-flex;align-items:center;justify-content:center;width:24px;height:22px;padding:0;background:transparent;border:1px solid transparent;border-radius:6px;color:var(--muted);font:inherit;text-decoration:none;cursor:pointer;transition:background-color .12s,color .12s}
-[data-sc-act]:hover{background:var(--bg-hover);color:var(--text)}
-[data-sc-act][data-primary]{color:var(--accent)}
-[data-sc-act]:disabled{opacity:.6;cursor:default}
-`
-
 // One rule for every group; React keeps a single copy in the document.
 export const CSS_FormSectionStyle = '[data-form-section] ~ [data-form-section] { border-top: 1px solid var(--border); padding-top: 16px; }'
 
@@ -168,10 +122,6 @@ export function LaneStyle() {
   return <style>{CSS_LaneStyle}</style>
 }
 
-export function HomeCss() {
-  return <style>{CSS_HomeCss}</style>
-}
-
 export function NavStyle() {
   return <style>{CSS_NavStyle}</style>
 }
@@ -186,10 +136,6 @@ export function DetailsStyle() {
 
 export function SpecRailStyle() {
   return <style>{CSS_SpecRailStyle}</style>
-}
-
-export function StatusCellsStyle() {
-  return <style>{CSS_StatusCellsStyle}</style>
 }
 
 export function FormSectionStyle() {

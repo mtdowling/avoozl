@@ -62,7 +62,6 @@ test('a manual task waiting for a person is tagged Manual in Needs you and on it
     [['review', true]],
   )
   assert.equal(lanes.waiting.find((card) => card.id === 'cutover').manual, false)
-  assert.match(source('DashboardView.tsx'), /manual: 'Manual'/)
 })
 
 test('the drawer has Links and Mark done, and no notes; New spec has Blank or From a goal', () => {

@@ -7,6 +7,7 @@ import { after, before, test } from 'node:test'
 import { processLine } from '../src/dashboard-api.ts'
 import { buildHarness } from './browser/build.mjs'
 import { findChrome, launch } from './browser/chrome.mjs'
+import { inFlight } from './browser/in-flight-nav.mjs'
 
 const details = (extra = {}) => ({ harness: 'claude-code', state: 'running', exitCode: null, run: 1, logTail: null, cost: null, attach: null, ...extra })
 
@@ -34,6 +35,7 @@ after(async () => {
 
 test('a process row shows its log tail and cost, and Attach copies the command', { skip }, async () => {
   await page.open(harness.url({ page: 'app', process: '1' }), { width: 1280, height: 900 })
+  await inFlight(page)
   await page.until(`document.querySelectorAll('[data-in-flight-row]').length === 2`, 30000)
   const row = `[...document.querySelectorAll('[data-in-flight-row]')].find((r) => r.querySelector('[data-process-status]'))`
   assert.match(await page.evaluate(`${row}.querySelector('[data-process-status]').textContent`), /claude-code · running · run 2 · \$0\.83/)
@@ -55,6 +57,7 @@ test('a process row shows its log tail and cost, and Attach copies the command',
 
 test('Send message on a process row queues session.send; a chat row has none', { skip }, async () => {
   await page.open(harness.url({ page: 'app', process: '1' }), { width: 1280, height: 900 })
+  await inFlight(page)
   await page.until(`document.querySelectorAll('[data-in-flight-row]').length === 2`, 30000)
   const row = `[...document.querySelectorAll('[data-in-flight-row]')].find((r) => r.querySelector('[data-process-status]'))`
   assert.equal(await page.evaluate(`document.querySelectorAll('button[aria-label^="Send message"]').length`), 1)
