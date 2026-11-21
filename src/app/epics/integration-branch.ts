@@ -74,7 +74,7 @@ export async function checkIntegrationBranch(
   github: BranchGitHub,
   repository: string,
   branch: string,
-  settings?: unknown,
+  settings?: { baseBranch?: string | null } | null,
 ) {
   const problem = branchNameProblem(branch);
   let def: string | null = null,
