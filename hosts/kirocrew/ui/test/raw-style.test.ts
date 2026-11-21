@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // A view composes parts; only src/ui/ writes classes, styles and CSS variables
 // (UC3). Each file outside src/ui/ may write at most the count listed in
 // raw-style-allow.json. The list only shrinks: a rise fails, a view not on the
@@ -13,6 +12,7 @@ import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { parseSync } from 'rolldown/utils'
+import { walkAst } from './ast.ts'
 
 const src = new URL('../src/', import.meta.url)
 const srcDir = fileURLToPath(src)
@@ -21,7 +21,7 @@ const uiDir = path.join(srcDir, 'ui')
 const standaloneDir = path.join(srcDir, 'standalone')
 const allowUrl = new URL('./raw-style-allow.json', import.meta.url)
 
-function walk(dir, found = []) {
+function walk(dir: string, found: string[] = []) {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, entry.name)
     if (entry.isDirectory()) {
@@ -31,45 +31,41 @@ function walk(dir, found = []) {
   return found
 }
 
-const countVars = (text) => (text.match(/var\(--/g) ?? []).length
+const countVars = (text: string) => (text.match(/var\(--/g) ?? []).length
 
 // Counts of each kind of raw style in one source text.
-export function rawStyleCount(file, text) {
+export function rawStyleCount(file: string, text: string) {
   const { program } = parseSync(file, text, {
     lang: file.endsWith('x') ? 'tsx' : 'ts',
   })
   const found = { className: 0, style: 0, styleElement: 0, cssVariable: 0 }
-  const visit = (node) => {
-    if (Array.isArray(node)) return node.forEach(visit)
-    if (!node || typeof node !== 'object') return
+  walkAst(program, (node) => {
     switch (node.type) {
       case 'JSXAttribute':
-        if (node.name.type === 'JSXIdentifier' && node.name.name === 'className') found.className++
-        if (node.name.type === 'JSXIdentifier' && node.name.name === 'style') found.style++
+        if (node.name?.type === 'JSXIdentifier' && node.name.name === 'className') found.className++
+        if (node.name?.type === 'JSXIdentifier' && node.name.name === 'style') found.style++
         break
       case 'JSXOpeningElement':
-        if (node.name.type === 'JSXIdentifier' && node.name.name === 'style') found.styleElement++
+        if (node.name?.type === 'JSXIdentifier' && node.name.name === 'style') found.styleElement++
         break
       case 'Literal':
         if (typeof node.value === 'string') found.cssVariable += countVars(node.value)
         break
       case 'TemplateElement':
-        found.cssVariable += countVars(node.value.raw)
+        found.cssVariable += countVars((node.value as { raw: string }).raw)
         break
       case 'JSXText':
-        found.cssVariable += countVars(node.value)
+        found.cssVariable += countVars(String(node.value))
         break
     }
-    for (const key of Object.keys(node)) if (key !== 'type') visit(node[key])
-  }
-  visit(program)
+  })
   return found
 }
 
-const total = (found) => Object.values(found).reduce((a, b) => a + b, 0)
+const total = (found: Record<string, number>) => Object.values(found).reduce((a, b) => a + b, 0)
 
 function viewCounts() {
-  const counts = {}
+  const counts: Record<string, number> = {}
   for (const file of walk(srcDir)) {
     const n = total(rawStyleCount(file, readFileSync(file, 'utf8')))
     if (n) counts[path.relative(srcDir, file).split(path.sep).join('/')] = n
@@ -77,11 +73,12 @@ function viewCounts() {
   return Object.fromEntries(Object.entries(counts).sort(([a], [b]) => a.localeCompare(b)))
 }
 
-const allow = () => JSON.parse(readFileSync(allowUrl, 'utf8'))
+// Each listed view and how many raw styles it may keep.
+const allow = (): Record<string, number> => JSON.parse(readFileSync(allowUrl, 'utf8'))
 
 // Files that rose, and listed files that are at zero.
-export function compare(current, listed) {
-  const rose = []
+export function compare(current: Record<string, number>, listed: Record<string, number>) {
+  const rose: string[] = []
   for (const [file, n] of Object.entries(current)) if (n > (listed[file] ?? 0)) rose.push(`${file}: ${n}, allowed ${listed[file] ?? 0}`)
   const stale = Object.keys(listed).filter((file) => !current[file])
   return { rose, stale }
@@ -89,7 +86,7 @@ export function compare(current, listed) {
 
 if (process.env.RAW_STYLE_UPDATE) {
   const current = viewCounts()
-  const next = {}
+  const next: Record<string, number> = {}
   for (const [file, n] of Object.entries(allow())) if (current[file]) next[file] = Math.min(n, current[file])
   writeFileSync(allowUrl, `${JSON.stringify(next, null, 2)}\n`)
 }
@@ -126,18 +123,14 @@ test('the counter reads className, style, <style> and var(-- in a view', () => {
 // Muted text is a Hint, so a new look for hints is one edit (D1, proof
 // uc-p1): a view's Box takes no muted text color of its own. Buttons and
 // icons in the muted color are not hints and keep it.
-const MUTED = { tone: ['muted'], 'css-color': ['muted', 'text-muted-muted'] }
-export function mutedBoxes(file, text) {
+const MUTED: Record<string, unknown[]> = { tone: ['muted'], 'css-color': ['muted', 'text-muted-muted'] }
+export function mutedBoxes(file: string, text: string) {
   const { program } = parseSync(file, text, { lang: 'tsx' })
   let n = 0
-  const visit = (node) => {
-    if (Array.isArray(node)) return node.forEach(visit)
-    if (!node || typeof node !== 'object') return
-    if (node.type === 'JSXOpeningElement' && node.name.type === 'JSXIdentifier' && node.name.name === 'Box')
-      for (const a of node.attributes) if (a.type === 'JSXAttribute' && MUTED[a.name.name]?.includes(a.value?.type === 'Literal' ? a.value.value : undefined)) n++
-    for (const key of Object.keys(node)) if (key !== 'type') visit(node[key])
-  }
-  visit(program)
+  walkAst(program, (node) => {
+    if (node.type === 'JSXOpeningElement' && node.name?.type === 'JSXIdentifier' && node.name.name === 'Box')
+      for (const a of node.attributes ?? []) if (a.type === 'JSXAttribute' && MUTED[a.name?.name ?? '']?.includes(a.value?.type === 'Literal' ? a.value.value : undefined)) n++
+  })
   return n
 }
 

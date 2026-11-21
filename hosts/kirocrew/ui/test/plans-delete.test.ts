@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Plans: every spec is in one list, and the plan view's details are a box on
 // its Overview tab.
 import assert from 'node:assert/strict'

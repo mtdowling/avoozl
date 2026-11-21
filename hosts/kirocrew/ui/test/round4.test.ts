@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The shared filter panel, paging, tooltip and details icon.
 import assert from 'node:assert/strict'
 import { readFileSync, readdirSync } from 'node:fs'
@@ -6,9 +5,12 @@ import test from 'node:test'
 import { PAGE, moreLabel, visibleCount } from '../src/paging.ts'
 import { TOOLTIP_DELAY, TOOLTIP_MARGIN, placeTooltip, tooltipController } from '../src/tooltip.ts'
 import { ACTION_TIPS, conflictChoices, conflictFilterActive, matchesConflict, readConflictFilter, writeConflictFilter } from '../src/conflicts-api.ts'
+import { emptyRepository } from '../src/settings-api.ts'
+import { graphOf, graphTask } from './graph-fixture.ts'
+import type { ConflictItem } from '../src/views-api.ts'
 
 const src = new URL('../src/', import.meta.url)
-const source = (name) => readFileSync(new URL(name, src), 'utf8')
+const source = (name: string) => readFileSync(new URL(name, src), 'utf8')
 const views = readdirSync(src).filter((name) => name.endsWith('.tsx'))
 
 test('every list shows PAGE rows, then PAGE more a click', () => {
@@ -29,7 +31,7 @@ test('lists page through the one hook and button, and a filter change resets the
     ['InFlight.tsx', ['flight']],
     ['ConflictsView.tsx', ['conflicts']],
     ['TaskDrawer.tsx', ['timeline']],
-  ])
+  ] as [string, string[]][])
     for (const id of ids) {
       assert.match(source(name), new RegExp(`pages\\.take\\('${id}'`), `${name} ${id}`)
       assert.match(source(name), new RegExp(`<ShowMore \\{\\.\\.\\.pages\\.more\\('${id}'`), `${name} ${id}`)
@@ -60,17 +62,22 @@ test('Graph, Plans and Conflicts use the one boxed filter panel', () => {
   for (const label of ['Search', 'Kind', 'Spec', 'Epic', 'Repository', 'Age']) assert.match(source('ConflictsView.tsx'), new RegExp(`label: '${label}'`), label)
 })
 
-const item = (kind, taskId, extra = {}) => ({ kind, taskId, title: taskId, detail: 'd', authority: 'local', issue: null, ...extra })
-const graph = {
-  tasks: [
-    { id: 'a', title: 'a', epic: 'e1', spec: 'one', repository: 'org/x' },
-    { id: 'g', title: 'g', epic: 'e2', spec: 'two', repository: null },
-  ],
+const item = (kind: string, taskId: string, extra: Partial<ConflictItem> = {}): ConflictItem => ({
+  kind,
+  taskId,
+  title: taskId,
+  detail: 'd',
+  authority: 'local',
+  issue: null,
+  ...extra,
+})
+const graph = graphOf({
+  tasks: [graphTask('a', { title: 'a', epic: 'e1', spec: 'one', repository: 'org/x' }), graphTask('g', { title: 'g', epic: 'e2', spec: 'two', repository: null })],
   epics: [
     { id: 'e1', title: 'Epic one', count: 1 },
     { id: 'e2', title: 'Epic two', count: 1 },
   ],
-}
+})
 const now = Date.parse('2026-11-12T12:00:00Z')
 
 test('Conflicts filter: kind with counts, plan, epic, repository and age', () => {
@@ -84,7 +91,7 @@ test('Conflicts filter: kind with counts, plan, epic, repository and age', () =>
     choices.repositories.map((r) => r.value),
     ['org/x', '(none)'],
   )
-  const keep = (filter) =>
+  const keep = (filter: Parameters<typeof matchesConflict>[1]) =>
     items
       .filter((i) =>
         matchesConflict(
@@ -108,7 +115,7 @@ test('Conflicts filter: kind with counts, plan, epic, repository and age', () =>
 
 test('Conflicts filter is saved per workspace and drops unknown values', () => {
   const store = new Map()
-  const storage = { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => store.set(k, v) }
+  const storage = { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => void store.set(k, v) }
   writeConflictFilter(storage, 'w1', { kind: 'decision', age: '1d', q: 'x' })
   assert.deepEqual(readConflictFilter(storage, 'w1'), { kind: 'decision', age: '1d', q: 'x' })
   assert.deepEqual(readConflictFilter(storage, 'w2'), {})
@@ -129,15 +136,15 @@ test('Conflicts select-all says what it covers, and bulk acts on exactly that', 
 })
 
 const timers = () => {
-  const queue = []
+  const queue: { run: (() => void) | null; ms: number }[] = []
   return {
     queue,
-    setTimer: (run, ms) => {
+    setTimer: (run: () => void, ms: number) => {
       queue.push({ run, ms })
       return queue.length - 1
     },
-    clearTimer: (id) => {
-      if (queue[id]) queue[id].run = null
+    clearTimer: (id: unknown) => {
+      if (typeof id === 'number' && queue[id]) queue[id].run = null
     },
     fire: () => queue.forEach((t) => t.run?.()),
   }
@@ -145,7 +152,7 @@ const timers = () => {
 
 test('tooltip: hover waits, keyboard focus shows at once, leave, blur and Esc hide', () => {
   const t = timers()
-  const seen = []
+  const seen: boolean[] = []
   const tip = tooltipController({ onChange: (open) => seen.push(open), setTimer: t.setTimer, clearTimer: t.clearTimer })
   tip.enter('mouse')
   assert.equal(tip.open, false)
@@ -250,8 +257,8 @@ test('repository rows join checkouts with their GitHub settings, and GitHub-only
       { id: 'local', name: 'local', localCheckout: '/x/local', github: null, baseBranch: 'trunk' },
     ],
     [
-      { name: 'example/plans', baseBranch: 'main' },
-      { name: 'nupp-lang/nupp', baseBranch: 'core-dev' },
+      { ...emptyRepository('example/plans'), baseBranch: 'main' },
+      { ...emptyRepository('nupp-lang/nupp'), baseBranch: 'core-dev' },
     ],
   )
   assert.deepEqual(

@@ -1,11 +1,11 @@
-// @ts-nocheck: typing debt
 // The task's source is a snippet: its own lines and 3 either side, a header
 // that shows and hides it, and Open full file on the right of that header.
 // The page checks run in a real Chrome (AVOOZL_CHROME) and are skipped without.
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { after, before, test } from 'node:test'
-import { findChrome, startChrome, stopChrome } from './browser/chrome.ts'
+import { test } from 'node:test'
+import { findChrome, type Harness, type Page } from './browser/chrome.ts'
+import { withChrome } from './browser/harness-page.ts'
 import { sourceExcerpt } from '../src/task-api.ts'
 
 test('the snippet is the task lines and 3 either side', () => {
@@ -30,11 +30,8 @@ test('the header is the shared SnippetBox: one toggle button, the action beside 
 
 const chrome = findChrome()
 const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the snippet page test'
-let harness, browser, page
-before(async () => {
-  if (!skip) ({ harness, browser, page } = await startChrome(chrome))
-})
-after(() => stopChrome(browser, harness))
+let harness: Harness, page: Page
+withChrome(chrome, (got) => ({ harness, page } = got))
 
 test('page: the snippet shows only nearby lines, the header toggles it, Open full file opens the whole file', { skip }, async () => {
   await page.open(harness.url({ modal: 'task-drawer', theme: 'light' }), { width: 1280, height: 900 })

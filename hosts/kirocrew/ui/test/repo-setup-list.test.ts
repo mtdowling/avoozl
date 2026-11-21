@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Settings > Repository setup as a compact list: View, Edit and Remove per
 // row.
 import assert from 'node:assert/strict'
@@ -6,14 +5,14 @@ import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import { toForm, withRepositoryEdit } from '../src/settings-api.ts'
 
-const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
+const source = (name: string) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
 const base = () =>
   toForm({
     mode: 'plans-repo',
     planningRepository: 'o/plans',
     repositories: { 'o/pub': { baseBranch: 'main', role: 'code' }, 'o/plans': { baseBranch: 'main', role: 'planning' } },
   })
-const row = (github) => ({ github, branch: 'main', policy: -1 })
+const row = (github: string) => ({ github, branch: 'main', policy: -1 })
 
 test('the list has no form fields and no inline role control', () => {
   const list = source('RepositoriesSettings.tsx').slice(
@@ -51,6 +50,6 @@ test('an edited entry replaces the saved one by name, and a role change keeps it
   const edited = { ...form.repositories[0], baseBranch: 'trunk' }
   const next = withRepositoryEdit(form, { github: 'o/pub', branch: 'main', policy: 7 }, { entry: edited, role: 'both' })
   const entry = next.repositories.find((e) => e.name === 'o/pub')
-  assert.equal(entry.baseBranch, 'trunk')
-  assert.equal(entry.role, 'both')
+  assert.equal(entry?.baseBranch, 'trunk')
+  assert.equal(entry?.role, 'both')
 })

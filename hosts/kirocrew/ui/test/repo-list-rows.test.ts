@@ -1,16 +1,17 @@
-// @ts-nocheck: typing debt
 // Settings > Repository setup rows show every repository fact inline, as a
 // shared list item: a title line with icon actions, then muted facts. Empty
 // facts are not rendered and rows are split by a top border only.
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { after, before, test } from 'node:test'
-import { repositoryFacts, ruleLabels } from '../src/repository-rows.ts'
+import { repositoryFacts, ruleLabels, type RepositoryRow } from '../src/repository-rows.ts'
+import type { ListFact } from '../src/ListItem.tsx'
+import type { Repository } from '../src/workspace-api.ts'
 import { toForm } from '../src/settings-api.ts'
 import { buildHarness } from './browser/build.ts'
-import { findChrome, launch } from './browser/chrome.ts'
+import { findChrome, launch, type Browser, type Harness, type Page } from './browser/chrome.ts'
 
-const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
+const source = (name: string) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
 const form = toForm({
   mode: 'plans-repo',
   planningRepository: 'o/plans',
@@ -24,7 +25,7 @@ const form = toForm({
     'o/bare': { baseBranch: 'main', role: 'code' },
   },
 })
-const rowFor = (github, extra = {}) => ({
+const rowFor = (github: string, extra: Partial<Repository> = {}): RepositoryRow => ({
   key: github,
   name: github,
   checkout: { id: 'x', name: 'x', localCheckout: '/w/x', github, baseBranch: 'main', ...extra },
@@ -33,7 +34,7 @@ const rowFor = (github, extra = {}) => ({
   folder: '/w/x',
   branch: 'main',
 })
-const shown = (facts) => Object.fromEntries(facts.filter((f) => f.value?.trim() || f.chips?.length).map((f) => [f.label, f.chips ?? f.value]))
+const shown = (facts: ListFact[]) => Object.fromEntries(facts.filter((f) => f.value?.trim() || f.chips?.length).map((f) => [f.label, f.chips ?? f.value]))
 
 test('a row has the folder, landing, merge method and checks, and no labels', () => {
   const row = rowFor('o/api', { landing: 'direct' })
@@ -71,9 +72,9 @@ test('the list rows and the workspace rows use the shared list item', () => {
 
 const chrome = findChrome()
 const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the row layout test'
-let harness, browser, page
+let harness: Harness, browser: Browser | undefined, page: Page
 before(async () => {
-  if (skip) return
+  if (!chrome) return
   harness = await buildHarness({ hostCss: process.env.AVOOZL_HOST_CSS })
   browser = await launch(chrome)
   page = await browser.page()
@@ -96,7 +97,15 @@ test('rows draw only a top border and show the facts in a real page', { skip }, 
     await page.until(`[...document.querySelectorAll('${scope} [data-nav-item]')].some((x) => x.textContent.trim() === 'Repository setup')`)
     await page.evaluate(`[...document.querySelectorAll('${scope} [data-nav-item]')].find((x) => x.textContent.trim() === 'Repository setup').click()`)
     await page.until(`document.querySelectorAll('[data-repository-row]').length >= 3`)
-    const seen = await page.evaluate(`(() => {
+    const seen = await page.evaluate<{
+      rows: { top: string; bottom: string; left: string; right: string; text: string }[]
+      box: string
+      role: boolean
+      github: string
+      chips: string[]
+      notesFacts: string[]
+      sideways: boolean
+    }>(`(() => {
       const rows = [...document.querySelectorAll('[data-repository-row]')].map((li) => { const s = getComputedStyle(li); return { top: s.borderTopWidth, bottom: s.borderBottomWidth, left: s.borderLeftWidth, right: s.borderRightWidth, text: li.textContent } })
       const box = document.querySelector('[data-repository-row="checkout:recipe-box"]')
       const notes = document.querySelector('[data-repository-row="checkout:notes"]')

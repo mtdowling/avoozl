@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // A spec's detail view reads like an Issue Radar issue view (sizes measured
 // on Radar's own page): a header with the 27px title, a 12.5px meta line and
 // an action row (state pill, spec ID, one filled primary button, a ... menu)
@@ -6,10 +5,10 @@
 // of labeled sections. On a phone the rail stacks under the cards. Skipped
 // when no Chrome is found.
 import assert from 'node:assert/strict'
-import { after, before, test } from 'node:test'
-import { buildHarness } from './browser/build.ts'
-import { findChrome, launch } from './browser/chrome.ts'
-import { demoReplies, demoScript } from './browser/demo-replies.ts'
+import { test } from 'node:test'
+import { findChrome, type Harness, type Page } from './browser/chrome.ts'
+import { withChrome } from './browser/harness-page.ts'
+import { demoHarness } from './browser/demo-replies.ts'
 import { readFileSync } from 'node:fs'
 
 const chrome = findChrome()
@@ -29,23 +28,14 @@ test('the primary action: Import, Approve, or Edit spec', async () => {
   assert.equal(primaryAction({ status: 'done', spec: 's' }, { state: 'approved' }, null), 'edit')
 })
 
-let harness, browser, page
-before(async () => {
-  if (skip) return
-  harness = await buildHarness({ scripts: { 'demo.js': demoScript(await demoReplies()) } })
-  browser = await launch(chrome)
-  page = await browser.page()
-})
-after(async () => {
-  await browser?.close()
-  harness?.remove()
-})
+let harness: Harness, page: Page
+withChrome(chrome, (got) => ({ harness, page } = got), demoHarness)
 
 const wait = (ms = 300) => page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
-const click = (expression) => page.evaluate(`(() => { const b = ${expression}; b.click(); return true })()`)
-const button = (text, scope = 'document') => `[...${scope}.querySelectorAll('button')].find((b) => b.textContent.trim().startsWith(${JSON.stringify(text)}))`
+const click = (expression: string) => page.evaluate(`(() => { const b = ${expression}; b.click(); return true })()`)
+const button = (text: string, scope = 'document') => `[...${scope}.querySelectorAll('button')].find((b) => b.textContent.trim().startsWith(${JSON.stringify(text)}))`
 
-async function openSpec(width, dark) {
+async function openSpec(width: number, dark: boolean) {
   await page.open(harness.url({ page: 'demo', theme: dark ? 'dark' : 'light' }), { width, height: 900, dark })
   await page.until(`Boolean(document.querySelector('[data-top-row],[data-top-rail-bar]'))`)
   if (width < 768) {
@@ -61,6 +51,25 @@ async function openSpec(width, dark) {
   await wait(500)
 }
 
+// The header, cards and rail as drawn.
+type Read = {
+  title: string[]
+  meta: (string | boolean)[]
+  rowDivider: string
+  order: number[]
+  pill: (string | boolean)[]
+  primary: { filled: boolean; height: number; text: string }
+  more: boolean
+  cardTitles: string[]
+  cardHeads: string[]
+  cardRadius: string[]
+  sections: string[]
+  edits: string[]
+  railFont: string
+  railPlace: string
+  noOldAside: boolean
+  sideways: boolean
+}
 const READ = `(() => {
   const q = (s) => document.querySelector(s)
   const cs = (el) => getComputedStyle(el)
@@ -96,7 +105,7 @@ for (const dark of [false, true])
   for (const width of [1280, 390])
     test(`a spec reads like a Radar issue at ${width} px ${dark ? 'dark' : 'light'}`, { skip }, async () => {
       await openSpec(width, dark)
-      const got = await page.evaluate(READ)
+      const got = await page.evaluate<Read>(READ)
       assert.deepEqual(got.title, ['27px', '700', 'Meal planner'])
       assert.deepEqual(got.meta, ['12.5px', true])
       assert.equal(got.rowDivider, '1px', 'a divider under the header')
@@ -117,7 +126,7 @@ for (const dark of [false, true])
       // The ... menu holds the rest of the spec's actions.
       await click(`document.querySelector('[data-spec-more] [data-more-button]')`)
       await wait(200)
-      const items = await page.evaluate(`[...document.querySelectorAll('[data-spec-more] [data-spec-menu-item]')].map((b) => b.textContent.trim())`)
+      const items = await page.evaluate<string[]>(`[...document.querySelectorAll('[data-spec-more] [data-spec-menu-item]')].map((b) => b.textContent.trim())`)
       for (const name of ['Open folder', 'Open on GitHub', 'Review spec']) assert.ok(items.includes(name), `the menu has ${name} (${items})`)
       assert.deepEqual(page.errors, [])
     })

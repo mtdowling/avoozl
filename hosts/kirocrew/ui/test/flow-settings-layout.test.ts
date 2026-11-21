@@ -5,6 +5,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { findChrome, type Harness, type Page } from './browser/chrome.ts'
 import { withChrome } from './browser/harness-page.ts'
+import { clickText } from './browser/picker-steps.ts'
 
 const chrome = findChrome()
 const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the Settings › Flow layout tests'
@@ -13,8 +14,6 @@ let harness: Harness, page: Page
 withChrome(chrome, (got) => ({ harness, page } = got))
 
 const wait = (ms: number) => page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
-const click = (selector: string, text: string) =>
-  `(() => { const b = [...document.querySelectorAll(${JSON.stringify(selector)})].find((x) => x.textContent.trim().startsWith(${JSON.stringify(text)})); if (b) b.click(); return Boolean(b) })()`
 
 async function openFlowSettings(width: number) {
   await page.open(harness.url({ page: 'app', basic: '1', flow: '1' }), { width, height: 800 })
@@ -22,13 +21,13 @@ async function openFlowSettings(width: number) {
   const scope = width < 768 ? '[data-top-rail-list]' : '[data-left-nav]'
   if (width < 768) await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
   await wait(200)
-  assert.ok(await page.evaluate(click(`${scope} [data-nav-head]`, 'Settings')))
+  assert.ok(await page.evaluate(clickText(`${scope} [data-nav-head]`, 'Settings')))
   await wait(200)
   if (width < 768 && !(await page.evaluate(`Boolean(document.querySelector('[data-top-rail-list]'))`))) await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
-  await page.evaluate(click(`${scope} [data-nav-item]`, 'Flow'))
+  await page.evaluate(clickText(`${scope} [data-nav-item]`, 'Flow'))
   if (width < 768 && (await page.evaluate(`Boolean(document.querySelector('[data-top-rail-list]'))`))) await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
   await wait(300)
-  assert.equal(await page.evaluate(click('button', 'Configure flow')), false, 'Flow has no Configure button')
+  assert.equal(await page.evaluate(clickText('button', 'Configure flow')), false, 'Flow has no Configure button')
   await page.until(`Boolean(document.querySelector('[data-flow-settings]'))`)
   // The footer appears once a field changes.
   assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-save-footer]'))`), false, 'no footer before a change')
