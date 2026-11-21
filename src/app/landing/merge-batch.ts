@@ -152,12 +152,12 @@ export const dropMember = (root: string, entry: Pick<Member, "key">) =>
 // worktree. {candidate, heads} or {conflict: files, key}; `heads[i]` is the
 // stack after member i. The worktree is removed before returning; its
 // commits stay in `root`.
-export async function stackMembers(
+export async function stackMembers<E extends Member>(
   root: string,
-  entries: QueueEntry[],
+  entries: E[],
   baseHead: string,
   unionPaths: string[] = [],
-  tickOf: DirectOptions["tickOf"] = null,
+  tickOf: ((dir: string, entry: E) => unknown) | null = null,
   commitPrefix = "",
 ): Promise<Stacked> {
   const union = new Set(unionPaths),
