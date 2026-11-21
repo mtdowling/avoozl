@@ -42,7 +42,7 @@ type HeadMeta = {
   landing: Record<string, Landing>;
 };
 type Plan = { id: string; spec?: string; deletedAt?: string };
-type Check = HeadCheck & { [key: string]: unknown };
+type Check = HeadCheck & { local?: boolean };
 // The GitHub reads a head step makes (with checksOf's and ruleBranch's).
 type HeadGitHub = CheckReader &
   Pick<RulesReader, "repository"> & {
