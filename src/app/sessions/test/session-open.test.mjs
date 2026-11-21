@@ -162,6 +162,31 @@ test("a harness picked for the role in Settings › Models is the one used, or r
   );
 });
 
+test("with no harness saved for assist, Run in a chat uses the worker's approved harness", async (t) => {
+  const m = machine(t, { roles: { worker: { harness: "worker-cli" } } }),
+    bytes = JSON.stringify({
+      name: "worker-cli",
+      start: ["node", "{brief_file}"],
+      resume: ["node", "{message_file}"],
+      permission: { write: "workspace-write", read: "read-only" },
+      writeRoots: ["{worktree}", "{tmp}"],
+    });
+  fs.writeFileSync(
+    path.join(m.configDirectory, "harnesses", "worker-cli.json"),
+    bytes,
+  );
+  approveHarnessDefinition({
+    configDirectory: m.configDirectory,
+    name: "worker-cli",
+    hash: harnessDefinitionHash(Buffer.from(bytes)),
+  });
+  const preview = await m.ops.execute("session.open", { preview: true });
+  assert.deepEqual(
+    [preview.role, preview.harness, preview.permissionClass],
+    ["assist", "worker-cli", "read"],
+  );
+});
+
 test("an empty or oversize message is refused, and the role falls back to assist", async (t) => {
   const m = machine(t);
   await assert.rejects(

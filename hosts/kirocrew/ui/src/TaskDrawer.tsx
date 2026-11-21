@@ -36,7 +36,7 @@ import { Markdown } from './ui/Markdown.tsx'
 import { Authority } from './Authority.tsx'
 import { Modal } from './ui/Modal.tsx'
 import { errorMessage } from './workspace-api.ts'
-import { IconLabel, SectionBox, ShowMore, TipBtn, useAskChat, usePages } from './ui/controls.tsx'
+import { IconLabel, SectionBox, ShowMore, TipBtn, useAskChat, usePages, useRunInChat } from './ui/controls.tsx'
 import { resultMessage, settleTargets, whyLine } from './conflicts-api.ts'
 import { itemRef } from './chat-api.ts'
 import { FileText, MessageSquare, Network, Pause, Play, RotateCcw } from './icons.ts'
@@ -240,6 +240,7 @@ function TaskPanel(props: {
   const pages = usePages(props.id)
   const [error, setError] = useState<string | null>(null)
   const chat = useAskChat(workspaceId)
+  const runInChat = useRunInChat()
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null)
   // The open tab lives in the page address, so Back and a pasted link land on
@@ -347,8 +348,8 @@ function TaskPanel(props: {
             Open tree
           </IconLabel>
         )}
-        <IconLabel icon={MessageSquare} tooltip="Start a Kiro Crew chat seeded with this task's full context" onClick={() => void chat.ask({ tasks: [task.id] })}>
-          Ask in a chat
+        <IconLabel icon={MessageSquare} tooltip="Run in a chat: the avoozl-work skill works this task" onClick={() => runInChat({ kind: 'task', taskId: task.id })}>
+          Run in a chat
         </IconLabel>
         {deliveryState === 'decision' && (
           <IconLabel

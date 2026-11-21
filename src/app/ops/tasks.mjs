@@ -254,32 +254,10 @@ export const entries = [
     class: "observe",
     github: "check-in",
     policy: notOnMcp("App page rendering only."),
-    async handler({ input, context }) {
-      const store = this.store;
-
+    handler({ input }) {
       // Ask for help (§8.9): the page's own words and settings.
       if (input.purpose === "help") return { message: helpMessage(input) };
-      // A plan's seed carries its row and its spec documents.
-      let planRow = null,
-        documents = null;
-      if (typeof input.plan === "string" && input.plan) {
-        const table = await this.perform("plan.table", {}, undefined, context);
-        planRow = table.items.find((row) => row.key === input.plan) || null;
-        if (!planRow) fail("Plan not found.", 404);
-        if (planRow.spec)
-          try {
-            documents = this.readSpecDocuments({ name: planRow.spec });
-          } catch {
-            documents = null;
-          }
-        else if (planRow.planId) {
-          const stored = store.get("plans", planRow.planId);
-          documents = stored?.text
-            ? { documents: { "plan.md": stored.text } }
-            : null;
-        }
-      }
-      return chatContext(store, this.read(), input, { planRow, documents });
+      return chatContext(this.store, this.read(), input);
     },
   },
 

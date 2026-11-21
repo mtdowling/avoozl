@@ -379,6 +379,10 @@ branch, pull request, checks and landed commit.
 "Run in a chat" opens a chat seeded with a skill name and the item's IDs:
 a Kiro Crew chat when the page runs inside Kiro Crew, else a process session
 of the worker harness. It reuses `chat-api.ts` and `design-chat.ts`.
+Edit spec seeds `avoozl-spec`, Review spec `avoozl-spec-review`, a task
+`avoozl-work`, and a Needs you item `avoozl`. On the standalone page the
+session runs read-only as `assist`, on the worker's harness unless
+Settings › Models names one for `assist`.
 
 Everything else is a skill or an MCP call: writing and reviewing specs,
 retros, investigations, code review and Flow numbers.

@@ -122,7 +122,7 @@ merge, shown in chat and never committed.
   - The nav lists Specs, Graph, In flight, Needs you, Activity and Settings; In flight shows each claim branch with holder, session, head, checks and pull request, and each lane from `lanes.view` with its role, state, task and an Open action that opens the chat or copies the command (§D22.3); Needs you shows failing checks, stop the line, ready manual tasks, stale claims, draft pull requests, unmerged closes and plugin approvals; Settings edits labels, claim stale hours and `loop`
   - Every group §D15 marks cut is gone with its API file and tests, and `npm run test:ui` passes
   - The owner has seen phone and desktop, light and dark screenshots of each view
-- [ ] `sim-5.2` Run in a chat [SM13.3] (§D13)
+- [x] `sim-5.2` Run in a chat [SM13.3] (§D13)
   - Run in a chat on a spec, task or Needs you item opens a Kiro Crew chat seeded with the skill name and IDs inside Kiro Crew, and a worker-harness process session on the standalone page; a test checks the seed for each item kind
 
 ## Phase 6: Docs and proof

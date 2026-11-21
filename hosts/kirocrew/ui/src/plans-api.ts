@@ -230,12 +230,6 @@ export function rowActions(row: PlanRow) {
   }
 }
 
-// The chat draft that changes one plan. The user reviews it before sending.
-export function changeMessage(row: PlanRow): string {
-  const target = `the existing spec folder .kiro/specs/${row.spec}/${row.planId ? ` (plan ${row.planId})` : ''}`
-  return `Use the Avoozl skill's "Plan a goal" steps 2 to 4 to change ${target}. Ask me what should change. Edit it in a planner session, critique it in a second isolated session, store the new revision, and show me the result. Do not approve it; I approve the exact revision in the Avoozl Specs view.`
-}
-
 export function plansClient(api: AppApi) {
   const run = async <T>(workspaceId: string, operation: string, input: Record<string, unknown> = {}): Promise<T> => {
     const reply = await api.post<{ result: T }>(COMMAND_PATH, { operation, input, workspaceId })
@@ -472,10 +466,6 @@ export function sortRows(rows: PlanRow[], sort: SpecSort = 'name', dir: 'asc' | 
   // Ties fall back to the name, A to Z.
   return [...rows].sort((a, b) => (sort === 'name' ? sign * a.name.localeCompare(b.name) : sign * (key(a) - key(b)) || a.name.localeCompare(b.name)))
 }
-
-// The chat draft that discusses one plan is built by the backend
-// (chat.context with purpose discuss-plan); this is the seed it gets.
-export const discussSeed = (row: PlanRow) => ({ plan: row.key, purpose: 'discuss-plan' as const })
 
 // The archive confirm's lines. Archive is undone by Unarchive, so the
 // dialog says so and its button is not red.

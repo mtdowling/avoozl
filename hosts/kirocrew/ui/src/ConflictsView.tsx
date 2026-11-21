@@ -36,7 +36,7 @@ import { useRead } from './useRead.ts'
 import { Authority } from './Authority.tsx'
 import { errorMessage } from './workspace-api.ts'
 import { useTaskDrawer } from './drawer-context.ts'
-import { DangerBtn, IconBtn, IconLabel, ShowMore, SmallBtn, TipBtn, ViewHeading, useAskChat, useConfirm, usePages } from './ui/controls.tsx'
+import { DangerBtn, IconBtn, IconLabel, ShowMore, SmallBtn, TipBtn, ViewHeading, useAskChat, useConfirm, usePages, useRunInChat } from './ui/controls.tsx'
 import { ListDetailLayout } from './ListDetailLayout.tsx'
 import { usePhone } from './list-detail.ts'
 import { Tooltip } from './ui/Tooltip.tsx'
@@ -585,8 +585,8 @@ function ConflictDetail(props: {
             Session
           </PlainLink>
         )}
-        <IconLabel icon={MessageSquare} tooltip="Ask in a chat: a new chat seeded with this item's full context" onClick={props.onAsk}>
-          Ask in a chat
+        <IconLabel icon={MessageSquare} tooltip="Run in a chat: the avoozl skill explains this item and recommends a choice" onClick={props.onAsk}>
+          Run in a chat
         </IconLabel>
         {item.kind === 'review' ? (
           <IconLabel icon={DetailsIcon} tooltip="Why these tasks need review, and the list of them" onClick={() => drawer.openReview(item, props.onReviewed)}>
@@ -634,6 +634,7 @@ export default function ConflictsView({
   const client = useMemo(() => viewsClient(api), [api])
   const tasks = useMemo(() => taskClient(api), [api])
   const chat = useAskChat(workspaceId)
+  const runInChat = useRunInChat()
   const ask = useConfirm()
   const load = useCallback(
     async (id: string) => {
@@ -931,7 +932,7 @@ export default function ConflictsView({
                 run={run}
                 onSettled={onSettled}
                 onReload={() => void reload()}
-                onAsk={() => void chat.ask({ items: [itemRef(current)] })}
+                onAsk={() => runInChat({ kind: 'item', item: { ...itemRef(current), reason: current.reason } })}
               />
             ) : null
           }

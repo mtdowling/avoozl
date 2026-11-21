@@ -33,7 +33,8 @@ export function roleFor(agent) {
 }
 
 // The harness this role runs on, and why not when none can: the one Settings ›
-// Models names for the role, else claude-code, else the only approved one.
+// Models names for the role, else the worker's, else claude-code, else the
+// only approved one.
 export function pickHarness({ config, configDirectory, role }) {
   const approved = listHarnessDefinitions(configDirectory).filter(
     (definition) => definition.approved,
@@ -60,6 +61,11 @@ export function pickHarness({ config, configDirectory, role }) {
       reason:
         "Settings › Models picks Kiro Crew chat for this role, which needs Kiro Crew. Pick a harness there, or copy the message into your own CLI.",
     };
+  // No harness saved for this role: the worker's, so Run in a chat runs on
+  // the harness that works tasks (simplify §D13), read-only as this role.
+  const worker = roleHarness(config, ROLE_TABLE.worker.setting);
+  if (approved.some((definition) => definition.name === worker))
+    return { harness: worker, reason: null };
   const found =
     approved.find((definition) => definition.name === DEFAULT_HARNESS) ??
     approved[0];

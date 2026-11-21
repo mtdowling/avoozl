@@ -1457,22 +1457,16 @@ export function plansTableView(store, data, { specs = [], stored = [] }) {
   return { revision: data.revision, items: rows };
 }
 
-// The page's "Ask in a chat" and "Discuss plan" seed (chat.context): one
-// Markdown message with everything the page knows about the named conflict
-// items, tasks or plan, so a new Kiro Crew chat starts with the whole story.
-// Writes nothing. The message asks the chat to explain and recommend and to
-// change nothing until the person says so.
-// shortcut: documents and lists are cut at fixed sizes so the seed stays a
-// reasonable first message; raise them if chats ask for the missing part.
-const CONTEXT_DOC_CHARS = 20000,
-  CONTEXT_TASKS = 300,
+// The page's "Ask in a chat" seed (chat.context): one Markdown message with
+// everything the page knows about the named conflict items or tasks, so a new
+// Kiro Crew chat starts with the whole story. Writes nothing. The message
+// asks the chat to explain and recommend and to change nothing until the
+// person says so.
+// shortcut: lists are cut at fixed sizes so the seed stays a reasonable
+// first message; raise them if chats ask for the missing part.
+const CONTEXT_TASKS = 300,
   CONTEXT_ITEMS = 100,
   CONTEXT_HISTORY = 12;
-
-const clipText = (text, max) =>
-  text.length > max
-    ? `${text.slice(0, max)}\n\n[cut at ${max} characters]`
-    : text;
 
 function sameItem(item, key) {
   return (
@@ -1536,12 +1530,7 @@ export function helpMessage(input = {}) {
   ].join("\n");
 }
 
-export function chatContext(
-  store,
-  data,
-  input = {},
-  { documents = null, planRow = null } = {},
-) {
+export function chatContext(store, data, input = {}) {
   const keys = Array.isArray(input.items)
       ? input.items.slice(0, CONTEXT_ITEMS)
       : [],
@@ -1622,43 +1611,8 @@ export function chatContext(
   }
   for (const id of taskIds)
     lines.push(`## Task ${id}`, "", ...taskLines(id), "");
-  if (planRow) {
-    const members = graph.tasks.filter((task) =>
-      inPlan(byId.get(task.id), { plan: planRow.planId, spec: planRow.spec }),
-    );
-    lines.push(
-      `## Plan ${planRow.name}`,
-      "",
-      `- Status: ${planRow.status}${planRow.planId ? `; stored as ${planRow.planId}` : ""}`,
-      ...(planRow.folder ? [`- Folder: ${planRow.folder}`] : []),
-      `- Tasks: ${planRow.tasks.done} of ${planRow.tasks.total} done; ${planRow.now.ready} ready, ${planRow.now.running} running, ${planRow.now.needsYou} need me`,
-      "",
-      "### Tasks",
-      ...members
-        .slice(0, CONTEXT_TASKS)
-        .map(
-          (task) =>
-            `- ${task.id} ${task.title} (${task.state}${task.decision ? `; decision: ${task.decision}` : ""})`,
-        ),
-      ...(members.length > CONTEXT_TASKS
-        ? [`- and ${members.length - CONTEXT_TASKS} more`]
-        : []),
-      "",
-    );
-    for (const [file, text] of Object.entries(documents?.documents ?? {}))
-      lines.push(
-        `### ${file}`,
-        "",
-        "```markdown",
-        clipText(text, CONTEXT_DOC_CHARS),
-        "```",
-        "",
-      );
-  }
   const ask =
-    input.purpose === "discuss-plan"
-      ? "Discuss this plan with me. Answer from the documents, tasks and state below. Make no edits to any file, task or plan, and start no sessions."
-      : "Explain why each item below needs me and what each choice would do, then recommend one. Do not change anything, settle anything or start any session until I say which.";
+    "Explain why each item below needs me and what each choice would do, then recommend one. Do not change anything, settle anything or start any session until I say which.";
   return {
     message: [`Context from the Avoozl page.`, ask, "", ...lines]
       .join("\n")

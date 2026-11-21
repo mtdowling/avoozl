@@ -281,7 +281,7 @@ me, and hand everything else to a chat.
 
 #### Acceptance criteria
 
-1. The page SHALL have six views: Plans, Graph, In flight, Needs you,
+1. The page SHALL have six views: Specs, Graph, In flight, Needs you,
    Activity and Settings, as §D13 describes.
 2. Each view SHALL read operations the CLI and MCP also reach, and SHALL write
    only through them.

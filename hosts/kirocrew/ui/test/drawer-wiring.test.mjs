@@ -46,7 +46,7 @@ test('the drawer shows every section, and a linked task opens in it', () => {
   assert.match(source('ui/controls.tsx'), /<details\b/)
   // Focus shows the task's chain in the Graph; Ask in a chat seeds a chat.
   assert.match(drawer, /props\.onFocus!\(task\.id, task\.title\)/)
-  assert.match(drawer, /chat\.ask\(\{ tasks: \[task\.id\] \}\)/)
+  assert.match(drawer, /runInChat\(\{ kind: 'task', taskId: task\.id \}\)/)
   assert.match(drawer, /<EdgeList label=\{title\} items=\{items\} onOpen=\{open\} \/>/)
   for (const action of ['Retry', 'Defer', 'Resume', 'ConflictActions']) assert.match(drawer, new RegExp(action))
 })

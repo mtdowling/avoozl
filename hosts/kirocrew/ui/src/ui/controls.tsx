@@ -10,7 +10,7 @@ import { Btn } from './Btn'
 import { Card } from './Card'
 import { DISCLOSURE, DisclosureMark } from './Disclosure.tsx'
 import { Info, MessageSquare, VIEW_ICONS, type LucideIcon } from '../icons.ts'
-import { chatClient, type ChatSeed, type HelpSeed } from '../chat-api.ts'
+import { chatClient, runSeed, type ChatSeed, type HelpSeed, type RunTarget } from '../chat-api.ts'
 import { useTaskDrawer } from '../drawer-context.ts'
 import { errorMessage } from '../workspace-api.ts'
 import { moreLabel, visibleCount } from '../paging.ts'
@@ -396,6 +396,13 @@ export function useAskChat(workspaceId: string | null) {
     [chats, openChat, workspaceId],
   )
   return { ask, error }
+}
+
+// Run in a chat (simplify §D13): a Kiro Crew chat seeded with the skill and
+// the item's IDs, or on the standalone page the Start a session dialog.
+export function useRunInChat() {
+  const { openChat } = useChatLauncher()
+  return useCallback((target: RunTarget) => openChat({ message: runSeed(target), autoSend: true }), [openChat])
 }
 
 // Ask for help (design §8.9): one link, a chat icon and the words, that

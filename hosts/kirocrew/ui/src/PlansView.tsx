@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { Tooltip } from './ui/Tooltip.tsx'
-import { useAppApi, useChatLauncher, useNavigate } from './host.ts'
+import { useAppApi, useNavigate } from './host.ts'
 import { Btn } from './ui/Btn'
 import { Card } from './ui/Card'
 import Badge from './ui/Badge.tsx'
@@ -11,7 +11,7 @@ import { errorMessage } from './workspace-api'
 import { relativeTime } from './task-api.ts'
 import { Authority } from './Authority.tsx'
 import { DISCLOSURE, DisclosureMark } from './ui/Disclosure.tsx'
-import { COMPACT, DANGER, IconBtn, IconLabel, SectionHeading, ShowMore, SmallBtn, TipBtn, ViewHeading, useAskChat, usePages } from './ui/controls.tsx'
+import { COMPACT, DANGER, IconBtn, IconLabel, SectionHeading, ShowMore, SmallBtn, TipBtn, ViewHeading, usePages, useRunInChat } from './ui/controls.tsx'
 import {
   Archive,
   CirclePlus,
@@ -69,8 +69,6 @@ import {
   checkDot,
   scmLinkText,
   type SpecLinks,
-  changeMessage,
-  discussSeed,
   documentTabs,
   filterRows,
   groupByCategory,
@@ -1028,7 +1026,7 @@ const SPEC_CHIP_VARIANT: Record<Exclude<SpecChip, 'draft'>, 'success' | 'info' |
 // every other spec action. A divider runs under it.
 interface SpecActions {
   onEdit: () => void
-  onDiscuss: () => void
+  onReview: () => void
   onImport?: () => void
   onReload?: () => void
   onApprove?: () => void
@@ -1104,7 +1102,7 @@ function SpecHeader(props: { row: PlanRow; plan: SpecPlan | null; actions: SpecA
       tooltip: "Make this spec's issue and its epic's issue on GitHub. Approving never does this.",
       onClick: actions.onPublish,
     },
-    edit: { label: 'Edit spec', icon: Pencil, tooltip: 'Start a planner chat that drafts a change to the spec files', onClick: actions.onEdit },
+    edit: { label: 'Edit spec', icon: Pencil, tooltip: 'Run in a chat: the avoozl-spec skill revises this spec on a spec branch', onClick: actions.onEdit },
   }[primary]
   const PrimaryIcon = primaryButton.icon
   const titleRef = useDetailTitleRef()
@@ -1178,8 +1176,15 @@ function SpecHeader(props: { row: PlanRow; plan: SpecPlan | null; actions: SpecA
           <MoreMenu label="More spec actions" attrs={{ 'data-spec-more': '' }}>
             <SpecRailStyle />
             <Box css-gap="2" flex flexCol>
-              {primary !== 'edit' && <MenuItem icon={Pencil} label="Edit spec" tooltip="Start a planner chat that drafts a change to the spec files" onClick={actions.onEdit} />}
-              <MenuItem icon={MessagesSquare} label="Discuss spec" tooltip="Start a chat about this spec. It makes no edits." onClick={actions.onDiscuss} />
+              {primary !== 'edit' && (
+                <MenuItem icon={Pencil} label="Edit spec" tooltip="Run in a chat: the avoozl-spec skill revises this spec on a spec branch" onClick={actions.onEdit} />
+              )}
+              <MenuItem
+                icon={MessagesSquare}
+                label="Review spec"
+                tooltip="Run in a chat: the avoozl-spec-review skill reviews this spec. It makes no edits."
+                onClick={actions.onReview}
+              />
               {primary !== 'approve' && actions.onApprove && plan?.state === 'draft' && (
                 <MenuItem
                   icon={ClipboardCheck}
@@ -1955,11 +1960,9 @@ export default function PlansView(props: {
 }) {
   const workspace = props.workspaceId
   const api = useAppApi()
-  const { openChat } = useChatLauncher()
   const plans = useMemo(() => plansClient(api), [api])
   const views = useMemo(() => viewsClient(api), [api])
   const drawer = useTaskDrawer()
-  const chat = useAskChat(workspace)
   const phone = usePhone()
   const navigate = useNavigate()
   const reveal = useReveal()
@@ -2155,7 +2158,9 @@ export default function PlansView(props: {
   const scope = (target: PlanTarget, next: PlanRow) => props.onScope?.(target, { plan: rowPlanKey(next) })
   // Edit plan: a planner chat drafts the change to the spec files; adding a
   // task goes the same way, and comes back as a revision to approve.
-  const change = (next: PlanRow) => openChat({ message: changeMessage(next), autoSend: false })
+  const runInChat = useRunInChat()
+  const specName = (next: PlanRow) => next.spec ?? next.planId ?? next.name
+  const change = (next: PlanRow) => runInChat({ kind: 'spec', spec: specName(next), review: false })
   const act = (call: (workspaceId: string) => Promise<unknown>) => {
     if (!workspace) return
     const workspaceId = workspace
@@ -2194,7 +2199,7 @@ export default function PlansView(props: {
     const repoHref = githubHref(home)
     return {
       onEdit: () => change(row),
-      onDiscuss: () => void chat.ask(discussSeed(row)),
+      onReview: () => runInChat({ kind: 'spec', spec: specName(row), review: true }),
       onImport: actions.importable ? () => importRow(row) : undefined,
       onReload: plan?.disk.changed ? () => act((workspaceId) => plans.reload(workspaceId, plan.id, plan.hash)) : undefined,
       onApprove: plan && workspace ? () => setSingleApproval({ workspaceId: workspace, plan }) : undefined,
@@ -2353,9 +2358,9 @@ export default function PlansView(props: {
           {notice}
         </Hint>
       )}
-      {(error || chat.error) && (
+      {error && (
         <ErrorText role="alert" size="sm">
-          {error ?? chat.error}
+          {error}
         </ErrorText>
       )}
       <Box role="status" as="p" srOnly>

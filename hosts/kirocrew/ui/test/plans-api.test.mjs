@@ -8,7 +8,6 @@ import {
   sortRows,
   UNCATEGORIZED,
   approveBlocker,
-  changeMessage,
   groupByCategory,
   progressPercent,
   rowActions,
@@ -176,12 +175,6 @@ test('row buttons follow the row', () => {
   })
   const archived = rowActions(row('a', { status: 'approved', planId: 'a', archived: { at: 't', by: 'Owner' } }))
   assert.deepEqual([archived.archivable, archived.unarchivable, archived.deletable], [false, true, true])
-})
-
-test('Plan a change drafts a message for that plan and never approves', () => {
-  const message = changeMessage(row('config', { planId: 'config' }))
-  assert.match(message, /\.kiro\/specs\/config\/ \(plan config\)/)
-  assert.match(message, /Do not approve it/)
 })
 
 test('the table is one plan.table call', async () => {

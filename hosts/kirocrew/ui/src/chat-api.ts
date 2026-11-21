@@ -5,13 +5,12 @@ import type { AppApi } from '@kirocrew/app-sdk'
 import { COMMAND_PATH } from './workspace-api.ts'
 import type { ConflictItem } from './views-api.ts'
 
-// What a chat is seeded with: conflict items (by identity), tasks, or one
-// plan row (its plan.table key). `purpose` picks the opening ask.
+// What a chat is seeded with: conflict items (by identity) or tasks.
+// `purpose` picks the opening ask.
 export interface ChatSeed {
   items?: ItemRef[]
   tasks?: string[]
-  plan?: string
-  purpose?: 'resolve' | 'discuss-plan' | 'help'
+  purpose?: 'resolve' | 'help'
   // Ask for help (§8.9): where the person is and the settings there.
   help?: HelpSeed
 }
@@ -39,6 +38,29 @@ export function itemRef(item: ConflictItem): ItemRef {
   if (item.slot) ref.slot = item.slot
   if (item.id) ref.id = item.id
   return ref
+}
+
+// Run in a chat (simplify §D13): a chat seeded with the skill that does the
+// work and the item's IDs; the skill reads the rest itself. A spec is
+// revised with avoozl-spec or reviewed with avoozl-spec-review, a task is
+// worked with avoozl-work, and a Needs you item is explained with avoozl.
+export type RunTarget = { kind: 'spec'; spec: string; review: boolean } | { kind: 'task'; taskId: string } | { kind: 'item'; item: ItemRef & { reason?: string } }
+
+export function runSeed(target: RunTarget): string {
+  if (target.kind === 'spec')
+    return target.review
+      ? `Use the avoozl-spec-review skill to review the spec \`${target.spec}\`. Post findings only; edit no file.`
+      : `Use the avoozl-spec skill to revise the spec \`${target.spec}\`. Ask me what should change, and leave the change on a spec branch for me to approve.`
+  if (target.kind === 'task') return `Use the avoozl-work skill to work the task \`${target.taskId}\`.`
+  const { item } = target
+  const ids = [
+    `kind \`${item.kind}\``,
+    ...(item.reason ? [`reason \`${item.reason}\``] : []),
+    ...(item.taskId ? [`task \`${item.taskId}\``] : []),
+    ...(item.id ? [`id \`${item.id}\``] : []),
+    ...(item.slot ? [`session \`${item.slot}\``] : []),
+  ]
+  return `Use the avoozl skill to look at the Needs you item with ${ids.join(', ')}. Explain why it needs me and what each choice would do, then recommend one. Change nothing until I say.`
 }
 
 export interface ActivityItem {
