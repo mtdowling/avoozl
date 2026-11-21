@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The stable client contract shared by any client of a workspace.
 //
 // Everything here delegates to the same operations the website, CLI, and MCP
@@ -6,7 +5,31 @@
 // document conflict handling and idempotency rules, not a second state model.
 // It deliberately exposes no way to write run records directly.
 import { workspaceIdentity } from "../store/identity.ts";
-import { fail } from "../store/store.ts";
+import { fail, type Store } from "../store/store.ts";
+import type { Operations } from "./operations.ts";
+
+type Input = Record<string, unknown>;
+// Where an event read starts and how much it returns.
+type EventsQuery = {
+  after?: number;
+  cursor?: number;
+  runId?: string;
+  limit?: number;
+};
+// How a client reaches a workspace: in process, or over its server.
+interface Transport {
+  kind: string;
+  endpoint?: string;
+  workspaceId?: string | null;
+  call(
+    operation: string,
+    input: Input,
+    expectedRevision?: number,
+  ): Promise<unknown>;
+  events?(query?: EventsQuery): Promise<unknown>;
+}
+// A server reply: its result, events, or the error it names.
+type Reply = { result?: unknown; events?: unknown; error?: string };
 
 const CLIENT_API_VERSION = "1.0.0";
 
@@ -100,7 +123,7 @@ const CLIENT_CONTRACT = Object.freeze({
   ]),
 });
 
-export function describeWorkspace(store) {
+export function describeWorkspace(store: Store) {
   return {
     application: "avoozl",
     apiVersion: CLIENT_API_VERSION,
@@ -114,7 +137,7 @@ export function describeWorkspace(store) {
 }
 
 // Transport over an in-process `Operations` instance.
-function localTransport(ops) {
+function localTransport(ops: Pick<Operations, "execute">): Transport {
   return {
     kind: "local",
     async call(operation, input, expectedRevision) {
@@ -130,7 +153,13 @@ function httpTransport({
   fetch: fetchImpl = globalThis.fetch,
   headers = {},
   timeoutMs = 30000,
-}) {
+}: {
+  endpoint: string;
+  workspaceId?: string | null;
+  fetch?: typeof fetch;
+  headers?: Record<string, string>;
+  timeoutMs?: number;
+}): Transport {
   if (!endpoint) fail("A workspace endpoint is required.");
   const base = endpoint.replace(/\/$/, "");
   const scopedBase = workspaceId
@@ -141,7 +170,7 @@ function httpTransport({
     endpoint: scopedBase,
     workspaceId: workspaceId || null,
     async call(operation, input, expectedRevision) {
-      let response;
+      let response: Response | undefined;
       try {
         response = await fetchImpl(
           workspaceId
@@ -163,12 +192,14 @@ function httpTransport({
           "The workspace server is unreachable at " +
             base +
             ". Durable state is unchanged; retry with the same submission IDs. (" +
-            error.message +
+            (error instanceof Error ? error.message : String(error)) +
             ")",
           503,
         );
       }
-      const body = await response.json().catch(() => ({}));
+      if (!response) return fail("The workspace server did not answer.", 503);
+      // The server's JSON reply.
+      const body = (await response.json().catch(() => ({}))) as Reply;
       if (!response.ok) fail(body.error || "Request failed.", response.status);
       return body.result;
     },
@@ -183,7 +214,8 @@ function httpTransport({
         headers,
         signal: AbortSignal.timeout(timeoutMs),
       });
-      const body = await response.json();
+      // The server's JSON reply.
+      const body = (await response.json()) as Reply;
       if (!response.ok) fail(body.error || "Request failed.", response.status);
       return body.events;
     },
@@ -191,10 +223,11 @@ function httpTransport({
 }
 
 export class WorkspaceClient {
-  constructor(transport) {
+  transport: Transport;
+  constructor(transport: Transport) {
     this.transport = transport;
   }
-  async call(operation, input = {}, expectedRevision) {
+  async call(operation: string, input: Input = {}, expectedRevision?: number) {
     if (!CLIENT_OPERATIONS.includes(operation))
       fail("Operation " + operation + " is not part of the client API.", 400);
     return this.transport.call(operation, input, expectedRevision);
@@ -202,7 +235,10 @@ export class WorkspaceClient {
   // Compatibility check. A client must refuse to drive a workspace whose
   // major API version it does not speak rather than guessing.
   async describe() {
-    const described = await this.call("client.describe");
+    // The workspace's reply, as client.describe answers.
+    const described = (await this.call("client.describe")) as {
+      apiVersion?: string;
+    };
     const [major] = String(described.apiVersion || "").split(".");
     if (major !== CLIENT_API_VERSION.split(".")[0])
       fail(
@@ -221,48 +257,48 @@ export class WorkspaceClient {
   state() {
     return this.call("state");
   }
-  tasks(query = {}) {
+  tasks(query: Input = {}) {
     return this.call("query", { scope: "all", ...query });
   }
-  task(id) {
+  task(id: string) {
     return this.call("task.get", { id });
   }
-  queue(input = {}) {
+  queue(input: Input = {}) {
     return this.call("queue", input);
   }
   conversationSettings() {
     return this.call("conversations.settings.get");
   }
-  updateConversationSettings(input) {
+  updateConversationSettings(input: Input) {
     return this.call("conversations.settings.update", input);
   }
-  updateTask(input, expectedRevision) {
+  updateTask(input: Input, expectedRevision?: number) {
     return this.call("task.update", input, expectedRevision);
   }
-  taskSessions(id) {
+  taskSessions(id: string) {
     return this.call("task.sessions", { id });
   }
-  document(id) {
+  document(id: string) {
     return this.call("document.get", { id });
   }
-  saveDocument({ id, text, expectedHash }) {
+  saveDocument({ id, text, expectedHash }: Input) {
     return this.call("document.update", { id, text, expectedHash });
   }
-  plans(input = {}) {
+  plans(input: Input = {}) {
     return this.call("plan.list", input);
   }
-  plan(id) {
+  plan(id: string) {
     return this.call("plan.get", { id });
   }
-  createPlan(input) {
+  createPlan(input: Input) {
     return this.call("plan.create", input);
   }
   // Saving records a new draft revision. It never approves.
-  savePlan({ id, text, expectedHash }) {
+  savePlan({ id, text, expectedHash }: Input) {
     return this.call("plan.save", { id, text, expectedHash });
   }
   // What approving a revision would extract, without changing anything.
-  previewPlan({ id, text }) {
+  previewPlan({ id, text }: Input) {
     return this.call("plan.preview", { id, text });
   }
   // Approval is a separate, explicit, transactional operation that names the
@@ -274,7 +310,7 @@ export class WorkspaceClient {
     approvedBy,
     evidence,
     retitled,
-  }) {
+  }: Input) {
     return this.call("plan.approve", {
       id,
       expectedHash,
@@ -284,23 +320,23 @@ export class WorkspaceClient {
       retitled,
     });
   }
-  events(input = {}) {
+  events(input: EventsQuery = {}) {
     if (this.transport.events) return this.transport.events(input);
     return this.call("state").then(() => {
       fail("This transport cannot read the event stream.", 400);
     });
   }
-  submit(input) {
+  submit(input: Input) {
     if (!input.submissionId) fail("A submission ID is required.");
     return this.call("intent.submit", input);
   }
-  submission(submissionId) {
+  submission(submissionId: string) {
     return this.call("intent.get", { submissionId });
   }
-  integrate({ id, expectedCommit }) {
+  integrate({ id, expectedCommit }: Input) {
     return this.call("integration.merge", { id, expectedCommit });
   }
-  handoff(id) {
+  handoff(id: string) {
     return this.call("handoff", { id });
   }
 }
