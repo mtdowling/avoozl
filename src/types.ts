@@ -99,7 +99,11 @@ export interface Task {
     acceptedBy?: string;
     [key: string]: unknown;
   } | null;
-  integration?: { commit?: string; at?: string; [key: string]: unknown } | null;
+  integration?: {
+    commit?: string | null;
+    at?: string;
+    [key: string]: unknown;
+  } | null;
   intakeVerdict?: {
     state?: string;
     issue?: string;

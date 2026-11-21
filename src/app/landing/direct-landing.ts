@@ -20,6 +20,7 @@ import os from "node:os";
 import { git, type Repository, removeLandedTaskWorktree } from "../git/git.ts";
 import {
   enqueueLanding,
+  landingFailure,
   landNext,
   type QueueEntry,
   queueHeads,
@@ -37,6 +38,7 @@ import { tickEntry } from "../specs/spec-ticks.ts";
 import { sendConflictBack } from "./landing-conflicts.ts";
 import { markLanded, sendFailureBack, syncBase } from "./pr-landing.ts";
 import { finishLanded } from "./landed-work.ts";
+import type { PullGitHub } from "./landing-pulls.ts";
 import { fail, type Store } from "../store/store.ts";
 import type { Notice } from "../tick/notifications.ts";
 import { landingSpecOf } from "../specs/labeled-issues.ts";
@@ -93,7 +95,9 @@ export function queueDirect(
 // What a landing pass is given: the GitHub client, where it runs, and
 // `only`, one repository to land.
 export interface LandOptions {
-  github?: Parameters<typeof finishLanded>[1];
+  github?:
+    | (NonNullable<Parameters<typeof finishLanded>[1]> & PullGitHub)
+    | null;
   workspaceRoot?: string;
   rounds?: number | ((repository: Repository) => number);
   now?: number;
@@ -286,17 +290,8 @@ export async function landDirect(
       const error = thrown as Error & { contention?: boolean };
       setTesting(store, { repositoryId: repository.id, base }, null);
       if (error.contention) continue;
-      // One notice per head and cause, not one per tick.
-      const seen = store.getMeta<Record<string, string>>(ERRORS) ?? {},
-        cause = `${head.commit}:${error.message}`;
-      if (seen[head.id] === cause) continue;
-      store.setMeta(ERRORS, { ...seen, [head.id]: cause });
-      notify.push({
-        channel: "failure",
-        task: head.key,
-        title: `Avoozl could not land ${head.key} directly`,
-        text: error.message,
-      });
+      const notice = landingFailure(store, ERRORS, head, error, "directly");
+      if (notice) notify.push(notice);
     }
   }
   return { notify, messages };
