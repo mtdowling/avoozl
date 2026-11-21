@@ -1,12 +1,12 @@
-// @ts-nocheck: typing debt
 // Settings > Workspaces: the pencil opens a form that edits the workspace's
 // name, folder, agents at once, on/off and default, with Save and Cancel.
 // Save sends only what changed (workspaces.update). The Add and Edit folder
 // fields have a Browse list of folders under home (workspaces.browse).
 // The browser tests are skipped when no Chrome is found.
 import assert from 'node:assert/strict'
-import { after, before, test } from 'node:test'
-import { findChrome, startChrome, stopChrome } from './browser/chrome.ts'
+import { test } from 'node:test'
+import { findChrome, type Harness, type Page } from './browser/chrome.ts'
+import { withChrome } from './browser/harness-page.ts'
 
 const { editChanges, editDraft } = await import('../src/workspace-api.ts')
 
@@ -26,7 +26,7 @@ test('Save sends only the changed fields and checks the form first', () => {
     ['name', 'x'.repeat(161), /160/],
     ['root', '', /folder/],
     ['root', 'relative/path', /full path/],
-  ])
+  ] as ['name' | 'root', string, RegExp][])
     assert.match(editChanges(ws, false, { ...draft, [field]: value }).error ?? '', error, `${field}=${value}`)
   assert.equal(editChanges(ws, false, { ...draft, root: 'C:\\plans' }).error, null, 'a Windows path')
   assert.equal(editChanges(ws, true, { ...draft, default: true }).change, null, 'already the default')
@@ -34,21 +34,18 @@ test('Save sends only the changed fields and checks the form first', () => {
 
 const chrome = findChrome()
 const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the workspace edit tests'
-let harness, browser, page
-before(async () => {
-  if (!skip) ({ harness, browser, page } = await startChrome(chrome))
-})
-after(() => stopChrome(browser, harness))
+let harness: Harness, page: Page
+withChrome(chrome, (got) => ({ harness, page } = got))
 const wait = (ms = 250) => page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
-const click = (selector) => page.evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`)
+const click = (selector: string) => page.evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`)
 // React's own value setter, so its onChange fires.
-const type = (selector, value) =>
+const type = (selector: string, value: string) =>
   page.evaluate(`(() => {
     const el = document.querySelector(${JSON.stringify(selector)})
     Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, ${JSON.stringify(value)})
     el.dispatchEvent(new Event('input', { bubbles: true }))
   })()`)
-const value = (selector) => page.evaluate(`document.querySelector(${JSON.stringify(selector)}).value`)
+const value = (selector: string) => page.evaluate(`document.querySelector(${JSON.stringify(selector)}).value`)
 const saveDisabled = () => page.evaluate(`document.querySelector('[data-edit-save]').disabled`)
 
 async function openEdit() {

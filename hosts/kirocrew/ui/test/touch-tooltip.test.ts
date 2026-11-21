@@ -1,30 +1,29 @@
-// @ts-nocheck: typing debt
 // The one Tooltip on touch and keyboard, in a real Chrome (AVOOZL_CHROME, or an
 // installed one). A tap on plain text or an info icon opens it; a second tap,
 // a tap elsewhere or Esc closes it; a button keeps its own tap and shows no
 // tooltip on touch. A plain anchor takes keyboard focus and is described by
 // its tip. Skipped when no Chrome is found.
 import assert from 'node:assert/strict'
-import { after, before, test } from 'node:test'
-import { findChrome, startChrome, stopChrome } from './browser/chrome.ts'
+import { test } from 'node:test'
+import { findChrome, type Harness, type Page } from './browser/chrome.ts'
+import { withChrome } from './browser/harness-page.ts'
 
 const chrome = findChrome()
 const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the touch tooltip tests'
-let harness, browser, page
-before(async () => {
-  if (!skip) ({ harness, browser, page } = await startChrome(chrome))
-})
-after(() => stopChrome(browser, harness))
+let harness: Harness, page: Page
+withChrome(chrome, (got) => ({ harness, page } = got))
 
 const settle = () => page.evaluate('new Promise((r) => setTimeout(r, 60))')
-const center = (selector) =>
-  page.evaluate(`(() => { const r = document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 } })()`)
+const center = (selector: string) =>
+  page.evaluate<{ x: number; y: number }>(
+    `(() => { const r = document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 } })()`,
+  )
 const tip = () => page.evaluate(`[...(document.querySelector('[data-tooltip]')?.childNodes ?? [])].filter((n) => n.nodeType === 3).map((n) => n.textContent).join('') || null`)
 const open = async (dark = false) => {
   await page.open(harness.url({ page: 'tip', theme: dark ? 'dark' : 'light' }), { width: 390, height: 700, dark })
   await page.until(`Boolean(document.querySelector('[data-plain]'))`)
 }
-const tap = async (selector) => {
+const tap = async (selector: string) => {
   const { x, y } = await center(selector)
   await page.tap(x, y)
   await settle()
@@ -48,7 +47,7 @@ for (const dark of [false, true])
     // The tip is inside the screen.
     await tap('[data-info-tip]')
     assert.equal(await tip(), 'Details that do not fit on the page')
-    const box = await page.evaluate(
+    const box = await page.evaluate<{ left: number; right: number; width: number }>(
       `(() => { const r = document.querySelector('[data-tooltip]').getBoundingClientRect(); return { left: r.left, right: r.right, width: innerWidth } })()`,
     )
     assert.ok(box.left >= 0 && box.right <= box.width, 'inside the viewport')
