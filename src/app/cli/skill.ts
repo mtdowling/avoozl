@@ -18,6 +18,6 @@ export function workflowSkill(config = workspaceConfig()) {
     .readFileSync(new URL("../skills/avoozl/SKILL.md", import.meta.url), "utf8")
     .replace(
       /\{\{(PLANS_ROOT|CLI|WORKSPACE_CLI|APP_ROOT)\}\}/g,
-      (_, key: string) => values[key]!,
+      (_, key: string) => values[key],
     );
 }

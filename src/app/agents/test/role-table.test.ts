@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The role table (without-kirocrew nk-1.1, NK1): one row per role, an
 // executor from settings for every dispatch, and no default to `kirocrew`
 // outside the Kiro Crew executor.
@@ -21,7 +20,7 @@ import { kirocrewRequest } from "../../executors/kirocrew.ts";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const app = path.join(here, "..", "..");
 
-const sources = (directory) =>
+const sources = (directory: string): string[] =>
   fs
     .readdirSync(directory, { withFileTypes: true })
     .flatMap((entry) =>
@@ -124,7 +123,7 @@ test("the roles on process keep their briefs and rows", () => {
   assert.equal(rowFor("review:x"), ROLE_TABLE.reviewer);
   // A chat that is not in the table (the conflict fix R91.6 removes).
   assert.equal(processRow("conflict-fix"), null);
-  assert.equal(processRow("worker").folder, "worktree");
+  assert.equal(processRow("worker")?.folder, "worktree");
   assert.match(
     processBrief("review:x", "BRIEF", { allowCommands: [["npm", "test"]] }),
     /`npm test`[\s\S]*result\.json/,

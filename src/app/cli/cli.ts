@@ -25,7 +25,7 @@ let command = "help",
   hasCommand = false;
 try {
   for (let i = 0; i < args.length; i++) {
-    const arg = args[i]!;
+    const arg = args[i];
     if (arg === "-h") options.help = true;
     else if (arg.startsWith("--")) {
       const key = arg.slice(2);
@@ -68,17 +68,17 @@ try {
       else if (
         key === "json" &&
         ["runner", "review", "plan"].includes(args[0]) &&
-        (args[i + 1] === undefined || args[i + 1]!.startsWith("--"))
+        (args[i + 1] === undefined || args[i + 1].startsWith("--"))
       )
         options.json = true;
       // `plugins add --repository` is a bare flag; elsewhere it takes a value.
       else if (
         key === "repository" &&
-        (args[i + 1] === undefined || args[i + 1]!.startsWith("--"))
+        (args[i + 1] === undefined || args[i + 1].startsWith("--"))
       )
         options[key] = true;
       else {
-        if (args[i + 1] === undefined || args[i + 1]!.startsWith("--"))
+        if (args[i + 1] === undefined || args[i + 1].startsWith("--"))
           throw Error("Missing value for --" + key);
         options[key] = args[++i];
       }

@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Task 28.2 and 28.7: diffs proposals carry, strict apply, and the
 // three-way merge an override rebase uses (design §4.18).
 import assert from "node:assert/strict";
