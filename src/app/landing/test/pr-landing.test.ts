@@ -1,11 +1,9 @@
-// @ts-nocheck: typing debt
 // The tick lands `pr` repositories through pull requests (task 42.6). Real git
 // (a bare "origin" and a checkout), a fake GitHub; nothing live.
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { digest } from "../../../model.ts";
 import { Store } from "../../store/store.ts";
 import {
@@ -16,36 +14,66 @@ import {
 } from "../../delivery/delivery.ts";
 import { landingQueue } from "../landing-queue.ts";
 import { landPullRequests } from "../pr-landing.ts";
+import type { LandOptions } from "../direct-landing.ts";
 import { approveMerge } from "../landing-pulls.ts";
 import { claimOf, closedPullNeedsYou } from "../../workers/claims.ts";
 import { addItemContext } from "../../api/needs-you-context.ts";
 import { taskLinks } from "../../tasks/scm-links.ts";
 import { seedClaims, snapshot, verifiedTask } from "../../test/fixtures.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
+import { git, leaf as fixtureLeaf } from "../../test/delivery-fixture.ts";
+import { partialFake } from "../../test/partial-fake.ts";
+import { found, storedRow } from "../../test/view-shapes.ts";
+import type { QueueEntry } from "../landing-queue.ts";
+import type { Task } from "../../../types.ts";
+
+type Github = NonNullable<LandOptions["github"]>;
+// A pull request on the fake.
+interface FakePull {
+  number: number;
+  state: string;
+  head: { ref: string; sha: string };
+  base: { sha: string };
+  mergeable: boolean;
+  draft: boolean;
+  merged_at?: string;
+  merged_by?: { login: string };
+  merge_commit_sha?: string;
+}
+// What the fake records, its pull requests, and how a test sets the check.
+interface Extras {
+  calls: {
+    created: number;
+    merged: { number: number; sha: string }[];
+    statuses: Record<string, unknown>[];
+    deleted: string[];
+  };
+  pulls: FakePull[];
+  setChecks: (value: string) => void;
+}
+// A task's delivery record, for the fields these tests read.
+interface Delivery {
+  id: string;
+  state: string;
+  commit?: string;
+  cause?: string;
+  integratedCommit?: string;
+  returnedAttempts?: unknown[];
+  failedChecks?: { commit?: string; checks?: unknown[] };
+  [key: string]: unknown;
+}
 
 process.env.XDG_CONFIG_HOME ??= temporaryDirectory("avoozl-xdg-");
 
-const git = (cwd, ...args) =>
-  execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
-const leaf = (id) => ({
-  id,
-  title: "Task " + id,
-  scope: "catalog",
-  status: "planned",
-  epic: "sample",
-  track: "catalog",
-  tags: [],
-  acceptance: [id + " works."],
-  repository: "app",
-  planId: "s",
-});
+const leaf = (id: string) =>
+  fixtureLeaf(id, { acceptance: [id + " works."], planId: "s" });
 
 const FILE = ".kiro/specs/s/tasks.md";
 const TASKS = "# Tasks\n\n- [ ] 1.1 First\n  - It works\n";
 
 // `spec`: the spec's tasks.md is in the code repository, so a landing
 // ticks it there.
-async function workspace(t, { spec = false } = {}) {
+async function workspace(t: TestContext, { spec = false } = {}) {
   const root = temporaryDirectory("avoozl-prland-"),
     origin = path.join(root, "origin.git"),
     checkout = path.join(root, "app");
@@ -90,7 +118,8 @@ async function workspace(t, { spec = false } = {}) {
 
 // A task worktree with one commit, a verified delivery and a worker chat
 // claimed by the command line, as `avoozl claim` does.
-const verified = (w, taskId, file) =>
+type World = Awaited<ReturnType<typeof workspace>>;
+const verified = (w: World, taskId: string, file?: string) =>
   verifiedTask(w, taskId, file, {
     delivery: (commit) => ({
       attempts: [{ attempt: 1, outcome: "done", commit }],
@@ -105,12 +134,17 @@ const verified = (w, taskId, file) =>
 
 // GitHub as far as pull request landing reads and writes it. A merge moves
 // the bare origin's main to the head (a fast-forward stands in for it).
-function fakeGithub(w) {
-  const pulls = [],
-    calls = { created: 0, merged: [], statuses: [], deleted: [] };
+function fakeGithub(w: World) {
+  const pulls: FakePull[] = [],
+    calls: Extras["calls"] = {
+      created: 0,
+      merged: [],
+      statuses: [],
+      deleted: [],
+    };
   let conclusion = "pending";
-  const pullOf = (n) => pulls.find((p) => p.number === n);
-  const github = {
+  const pullOf = (n: number) => found(pulls.find((p) => p.number === n));
+  const github = partialFake<Github & Extras>({
     calls,
     pulls,
     setChecks: (value) => (conclusion = value),
@@ -127,12 +161,12 @@ function fakeGithub(w) {
     },
     createPullRequest: async (_repo, input) => {
       calls.created += 1;
-      const pull = {
+      const pull: FakePull = {
         number: pulls.length + 1,
         state: "open",
         head: {
-          ref: input.head,
-          sha: git(w.origin, "rev-parse", input.head),
+          ref: String(input.head),
+          sha: git(w.origin, "rev-parse", String(input.head)),
         },
         base: { sha: git(w.origin, "rev-parse", "main") },
         mergeable: true,
@@ -169,11 +203,19 @@ function fakeGithub(w) {
       },
     ],
     commitStatus: async () => ({ statuses: [] }),
-    createCommitStatus: async (_repo, sha, input) =>
-      calls.statuses.push({ sha, ...input }),
+    createCommitStatus: async (
+      _repo: string,
+      sha: string,
+      input: Record<string, unknown>,
+    ) => calls.statuses.push({ sha, ...input }),
     pullRequestReviews: async () => [],
-    deleteBranch: async (_repo, branch) => calls.deleted.push(branch),
-    mergePullRequest: async (_repo, n, { sha }) => {
+    deleteBranch: async (_repo: string, branch: string) =>
+      calls.deleted.push(branch),
+    mergePullRequest: async (
+      _repo: string,
+      n: number,
+      { sha }: { sha: string },
+    ) => {
       const pull = pullOf(n);
       if (pull.head.sha !== sha) return { merged: false };
       git(w.origin, "update-ref", "refs/heads/main", sha);
@@ -186,11 +228,11 @@ function fakeGithub(w) {
       calls.merged.push({ number: n, sha });
       return { merged: true };
     },
-  };
+  });
   return github;
 }
 
-const step = (w, github) =>
+const step = (w: World, github: Github) =>
   landPullRequests(w.store, { github, workspaceRoot: w.root, rounds: 2 });
 
 test("a verified task is pushed as a draft, waits for its release and check on the exact head, and merges on a person's Merge", async (t) => {
@@ -199,7 +241,10 @@ test("a verified task is pushed as a draft, waits for its release and check on t
     commit = verified(w, "t1");
   await integrateVerified(w.store);
   assert.equal(git(w.origin, "rev-parse", "avoozl/t1"), commit);
-  assert.equal(w.store.get("task_deliveries", "t1").state, "verified");
+  assert.equal(
+    storedRow<Delivery>(w.store, "task_deliveries", "t1").state,
+    "verified",
+  );
   assert.equal(
     landingQueue(w.store, { repositoryId: "app", base: "main" }).length,
     1,
@@ -226,11 +271,12 @@ test("a verified task is pushed as a draft, waits for its release and check on t
   await step(w, github);
   assert.deepEqual(github.calls.merged, [{ number: 1, sha: commit }]);
   assert.deepEqual(github.calls.statuses, [], "no commit status is posted");
-  const delivery = w.store.get("task_deliveries", "t1");
+  const delivery = storedRow<Delivery>(w.store, "task_deliveries", "t1");
   assert.equal(delivery.state, "integrated");
   assert.equal(delivery.integratedCommit, commit);
   assert.equal(
-    w.store.read().tasks.find((x) => x.id === "t1").integration.commit,
+    found(w.store.read().tasks.find((x: Task) => x.id === "t1")).integration
+      ?.commit,
     commit,
   );
   // The local base follows the merged remote base.
@@ -240,7 +286,7 @@ test("a verified task is pushed as a draft, waits for its release and check on t
 test("a private plan's task goes by an opaque name on a public repository", async (t) => {
   const w = await workspace(t),
     github = fakeGithub(w),
-    created = [];
+    created: Record<string, unknown>[] = [];
   const create = github.createPullRequest;
   github.createPullRequest = async (repo, input) => {
     created.push(input);
@@ -260,21 +306,22 @@ test("a private plan's task goes by an opaque name on a public repository", asyn
   const commit = verified(w, "t1");
   await integrateVerified(w.store);
   const [entry] = landingQueue(w.store, { repositoryId: "app", base: "main" }),
-    named = entry.tasks[0].public;
+    task = entry.tasks[0],
+    named = String(typeof task === "string" ? task : task.public);
   assert.match(named, /^t-[0-9a-f]{24}$/);
-  assert.equal(entry.source.branch, `avoozl/${named}`);
+  assert.equal(entry.source?.branch, `avoozl/${named}`);
   assert.equal(git(w.origin, "rev-parse", `avoozl/${named}`), commit);
   // The readable task branch never reaches the public remote.
   assert.equal(git(w.origin, "branch", "--list", "avoozl/t1"), "");
   await step(w, github);
   assert.equal(created.length, 1);
   assert.equal(created[0].head, `avoozl/${named}`);
-  for (const text of [created[0].title, created[0].body])
+  for (const text of [String(created[0].title), String(created[0].body)])
     assert.ok(!/\bt1\b|\bs\b/.test(text.replace(named, "")), text);
   assert.equal(created[0].body, "", "no trailer in the body");
   // The task's branch link is the branch that was pushed.
   assert.equal(
-    taskLinks(w.store, "t1").branch.url,
+    taskLinks(w.store, "t1").branch?.url,
     `https://github.com/acme/app/tree/avoozl/${named}`,
   );
 });
@@ -293,12 +340,17 @@ test("a failed check sends the task back to its chat", async (t) => {
     /build: failure \(Error: expected 3 rows, got 2\)/,
     "the chat gets the check's first error line",
   );
-  assert.equal(w.store.get("task_deliveries", "t1").state, "running");
+  assert.equal(
+    storedRow<Delivery>(w.store, "task_deliveries", "t1").state,
+    "running",
+  );
   assert.deepEqual(github.calls.merged, []);
   // The failed portion keeps its pull request, so its Links box shows it.
-  const failed = w.store
-    .list("landing_queue")
-    .find((entry) => entry.key === "t1");
+  const failed = found(
+    w.store
+      .list<QueueEntry>("landing_queue")
+      .find((entry) => entry.key === "t1"),
+  );
   assert.equal(failed.state, "failed");
   assert.equal(failed.pr, 1);
   assert.equal(
@@ -306,7 +358,7 @@ test("a failed check sends the task back to its chat", async (t) => {
     "https://github.com/acme/app/pull/1",
   );
   // The same chat reports done again on its fix, and that is recorded.
-  const wt = w.store.get("task_worktrees", "t1").path;
+  const wt = String(storedRow(w.store, "task_worktrees", "t1").path);
   fs.writeFileSync(path.join(wt, "fix.txt"), "fix\n");
   git(wt, "add", ".");
   git(wt, "commit", "-qm", "Fix");
@@ -318,10 +370,10 @@ test("a failed check sends the task back to its chat", async (t) => {
     { sessionKey: "dashboard:slot-t1" },
   );
   reconcileDeliveries(w.store, deliveryPolicy({ delivery: {} }), {});
-  const delivery = w.store.get("task_deliveries", "t1");
+  const delivery = storedRow<Delivery>(w.store, "task_deliveries", "t1");
   assert.equal(delivery.state, "done");
   assert.equal(delivery.commit, fixed);
-  assert.equal(delivery.returnedAttempts.length, 1);
+  assert.equal(delivery.returnedAttempts?.length, 1);
 });
 
 test("a check that fails past its rounds keeps its name and first error line for Needs you", async (t) => {
@@ -335,9 +387,9 @@ test("a check that fails past its rounds keeps its name and first error line for
     workspaceRoot: w.root,
     rounds: 0,
   });
-  const delivery = w.store.get("task_deliveries", "t1");
+  const delivery = storedRow<Delivery>(w.store, "task_deliveries", "t1");
   assert.equal(delivery.state, "decision");
-  assert.deepEqual(delivery.failedChecks.checks, [
+  assert.deepEqual(delivery.failedChecks?.checks, [
     {
       name: "build",
       conclusion: "failure",
@@ -347,8 +399,8 @@ test("a check that fails past its rounds keeps its name and first error line for
   const [item] = addItemContext(w.store, w.store.read(), [
     { kind: "stale-session", taskId: "t1" },
   ]);
-  assert.deepEqual(item.context.failedChecks, {
-    commit: delivery.failedChecks.commit,
+  assert.deepEqual(item.context?.failedChecks, {
+    commit: delivery.failedChecks?.commit,
     checks: [
       {
         name: "build",
@@ -362,7 +414,7 @@ test("a check that fails past its rounds keeps its name and first error line for
   const [later] = addItemContext(w.store, w.store.read(), [
     { kind: "stale-session", taskId: "t1" },
   ]);
-  assert.equal(later.context.failedChecks, null);
+  assert.equal(later.context?.failedChecks, null);
 });
 
 test("a queued task whose base moved is withdrawn, merged with the base and verified again", async (t) => {
@@ -379,7 +431,7 @@ test("a queued task whose base moved is withdrawn, merged with the base and veri
   git(other, "commit", "-qm", "Other");
   git(other, "push", "-q", "origin", "main");
   await integrateVerified(w.store);
-  const delivery = w.store.get("task_deliveries", "t1");
+  const delivery = storedRow<Delivery>(w.store, "task_deliveries", "t1");
   assert.equal(delivery.state, "done", "back to verification");
   assert.notEqual(delivery.commit, first);
   assert.equal(
@@ -389,7 +441,7 @@ test("a queued task whose base moved is withdrawn, merged with the base and veri
 });
 
 // A person merges the pull request on GitHub: origin's main moves to its head.
-const mergeOnGitHub = (w, pull) => {
+const mergeOnGitHub = (w: World, pull: FakePull) => {
   git(w.origin, "update-ref", "refs/heads/main", pull.head.sha);
   Object.assign(pull, {
     state: "closed",
@@ -427,9 +479,14 @@ test("a pull request a person merges lands its task with its tick, and Avoozl de
   await step(w, github);
   mergeOnGitHub(w, github.pulls[0]);
   await step(w, github);
-  assert.equal(w.store.get("task_deliveries", "t1").state, "integrated");
-  const landed = w.store.read().tasks.find((x) => x.id === "t1")
-    .integration.commit;
+  assert.equal(
+    storedRow<Delivery>(w.store, "task_deliveries", "t1").state,
+    "integrated",
+  );
+  const landed = String(
+    found(w.store.read().tasks.find((x: Task) => x.id === "t1")).integration
+      ?.commit,
+  );
   assert.equal(git(w.origin, "rev-parse", `${landed}^`), commit);
   assert.match(git(w.origin, "show", `${landed}:${FILE}`), /- \[x\] 1\.1/);
   assert.deepEqual(github.calls.merged, [], "Avoozl merged nothing");
@@ -456,9 +513,10 @@ test("a pull request closed unmerged leaves the queue and gives a Needs you row 
   assert.equal(row.taskId, "t1");
   assert.equal(row.link, "https://github.com/acme/app/pull/1");
   assert.match(row.detail, /stays claimed by avoozl\/s\/t1/);
-  assert.equal(row.actions[0].label, "Delete claim branch");
-  assert.equal(row.actions[0].operation, "claim.delete");
-  assert.equal(row.actions[0].confirm[0].job, "claim-delete");
+  const [action] = found(row.actions);
+  assert.equal(action.label, "Delete claim branch");
+  assert.equal(action.operation, "claim.delete");
+  assert.equal(action.confirm[0].job, "claim-delete");
   assert.deepEqual(github.calls.deleted, [], "Avoozl deletes nothing itself");
   assert.deepEqual(github.calls.merged, []);
 });
@@ -466,7 +524,7 @@ test("a pull request closed unmerged leaves the queue and gives a Needs you row 
 test("a labeled issue's pull request says Closes #<n>", async (t) => {
   const w = await workspace(t),
     github = fakeGithub(w),
-    bodies = [],
+    bodies: unknown[] = [],
     create = github.createPullRequest;
   github.createPullRequest = async (repo, input) => {
     bodies.push(input.body);
@@ -482,5 +540,5 @@ test("a labeled issue's pull request says Closes #<n>", async (t) => {
   verified(w, "issue-12");
   await integrateVerified(w.store);
   await step(w, github);
-  assert.match(bodies[0], /^Closes #12$/m);
+  assert.match(String(bodies[0]), /^Closes #12$/m);
 });
