@@ -4,11 +4,7 @@
 // $AVOOZL_DENY_OPERATIONS set, every Operations write entry point throws, so a
 // caller that still changes the database must have bypassed Operations.
 import fs from "node:fs";
-import {
-  DatabaseSync,
-  type SQLInputValue,
-  StatementSync,
-} from "node:sqlite";
+import { DatabaseSync, type SQLInputValue, StatementSync } from "node:sqlite";
 import { Operations } from "../api/operations.ts";
 
 const trace = process.env.AVOOZL_WRITE_TRACE ?? "";

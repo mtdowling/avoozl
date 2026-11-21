@@ -20,7 +20,10 @@ export function runOwnMachine(
     dir,
     env,
     ...options
-  }: Omit<ExecFileSyncOptionsWithStringEncoding, "encoding"> & { dir: string; env: NodeJS.ProcessEnv },
+  }: Omit<ExecFileSyncOptionsWithStringEncoding, "encoding"> & {
+    dir: string;
+    env: NodeJS.ProcessEnv;
+  },
 ) {
   return execFileSync(program, args, {
     encoding: "utf8",
