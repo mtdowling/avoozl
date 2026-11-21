@@ -1,12 +1,11 @@
-// @ts-nocheck: typing debt
 // CLI commands of one kind: command, help lines and run.
 // Epic context (epic-context EC2.3, EC4.2): the machine block and a plugin
 // ask's answer, a person's acts at a terminal.
-import { help } from "../cli/command-help.ts";
+import { type Command, help } from "../cli/command-help.ts";
 
-const print = (value) => console.log(JSON.stringify(value, null, 2));
+const print = (value: unknown) => console.log(JSON.stringify(value, null, 2));
 
-export const commands = [
+export const commands: Command[] = [
   {
     command: "context set",
     help: [
@@ -17,7 +16,9 @@ export const commands = [
       ),
     ],
     async run({ options, localOrRequest }) {
-      const value = options.remove ? null : JSON.parse(options.json ?? "null");
+      const value = options.remove
+        ? null
+        : JSON.parse(String(options.json ?? "null"));
       if (value === null && !options.remove)
         throw Error("Give --json with the epicContext block, or --remove.");
       print(
@@ -49,7 +50,7 @@ export const commands = [
     ],
     async run({ positionals, localOrRequest, need }) {
       const [, id, name, ...value] = positionals;
-      need(value.length ? id : null, "plugins answer ID NAME VALUE");
+      need(value.length ? id : undefined, "plugins answer ID NAME VALUE");
       print(
         await localOrRequest("plugin.answer", {
           id,

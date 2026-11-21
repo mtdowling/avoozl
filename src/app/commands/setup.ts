@@ -6,7 +6,7 @@ import { machineStatus, roleProblems } from "../workspace/machine-status.ts";
 import { workflowSkill } from "../cli/skill.ts";
 import { workspaceStatus } from "../workspace/workspace-status.ts";
 import { initializeWorkspace } from "../workspace/workspace.ts";
-import { help } from "../cli/command-help.ts";
+import { type Command, help } from "../cli/command-help.ts";
 import { confirmHighRisk, refuseAgentYes } from "../cli/confirm-high-risk.ts";
 
 const CANCELLED = "Cancelled: nothing was written.";
@@ -176,7 +176,7 @@ function runTask({ command }) {
   );
 }
 
-export const commands = [
+export const commands: Command[] = [
   {
     command: "init",
     help: [

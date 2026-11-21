@@ -1,15 +1,23 @@
-// @ts-nocheck: typing debt
 // CLI commands of one kind: command, help lines and run.
 import { runPass } from "../tick/tick-pass.ts";
 import { machineAvoozlPaths } from "../settings/host-config.ts";
 import { contentHook } from "../content/content-hook.ts";
-import { help } from "../cli/command-help.ts";
+import {
+  type Command,
+  type CommandContext,
+  help,
+} from "../cli/command-help.ts";
 import { confirmHighRisk } from "../cli/confirm-high-risk.ts";
 import { confirmStep } from "../github/github-jobs.ts";
 import { watchTick } from "../tick/tick-watchdog.ts";
 import { laneTable } from "../sessions/lane-sessions.ts";
 
-async function runTaskDone({ options, positionals, localOrRequest, need }) {
+async function runTaskDone({
+  options,
+  positionals,
+  localOrRequest,
+  need,
+}: CommandContext) {
   // A manual task (R61.13): a person marks it done or reopens it.
   const taskId = need(positionals[1], `task ${positionals[0]} TASK_ID`);
   console.log(
@@ -35,7 +43,7 @@ async function runTaskDone({ options, positionals, localOrRequest, need }) {
   );
 }
 
-export const commands = [
+export const commands: Command[] = [
   {
     command: "tick",
     help: [
@@ -100,11 +108,14 @@ export const commands = [
         );
         return;
       }
-      const graph = await localOrRequest(
+      const graph = await localOrRequest<{ mermaid: string; text: string }>(
         "graph.view",
         positionals[0] ? { spec: positionals[0] } : {},
       );
-      if (options.format && !["text", "mermaid"].includes(options.format))
+      if (
+        options.format &&
+        !["text", "mermaid"].includes(String(options.format))
+      )
         throw Error("Choose --format text or --format mermaid.");
       process.stdout.write(
         options.format === "mermaid" ? graph.mermaid : graph.text,
@@ -143,7 +154,10 @@ export const commands = [
       ),
     ],
     async run({ options, localOrRequest }) {
-      const { lanes } = await localOrRequest("lanes.view", {});
+      const { lanes } = await localOrRequest<{ lanes: unknown[] }>(
+        "lanes.view",
+        {},
+      );
       if (options.json) {
         console.log(JSON.stringify(lanes, null, 2));
         return;
@@ -416,10 +430,11 @@ export const commands = [
     command: "update",
     help: [help("deliver", "update TASK_ID --status STATUS", "")],
     async run({ options, positionals, localOrRequest, need }) {
-      const task = await localOrRequest("task.get", {
-          id: need(positionals[0], "update TASK_ID [--status STATUS] ..."),
-        }),
-        value = { id: task.id };
+      const task = await localOrRequest<{ id: string; notes?: string }>(
+          "task.get",
+          { id: need(positionals[0], "update TASK_ID [--status STATUS] ...") },
+        ),
+        value: Record<string, unknown> = { id: task.id };
       for (const key of [
         "status",
         "title",
@@ -432,7 +447,7 @@ export const commands = [
       if (options.note)
         value.notes = [task.notes, options.note].filter(Boolean).join("\n");
       if (options.tags)
-        value.tags = options.tags
+        value.tags = String(options.tags)
           .split(",")
           .map((t) => t.trim())
           .filter(Boolean);

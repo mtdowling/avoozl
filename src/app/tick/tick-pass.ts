@@ -160,12 +160,25 @@ async function tickCatalog(paths) {
 // The whole pass: reap and resume children first, so the tick reads their
 // end; tick each workspace; then start what the tick asked for, and keep the
 // page up. Returns one result per workspace, each with its time.
+// One line of a pass's result: a workspace's tick, the page, or the children.
+export type PassResult = {
+  at?: string;
+  root?: string;
+  error?: string;
+  [key: string]: unknown;
+};
+
 export async function runPass({
   stateDirectory,
   configDirectory,
   roots,
   env = process.env,
-}) {
+}: {
+  stateDirectory: string;
+  configDirectory: string;
+  roots?: string[];
+  env?: NodeJS.ProcessEnv;
+}): Promise<PassResult[]> {
   const supervisor = openSupervisor({ stateDirectory, configDirectory, env });
   try {
     supervisor.pass();

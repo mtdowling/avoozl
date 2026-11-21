@@ -1,7 +1,7 @@
 // `avoozl insights` and `avoozl retro list|read|save` (simplify §D13): the
 // Insights view's numbers as text, and the saved retros.
 import fs from "node:fs";
-import { help } from "../cli/command-help.ts";
+import { type Command, help } from "../cli/command-help.ts";
 import { MAIN_WORDS, duration } from "../insights/format.ts";
 
 const show = (value: unknown) => console.log(JSON.stringify(value, null, 2));
@@ -52,7 +52,7 @@ export function insightsText(view: any): string[] {
   return lines;
 }
 
-export const commands = [
+export const commands: Command[] = [
   {
     command: "insights",
     help: [
@@ -62,7 +62,7 @@ export const commands = [
         "The Insights numbers: what waits, burndown, finished tasks, lead time, stage time, review rounds and rework",
       ),
     ],
-    async run({ options, localOrRequest }: any) {
+    async run({ options, localOrRequest }) {
       const view = await localOrRequest("insights.view", {
         ...(options.days ? { days: Number(options.days) } : {}),
         ...(options.spec ? { spec: options.spec } : {}),
@@ -74,8 +74,10 @@ export const commands = [
   {
     command: "retro list",
     help: [help("inspect", "retro list", "Saved retros, newest first")],
-    async run({ localOrRequest }: any) {
-      const { items } = await localOrRequest("retro.list", {});
+    async run({ localOrRequest }) {
+      const { items } = await localOrRequest<{
+        items: { name: string; title: string }[];
+      }>("retro.list", {});
       if (!items.length) return console.log("No saved retros yet.");
       for (const item of items) console.log(`${item.name}  ${item.title}`);
     },
@@ -83,8 +85,8 @@ export const commands = [
   {
     command: "retro read",
     help: [help("inspect", "retro read NAME", "Print one saved retro")],
-    async run({ positionals, localOrRequest, need }: any) {
-      const retro = await localOrRequest("retro.read", {
+    async run({ positionals, localOrRequest, need }) {
+      const retro = await localOrRequest<{ text: string }>("retro.read", {
         name: need(positionals[1], "retro read NAME"),
       });
       process.stdout.write(retro.text);
@@ -99,7 +101,7 @@ export const commands = [
         "Save a retro report from standard input under .avoozl/local/retros/",
       ),
     ],
-    async run({ options, localOrRequest }: any) {
+    async run({ options, localOrRequest }) {
       show(
         await localOrRequest("retro.save", {
           scope: options.scope,

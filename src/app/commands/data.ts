@@ -1,22 +1,24 @@
-// @ts-nocheck: typing debt
 // CLI commands of one kind: command, help lines and run.
 import { Store, privateFile } from "../store/store.ts";
 import fs from "node:fs";
 import path from "node:path";
-import { help } from "../cli/command-help.ts";
+import {
+  type Command,
+  type CommandContext,
+  help,
+} from "../cli/command-help.ts";
 
 function runBackup({
   options,
-  dbPath,
   requireDatabase,
   requireLocalMaintenancePath,
-}) {
+}: CommandContext) {
   requireLocalMaintenancePath("Backup");
-  requireDatabase();
+  const dbPath = requireDatabase();
   if (!options.output) throw Error("Choose --output for the SQLite backup.");
   const store = new Store(dbPath);
   try {
-    const target = path.resolve(options.output);
+    const target = path.resolve(String(options.output));
     // Created 0600 first: VACUUM INTO accepts an empty file.
     if (!fs.existsSync(target)) privateFile(target);
     store.db.prepare("VACUUM INTO ?").run(target);
@@ -27,7 +29,7 @@ function runBackup({
   }
 }
 
-export const commands = [
+export const commands: Command[] = [
   {
     command: "backup",
     help: [
@@ -57,7 +59,7 @@ export const commands = [
       localOrRequest,
       helpPointer,
     }) {
-      if (!fs.existsSync(dbPath))
+      if (!dbPath || !fs.existsSync(dbPath))
         throw Error(
           `${command} is not a command. ${helpPointer(command)} Operations need a workspace: avoozl init PATH, then use --workspace PATH.`,
         );
@@ -74,7 +76,7 @@ export const commands = [
           ),
         );
       } catch (error) {
-        if (!/^Unknown operation /.test(error.message)) throw error;
+        if (!/^Unknown operation /.test((error as Error).message)) throw error;
         throw Error(
           `Unknown command or operation ${command}. ${helpPointer(command)}`,
         );

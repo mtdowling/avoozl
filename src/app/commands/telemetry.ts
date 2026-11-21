@@ -1,10 +1,9 @@
-// @ts-nocheck: typing debt
 // `avoozl telemetry status|enable|disable` (spec otel-export, OT11.7).
-import { help } from "../cli/command-help.ts";
+import { type Command, help } from "../cli/command-help.ts";
 
-const show = (value) => console.log(JSON.stringify(value, null, 2));
+const show = (value: unknown) => console.log(JSON.stringify(value, null, 2));
 
-export const commands = [
+export const commands: Command[] = [
   {
     command: "telemetry status",
     help: [

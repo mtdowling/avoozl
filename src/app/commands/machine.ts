@@ -1,6 +1,6 @@
-// @ts-nocheck: typing debt
 // CLI commands of one kind: command, help lines and run.
 import fs from "node:fs";
+import type { AddressInfo } from "node:net";
 import { startAppBackend } from "../executors/kirocrew/app-backend.ts";
 import { serveKirocrew, serveWorkspace } from "../mcp/mcp-stdio.ts";
 import { machineAvoozlPaths } from "../settings/host-config.ts";
@@ -8,7 +8,7 @@ import { machineStatus, serveStatus } from "../workspace/machine-status.ts";
 import { reportByToken } from "../workers/report-match.ts";
 import { LinkStore } from "../serve/serve-auth.ts";
 import { Store } from "../store/store.ts";
-import { help } from "../cli/command-help.ts";
+import { type Command, help } from "../cli/command-help.ts";
 import {
   approveHarnessByName,
   listHarnessDefinitions,
@@ -18,14 +18,14 @@ import { probeHarness } from "../executors/harness-probe.ts";
 import { runCredentialHelper } from "../github/credential-helper.ts";
 
 // A `process` child never makes an owner link for the page (MS3.2).
-function refuseChild(name) {
+function refuseChild(name: string) {
   if (process.env.AVOOZL_CHILD)
     throw Error(
       `A process child may not run avoozl ${name}. Do it at this machine's command line.`,
     );
 }
 
-export const commands = [
+export const commands: Command[] = [
   {
     command: "mcp",
     startsWithBadConfig: true,
@@ -47,7 +47,6 @@ export const commands = [
       env,
       requestedWorkspace,
       config,
-      dbPath,
       requireDatabase,
       localOperations,
     }) {
@@ -56,8 +55,7 @@ export const commands = [
           fallback: requestedWorkspace ? config : null,
           env,
         });
-      requireDatabase();
-      const store = new Store(dbPath);
+      const store = new Store(requireDatabase());
       try {
         await serveWorkspace({
           ops: localOperations(store),
@@ -82,14 +80,14 @@ export const commands = [
       const server = startAppBackend({
         config,
         port: Number(options.port ?? process.env.PORT ?? 0),
-        uiDir: options["ui-dir"] ?? null,
+        uiDir: typeof options["ui-dir"] === "string" ? options["ui-dir"] : null,
       });
       server.once("listening", () =>
         console.log(
-          `Avoozl app backend listening on 127.0.0.1:${server.address().port}`,
+          `Avoozl app backend listening on 127.0.0.1:${(server.address() as AddressInfo).port}`,
         ),
       );
-      server.once("error", (error) => {
+      server.once("error", (error: Error) => {
         console.error(`The app backend cannot listen: ${error.message}`);
         process.exitCode = 1;
         server.close();
@@ -205,17 +203,14 @@ export const commands = [
     async run({
       options,
       positionals,
-      config,
-      dbPath,
       requireDatabase,
       localOperations,
-      localOrRequest,
       machineStateDirectory,
       need,
     }) {
       // `status` and `report` run on any machine.
       const action = positionals[0];
-      let result;
+      let result: unknown;
       if (action === "status")
         // The process children and the last tick passes (R98.5).
         result = machineStatus({ stateDirectory: machineStateDirectory() });
@@ -228,13 +223,14 @@ export const commands = [
         );
         // R88.2: matched by the report token and the worktree it runs in;
         // with no token, by the worktree of this command line's claim.
-        requireDatabase();
+        const dbPath = requireDatabase();
         // A review's verdict, findings and closures, as a JSON file.
         let review = null;
         if (typeof options.review === "string") {
           try {
             review = JSON.parse(fs.readFileSync(options.review, "utf8"));
-          } catch (error) {
+          } catch (thrown) {
+            const error = thrown as NodeJS.ErrnoException;
             throw Error(
               `--review must name a JSON file: ${error.code || error.message}`,
             );

@@ -90,6 +90,10 @@ export function createAppMcp({
   // --kirocrew`). Any other front end's block is dropped: it could come from
   // any client (MS10.2).
   attested = true,
+}: {
+  fallback?: object | null;
+  env?: NodeJS.ProcessEnv;
+  attested?: boolean;
 } = {}) {
   // One Store and Operations per database, opened on first use and kept, so
   // tick memory and caches stay per workspace.

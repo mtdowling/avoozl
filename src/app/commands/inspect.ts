@@ -1,14 +1,21 @@
-// @ts-nocheck: typing debt
 // CLI commands of one kind: command, help lines and run.
 import { validate } from "../../model.ts";
 import { Store } from "../store/store.ts";
 import fs from "node:fs";
-import { help } from "../cli/command-help.ts";
+import {
+  type Command,
+  type CommandContext,
+  help,
+} from "../cli/command-help.ts";
 import { runWorkspace } from "./setup.ts";
 import { credentialsProblems } from "../github/github-credentials.ts";
 import { pluginSettingsPath } from "../plugins/plugins.ts";
 
-async function runEpics({ positionals, command, localOrRequest }) {
+async function runEpics({
+  positionals,
+  command,
+  localOrRequest,
+}: CommandContext) {
   console.log(
     JSON.stringify(
       command === "epic"
@@ -20,7 +27,7 @@ async function runEpics({ positionals, command, localOrRequest }) {
   );
 }
 
-export const commands = [
+export const commands: Command[] = [
   {
     command: "status",
     help: [
@@ -96,9 +103,8 @@ export const commands = [
         about: "Validate the task graph",
       }),
     ],
-    run({ dbPath, requireDatabase, config }) {
-      requireDatabase();
-      const store = new Store(dbPath);
+    run({ requireDatabase, config }) {
+      const store = new Store(requireDatabase());
       try {
         const errors = [
           ...validate(store.read()),
@@ -194,7 +200,7 @@ export const commands = [
       // passes on stdin and exits 1 on a match, naming set, rule, file and
       // line, never the matched text.
       const [action = "list", id] = positionals,
-        calls = {
+        calls: Record<string, () => [string, Record<string, unknown>]> = {
           list: () => ["content.rules", {}],
           allow: () => [
             "content.allow",
