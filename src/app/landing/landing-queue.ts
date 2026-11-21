@@ -76,6 +76,13 @@ export interface QueueEntry {
   queuedAt: string;
   finishedAt?: string;
   waiting?: Waiting;
+  // A finished entry's record: its failing checks and their log excerpt,
+  // the members it failed only with, its conflicted files, a flaky pass.
+  checks?: CheckResult[];
+  excerpt?: string;
+  with?: string[];
+  files?: string[];
+  flaky?: boolean;
   [key: string]: unknown;
 }
 // An open stop, or a stop label on the portion's spec.
@@ -105,6 +112,8 @@ export interface Verdict {
 // What preparing a candidate gives.
 interface Prepared {
   candidate?: string;
+  // A merge batch's stack: the head after each member.
+  heads?: (string | undefined)[];
   conflict?: string[];
   key?: string;
   pr?: number;

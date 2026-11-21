@@ -1,7 +1,6 @@
-// @ts-nocheck: typing debt
 // Direct landing in merge batches (tasks 41.3, mb-1.2 to mb-1.4).
 // Repositories are local scratch repositories with a bare remote.
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
@@ -10,16 +9,21 @@ import { digest } from "../../../model.ts";
 import { fixture } from "../../test/fixtures.ts";
 import { gitTemplate } from "../../test/git-template.ts";
 import { git } from "../../git/git.ts";
-import { batchOf, landNext, landingQueue } from "../landing-queue.ts";
+import {
+  batchOf,
+  landNext,
+  landingQueue,
+  type QueueEntry,
+} from "../landing-queue.ts";
+import { found } from "../../test/view-shapes.ts";
 import { directSteps, memberRef, queuePortion } from "../merge-batch.ts";
 import { workingBranch } from "../../specs/spec-base.ts";
 
 const Q = { repositoryId: "fixture", base: "main" };
 const BATCH = { limit: 4, bisect: true };
-const def = (task) => digest("definition " + task);
 
 // The base commit's files, which a portion appends to.
-const BASE_FILES = {
+const BASE_FILES: Record<string, string> = {
   "check.mjs":
     'import fs from "node:fs"; process.exit(fs.existsSync("bad.txt") ? 1 : 0);\n',
   "CHANGELOG.md": "start\n",
@@ -33,7 +37,7 @@ const repositories = gitTemplate(async (dir) => {
     upstream = path.join(dir, "upstream.git"),
     landing = path.join(dir, "landing");
   fs.mkdirSync(seed);
-  const identity = async (repo) => {
+  const identity = async (repo: string) => {
     await git(repo, ["config", "user.name", "Fixture"]);
     await git(repo, ["config", "user.email", "fixture@example.invalid"]);
   };
@@ -49,7 +53,7 @@ const repositories = gitTemplate(async (dir) => {
   return { upstream, landing, base: await git(seed, ["rev-parse", "HEAD"]) };
 });
 
-async function setup(t) {
+async function setup(t: TestContext) {
   const { root, store } = fixture(t),
     { upstream, landing, base } = await repositories(root);
   const head = async () =>
@@ -59,8 +63,12 @@ async function setup(t) {
   // One verified portion: a commit with `files` on its own branch, made by
   // one `git fast-import` from the base's files (no checkout, add or commit).
   const marks = path.join(root, "portion-marks");
-  const portion = async (spec, task, files) => {
-    const data = (text) => `data ${Buffer.byteLength(text)}\n${text}`;
+  const portion = async (
+    spec: string,
+    task: string,
+    files: Record<string, string>,
+  ) => {
+    const data = (text: string) => `data ${Buffer.byteLength(text)}\n${text}`;
     execFileSync("git", ["fast-import", "--quiet", `--export-marks=${marks}`], {
       cwd: landing,
       input: [
@@ -81,27 +89,23 @@ async function setup(t) {
       ...Q,
       spec,
       commit,
-      tasks: [
-        {
-          task,
-          definition: def(task),
-          metrics: { tries: "2", harness: "process" },
-        },
-      ],
-      evidence: { commit, checks: [{ command: "npm test", exitCode: 0 }] },
+      tasks: [{ task }],
+      evidence: { commit, checks: [{ exitCode: 0 }] },
       key: `${spec}.${task}`,
     });
   };
-  const steps = (extra = {}) =>
+  const steps = (extra: Partial<Parameters<typeof directSteps>[0]> = {}) =>
     directSteps({
       root: landing,
       url: upstream,
       branch: "main",
+      repository: "local/fixture",
+      repositoryId: Q.repositoryId,
       checks: [[process.execPath, "check.mjs"]],
-      scan: async () => [],
+      scan: () => [],
       ...extra,
     });
-  const tree = async (file) => {
+  const tree = async (file: string) => {
     await git(landing, ["fetch", "-q", "origin", "main"]);
     return git(landing, ["show", `FETCH_HEAD:${file}`]).catch(() => null);
   };
@@ -125,7 +129,7 @@ test("only verified portions that name their tasks are queued", async (t) => {
     ...Q,
     spec: "s",
     commit,
-    tasks: [{ task: "t1", definition: def("t1") }],
+    tasks: [{ task: "t1" }],
   };
   assert.throws(
     () => queuePortion(x.store, { ...input, evidence: null }),
@@ -161,7 +165,7 @@ test("a merge batch across specs lands in one guarded push, up to the limit", as
     result = await landNext(x.store, Q, s, BATCH);
   assert.equal(result.state, "landed");
   assert.deepEqual(
-    result.entries.map((e) => e.key),
+    found(result.entries).map((e) => e.key),
     ["spec-a.t1", "spec-b.t2", "spec-a.t3", "spec-b.t4"],
   );
   assert.equal(await x.head(), result.candidate);
@@ -184,7 +188,7 @@ test("a merge batch across specs lands in one guarded push, up to the limit", as
 test("a batch of one lands as direct landing did, and a base that moved gets new checks", async (t) => {
   const x = await setup(t);
   await x.portion("spec-a", "t1", { "one.txt": "1\n" });
-  const ran = [];
+  const ran: string[] = [];
   let moved = false;
   const s = x.steps({
     run: async (repository, commit, argv) => {
@@ -210,7 +214,7 @@ test("a batch of one lands as direct landing did, and a base that moved gets new
   assert.equal(landingQueue(x.store, Q).length, 1);
   const second = await landNext(x.store, Q, s);
   assert.equal(second.state, "landed");
-  assert.equal(second.entries.length, 1);
+  assert.equal(found(second.entries).length, 1);
   // A new candidate on the new base, checked again.
   assert.equal(ran.length, 2);
   assert.notEqual(ran[0], ran[1]);
@@ -236,9 +240,10 @@ test("a push never forces", async (t) => {
 // The check runner for the next tests: bad.txt fails alone, pair-a.txt and
 // pair-b.txt fail only together, and flaky.txt fails the first time a head
 // is checked and passes the second.
-function fakeRunner() {
-  const seen = new Map(),
-    trees = new Map();
+type Run = NonNullable<Parameters<typeof directSteps>[0]["run"]>;
+function fakeRunner(): Run {
+  const seen = new Map<string, number>(),
+    trees = new Map<string, string[]>();
   return async (repository, commit, argv) => {
     // A commit's tree never changes, so each is listed once.
     if (!trees.has(commit))
@@ -248,7 +253,7 @@ function fakeRunner() {
           await git(repository.root, ["ls-tree", "-r", "--name-only", commit])
         ).split("\n"),
       );
-    const files = trees.get(commit);
+    const files = found(trees.get(commit));
     const key = `${commit}:${argv.join(" ")}`;
     seen.set(key, (seen.get(key) ?? 0) + 1);
     const bad =
@@ -274,8 +279,8 @@ test("a flaky failure lands the batch and is recorded as flaky", async (t) => {
     BATCH,
   );
   assert.equal(result.state, "landed");
-  assert.equal(result.entries.length, 2);
-  assert.ok(result.entries.every((e) => e.flaky === true));
+  assert.equal(found(result.entries).length, 2);
+  assert.ok(found(result.entries).every((e) => e.flaky === true));
   assert.deepEqual(result.sentBack, []);
 });
 
@@ -293,21 +298,23 @@ test("with member 5 of 8 bad, 1 to 4 land, 5 goes back with its failing check an
   });
   assert.equal(result.state, "landed");
   assert.deepEqual(
-    result.entries.map((e) => e.key),
+    found(result.entries).map((e) => e.key),
     ["spec-a.t1", "spec-a.t2", "spec-a.t3", "spec-a.t4"],
   );
-  const [sent] = result.sentBack;
+  const [sent] = found(result.sentBack);
   assert.equal(sent.state, "failed");
   assert.equal(sent.entry.key, "spec-a.t5");
-  assert.match(sent.entry.checks[0].command, /check\.mjs/);
-  assert.ok(sent.entry.excerpt.length > 0);
-  assert.ok(Buffer.byteLength(sent.entry.excerpt) <= 8192);
-  assert.equal(sent.entry.checks[0].tail, undefined);
+  const [check] = found(sent.entry.checks);
+  assert.match(check.command ?? "", /check\.mjs/);
+  const excerpt = found(sent.entry.excerpt);
+  assert.ok(excerpt.length > 0);
+  assert.ok(Buffer.byteLength(excerpt) <= 8192);
+  assert.equal(check.tail, undefined);
   assert.deepEqual(
     landingQueue(x.store, Q).map((e) => e.key),
     ["spec-a.t6", "spec-a.t7", "spec-a.t8"],
   );
-  assert.deepEqual(result.batch.culprits, ["spec-a.t5"]);
+  assert.deepEqual(result.batch?.culprits, ["spec-a.t5"]);
   assert.equal(await x.tree("bad.txt"), null);
   assert.equal(await x.head(), result.candidate);
 });
@@ -318,30 +325,31 @@ test("a prefix of a stack already made is that stack's head, stacked once", asyn
     await x.portion("spec-a", `t${n}`, { [`f${n}.txt`]: `${n}\n` });
   const entries = landingQueue(x.store, Q),
     s = x.steps(),
-    full = await s.prepare(entries, x.base);
-  assert.equal(full.heads.length, 3);
-  assert.equal(full.heads[2], full.candidate);
-  const two = await s.prepare(entries.slice(0, 2), x.base);
-  assert.deepEqual(two, { candidate: full.heads[1] });
+    full = found(await s.prepare(entries, x.base)),
+    heads = found(full.heads);
+  assert.equal(heads.length, 3);
+  assert.equal(heads[2], full.candidate);
+  const two = found(await s.prepare(entries.slice(0, 2), x.base));
+  assert.deepEqual(two, { candidate: heads[1] });
+  const second = found(two.candidate);
   assert.equal(
     await git(x.landing, ["rev-parse", `${full.candidate}^1`]),
-    two.candidate,
+    second,
   );
-  const files = await git(x.landing, ["ls-tree", "--name-only", two.candidate]);
+  const files = await git(x.landing, ["ls-tree", "--name-only", second]);
   assert.match(files, /f2\.txt/);
   assert.doesNotMatch(files, /f3\.txt/);
   // Another order is a new stack.
-  const other = await s.prepare([entries[1]], x.base);
-  assert.equal(other.heads.length, 1);
-  assert.notEqual(other.candidate, full.heads[0]);
+  const other = found(await s.prepare([entries[1]], x.base));
+  assert.equal(other.heads?.length, 1);
+  assert.notEqual(other.candidate, heads[0]);
   // A member already in the stack adds no commit and keeps the head.
   const again = { ...entries[0], key: "spec-a.again" },
-    noop = await s.prepare([entries[0], again, entries[1]], x.base);
-  assert.equal(noop.heads[1], noop.heads[0]);
-  assert.equal(
-    await git(x.landing, ["rev-parse", `${noop.heads[2]}^1`]),
-    noop.heads[1],
-  );
+    noop = found(
+      found(await s.prepare([entries[0], again, entries[1]], x.base)).heads,
+    );
+  assert.equal(noop[1], noop[0]);
+  assert.equal(await git(x.landing, ["rev-parse", `${noop[2]}^1`]), noop[1]);
 });
 
 test("a pair that fails only together sends back the later one naming the earlier, which lands", async (t) => {
@@ -356,10 +364,10 @@ test("a pair that fails only together sends back the later one naming the earlie
   );
   assert.equal(result.state, "landed");
   assert.deepEqual(
-    result.entries.map((e) => e.key),
+    found(result.entries).map((e) => e.key),
     ["spec-a.t1"],
   );
-  const [sent] = result.sentBack;
+  const [sent] = found(result.sentBack);
   assert.equal(sent.entry.key, "spec-a.t2");
   assert.deepEqual(sent.entry.with, ["spec-a.t1"]);
 });
@@ -372,12 +380,13 @@ test("a member that conflicts with an earlier one goes back with its files and t
   const result = await landNext(x.store, Q, x.steps(), BATCH);
   assert.equal(result.state, "landed");
   assert.deepEqual(
-    result.entries.map((e) => e.key),
+    found(result.entries).map((e) => e.key),
     ["spec-a.t1", "spec-b.t3"],
   );
-  assert.equal(result.sentBack[0].state, "conflict");
-  assert.equal(result.sentBack[0].entry.key, "spec-a.t2");
-  assert.deepEqual(result.sentBack[0].entry.files, ["CHANGELOG.md"]);
+  const [conflict] = found(result.sentBack);
+  assert.equal(conflict.state, "conflict");
+  assert.equal(conflict.entry.key, "spec-a.t2");
+  assert.deepEqual(conflict.entry.files, ["CHANGELOG.md"]);
 });
 
 test("a member marked alone lands alone", async (t) => {
@@ -386,8 +395,8 @@ test("a member marked alone lands alone", async (t) => {
   await x.portion("spec-a", "t2", { "two.txt": "2\n" });
   await x.portion("spec-a", "t3", { "three.txt": "3\n" });
   const queue = landingQueue(x.store, Q),
-    isAlone = (entry) => entry.key === "spec-a.t2",
-    keys = (list) => list.map((e) => e.key);
+    isAlone = (entry: QueueEntry) => entry.key === "spec-a.t2",
+    keys = (list: QueueEntry[]) => list.map((e) => e.key);
   // It ends the batch before it, and when it is first it takes the batch.
   assert.deepEqual(keys(batchOf(x.store, queue, { limit: 3, isAlone })), [
     "spec-a.t1",
@@ -420,8 +429,8 @@ test("a member fetched from another clone lands from its ref, and the remote hol
     ...Q,
     spec: "spec-a",
     commit,
-    tasks: [{ task: "t1", definition: def("t1") }],
-    evidence: { commit, checks: [{ command: "npm test", exitCode: 0 }] },
+    tasks: [{ task: "t1" }],
+    evidence: { commit, checks: [{ exitCode: 0 }] },
     key: "spec-a.t1",
   });
   const result = await landNext(x.store, Q, x.steps(), BATCH);
@@ -441,11 +450,12 @@ test("declared union paths merge in the landing worktree; other conflicts send t
   const plain = await landNext(x.store, Q, x.steps(), BATCH);
   assert.equal(plain.state, "landed");
   assert.deepEqual(
-    plain.entries.map((e) => e.key),
+    found(plain.entries).map((e) => e.key),
     ["spec-a.t1"],
   );
-  assert.equal(plain.sentBack[0].state, "conflict");
-  assert.deepEqual(plain.sentBack[0].entry.files, ["CHANGELOG.md"]);
+  const [sentBack] = found(plain.sentBack);
+  assert.equal(sentBack.state, "conflict");
+  assert.deepEqual(sentBack.entry.files, ["CHANGELOG.md"]);
 
   // With CHANGELOG.md declared append-only, both lines land together.
   await x.portion("spec-b", "t3", { "CHANGELOG.md": "from t3\n" });
@@ -457,7 +467,7 @@ test("declared union paths merge in the landing worktree; other conflicts send t
     BATCH,
   );
   assert.equal(union.state, "landed");
-  const text = await x.tree("CHANGELOG.md");
+  const text = found(await x.tree("CHANGELOG.md"));
   for (const line of ["start", "from t1", "from t3", "from t4"])
     assert.ok(text.includes(line), line);
   // The landing clone's own checkout was never touched by the merge.
@@ -467,16 +477,16 @@ test("declared union paths merge in the landing worktree; other conflicts send t
 test("a content scan hit pushes nothing", async (t) => {
   const x = await setup(t);
   await x.portion("spec-a", "t1", { "one.txt": "1\n" });
-  const seen = [];
+  const seen: { base?: string }[] = [];
   const s = x.steps({
-    scan: async (root, range) => {
+    scan: (_root, range) => {
       seen.push(range);
       return [{ target: "file:one.txt", line: 1, rule: "hostname" }];
     },
   });
   const result = await landNext(x.store, Q, s, BATCH);
   assert.equal(result.state, "failed");
-  assert.equal(result.entry.checks[0].command, "content scan");
+  assert.equal(found(result.entry?.checks)[0].command, "content scan");
   assert.equal(seen[0].base, x.base);
   assert.equal(await x.head(), x.base);
 });
@@ -498,9 +508,14 @@ test("after a landing the new base merges back into the spec's working branch, k
   const before = await git(x.landing, ["rev-parse", branch]);
   const result = await landNext(x.store, Q, x.steps());
   assert.equal(result.state, "landed");
-  assert.deepEqual(
-    result.mergedBack.map((m) => [m.spec, m.merged]),
-    [["spec-a", true]],
+  assert.partialDeepStrictEqual(result, {
+    mergedBack: [{ spec: "spec-a", merged: true }],
+  });
+  assert.equal(
+    "mergedBack" in result && Array.isArray(result.mergedBack)
+      ? result.mergedBack.length
+      : 0,
+    1,
   );
   const head = await git(x.landing, ["rev-parse", branch]);
   assert.equal(

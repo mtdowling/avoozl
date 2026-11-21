@@ -2,6 +2,7 @@
 // test does not name stays open (`unknown`), so a new one is read with a
 // check, never assumed.
 import assert from "node:assert/strict";
+import type { Store, StoredRecord } from "../store/store.ts";
 
 // One task on graph.view.
 export interface GraphNode {
@@ -76,4 +77,13 @@ export interface PlanPreview {
 export function found<T>(value: T | null | undefined, what = "value"): T {
   assert.ok(value != null, `${what} is missing`);
   return value;
+}
+
+// A stored row, failing the test when it is missing.
+export function storedRow<T = StoredRecord>(
+  store: Store,
+  table: string,
+  id: string,
+): T {
+  return found(store.get<T>(table, id), `${table} ${id}`);
 }

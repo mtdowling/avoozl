@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Claim branches (simplify sim-1.1, §D3): `runner.next` with `claim` makes
 // `avoozl/<spec>/<task>` on origin through the refs create call, and the
 // branches alone say which tasks are claimed.
@@ -6,9 +5,9 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { Operations } from "../../api/operations.ts";
-import { Store } from "../../store/store.ts";
+import { Store, type StoredRecord } from "../../store/store.ts";
 import { snapshot } from "../../test/fixtures.ts";
 import { specCheckout } from "../../test/spec-checkout.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
@@ -16,8 +15,51 @@ import { integrationNeedsYou } from "../../specs/integration-base.ts";
 import { RepositorySettings } from "../../settings/repository-settings.ts";
 import { claimOf } from "../claims.ts";
 import { claimDispatches } from "../runner.ts";
+import type { LabelReader } from "../../specs/label-filters.ts";
+import type { readLabeledIssues } from "../../specs/labeled-issues.ts";
+import type { Task } from "../../../types.ts";
+import { found } from "../../test/view-shapes.ts";
 
-const leaf = (id) => ({
+// The label reads a test gives the fake GitHub, and its issue list.
+interface LabelReads {
+  issue?: LabelReader["issue"];
+  issueEvents?: LabelReader["issueEvents"];
+  permission?: LabelReader["permission"];
+  currentUser?: () => Promise<{ login: string }>;
+  listIssues?: IssueGitHub["listIssues"];
+}
+// runner.next's answer, with and without a claim.
+interface Claimed {
+  claimed: {
+    id: string;
+    branch: string;
+    base: string;
+    head: string;
+    lease: string;
+    refusals?: number;
+  };
+  worktree?: { branch: string; path: string };
+  worktreeError?: string;
+  brief: string;
+}
+interface Next {
+  ready: { id: string }[];
+  running: { id: string; phase: string; branch: string }[];
+  waiting: { reason: string }[];
+}
+// An issue the fake lists: its fields, and `by`, who labeled it.
+interface Issue {
+  number: number;
+  by?: string;
+  title?: string;
+  body?: string;
+  state?: string;
+  pull_request?: unknown;
+  assignees?: { login: string }[];
+}
+type IssueGitHub = NonNullable<Parameters<typeof readLabeledIssues>[1]>;
+
+const leaf = (id: string) => ({
   id,
   title: "Task " + id,
   kind: "leaf",
@@ -34,13 +76,15 @@ const leaf = (id) => ({
 
 // A fake GitHub holding origin's refs: the create call answers 422 for a
 // name it already has, as GitHub does.
-function fakeGitHub(head, existing = []) {
+function fakeGitHub(head: string, existing: string[] = []) {
   const refs = new Map(existing.map((name) => [name, head])),
-    calls = [];
+    calls: string[][] = [],
+    labels: LabelReads = {};
   return {
+    ...labels,
     calls,
     refs,
-    async branchesUnder(repository, prefix) {
+    async branchesUnder(repository: string, prefix: string) {
       calls.push(["matching-refs", repository, prefix]);
       return [...refs]
         .filter(([name]) => name.startsWith(prefix))
@@ -48,7 +92,7 @@ function fakeGitHub(head, existing = []) {
     },
     // Origin's branches: main, the refs made here, and `branches` given.
     branches: new Map([["main", head]]),
-    async branch(repository, name) {
+    async branch(repository: string, name: string) {
       calls.push(["branch", repository, name]);
       const sha = this.branches.get(name) ?? refs.get(name);
       if (!sha) throw Object.assign(Error("Branch not found"), { status: 404 });
@@ -57,11 +101,14 @@ function fakeGitHub(head, existing = []) {
     // How far `head` is ahead of `base`, and a merge that may conflict.
     ahead: 0,
     conflict: false,
-    async compareCommits(repository, base, other) {
+    async compareCommits(repository: string, base: string, other: string) {
       calls.push(["compare", repository, base, other]);
       return { ahead_by: this.ahead, files: [{ filename: "src/a.js" }] };
     },
-    async mergeBranch(repository, { base, head: from }) {
+    async mergeBranch(
+      repository: string,
+      { base, head: from }: { base: string; head: string },
+    ) {
       calls.push(["merge", repository, base, from]);
       if (this.conflict)
         throw Object.assign(Error("Merge conflict"), { status: 409 });
@@ -69,7 +116,7 @@ function fakeGitHub(head, existing = []) {
       this.branches.set(base, "m".repeat(40));
       return { sha: "m".repeat(40) };
     },
-    async createBranch(repository, name, sha) {
+    async createBranch(repository: string, name: string, sha: string) {
       calls.push(["create", repository, name, sha]);
       if (refs.has(name))
         throw Object.assign(Error("Reference already exists"), {
@@ -81,7 +128,39 @@ function fakeGitHub(head, existing = []) {
   };
 }
 
-function setup(t, { tasks, existing = [], lanes = 20 } = {}) {
+// The issue reads issues() gave the fake. The read makes no other call, so
+// the rest refuse.
+function issueReader(github: LabelReads): IssueGitHub {
+  const refused = async () => {
+    throw Error("The labeled-issues read makes no other call here.");
+  };
+  const { permission, issueEvents, listIssues } = github;
+  assert.ok(permission, "issues() gave the fake its permission read");
+  return {
+    issue: refused,
+    permission,
+    issueEvents,
+    listIssues,
+    createIssueComment: refused,
+    updateIssue: refused,
+  };
+}
+
+// The label reads labeled() or issues() gave the fake.
+function reader(github: LabelReads): LabelReader {
+  const { issue, issueEvents, permission } = github;
+  assert.ok(issue && permission, "the test gave the fake its label reads");
+  return { issue, issueEvents, permission };
+}
+
+function setup(
+  t: TestContext,
+  {
+    tasks,
+    existing = [],
+    lanes = 20,
+  }: { tasks: Task[]; existing?: string[]; lanes?: number },
+) {
   // The workspace is the checkout, as `avoozl init` in a repository makes it.
   const { root, run } = specCheckout("avoozl-claims-"),
     checkout = root,
@@ -115,7 +194,10 @@ function setup(t, { tasks, existing = [], lanes = 20 } = {}) {
   return { ...first, open, github, head, dbPath, root };
 }
 
-const claim = (ops) => ops.execute("runner.next", { claim: true });
+type Setup = ReturnType<typeof setup>;
+const claim = (ops: Operations) =>
+  ops.execute<Claimed>("runner.next", { claim: true });
+const next = (s: Setup) => s.ops.execute<Next>("runner.next", {});
 
 test("the loop pass claims each worker start, and drops one another runner claimed first", async (t) => {
   // Nearby inputs: a review start (no claim), and a start this runner
@@ -170,20 +252,20 @@ test("runner.next with claim creates avoozl/<spec>/<task> at the base head", asy
   assert.equal(
     execFileSync(
       "git",
-      ["-C", result.worktree.path, "branch", "--show-current"],
+      ["-C", found(result.worktree).path, "branch", "--show-current"],
       { encoding: "utf8" },
     ).trim(),
     "avoozl/parser/a",
   );
   assert.match(result.brief, /a/);
   // The claimed task runs; the other is still ready.
-  const next = await s.ops.execute("runner.next", {});
+  const ready = await next(s);
   assert.deepEqual(
-    next.ready.map((item) => item.id),
+    ready.ready.map((item) => item.id),
     ["b"],
   );
   assert.deepEqual(
-    next.running.map((item) => item.id),
+    ready.running.map((item) => item.id),
     ["a"],
   );
 });
@@ -207,8 +289,8 @@ test("a 422 from the create call takes the next ready task", async (t) => {
   const s = setup(t, { tasks: [leaf("a"), leaf("b"), leaf("c")] });
   // Another runner claims a between this runner's read and its create.
   const read = s.github.branchesUnder;
-  s.github.branchesUnder = async (...args) => {
-    const refs = await read(...args);
+  s.github.branchesUnder = async (repository: string, prefix: string) => {
+    const refs = await read(repository, prefix);
     s.github.refs.set("avoozl/parser/a", s.head);
     return refs;
   };
@@ -237,10 +319,10 @@ test("a task with a claim branch on origin is not ready", async (t) => {
   const result = await claim(s.ops);
   // b's branch names another spec, so it does not hold this b.
   assert.equal(result.claimed.id, "b");
-  const next = await s.ops.execute("runner.next", {});
-  assert.deepEqual(next.ready, []);
+  const ready = await next(s);
+  assert.deepEqual(ready.ready, []);
   assert.deepEqual(
-    next.running.map(({ id, phase, branch }) => [id, phase, branch]),
+    ready.running.map(({ id, phase, branch }) => [id, phase, branch]),
     [
       ["a", "claimed", "avoozl/parser/a"],
       ["b", "working", "avoozl/parser/b"],
@@ -255,17 +337,17 @@ test("a rebuilt cache finds every claimed task from the claim branches alone", a
   });
   // The cache was never told of them; rebuild reads the branches.
   assert.deepEqual(
-    (await s.ops.execute("runner.next", {})).ready.map((item) => item.id),
+    (await next(s)).ready.map((item) => item.id),
     ["a", "b", "c"],
   );
   await s.ops.execute("workspace.rebuild", {}, undefined, { local: true });
-  const next = await s.ops.execute("runner.next", {});
+  const ready = await next(s);
   assert.deepEqual(
-    next.ready.map((item) => item.id),
+    ready.ready.map((item) => item.id),
     ["b"],
   );
   assert.deepEqual(
-    next.running.map((item) => item.id),
+    ready.running.map((item) => item.id),
     ["a", "c"],
   );
 });
@@ -332,7 +414,12 @@ test("a conflict holds every claim on the branch and gives one Needs you item", 
 
 // Label filters (simplify sim-1.6, §D5): the spec issue of spec `parser` is
 // #7 in acme/app; `labels` are on it, each added by `by` (login -> role).
-function labeled(s, labels, roles = { mona: "write" }, by = "mona") {
+function labeled(
+  s: Setup,
+  labels: string[],
+  roles: Record<string, string> = { mona: "write" },
+  by = "mona",
+) {
   s.store.put("receipts", {
     id: "github-parent:plan:parser",
     kind: "github-parent",
@@ -352,23 +439,26 @@ function labeled(s, labels, roles = { mona: "write" }, by = "mona") {
         label: { name },
         actor: { login: by },
       })),
-    permission: async (_repository, login) => ({
-      permission: roles[login] ?? "none",
+    permission: async (_repository: string, login: string | undefined) => ({
+      permission: roles[login ?? ""] ?? "none",
     }),
   });
 }
-const filtered = (s, labels) =>
+const filtered = (
+  s: Setup,
+  labels: { require?: string[]; exclude?: string[] },
+) =>
   s.store.put("repositories", {
-    ...s.store.get("repositories", "app"),
+    ...found(s.store.get<StoredRecord>("repositories", "app")),
     labels,
   });
-const readyIds = async (s) =>
-  (await s.ops.execute("runner.next", {})).ready.map((item) => item.id);
+const readyIds = async (s: Setup) =>
+  (await next(s)).ready.map((item) => item.id);
 
 test("labels.require and labels.exclude load from repository settings onto the repository", async (t) => {
   const s = setup(t, { tasks: [leaf("a")] }),
     file = path.join(s.root, ".avoozl.json"),
-    write = (labels) =>
+    write = (labels: Record<string, unknown>) =>
       fs.writeFileSync(
         file,
         JSON.stringify({
@@ -379,12 +469,15 @@ test("labels.require and labels.exclude load from repository settings onto the r
     settings = new RepositorySettings(s.store, { workspaceRoot: s.root });
   write({ require: ["agent-ok"], exclude: ["needs-design"] });
   assert.equal(settings.reload().repository.error, null);
-  assert.deepEqual(s.store.get("repositories", "app").labels, {
+  assert.deepEqual(s.store.get("repositories", "app")?.labels, {
     require: ["agent-ok"],
     exclude: ["needs-design"],
   });
   write({ require: "agent-ok" });
-  assert.match(settings.reload().repository.error.message, /labels\.require/);
+  assert.match(
+    settings.reload().repository.error?.message ?? "",
+    /labels\.require/,
+  );
 });
 
 test("a spec runs only when its spec issue carries every require label, each a writer's, and no exclude label", async (t) => {
@@ -395,18 +488,18 @@ test("a spec runs only when its spec issue carries every require label, each a w
   const store = s.store,
     { readLabelFilters } = await import("../../specs/label-filters.ts");
   labeled(s, ["agent-ok"]);
-  await readLabelFilters(store, s.github);
+  await readLabelFilters(store, reader(s.github));
   assert.deepEqual(await readyIds(s), ["a"]);
   // An exclude label holds it; so does a require label a non-writer added.
   labeled(s, ["agent-ok", "needs-design"]);
-  await readLabelFilters(store, s.github);
+  await readLabelFilters(store, reader(s.github));
   assert.deepEqual(await readyIds(s), []);
-  const waiting = (await s.ops.execute("runner.next", {})).waiting[0];
+  const waiting = (await next(s)).waiting[0];
   assert.equal(waiting.reason, "label filter: it carries needs-design");
   labeled(s, ["agent-ok"], { stranger: "read" }, "stranger");
-  await readLabelFilters(store, s.github);
+  await readLabelFilters(store, reader(s.github));
   assert.equal(
-    (await s.ops.execute("runner.next", {})).waiting[0].reason,
+    (await next(s)).waiting[0].reason,
     "label filter: agent-ok was not added by a writer",
   );
 });
@@ -415,15 +508,12 @@ test("a writer's stop label on the spec issue, or on a parent spec's, stops the 
   const s = setup(t, { tasks: [leaf("a")] }),
     { readLabelFilters } = await import("../../specs/label-filters.ts");
   labeled(s, ["avoozl:stopped"]);
-  await readLabelFilters(s.store, s.github);
+  await readLabelFilters(s.store, reader(s.github));
   assert.deepEqual(await readyIds(s), []);
-  assert.match(
-    (await s.ops.execute("runner.next", {})).waiting[0].reason,
-    /^stopped: /,
-  );
+  assert.match((await next(s)).waiting[0].reason, /^stopped: /);
   // A stop label someone without write access added stops nothing.
   labeled(s, ["avoozl:stopped"], { stranger: "read" }, "stranger");
-  await readLabelFilters(s.store, s.github);
+  await readLabelFilters(s.store, reader(s.github));
   assert.deepEqual(await readyIds(s), ["a"]);
   // A parent spec's stop label stops the spec it links.
   s.store.put("plans", {
@@ -447,13 +537,13 @@ test("a writer's stop label on the spec issue, or on a parent spec's, stops the 
     repository: "acme/app",
     number: 8,
   });
-  const on = { 7: [], 8: ["avoozl:stopped"] };
+  const on: Record<number, string[]> = { 7: [], 8: ["avoozl:stopped"] };
   Object.assign(s.github, {
-    issue: async (_repository, number) => ({
+    issue: async (_repository: string, number: number) => ({
       number,
       labels: on[number].map((name) => ({ name })),
     }),
-    issueEvents: async (_repository, number) =>
+    issueEvents: async (_repository: string, number: number) =>
       on[number].map((name) => ({
         event: "labeled",
         label: { name },
@@ -461,7 +551,7 @@ test("a writer's stop label on the spec issue, or on a parent spec's, stops the 
       })),
     permission: async () => ({ permission: "write" }),
   });
-  await readLabelFilters(s.store, s.github);
+  await readLabelFilters(s.store, reader(s.github));
   assert.deepEqual(await readyIds(s), []);
 });
 
@@ -480,13 +570,16 @@ test("a stopped spec's verified task is neither pushed nor landed until the stop
     attempts: [],
   });
   labeled(s, ["avoozl:stopped"]);
-  await readLabelFilters(s.store, s.github);
+  await readLabelFilters(s.store, reader(s.github));
   await integrateVerified(s.store);
-  assert.equal(s.store.get("task_deliveries", "a").state, "verified");
-  assert.deepEqual(pausedBy(s.store, { spec: "parser", tasks: [] }), {
-    id: "label-stop:parser",
-    label: true,
-  });
+  assert.equal(s.store.get("task_deliveries", "a")?.state, "verified");
+  assert.deepEqual(
+    pausedBy(s.store, { spec: "parser", tasks: [], repositoryId: "app" }),
+    {
+      id: "label-stop:parser",
+      label: true,
+    },
+  );
   labeled(s, []);
   s.github.issueEvents = async () => [
     {
@@ -500,10 +593,13 @@ test("a stopped spec's verified task is neither pushed nor landed until the stop
       actor: { login: "mona" },
     },
   ];
-  await readLabelFilters(s.store, s.github);
-  assert.equal(pausedBy(s.store, { spec: "parser", tasks: [] }), null);
+  await readLabelFilters(s.store, reader(s.github));
+  assert.equal(
+    pausedBy(s.store, { spec: "parser", tasks: [], repositoryId: "app" }),
+    null,
+  );
   await integrateVerified(s.store);
-  assert.notEqual(s.store.get("task_deliveries", "a").state, "verified");
+  assert.notEqual(s.store.get("task_deliveries", "a")?.state, "verified");
 });
 
 test("an exclude label added after the claim does not unclaim the task", async (t) => {
@@ -513,20 +609,24 @@ test("an exclude label added after the claim does not unclaim the task", async (
   assert.equal((await claim(s.ops)).claimed.id, "a");
   labeled(s, ["needs-design"]);
   const { readLabelFilters } = await import("../../specs/label-filters.ts");
-  await readLabelFilters(s.store, s.github);
-  const next = await s.ops.execute("runner.next", {});
+  await readLabelFilters(s.store, reader(s.github));
+  const ready = await next(s);
   assert.deepEqual(
-    next.running.map((item) => item.id),
+    ready.running.map((item) => item.id),
     ["a"],
     "the claimed task keeps running",
   );
-  assert.deepEqual(next.ready, [], "b is held by the label");
+  assert.deepEqual(ready.ready, [], "b is held by the label");
   assert.ok(s.github.refs.has("avoozl/parser/a"), "its claim branch stays");
 });
 
 // Labeled issues (simplify sim-1.7, rule 11): acme/app's issues, each with
 // its labels, who labeled it, and who it is assigned to.
-function issues(s, list, roles = { mona: "write", stranger: "read" }) {
+function issues(
+  s: Setup,
+  list: Issue[],
+  roles: Record<string, string> = { mona: "write", stranger: "read" },
+) {
   Object.assign(s.github, {
     currentUser: async () => ({ login: "mona" }),
     listIssues: async () =>
@@ -536,15 +636,15 @@ function issues(s, list, roles = { mona: "write", stranger: "read" }) {
         assignees: [{ login: "mona" }],
         ...issue,
       })),
-    issueEvents: async (_repository, number) => [
+    issueEvents: async (_repository: string, number: number) => [
       {
         event: "labeled",
         label: { name: "agent-ok" },
         actor: { login: list.find((i) => i.number === number)?.by ?? "mona" },
       },
     ],
-    permission: async (_repository, login) => ({
-      permission: roles[login] ?? "none",
+    permission: async (_repository: string, login: string | undefined) => ({
+      permission: roles[login ?? ""] ?? "none",
     }),
   });
 }
@@ -566,14 +666,16 @@ test("an open issue with a writer's require label becomes task issue-<n> and cla
   const result = await claim(s.ops);
   assert.equal(result.claimed.id, "issue-12");
   assert.equal(result.claimed.branch, "avoozl/issue-12/issue-12");
-  const task = s.store.read().tasks.find((x) => x.id === "issue-12");
+  const task = found(
+    s.store.read().tasks.find((x: Task) => x.id === "issue-12"),
+  );
   assert.equal(task.title, "Fix the crash");
   assert.deepEqual(task.acceptance, ["Empty input no longer crashes."]);
   assert.deepEqual(
     s.store
       .read()
-      .tasks.filter((x) => x.labeledIssue)
-      .map((x) => x.id),
+      .tasks.filter((x: Task) => x.labeledIssue)
+      .map((x: Task) => x.id),
     ["issue-12"],
   );
   // The issue closing is its landing record: the next read marks it done.
@@ -581,10 +683,13 @@ test("an open issue with a writer's require label becomes task issue-<n> and cla
     { number: 12, title: "Fix the crash", body: "x", state: "closed" },
   ]);
   const { readLabeledIssues } = await import("../../specs/labeled-issues.ts");
-  await readLabeledIssues(s.store, s.github);
+  await readLabeledIssues(s.store, issueReader(s.github));
   const { statusComplete } = await import("../../../model.ts"),
     data = s.store.read();
   assert.ok(
-    statusComplete(data, data.tasks.find((x) => x.id === "issue-12").status),
+    statusComplete(
+      data,
+      found(data.tasks.find((x: Task) => x.id === "issue-12")).status,
+    ),
   );
 });
