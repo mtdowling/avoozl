@@ -60,7 +60,7 @@ interface PluginSettings {
   mcp?: Record<string, Record<string, Mapping>>;
   [key: string]: unknown;
 }
-interface ContextPlugin {
+export interface ContextPlugin {
   id: string;
   context?: ContextPart | null;
   source?: string;

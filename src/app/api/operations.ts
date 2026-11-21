@@ -171,6 +171,14 @@ export interface OperationContext {
   [key: string]: unknown;
 }
 
+// What a handler gets besides the Operations instance as `this`.
+export interface OperationCall {
+  name: string;
+  input: Record<string, unknown>;
+  expectedRevision?: number;
+  context: OperationContext;
+}
+
 export interface OperationsOptions {
   operator?: string;
   github?: unknown;
@@ -195,6 +203,8 @@ export class Operations {
   operator: string;
   workspaceRoot: string | null;
   plansRoot: string | null;
+  configDirectory: string | null;
+  pluginOptions: { workspaceRoot: string | null; settingsFile: string };
   constructor(
     store: Store,
     {

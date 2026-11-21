@@ -356,7 +356,19 @@ export const mappingHash = (mappings) =>
 // plugin's approval stale until it is approved again.
 export function setMapping(
   options,
-  { id, alias, command, env, remove = false },
+  {
+    id,
+    alias,
+    command,
+    env,
+    remove = false,
+  }: {
+    id?: unknown;
+    alias?: unknown;
+    command?: unknown;
+    env?: unknown;
+    remove?: unknown;
+  },
 ) {
   const plugin = inspectPlugins(options).find((p) => p.id === id);
   if (!plugin) fail(`Plugin ${id} is not declared.`, 404);
