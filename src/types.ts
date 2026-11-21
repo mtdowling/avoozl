@@ -73,6 +73,9 @@ export interface Task {
     [key: string]: unknown;
   } | null;
   childrenComplete?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  labeledIssue?: { repository?: string; number?: number } | null;
   acceptanceEvidence?: {
     derivedFrom?: string[];
     acceptedBy?: string;

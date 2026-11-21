@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // One link set per spec and per task, from stored records only
 // (Requirement 92.1-92.3, design §4.27, task 44.1).
 //
@@ -19,89 +18,144 @@
 //   is `current` only when that head is the task's current commit; any
 //   other head shows as "stale", never as its old state.
 import { branchNameProblem } from "../epics/integration-branch.ts";
+import type { Store } from "../store/store.ts";
+import type { Snapshot, Task } from "../../types.ts";
+
+// The stored rows a link set reads. Every field is checked before use.
+interface IssueRecord {
+  repository?: unknown;
+  number?: unknown;
+}
+interface WorktreeRow {
+  id: string;
+  taskId?: string;
+  repository?: string;
+  branch?: unknown;
+  path?: unknown;
+  base?: { branch?: unknown; kind?: unknown };
+}
+interface DeliveryRow {
+  id: string;
+  taskId?: string;
+  pr?: unknown;
+  state?: string;
+  commit?: unknown;
+  integratedCommit?: unknown;
+}
+interface LandingRow {
+  id: string;
+  seq?: number;
+  tasks?: (string | { task?: string })[];
+  commit?: unknown;
+  checks?: unknown;
+  finishedAt?: string;
+  pr?: unknown;
+  state?: string;
+  repositoryId?: string;
+  source?: { repository?: unknown; branch?: unknown };
+}
+interface ReceiptRow extends IssueRecord {
+  id: string;
+  kind?: string;
+  planId?: string;
+}
+interface PlanRow {
+  id: string;
+  spec?: string;
+  deletedAt?: string;
+  context?: { newPlan?: { source?: IssueRecord } };
+}
+type Rows = ReturnType<typeof records>;
+type Links = ReturnType<typeof linker>;
+type TaskSet = ReturnType<typeof taskSet>;
+type Link = { kind: string; repository: string; [key: string]: unknown };
 
 const REPOSITORY = /^[A-Za-z0-9_.-]{1,100}\/[A-Za-z0-9_.-]{1,100}$/;
 const SHA = /^[0-9a-f]{40}$/;
 const HOST = /^https:\/\/[A-Za-z0-9.-]+(:\d+)?$/;
 const DEFAULT_HOST = "https://github.com";
 
-const lower = (value) => String(value ?? "").toLowerCase();
+const lower = (value: unknown) => String(value ?? "").toLowerCase();
 
-function listOr(store, table) {
+function listOr<T>(store: Store, table: string): T[] {
   try {
-    return store.list(table);
+    return store.list<T>(table);
   } catch {
     return [];
   }
 }
 
-function getOr(store, table, id) {
-  try {
-    return store.get(table, id) ?? null;
-  } catch {
-    return null;
-  }
-}
-
-const repositoryOf = (value) =>
+const repositoryOf = (value: unknown) =>
   typeof value === "string" &&
   REPOSITORY.test(value) &&
   !value.split("/").some((part) => part === "." || part === "..")
     ? value
     : null;
-const numberOf = (value) =>
-  Number.isSafeInteger(value) && value > 0 ? value : null;
-const shaOf = (value) =>
+const numberOf = (value: unknown) =>
+  typeof value === "number" && Number.isSafeInteger(value) && value > 0
+    ? value
+    : null;
+const shaOf = (value: unknown) =>
   typeof value === "string" && SHA.test(value) ? value : null;
-const refOf = (value) => (branchNameProblem(value) ? null : value);
-const ms = (value) => {
+// branchNameProblem refuses anything but a string.
+const refOf = (value: unknown) =>
+  branchNameProblem(value) ? null : (value as string);
+const ms = (value: string | null | undefined) => {
   const at = Date.parse(value ?? "");
   return Number.isFinite(at) ? at : null;
 };
 
 // The GitHub repository a repository ID or an owner/name names, or null.
-function resolver(store) {
+function resolver(store: Store) {
   const repositories = new Map(
-    listOr(store, "repositories").map((p) => [p.id, p]),
+    listOr<{ id: string; github?: unknown }>(store, "repositories").map((p) => [
+      p.id,
+      p,
+    ]),
   );
-  return (value) =>
-    repositoryOf(repositories.get(value)?.github) ?? repositoryOf(value);
+  return (value: unknown) =>
+    repositoryOf(repositories.get(value as string)?.github) ??
+    repositoryOf(value);
 }
 
-function linker(host) {
-  const base = HOST.test(host ?? "") ? host : DEFAULT_HOST;
+function linker(host: string | null | undefined) {
+  const base = host && HOST.test(host) ? host : DEFAULT_HOST;
   return {
-    issue: (repository, number) => ({
+    issue: (repository: string, number: number) => ({
       kind: "issue",
       repository,
       number,
       url: `${base}/${repository}/issues/${number}`,
     }),
-    pull: (repository, number) => ({
+    pull: (repository: string, number: number) => ({
       kind: "pull",
       repository,
       number,
       url: `${base}/${repository}/pull/${number}`,
     }),
-    branch: (repository, ref) => ({
+    branch: (repository: string, ref: string) => ({
       kind: "branch",
       repository,
       ref,
       url: `${base}/${repository}/tree/${ref.split("/").map(encodeURIComponent).join("/")}`,
     }),
-    commit: (repository, sha) => ({
+    commit: (repository: string, sha: string) => ({
       kind: "commit",
       repository,
       sha,
       url: `${base}/${repository}/commit/${sha}`,
     }),
-    checks: (repository, number) =>
+    checks: (repository: string, number: number) =>
       number ? `${base}/${repository}/pull/${number}/checks` : null,
   };
 }
 
 // An {repository, number} record as an issue link, or null.
-function issueLink(links, record, resolve) {
+function issueLink(
+  links: Links,
+  record: IssueRecord | null | undefined,
+  resolve: (value: unknown) => string | null,
+) {
   const repository = resolve(record?.repository),
     number = numberOf(record?.number);
   return repository && number ? links.issue(repository, number) : null;
@@ -109,29 +163,32 @@ function issueLink(links, record, resolve) {
 
 // Stored rows the link sets read, read once per call. A caller that has
 // already read the workspace passes it as `data`.
-function records(store, data = store.read()) {
+function records(store: Store, data: Snapshot = store.read()) {
   return {
     data,
     resolve: resolver(store),
-    receipts: listOr(store, "receipts"),
+    receipts: listOr<ReceiptRow>(store, "receipts"),
     worktrees: new Map(
-      listOr(store, "task_worktrees").map((row) => [row.taskId ?? row.id, row]),
-    ),
-    deliveries: new Map(
-      listOr(store, "task_deliveries").map((row) => [
+      listOr<WorktreeRow>(store, "task_worktrees").map((row) => [
         row.taskId ?? row.id,
         row,
       ]),
     ),
-    landing: listOr(store, "landing_queue"),
+    deliveries: new Map(
+      listOr<DeliveryRow>(store, "task_deliveries").map((row) => [
+        row.taskId ?? row.id,
+        row,
+      ]),
+    ),
+    landing: listOr<LandingRow>(store, "landing_queue"),
   };
 }
 
-const landingTasks = (entry) =>
+const landingTasks = (entry: LandingRow) =>
   (entry.tasks || []).map((t) => (typeof t === "string" ? t : t?.task));
 
 // The newest landing queue entry that carries this task.
-function landingOf(rows, taskId) {
+function landingOf(rows: Rows, taskId: string) {
   return (
     rows.landing
       .filter((entry) => landingTasks(entry).includes(taskId))
@@ -139,7 +196,7 @@ function landingOf(rows, taskId) {
   );
 }
 
-function verdict(conclusions) {
+function verdict(conclusions: string[]) {
   if (!conclusions.length) return null;
   if (conclusions.some((c) => c === "fail")) return "fail";
   if (conclusions.some((c) => c === "pending")) return "pending";
@@ -147,9 +204,10 @@ function verdict(conclusions) {
 }
 
 // Check state the landing queue recorded when a portion finished.
-function landingChecks(entry) {
+function landingChecks(entry: LandingRow | null) {
   const head = shaOf(entry?.commit);
-  if (!head || !Array.isArray(entry.checks) || !entry.finishedAt) return null;
+  if (!head || !entry || !Array.isArray(entry.checks) || !entry.finishedAt)
+    return null;
   const state = verdict(
     entry.checks.map((check) => (check?.exitCode === 0 ? "pass" : "fail")),
   );
@@ -160,7 +218,11 @@ function landingChecks(entry) {
 
 // The landing queue's check read, with its age and whether it is for the
 // task's current commit.
-function checkState(found, currentHead, now) {
+function checkState(
+  found: ReturnType<typeof landingChecks>,
+  currentHead: string | null,
+  now: number,
+) {
   if (!found) return null;
   const read = ms(found.readAt),
     current = Boolean(currentHead) && found.head === currentHead;
@@ -175,7 +237,12 @@ function checkState(found, currentHead, now) {
 
 // The pull request a task has, by number from delivery, integration or the
 // landing queue.
-function pullOf(task, delivery, entry, repository) {
+function pullOf(
+  task: Task,
+  delivery: DeliveryRow | null,
+  entry: LandingRow | null,
+  repository: string | null,
+) {
   const n =
     numberOf(delivery?.pr) ??
     numberOf(task.integration?.pr) ??
@@ -192,7 +259,7 @@ function pullOf(task, delivery, entry, repository) {
   };
 }
 
-function taskSet(rows, links, task, now) {
+function taskSet(rows: Rows, links: Links, task: Task, now: number) {
   const worktree = rows.worktrees.get(task.id) ?? null,
     delivery = rows.deliveries.get(task.id) ?? null,
     entry = landingOf(rows, task.id),
@@ -215,7 +282,10 @@ function taskSet(rows, links, task, now) {
     repository,
     branch:
       repositoryOf(entry?.source?.repository) && refOf(entry?.source?.branch)
-        ? links.branch(entry.source.repository, entry.source.branch)
+        ? links.branch(
+            entry!.source!.repository as string,
+            entry!.source!.branch as string,
+          )
         : repository && branchRef
           ? links.branch(repository, branchRef)
           : null,
@@ -227,10 +297,10 @@ function taskSet(rows, links, task, now) {
     base:
       repository &&
       refOf(worktree?.base?.branch) &&
-      typeof worktree.base.kind === "string"
+      typeof worktree!.base!.kind === "string"
         ? {
-            ...links.branch(repository, worktree.base.branch),
-            baseKind: worktree.base.kind,
+            ...links.branch(repository, worktree!.base!.branch as string),
+            baseKind: worktree!.base!.kind,
           }
         : null,
     head: currentHead,
@@ -245,16 +315,16 @@ function taskSet(rows, links, task, now) {
       : null,
     landed:
       landedSha && (repository || pull?.repository)
-        ? links.commit(repository || pull.repository, landedSha)
+        ? links.commit((repository || pull?.repository)!, landedSha)
         : null,
     issue: issueLink(links, task.github, rows.resolve) ?? null,
     source: issueLink(links, task.labeledIssue, rows.resolve) ?? null,
   };
 }
 
-const unique = (items) => {
-  const seen = new Set();
-  return items.filter((item) => {
+const unique = <T extends Link>(items: (T | null)[]) => {
+  const seen = new Set<string>();
+  return items.filter((item): item is T => {
     const key =
       item &&
       `${lower(item.repository)}\0${item.kind}\0${item.number ?? item.ref ?? item.sha}`;
@@ -264,7 +334,7 @@ const unique = (items) => {
   });
 };
 
-function specSet(rows, links, plan, tasks) {
+function specSet(rows: Rows, links: Links, plan: PlanRow, tasks: TaskSet[]) {
   const receipt = rows.receipts.find(
       (r) => r.id === `github-parent:plan:${plan.id}`,
     ),
@@ -276,7 +346,9 @@ function specSet(rows, links, plan, tasks) {
     workingBranches: unique(
       tasks
         .map((t) => t.base)
-        .filter((b) => b?.baseKind === "working")
+        .filter(
+          (b): b is NonNullable<TaskSet["base"]> => b?.baseKind === "working",
+        )
         .map(({ baseKind, ...branch }) => branch),
     ),
     pulls: tasks
@@ -295,17 +367,23 @@ function specSet(rows, links, plan, tasks) {
 // Every spec's and every task's link set: {specs: {planId: set}, tasks:
 // {taskId: set}}. `host` is the registered web host; `now` sets check ages;
 // `data` is an already-read workspace, so the caller's read is reused.
+export interface LinkOptions {
+  host?: string;
+  now?: number;
+  data?: Snapshot;
+}
+
 export function linkSets(
-  store,
-  { host = DEFAULT_HOST, now = Date.now(), data } = {},
+  store: Store,
+  { host = DEFAULT_HOST, now = Date.now(), data }: LinkOptions = {},
 ) {
   const rows = records(store, data),
     links = linker(host),
-    tasks = {};
+    tasks: Record<string, TaskSet> = {};
   for (const task of rows.data.tasks)
     tasks[task.id] = taskSet(rows, links, task, now);
-  const specs = {};
-  for (const plan of listOr(store, "plans")) {
+  const specs: Record<string, ReturnType<typeof specSet>> = {};
+  for (const plan of listOr<PlanRow>(store, "plans")) {
     if (plan.deletedAt || !plan.spec) continue;
     const members = Object.values(tasks).filter((t) => t.planId === plan.id);
     specs[plan.id] = specSet(rows, links, plan, members);
@@ -314,11 +392,19 @@ export function linkSets(
 }
 
 // One task's link set, or null for an unknown task.
-export function taskLinks(store, taskId, options = {}) {
+export function taskLinks(
+  store: Store,
+  taskId: string,
+  options: LinkOptions = {},
+) {
   return linkSets(store, options).tasks[taskId] ?? null;
 }
 
 // One spec plan's link set, or null for an unknown or non-spec plan.
-export function specLinks(store, planId, options = {}) {
+export function specLinks(
+  store: Store,
+  planId: string,
+  options: LinkOptions = {},
+) {
   return linkSets(store, options).specs[planId] ?? null;
 }
