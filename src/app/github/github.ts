@@ -316,6 +316,14 @@ const INTERNAL = new Set([
 const BLOB_CHUNK = 100;
 
 export class GitHubClient {
+  // shortcut: only the fields typed callers read are declared.
+  credentials: {
+    signIns?: () => unknown[];
+    available?: (owner: unknown) => boolean;
+    [key: string]: unknown;
+  };
+  onNoPerson?: (provider: string, owner: string) => unknown;
+  gitUrl?: string;
   constructor({
     credentials,
     apiUrl = process.env.GITHUB_API_URL || "https://api.github.com",
