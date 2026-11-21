@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Incoming items (design §4.12, Requirement 50): work that comes in from
 // an intake plugin's `poll` or an MCP caller, kept as one record in SQLite
 // and run through one pipeline: check, dedup, content rules (the `intake`
@@ -26,6 +25,94 @@ import { workspaceRepositories } from "../workspace/workspace-repositories.ts";
 import { canonical, fail } from "../store/store.ts";
 import { GITHUB_VIA, validateGitHubSource } from "../github/github-sources.ts";
 import { asJob } from "../github/github-jobs.ts";
+import type { Store } from "../store/store.ts";
+import type { Snapshot, Task } from "../../types.ts";
+
+// An item as incomingItem checked it (plugin-contract.ts).
+export type Item = {
+  id: string;
+  source?: string;
+  kind?: string;
+  link: string;
+  title: string;
+  body?: string;
+  labels: string[];
+  assignees: string[];
+  fields?: Record<string, unknown>;
+  state?: string;
+  author?: unknown;
+  trigger?: { actor?: string; permission?: string } | null;
+  updatedAt?: string;
+  closedAt?: string | null;
+  closedBy?: string | null;
+  closeReason?: string | null;
+};
+type Route = {
+  state: string;
+  rule: string | null;
+  action: string | null;
+  reason: string;
+  by?: string;
+  closedAt?: string;
+  at?: string;
+};
+// One `incoming_items` row.
+export type ItemRow = {
+  id: string;
+  source: string;
+  itemId: string;
+  record: Item & { source: string };
+  hash: string;
+  via?: string;
+  asserted?: { author?: unknown; trigger?: unknown };
+  firstSeenAt?: string;
+  seenAt?: string;
+  taskId: string | null;
+  route: Route | null;
+  findings: { set: string; rule: string }[];
+  history: Record<string, unknown>[];
+};
+// The repository settings a source's labels and closes are judged by.
+type RepositoryPolicy = {
+  waitingLabels?: string[];
+  priorityLabels?: string[];
+  [key: string]: unknown;
+};
+export type Source = {
+  id: string;
+  via: string;
+  repository: string;
+  github?: string | null;
+  labelFields?: string[];
+  assigneeField?: string | null;
+  executionRepository?: string | null;
+  policy?: RepositoryPolicy | null;
+  [key: string]: unknown;
+};
+type Declared = {
+  id: string | null;
+  scope: string;
+  entry: unknown;
+  source?: Source | null;
+  error: string | null;
+};
+export interface IntakeOptions {
+  workspaceRoot?: string | null;
+  settingsFile?: string;
+}
+type GitHubPolicy = {
+  mode?: unknown;
+  repositories?: Record<string, RepositoryPolicy>;
+} | null;
+type Notice = { channel: string; task: string; title: string; text: string };
+// How a task was started from an item.
+type How = {
+  by?: string;
+  reason?: string;
+  rule?: string | null;
+  actor?: string | null;
+  eventId?: string | null;
+};
 
 // `retro` holds the skill changes a person approved from a retrospective
 // (design §4.18).
@@ -41,12 +128,12 @@ export const SOURCE_KEYS = [
   "assigneeField",
 ];
 const HISTORY = 20;
-const record = (value) =>
+const record = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
-const lower = (value) => String(value).toLocaleLowerCase();
+const lower = (value: unknown) => String(value).toLocaleLowerCase();
 
-export const itemKey = (source, id) => `${source}\0${id}`;
-const intakeTaskId = (source, id) =>
+export const itemKey = (source: string, id: string) => `${source}\0${id}`;
+const intakeTaskId = (source: string, id: string) =>
   "intake-" + digest(itemKey(source, id)).slice(0, 16);
 
 // ---------------------------------------------------------------------------
@@ -55,7 +142,7 @@ const intakeTaskId = (source, id) =>
 // source (R110, github-sources.mjs) is a GitHub repository whose issues may
 // start work; its items still come in as source `github`.
 
-function names(value, where) {
+function names(value: unknown, where: string): string[] {
   if (value === undefined) return [];
   if (
     !Array.isArray(value) ||
@@ -63,10 +150,14 @@ function names(value, where) {
     value.some((v) => typeof v !== "string" || !v.trim() || v.length > 200)
   )
     fail(`${where} must be a list of names.`);
-  return value;
+  return value as string[];
 }
 
-export function validateSource(id, value, where = `intake.sources.${id}`) {
+export function validateSource(
+  id: unknown,
+  value: unknown,
+  where = `intake.sources.${id}`,
+): Source {
   if (typeof id !== "string" || !SOURCE_ID.test(id))
     fail(`${where} needs a lowercase source id.`);
   if (RESERVED_SOURCES.includes(id))
@@ -75,7 +166,7 @@ export function validateSource(id, value, where = `intake.sources.${id}`) {
   if (value.via === GITHUB_VIA) {
     const { repository, settings } = validateGitHubSource(value, where);
     return {
-      id,
+      id: id as string,
       via: GITHUB_VIA,
       repository,
       github: repository,
@@ -96,18 +187,21 @@ export function validateSource(id, value, where = `intake.sources.${id}`) {
   )
     fail(`${where}.assigneeField must name one field.`);
   return {
-    id,
+    id: id as string,
     via,
     repository: value.repository,
     labelFields,
-    assigneeField: value.assigneeField ?? null,
+    assigneeField: (value.assigneeField as string | undefined) ?? null,
   };
 }
 
 // What each source holds, for Settings: items, how many are untriaged, and
 // when the newest one first came in. Reads only.
-export function sourceCounts(store) {
-  const counts = new Map();
+export function sourceCounts(store: Store) {
+  const counts = new Map<
+    string,
+    { total: number; untriaged: number; lastAt: string | null }
+  >();
   for (const row of itemRows(store)) {
     if (!row.record) continue;
     const count = counts.get(row.source) ?? {
@@ -117,7 +211,7 @@ export function sourceCounts(store) {
     };
     count.total += 1;
     if (row.route?.state === "untriaged" && !row.taskId) count.untriaged += 1;
-    if (row.firstSeenAt && !(count.lastAt >= row.firstSeenAt))
+    if (row.firstSeenAt && !(count.lastAt && count.lastAt >= row.firstSeenAt))
       count.lastAt = row.firstSeenAt;
     counts.set(row.source, count);
   }
@@ -125,7 +219,7 @@ export function sourceCounts(store) {
 }
 
 // The `intake` block's shape, for the tick's policy check.
-export function validateIntake(value, where = "intake") {
+export function validateIntake(value: unknown, where = "intake") {
   if (value === undefined) return { sources: {} };
   if (!record(value)) fail(`${where} must be an object.`);
   for (const key of Object.keys(value))
@@ -142,10 +236,11 @@ export function validateIntake(value, where = "intake") {
   };
 }
 
-function readJson(file) {
+function readJson(file: string): Record<string, unknown> {
   try {
     return JSON.parse(fs.readFileSync(file, "utf8"));
-  } catch (error) {
+  } catch (thrown) {
+    const error = thrown as NodeJS.ErrnoException;
     if (error.code === "ENOENT") return {};
     throw Error(`${path.basename(file)} is invalid: ${error.message}`);
   }
@@ -153,9 +248,12 @@ function readJson(file) {
 
 // Every declared source with where it came from and, when it cannot be
 // used, why. `store` resolves the repository; without one it is not checked.
-export function declaredSources({ workspaceRoot, settingsFile }, store = null) {
-  const found = [];
-  const add = (block, scope) => {
+export function declaredSources(
+  { workspaceRoot, settingsFile }: IntakeOptions,
+  store: Store | null = null,
+) {
+  const found: Declared[] = [];
+  const add = (block: unknown, scope: string) => {
     if (block === undefined) return;
     const sources =
       record(block) && record(block.sources) ? block.sources : null;
@@ -169,12 +267,12 @@ export function declaredSources({ workspaceRoot, settingsFile }, store = null) {
       return;
     }
     for (const [id, entry] of Object.entries(sources)) {
-      let source = null,
-        error = null;
+      let source: Source | null = null,
+        error: string | null = null;
       try {
         source = validateSource(id, entry);
       } catch (refused) {
-        error = refused.message;
+        error = (refused as Error).message;
       }
       found.push({ id, scope, entry, source, error });
     }
@@ -189,38 +287,38 @@ export function declaredSources({ workspaceRoot, settingsFile }, store = null) {
       id: null,
       scope: "repository",
       entry: null,
-      error: error.message,
+      error: (error as Error).message,
     });
   }
   if (settingsFile) add(readPluginSettings(settingsFile).intake, "machine");
-  const counts = new Map();
+  const counts = new Map<string, number>();
   for (const row of found)
     if (row.id) counts.set(row.id, (counts.get(row.id) || 0) + 1);
   const repositories = store ? workspaceRepositories(store) : null,
-    githubSeen = new Map();
+    githubSeen = new Map<string, string>();
   for (const row of found) {
-    if (row.error || !row.source) continue;
-    if (counts.get(row.id) > 1)
+    if (row.error || !row.source || !row.id) continue;
+    const source = row.source;
+    if ((counts.get(row.id) ?? 0) > 1)
       row.error = `Intake source ${row.id} is declared more than once across .avoozl.json and this machine's settings.`;
-    else if (row.source.via === GITHUB_VIA) {
-      const key = lower(row.source.repository);
+    else if (source.via === GITHUB_VIA) {
+      const key = lower(source.repository);
       if (row.scope !== "repository")
         row.error = `Intake source ${row.id} is a GitHub source; those are set in Repository setup and saved in .avoozl.json.`;
       else if (githubSeen.has(key))
-        row.error = `Intake source ${row.id} names GitHub repository ${row.source.repository}, which source ${githubSeen.get(key)} already reads.`;
+        row.error = `Intake source ${row.id} names GitHub repository ${source.repository}, which source ${githubSeen.get(key)} already reads.`;
       else githubSeen.set(key, row.id);
-    } else if (repositories && row.source.via !== GITHUB_VIA) {
+    } else if (repositories && source.via !== GITHUB_VIA) {
       const repository = repositories.find(
-        (entry) =>
-          entry.id === row.source.repository ||
-          (entry.github &&
-            lower(entry.github) === lower(row.source.repository)),
+        (entry: { id: string; github?: string }) =>
+          entry.id === source.repository ||
+          (entry.github && lower(entry.github) === lower(source.repository)),
       );
       if (!repository)
-        row.error = `Intake source ${row.id} names repository ${row.source.repository}, which is not registered.`;
+        row.error = `Intake source ${row.id} names repository ${source.repository}, which is not registered.`;
       else
         row.source = {
-          ...row.source,
+          ...source,
           executionRepository: repository.localCheckout ? repository.id : null,
           github: repository.github || null,
         };
@@ -231,11 +329,15 @@ export function declaredSources({ workspaceRoot, settingsFile }, store = null) {
 
 // Usable plugin and MCP sources by id. GitHub sources are read by
 // `github sync`, not by poll or submit.
-export function sourceMap(options, store) {
+export function sourceMap(options: IntakeOptions, store?: Store | null) {
   return new Map(
     declaredSources(options, store)
       .filter(
-        (row) => !row.error && row.source && row.source.via !== GITHUB_VIA,
+        (row): row is Declared & { id: string; source: Source } =>
+          !row.error &&
+          Boolean(row.id) &&
+          Boolean(row.source) &&
+          row.source!.via !== GITHUB_VIA,
       )
       .map((row) => [row.id, row.source]),
   );
@@ -245,13 +347,19 @@ export function sourceMap(options, store) {
 // `.avoozl.json`. A repository save needs `confirmPublic`, because a source's
 // id and plugin may be private names (R50.6).
 export function editSource(
-  options,
+  options: IntakeOptions,
   {
     scope = "machine",
     id,
     entry = null,
     remove = false,
     confirmPublic = false,
+  }: {
+    scope?: string;
+    id?: unknown;
+    entry?: { via?: unknown; [key: string]: unknown } | null;
+    remove?: boolean;
+    confirmPublic?: boolean;
   },
 ) {
   if (!["machine", "repository"].includes(scope))
@@ -268,32 +376,33 @@ export function editSource(
       "A GitHub source is set in Repository setup, where its labels are made.",
     );
   if (scope === "repository" && !remove && !confirmPublic) {
-    const error = Error(
-      "Avoozl cannot tell whether this repository is private. Its .avoozl.json may publish this source's id and plugin. Declare it on this machine instead, or confirm.",
+    throw Object.assign(
+      Error(
+        "Avoozl cannot tell whether this repository is private. Its .avoozl.json may publish this source's id and plugin. Declare it on this machine instead, or confirm.",
+      ),
+      { status: 409, code: "intake-public-repository" },
     );
-    error.status = 409;
-    error.code = "intake-public-repository";
-    throw error;
   }
   const existing = declaredSources(options).filter((row) => row.id === id);
   if (!remove && existing.length)
     fail(`Intake source ${id} is already declared.`, 409);
   if (remove && !existing.some((row) => row.scope === scope))
     fail(`Intake source ${id} is not declared there.`, 404);
-  const edit = (value) => {
+  const name = id as string;
+  const edit = (value: Record<string, unknown>) => {
     // Old GitHub intake keys move into `intake.sources` on this write.
     const intake = record(value.intake) ? value.intake : {},
       sources = { ...(record(intake.sources) ? intake.sources : {}) };
-    if (remove) delete sources[id];
-    else sources[id] = entry;
+    if (remove) delete sources[name];
+    else sources[name] = entry;
     if (Object.keys(sources).length) value.intake = { ...intake, sources };
     else delete value.intake;
     return value;
   };
   const file =
     scope === "machine"
-      ? options.settingsFile
-      : path.join(options.workspaceRoot, ".avoozl.json");
+      ? String(options.settingsFile)
+      : path.join(String(options.workspaceRoot), ".avoozl.json");
   const before =
       scope === "machine" ? readJson(file) : { version: 1, ...readJson(file) },
     after = edit(before);
@@ -311,9 +420,9 @@ export function editSource(
 // one per source.
 // A row is written only when it changed, so a quiet tick writes nothing.
 
-const hashOf = (value) => digest(canonical(value));
+const hashOf = (value: unknown) => digest(canonical(value));
 
-export function sourceRow(store, id) {
+export function sourceRow(store: Store, id: string) {
   try {
     return store.get("intake_sources", id);
   } catch {
@@ -321,9 +430,9 @@ export function sourceRow(store, id) {
   }
 }
 
-export function itemRows(store) {
+export function itemRows(store: Store) {
   try {
-    return store.list("incoming_items");
+    return store.list<ItemRow>("incoming_items");
   } catch {
     // An older read-only database has no table yet.
     return [];
@@ -335,7 +444,7 @@ export function itemRows(store) {
 
 // The labels and assignees an item has: the item's own, plus `<field>:<value>`
 // labels from `labelFields` and an assignee from `assigneeField` (R50.11).
-function matchView(item, source) {
+function matchView(item: Item, source: Source | null | undefined) {
   const labels = [...item.labels],
     assignees = [...item.assignees];
   for (const field of source?.labelFields || []) {
@@ -354,7 +463,8 @@ function matchView(item, source) {
 // ---------------------------------------------------------------------------
 // Tasks.
 
-function ensureInbox(data) {
+function ensureInbox(data: Snapshot) {
+  data.tracks ??= [];
   if (!data.tracks.some((track) => track.id === "catalog"))
     data.tracks.push({ id: "catalog", label: "General" });
 }
@@ -362,7 +472,10 @@ function ensureInbox(data) {
 // A pack's waitingLabels and priorityLabels (R55, owner request): a waiting
 // label holds the task with "Waiting on the author"; the priority list sets
 // its order inside Ready and Up next, never its lane. Absent: no change.
-export function labelEffects(repository, labels) {
+export function labelEffects(
+  repository: RepositoryPolicy | null | undefined,
+  labels: string[] | null | undefined,
+) {
   const have = new Set((labels || []).map(lower)),
     waiting = (repository?.waitingLabels || []).some((label) =>
       have.has(lower(label)),
@@ -374,14 +487,18 @@ export function labelEffects(repository, labels) {
   };
 }
 
-function setLabelEffects(task, repository, labels) {
+function setLabelEffects(
+  task: Task,
+  repository: RepositoryPolicy | null | undefined,
+  labels: string[],
+) {
   const { waiting, labelRank } = labelEffects(repository, labels);
   if (labelRank === null) delete task.labelRank;
   else task.labelRank = labelRank;
   return waiting;
 }
 
-function leafFor(row, source, how) {
+function leafFor(row: ItemRow, source: Source, how: How): Task {
   const item = row.record,
     now = new Date().toISOString();
   return {
@@ -394,7 +511,7 @@ function leafFor(row, source, how) {
     scope: "runtime",
     kind: "leaf",
     authority: "local",
-    repository: source.executionRepository,
+    repository: source.executionRepository ?? null,
     track: "catalog",
     tags: ["intake", `source:${item.source}`],
     // Pinned to this snapshot of the item (R50.15, R12).
@@ -406,7 +523,7 @@ function leafFor(row, source, how) {
   };
 }
 
-function intakeLink(row, how) {
+function intakeLink(row: ItemRow, how: How): NonNullable<Task["intake"]> {
   const item = row.record;
   return {
     source: item.source,
@@ -423,14 +540,25 @@ function intakeLink(row, how) {
   };
 }
 
-function setDispatch(task, ready, state, reason) {
+function setDispatch(
+  task: Task,
+  ready: boolean,
+  state: string,
+  reason: string,
+) {
   task.dispatch = { ...(task.dispatch || {}), ready, state, reason };
 }
 
 // A leaf for the item, or an inbox task for the planner (task.capture).
-function startTask(store, row, source, action, how) {
+function startTask(
+  store: Store,
+  row: ItemRow,
+  source: Source,
+  action: string,
+  how: How,
+) {
   const taskId = intakeTaskId(row.source, row.itemId);
-  let created = null;
+  let created: string | null = null;
   store.mutate(`Take in ${row.source} ${row.itemId}`, (data) => {
     ensureInbox(data);
     const existing = data.tasks.find((task) => task.id === taskId);
@@ -467,7 +595,12 @@ function startTask(store, row, source, action, how) {
   return created;
 }
 
-function patchTask(store, taskId, summary, fn) {
+function patchTask(
+  store: Store,
+  taskId: string,
+  summary: string,
+  fn: (task: Task) => void,
+) {
   const current = store.read().tasks.find((task) => task.id === taskId);
   if (!current) return false;
   const next = structuredClone(current);
@@ -483,7 +616,13 @@ function patchTask(store, taskId, summary, fn) {
 // allowed actor's close is an order that releases dependents and never
 // counts as verified; anyone else, an unknown actor or an MCP caller holds
 // the dependents with a decision. Avoozl never reopens the item.
-function judgeClose(task, item, source, { mcp, actorCapable }, notify) {
+function judgeClose(
+  task: Task,
+  item: Item,
+  source: Source,
+  { mcp, actorCapable }: TakeContext,
+  notify: Notice[],
+) {
   const key = `${item.closedBy ?? ""}@${item.closedAt ?? ""}`;
   if (item.state === "open") {
     if (task.intakeVerdict?.state === "order") delete task.intakeVerdict;
@@ -509,7 +648,8 @@ function judgeClose(task, item, source, { mcp, actorCapable }, notify) {
     task.intakeVerdict = {
       state: "order",
       order: {
-        actor: item.closedBy,
+        // Only a named actor is allowed.
+        actor: item.closedBy!,
         reason:
           item.closeReason === "not_planned" ? "not planned" : "completed",
         closedAt: item.closedAt || new Date().toISOString(),
@@ -539,11 +679,14 @@ function judgeClose(task, item, source, { mcp, actorCapable }, notify) {
 // ---------------------------------------------------------------------------
 // The pipeline.
 
-export function remember(row, entry) {
+export function remember(
+  row: { history?: Record<string, unknown>[] },
+  entry: Record<string, unknown>,
+) {
   row.history = [...(row.history || []), entry].slice(-HISTORY);
 }
 
-function screenText(item) {
+function screenText(item: Item) {
   return [
     item.title,
     item.body,
@@ -557,11 +700,18 @@ function screenText(item) {
 // One checked item through dedup and content rules.
 // `context`: {mcp, actorCapable, now}. Returns {result, route, taskId,
 // notify}.
-export function takeItem(store, source, item, context = {}) {
+type TakeContext = { mcp?: boolean; actorCapable?: boolean; now?: string };
+
+export function takeItem(
+  store: Store,
+  source: Source,
+  item: Item,
+  context: TakeContext = {},
+) {
   const now = context.now ?? new Date().toISOString(),
     key = itemKey(source.id, item.id),
-    stored = store.get("incoming_items", key),
-    record = { source: source.id, ...item },
+    stored = store.get<ItemRow>("incoming_items", key),
+    record: Item & { source: string } = { source: source.id, ...item },
     // An MCP caller's author and trigger are what it says, never an actor.
     asserted = context.mcp
       ? { author: item.author, trigger: item.trigger }
@@ -570,7 +720,7 @@ export function takeItem(store, source, item, context = {}) {
     record.trigger = null;
   }
   const hash = hashOf(record),
-    notify = [];
+    notify: Notice[] = [];
   if (stored?.hash === hash)
     return {
       id: item.id,
@@ -588,7 +738,7 @@ export function takeItem(store, source, item, context = {}) {
       taskId: stored.taskId ?? null,
       notify,
     };
-  const row = {
+  const row: ItemRow = {
     id: key,
     source: source.id,
     itemId: item.id,
@@ -619,13 +769,17 @@ export function takeItem(store, source, item, context = {}) {
     },
   );
   notify.push(...screened.notify);
-  let route;
+  let route: Route;
   if (!screened.ok) {
     const named = [
       ...screened.findings.map(findingText),
-      ...screened.unavailable.map((u) => `${u.set} is unavailable`),
+      ...screened.unavailable.map(
+        (u: { set: string }) => `${u.set} is unavailable`,
+      ),
     ];
-    row.findings = screened.findings.map(({ set, rule }) => ({ set, rule }));
+    row.findings = screened.findings.map(
+      ({ set, rule }: { set: string; rule: string }) => ({ set, rule }),
+    );
     route = {
       state: "quarantined",
       rule: null,
@@ -702,7 +856,7 @@ export function takeItem(store, source, item, context = {}) {
 
 // The repository policy rules apply from: the GitHub policy entry for the
 // source's repository, by its GitHub name or id.
-export function withPolicy(source, githubPolicy) {
+export function withPolicy(source: Source, githubPolicy: GitHubPolicy): Source {
   const repositories = githubPolicy?.repositories || {},
     name = Object.keys(repositories).find(
       (key) => lower(key) === lower(source.github || source.repository),
@@ -716,7 +870,12 @@ export function withPolicy(source, githubPolicy) {
 // like any other issue. A source whose repository is not a GitHub
 // repository under the policy is refused. The issue carries no labels and
 // is opened by Avoozl's sign-in.
-export async function submitItems(sources, githubPolicy, github, input = {}) {
+export async function submitItems(
+  sources: Map<string, Source>,
+  githubPolicy: GitHubPolicy,
+  github: { available?: () => boolean } | null | undefined,
+  input: { source?: unknown; items?: unknown } = {},
+) {
   const id = input.source;
   if (typeof id !== "string" || !id)
     fail("Name the source the items come from.");
@@ -746,9 +905,9 @@ export async function submitItems(sources, githubPolicy, github, input = {}) {
       409,
     );
   if (!github?.available?.()) fail("GitHub is not available.", 409);
-  const results = [];
+  const results: Record<string, unknown>[] = [];
   for (const [index, raw] of input.items.entries()) {
-    let item;
+    let item: Item;
     try {
       item = incomingItem(raw, `item ${index}`);
     } catch (error) {
@@ -783,14 +942,16 @@ export async function submitItems(sources, githubPolicy, github, input = {}) {
 
 // A closed item tied to no task is deleted 30 days after it closed; an item
 // tied to a task stays while the task does (R50.21).
-export function purgeClosed(store, now = Date.now()) {
+export function purgeClosed(store: Store, now = Date.now()) {
   const tasks = new Set(store.read().tasks.map((task) => task.id)),
     gone = itemRows(store).filter(
       (row) =>
         row.record?.state === "closed" &&
         !(row.taskId && tasks.has(row.taskId)) &&
         now -
-          Date.parse(row.route?.closedAt || row.record.closedAt || row.seenAt) >
+          Date.parse(
+            row.route?.closedAt || row.record.closedAt || row.seenAt || "",
+          ) >
           KEEP_CLOSED_MS,
     );
   if (gone.length)
@@ -803,7 +964,7 @@ export function purgeClosed(store, now = Date.now()) {
 // ---------------------------------------------------------------------------
 // Reads.
 
-function summary(row) {
+function summary(row: ItemRow) {
   const item = row.record;
   return {
     source: row.source,
@@ -827,13 +988,24 @@ const KINDS = ["issue", "pr", "review", "ticket"];
 const STATES = ["open", "closed"];
 
 // intake.list: filters source, kind, state, untriaged; 100 per page.
-export function listItems(store, input = {}) {
+export function listItems(
+  store: Store,
+  input: {
+    kind?: string;
+    state?: string;
+    source?: string;
+    offset?: unknown;
+    untriaged?: boolean;
+  } = {},
+) {
   if (input.kind !== undefined && !KINDS.includes(input.kind))
     fail(`kind must be one of ${KINDS.join(", ")}.`);
   if (input.state !== undefined && !STATES.includes(input.state))
     fail(`state must be one of ${STATES.join(", ")}.`);
   const offset =
-      Number.isSafeInteger(input.offset) && input.offset >= 0
+      typeof input.offset === "number" &&
+      Number.isSafeInteger(input.offset) &&
+      input.offset >= 0
         ? input.offset
         : 0,
     rows = itemRows(store)
@@ -859,10 +1031,16 @@ export function listItems(store, input = {}) {
 }
 
 // intake.view: one item with its route, findings and history.
-export function viewItem(store, input = {}) {
+export function viewItem(
+  store: Store,
+  input: { source?: unknown; id?: unknown } = {},
+) {
   if (typeof input.source !== "string" || typeof input.id !== "string")
     fail("Name the item's source and id.");
-  const row = store.get("incoming_items", itemKey(input.source, input.id));
+  const row = store.get<ItemRow>(
+    "incoming_items",
+    itemKey(input.source, input.id),
+  );
   if (!row?.record)
     fail(`No item ${input.id} from source ${input.source}.`, 404);
   return {
@@ -878,20 +1056,24 @@ export function viewItem(store, input = {}) {
 }
 
 // The text a person confirms: the item's title and body as they read them.
-const snapshotDigest = (item) => digest(`${item.title}\n\n${item.body || ""}`);
+const snapshotDigest = (item: Item) =>
+  digest(`${item.title}\n\n${item.body || ""}`);
 
 // intake.confirm (R50.17): a person confirms the changed title and body of
 // an item whose task is held for it, naming the snapshotHash intake.view
 // showed. The task's snapshot moves to that text and it may run again. The
 // caller refuses a session or MCP with 403.
-export function confirmSnapshot(store, { source, id, hash } = {}) {
+export function confirmSnapshot(
+  store: Store,
+  { source, id, hash }: { source?: unknown; id?: unknown; hash?: unknown } = {},
+) {
   if (typeof source !== "string" || typeof id !== "string")
     fail("Name the item's source and id.");
-  const row = store.get("incoming_items", itemKey(source, id));
+  const row = store.get<ItemRow>("incoming_items", itemKey(source, id));
   if (!row?.record) fail(`No item ${id} from source ${source}.`, 404);
   const task =
     row.taskId && store.read().tasks.find((entry) => entry.id === row.taskId);
-  if (!task?.intake || task.dispatch?.state !== "quarantined")
+  if (!task || !task.intake || task.dispatch?.state !== "quarantined")
     fail(`${id}'s task is not held for changed text.`, 409);
   if (hash !== snapshotDigest(row.record))
     fail(
@@ -905,13 +1087,14 @@ export function confirmSnapshot(store, { source, id, hash } = {}) {
     task.id,
     `Confirm the new text of ${source} ${id}`,
     (next) => {
+      const intake = next.intake!;
       next.title = item.title;
-      next.intake.snapshotHash = digest(item.body || "");
-      next.intake.snapshotTitle = item.title;
-      next.intake.confirmedHash = hash;
-      next.intake.confirmedAt = at;
+      intake.snapshotHash = digest(item.body || "");
+      intake.snapshotTitle = item.title;
+      intake.confirmedHash = hash as string;
+      intake.confirmedAt = at;
       next.approvedSource = {
-        hash: next.intake.snapshotHash,
+        hash: intake.snapshotHash,
         text: item.body || "",
       };
       setDispatch(next, true, "authorized", "A person confirmed the new text.");
@@ -923,16 +1106,24 @@ export function confirmSnapshot(store, { source, id, hash } = {}) {
 // Plan this and Deliver this (R50.15): a person's start for a non-GitHub
 // item. The caller refuses a session or MCP with 403.
 export function startByPerson(
-  store,
-  sources,
-  githubPolicy,
-  { source: id, id: itemId, action } = {},
+  store: Store,
+  sources: Map<string, Source>,
+  githubPolicy: GitHubPolicy,
+  {
+    source: id,
+    id: itemId,
+    action,
+  }: { source?: string; id?: string; action?: string } = {},
 ) {
-  if (!["deliver", "plan"].includes(action)) fail("Choose deliver or plan.");
+  if (!action || !["deliver", "plan"].includes(action))
+    fail("Choose deliver or plan.");
   if (id === "github") fail("A GitHub item starts from the Issues page.", 409);
-  const source = sources.get(id);
+  const source = sources.get(id as string);
   if (!source) fail(`Source ${id} is not declared, or cannot be used.`, 404);
-  const row = store.get("incoming_items", itemKey(id, itemId));
+  const row = store.get<ItemRow>(
+    "incoming_items",
+    itemKey(id as string, itemId as string),
+  );
   if (!row?.record) fail(`No item ${itemId} from source ${id}.`, 404);
   if (row.record.kind === "review")
     fail("A review item goes to Code review, never to delivery.", 409);
@@ -948,7 +1139,7 @@ export function startByPerson(
     );
   const reason = `${action === "deliver" ? "Delivered" : "Sent to planning"} by a person from the Intake tab.`,
     taskId = startTask(store, row, bound, action, { by: "person", reason });
-  const next = {
+  const next: ItemRow & { route: Route } = {
     ...row,
     taskId,
     route: {

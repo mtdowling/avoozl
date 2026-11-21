@@ -1069,7 +1069,11 @@ const decisionId = (set, target) =>
 export function enforce(
   store,
   input,
-  { mode = "decide", taskId = null, source = null } = {},
+  {
+    mode = "decide",
+    taskId = null,
+    source = null,
+  }: { mode?: string; taskId?: string | null; source?: unknown } = {},
 ) {
   const result = check(store, {
       ...input,

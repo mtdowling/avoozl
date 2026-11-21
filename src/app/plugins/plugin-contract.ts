@@ -8,6 +8,7 @@
 // Contract versions this Avoozl loads (R34.8). Changes inside a version only
 // add optional fields or capabilities.
 import { checkRuleSets } from "../content/content-rules.ts";
+import type { Item } from "../intake/intake.ts";
 
 export const SUPPORTED_CONTRACTS = [1];
 
@@ -65,7 +66,7 @@ const names = (value, where, max) => {
 
 // One incoming item pushed over MCP (R50.1, R50.2), as untrusted data. The
 // source is the declared source's id, set by Avoozl, never by the caller.
-export function incomingItem(value, where = "item") {
+export function incomingItem(value, where = "item"): Item {
   object(value, where);
   if (!ITEM_KINDS.includes(value.kind))
     throw new ContractError(
