@@ -128,15 +128,23 @@ export function claimsOf(value, id) {
 
 // `labels.require` and `labels.exclude` (simplify §D5): label names on a
 // spec issue, read by label-filters.mjs.
-export const LABELS_KEYS = Object.freeze(["require", "exclude"]);
+// `labels.stop` (rule 10) names the stop label, default `avoozl:stopped`.
+export const LABELS_KEYS = Object.freeze(["require", "exclude", "stop"]);
 export function labelsOf(value, id) {
   if (
     !record(value) ||
     Object.keys(value).some((key) => !LABELS_KEYS.includes(key))
   )
-    fail(`Repository ${id} labels may set only require and exclude.`);
+    fail(`Repository ${id} labels may set only require, exclude and stop.`);
   const out = {};
-  for (const key of LABELS_KEYS) {
+  if (value.stop !== undefined) {
+    if (typeof value.stop !== "string" || !value.stop || value.stop.length > 50)
+      fail(
+        `Repository ${id} labels.stop must be one label name of 1–50 characters.`,
+      );
+    out.stop = value.stop;
+  }
+  for (const key of ["require", "exclude"]) {
     const names = value[key];
     if (names === undefined) continue;
     if (

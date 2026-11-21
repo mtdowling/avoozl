@@ -4,6 +4,7 @@
 // the branches each read saw, so a rebuilt cache finds every claim again.
 import { fail } from "../store/store.mjs";
 import { asJob, confirmStep } from "../github/github-jobs.mjs";
+import { git, remoteGit } from "../git/git.mjs";
 
 const PREFIX = "avoozl/";
 const META = "claims.branches";
@@ -449,4 +450,37 @@ export async function resumeClaim(
     else stopped.push(runner);
   }
   return { holder, lease, stopped };
+}
+
+// The takeover commit (workflow rule 15.8): a runner that took a lease on an
+// existing claim pushes a child of the claim branch's head that changes no
+// file, before it works or lands. The old holder's later push builds on the
+// head before it, so it is not a fast-forward and is rejected. A rejected
+// takeover reads the head again and pushes on top of it. Returns the
+// takeover commit.
+export async function pushTakeover(root, branch, { env, tries = 3 } = {}) {
+  const options = env ? { env } : {};
+  for (let attempt = 1; ; attempt++) {
+    await remoteGit(root, ["fetch", "-q", "origin", branch], options);
+    await git(
+      root,
+      ["checkout", "-q", "-B", branch, `origin/${branch}`],
+      options,
+    );
+    await git(
+      root,
+      ["commit", "-q", "--allow-empty", "-m", `Take over ${branch}`],
+      options,
+    );
+    try {
+      await remoteGit(
+        root,
+        ["push", "-q", "origin", `HEAD:refs/heads/${branch}`],
+        options,
+      );
+      return git(root, ["rev-parse", "HEAD"], options);
+    } catch (error) {
+      if (attempt >= tries) throw error;
+    }
+  }
 }

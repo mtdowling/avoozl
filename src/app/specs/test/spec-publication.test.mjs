@@ -233,7 +233,7 @@ test("the merger of an approving pull request publishes its spec issue with the 
   assert.deepEqual(await w.run(), []);
   assert.equal(w.github.created.length, 1);
   assert.deepEqual(w.github.created[0].assignees, [{ login: "alice" }]);
-  assert.match(w.github.created[0].body, /<!-- avoozl:spec config -->/);
+  assert.match(w.github.created[0].body, /^<!-- avoozl-spec:config -->$/m);
   // Published once: the next tick writes nothing.
   assert.deepEqual(await w.run(), []);
   assert.equal(w.github.created.length, 1);
@@ -271,7 +271,12 @@ test("an open issue with the spec's marker is used, not made again", async (t) =
     github: REPOSITORY,
   });
   w.github.listIssues = async () => [
-    { number: 5, state: "open", body: "<!-- avoozl:spec config -->" },
+    {
+      number: 5,
+      state: "open",
+      author_association: "OWNER",
+      body: "<!-- avoozl-spec:config -->",
+    },
   ];
   await w.run();
   assert.equal(w.github.created.length, 0);

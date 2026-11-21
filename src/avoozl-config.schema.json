@@ -929,6 +929,12 @@
                 "maxLength": 50
               },
               "description": "Labels that keep a spec from starting here. A task already claimed keeps running."
+            },
+            "stop": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 50,
+              "description": "The stop label. A writer's stop label on its spec issue, or a parent spec's, stops a spec. Default avoozl:stopped."
             }
           }
         },

@@ -260,7 +260,7 @@ Then
 
 - The newest lease of `parser/p-2` is `B`'s.
 - `parser/p-2` has the lease generations `1`, `2`.
-- GitHub rejects the pushes of `A`. Avoozl does not pass this yet.
+- GitHub rejects the pushes of `A`.
 
 ### An approved task text changes during a claim
 
@@ -2482,8 +2482,8 @@ When
 
 Then
 
-- Probe `specIssues` is `{"lexer":3,"parser":1,"widget":null}`. Avoozl does not pass this yet.
-- Probe `duplicates` is `[4]`. Avoozl does not pass this yet.
+- Probe `specIssues` is `{"lexer":3,"parser":1,"widget":null}`.
+- Probe `duplicates` is `[4]`.
 
 ### A stop on a parent spec's issue makes the linked tasks not ready
 
@@ -2528,7 +2528,7 @@ When
 
 Then
 
-- The ready tasks are `widget/w-1`. Avoozl does not pass this yet.
+- The ready tasks are `widget/w-1`.
 
 ### Each broken rule is refused, and clean specs are not
 

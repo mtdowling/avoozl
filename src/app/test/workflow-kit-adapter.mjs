@@ -18,6 +18,8 @@ import {
   taskRevision,
 } from "../workers/claim-rules.mjs";
 import { landingAction } from "../landing/landing-action.mjs";
+import { specIssuesOf } from "../specs/spec-publication.mjs";
+import { stoppedSpecs } from "../specs/label-filters.mjs";
 
 // The rule number in docs/github-workflow.md that each lint code enforces.
 // A code with no entry is reported as itself, so the case shows it.
@@ -164,6 +166,12 @@ export async function ready(testCase, specs) {
     }
   }
   const counts = unblockCounts(edges, (id) => !ticked.has(id)),
+    // Rule 10.1: the specs the case's stop labels stop.
+    stopped = stoppedSpecs(
+      Object.keys(specs),
+      new Set(testCase.stops ?? []),
+      linked,
+    ),
     isApproved = await approved(testCase, specs),
     merged = new Set(testCase.origin.mergedPullHeads ?? []),
     // Rule 8.3: the spec's issue and every parent spec's that links it.
@@ -185,6 +193,7 @@ export async function ready(testCase, specs) {
         !branches.has(`avoozl/${task.spec}/${task.id}`) &&
         !merged.has(`avoozl/${task.spec}/${task.id}`) &&
         isApproved[task.spec] &&
+        !stopped.has(task.spec) &&
         assigned(task.spec),
     )
     .sort(
@@ -375,8 +384,24 @@ async function manualTick(testCase, specs) {
   };
 }
 
-// Spec issue markers run through operations the simplify spec adds, so the
-// adapter leaves that probe out until its simplify task lands.
+// Rule 8.2: each spec's issue, by Avoozl's marker reader, where a writer is
+// a login the case lists in `writers`; and the newer duplicates it closes.
+function specIssues(testCase) {
+  const writers = new Set(testCase.writers ?? []),
+    { specs, duplicates } = specIssuesOf(testCase.issueList, (issue) =>
+      writers.has(issue.author),
+    );
+  return {
+    specIssues: Object.fromEntries(
+      Object.keys(testCase.expect.specIssues ?? {}).map((name) => [
+        name,
+        specs.get(name)?.number ?? null,
+      ]),
+    ),
+    duplicates: duplicates.map((issue) => issue.number),
+  };
+}
+
 export async function avoozl(testCase) {
   const specs = specsOf(testCase.files),
     got = {};
@@ -401,6 +426,8 @@ export async function avoozl(testCase) {
   if (testCase.expect.revision) got.revision = revision(testCase, specs);
   if (testCase.expect.manualTick)
     got.manualTick = await manualTick(testCase, specs);
+  if (testCase.expect.specIssues || testCase.expect.duplicates)
+    Object.assign(got, specIssues(testCase));
   if (testCase.expect.limits)
     got.limits = testCase.actions.map((action) =>
       runnerLimit(action, testCase.runner),

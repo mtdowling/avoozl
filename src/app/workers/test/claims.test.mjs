@@ -379,6 +379,60 @@ test("a spec runs only when its spec issue carries every require label, each a w
   );
 });
 
+test("a writer's stop label on the spec issue, or on a parent spec's, stops the spec until a writer removes it", async (t) => {
+  const s = setup(t, { tasks: [leaf("a")] }),
+    { readLabelFilters } = await import("../../specs/label-filters.mjs");
+  labeled(s, ["avoozl:stopped"]);
+  await readLabelFilters(s.store, s.github);
+  assert.deepEqual(await readyIds(s), []);
+  assert.match(
+    (await s.ops.execute("runner.next", {})).waiting[0].reason,
+    /^stopped: /,
+  );
+  // A stop label someone without write access added stops nothing.
+  labeled(s, ["avoozl:stopped"], { stranger: "read" }, "stranger");
+  await readLabelFilters(s.store, s.github);
+  assert.deepEqual(await readyIds(s), ["a"]);
+  // A parent spec's stop label stops the spec it links.
+  s.store.put("plans", {
+    id: "parser",
+    spec: "parser",
+    state: "approved",
+    files: { "tasks.md": "- [ ] `a` Task a\n  - Works\n" },
+  });
+  s.store.put("plans", {
+    id: "client-v2",
+    spec: "client-v2",
+    state: "approved",
+    files: {
+      "tasks.md": "- [ ] `v2-p` Build [parser](../parser/tasks.md)\n",
+    },
+  });
+  s.store.put("receipts", {
+    id: "github-parent:plan:client-v2",
+    kind: "github-parent",
+    level: "plan",
+    repository: "acme/app",
+    number: 8,
+  });
+  const on = { 7: [], 8: ["avoozl:stopped"] };
+  Object.assign(s.github, {
+    issue: async (_repository, number) => ({
+      number,
+      labels: on[number].map((name) => ({ name })),
+    }),
+    issueEvents: async (_repository, number) =>
+      on[number].map((name) => ({
+        event: "labeled",
+        label: { name },
+        actor: { login: "mona" },
+      })),
+    permission: async () => ({ permission: "write" }),
+  });
+  await readLabelFilters(s.store, s.github);
+  assert.deepEqual(await readyIds(s), []);
+});
+
 test("an exclude label added after the claim does not unclaim the task", async (t) => {
   const s = setup(t, { tasks: [leaf("a"), leaf("b")] });
   filtered(s, { require: [], exclude: ["needs-design"] });
@@ -433,7 +487,7 @@ test("an open issue with a writer's require label becomes task issue-<n> and cla
     },
     { number: 13, title: "A stranger's label", body: "x", by: "stranger" },
     { number: 14, title: "Someone else's", body: "x", assignees: [] },
-    { number: 15, title: "A spec issue", body: "<!-- avoozl:spec parser -->" },
+    { number: 15, title: "A spec issue", body: "<!-- avoozl-spec:parser -->" },
     { number: 16, title: "A pull request", body: "x", pull_request: {} },
   ]);
   const result = await claim(s.ops);

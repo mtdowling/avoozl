@@ -102,6 +102,13 @@ Avoozl does not triage issues or review other people's pull requests. Any
 agent runner, such as Issue Radar, can do that with the skills
 Avoozl ships; see [Agent skills](agent-skills.md).
 
+## Stopping a spec
+
+A writer stops a spec by adding the stop label to its spec issue. The default
+is `avoozl:stopped`, and `labels.stop` names another. A stop on a parent
+spec's issue stops every spec it links, and only a writer's removal clears it.
+See [Stopping a spec](github-workflow.md#10-stopping-a-spec).
+
 ## Pull-request reviews
 
 GitHub owns the review of a task that lands as a pull request. When the base

@@ -56,9 +56,5 @@
       "widget": null
     },
     "duplicates": [4]
-  },
-  "expectFail": {
-    "specIssues": "sim-6.1",
-    "duplicates": "sim-6.1"
   }
 }

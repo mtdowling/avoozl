@@ -12,6 +12,7 @@ import {
   claimBranch,
   deleteClaim,
   deleteOwnClaim,
+  pushTakeover,
   resumeClaim,
 } from "../workers/claims.mjs";
 import { landedWork, taskRevision } from "../workers/claim-rules.mjs";
@@ -262,7 +263,8 @@ export async function scenario(testCase) {
             title: item.title,
             acceptance: item.acceptance,
           };
-          sync(runner, branch);
+          // Rule 15.8: the takeover commit fences the old holder out.
+          await pushTakeover(runner.root, branch, { env: GIT_ENV });
         }
         return { holder: Boolean(taken.holder), lease: taken.lease };
       },

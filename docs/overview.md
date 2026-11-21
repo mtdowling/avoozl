@@ -73,6 +73,7 @@ No label is an order. The labels Avoozl reads are per-repository settings:
 | Priority (ready tasks with it start first) | `priorityLabels` | A person                                  |
 | Waiting on the author (holds a task)       | `waitingLabels`  | A person                                  |
 | Spec issues this machine works             | `labels.require`, `labels.exclude` | A person                |
+| Stop a spec and the specs it links         | `labels.stop` (default `avoozl:stopped`) | A writer |
 
 ## Screens
 

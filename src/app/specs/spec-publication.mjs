@@ -58,10 +58,41 @@ function remember(store, level, id, config, issue, extra = {}) {
   });
 }
 
-// The hidden comment that names the spec or epic an issue is for (workflow
-// rule 8.2), so a rebuilt cache finds the issue again.
-const issueMark = (kind, id) => `<!-- avoozl:${kind} ${id} -->`;
-const MARK = /<!-- avoozl:(spec|epic) ([A-Za-z0-9][A-Za-z0-9._-]{0,159}) -->/;
+// The hidden line that names the spec an issue is for (workflow rule 8.2):
+// exactly `<!-- avoozl-spec:NAME -->`, so any runner finds the issue again.
+// An epic's issue keeps its own mark.
+const issueMark = (kind, id) =>
+  kind === "spec"
+    ? `<!-- avoozl-spec:${id} -->`
+    : `<!-- avoozl:${kind} ${id} -->`;
+const SPEC_MARK = /^<!-- avoozl-spec:([A-Za-z0-9._-]+) -->$/m;
+const EPIC_MARK = /<!-- avoozl:epic ([A-Za-z0-9][A-Za-z0-9._-]{0,159}) -->/;
+
+// The authors GitHub names as writers on an issue: the repository's owner,
+// a member of its organization, or a collaborator.
+// shortcut: the association stands in for a permission read; read
+// permissions when a team counts a role that has no association.
+const WRITER_ASSOCIATIONS = new Set(["OWNER", "MEMBER", "COLLABORATOR"]);
+export const writerIssue = (issue) =>
+  WRITER_ASSOCIATIONS.has(String(issue.author_association ?? "").toUpperCase());
+
+// Rule 8.2 over a repository's issues: each spec's issue is the oldest open
+// issue by a writer whose body holds the spec's marker line; a newer open one
+// for the same spec is a duplicate. Returns {specs: Map name -> issue,
+// duplicates: [issue]}.
+export function specIssuesOf(issues, isWriter = writerIssue) {
+  const specs = new Map(),
+    duplicates = [];
+  for (const issue of [...(issues ?? [])].sort((a, b) => a.number - b.number)) {
+    if (issue.state && issue.state !== "open") continue;
+    if (issue.pull_request || !isWriter(issue)) continue;
+    const name = SPEC_MARK.exec(issue.body ?? "")?.[1];
+    if (!name) continue;
+    if (specs.has(name)) duplicates.push(issue);
+    else specs.set(name, issue);
+  }
+  return { specs, duplicates };
+}
 
 const issueBody = (kind, id) =>
   [
@@ -72,10 +103,9 @@ const issueBody = (kind, id) =>
     issueMark(kind, id),
   ].join("\n");
 
-// Read every open spec and epic issue back from its hidden comment, in each
-// repository with a GitHub name, and keep the oldest per spec. Reads only.
-// shortcut: two open issues for one spec are not closed here (rule 8.2);
-// the older one is used.
+// Read every open spec and epic issue back from its hidden line, in each
+// repository with a GitHub name, and keep the oldest per spec. A newer open
+// issue for the same spec is a duplicate, and is closed (rule 8.2).
 export async function readSpecIssues(store, github) {
   const found = [],
     errors = [];
@@ -89,13 +119,26 @@ export async function readSpecIssues(store, github) {
       errors.push({ repository: repository.github, error: error.message });
       continue;
     }
-    for (const issue of [...(issues ?? [])].sort(
-      (a, b) => a.number - b.number,
-    )) {
-      const match = MARK.exec(issue.body ?? "");
-      if (!match) continue;
-      const level = match[1] === "spec" ? "plan" : "epic",
-        id = match[2];
+    const { specs, duplicates } = specIssuesOf(issues),
+      marked = [
+        ...[...specs].map(([id, issue]) => ({ level: "plan", id, issue })),
+        ...[...(issues ?? [])]
+          .sort((a, b) => a.number - b.number)
+          .flatMap((issue) => {
+            const id = EPIC_MARK.exec(issue.body ?? "")?.[1];
+            return id ? [{ level: "epic", id, issue }] : [];
+          }),
+      ];
+    for (const issue of duplicates)
+      if (github.updateIssue)
+        try {
+          await github.updateIssue(repository.github, issue.number, {
+            state: "closed",
+          });
+        } catch (error) {
+          errors.push({ repository: repository.github, error: error.message });
+        }
+    for (const { level, id, issue } of marked) {
       if (store.get("receipts", receiptId(level, id))?.number) continue;
       remember(
         store,
