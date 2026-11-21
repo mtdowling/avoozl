@@ -56,6 +56,8 @@ export interface TickResult {
     crew?: unknown;
     [key: string]: unknown;
   }[];
+  // The notices it queued.
+  notify?: { link?: string; [key: string]: unknown }[];
   [key: string]: unknown;
 }
 

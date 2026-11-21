@@ -15,7 +15,7 @@ import type { Operations } from "../api/operations.ts";
 import { checkRuns, drainCheckRuns } from "../delivery/check-runs.ts";
 
 // One dispatch the tick asked for, as these sessions read it.
-interface Dispatch {
+export interface Dispatch {
   executor: string;
   task: string;
   role: string;
@@ -39,7 +39,10 @@ export interface CrewSession extends Dispatch {
 export interface SessionContext {
   session: CrewSession;
   report: (input: Record<string, unknown>) => Promise<unknown>;
-  refused: (input: Record<string, unknown>, pattern: RegExp) => Promise<void>;
+  refused: (
+    input: Record<string, unknown>,
+    pattern: RegExp | ((error: Error) => boolean),
+  ) => Promise<void>;
   worktree: () => Promise<string>;
 }
 export type Script = "hold" | ((context: SessionContext) => unknown);

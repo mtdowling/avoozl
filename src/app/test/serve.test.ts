@@ -1,11 +1,10 @@
-// @ts-nocheck: typing debt
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import http from "node:http";
 import net from "node:net";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { fileURLToPath } from "node:url";
 import { principalAllows } from "../api/command-dispatch.ts";
 import { workspaceConfig } from "../settings/config.ts";
@@ -15,13 +14,27 @@ import { ABSOLUTE_MS, IDLE_MS, LINK_TTL_MS } from "../serve/serve-auth.ts";
 import { contentSecurityPolicy, startServe } from "../serve/serve-server.ts";
 import { initializeWorkspace } from "../workspace/workspace.ts";
 import { temporaryDirectory } from "./temporary.ts";
+import { found } from "./view-shapes.ts";
 
 const cli = fileURLToPath(new URL("../../../cli.ts", import.meta.url));
 const STYLE = "a{color:red}";
 
+// One HTTP answer, read whole.
+interface Reply {
+  status: number;
+  headers: http.IncomingHttpHeaders;
+  text: string;
+}
+// A signed-in browser: its session cookie and CSRF token.
+interface Session {
+  res: Reply;
+  cookie?: string;
+  csrf?: string;
+}
+
 // A built page small enough to need no build: the real files are checked by the
 // standalone build tests.
-function fakeUi(root) {
+function fakeUi(root: string) {
   const ui = path.join(root, "ui"),
     dist = path.join(ui, "dist", "standalone");
   fs.mkdirSync(path.join(dist, "assets"), { recursive: true });
@@ -39,8 +52,8 @@ function fakeUi(root) {
   return ui;
 }
 
-function isolatedEnv(root) {
-  const env = {
+function isolatedEnv(root: string) {
+  const env: NodeJS.ProcessEnv = {
     ...process.env,
     XDG_CONFIG_HOME: path.join(root, "xdg-config"),
     XDG_STATE_HOME: path.join(root, "xdg-state"),
@@ -54,12 +67,12 @@ function isolatedEnv(root) {
   return env;
 }
 
-async function serve(t, options = {}) {
+async function serve(t: TestContext, options: Record<string, unknown> = {}) {
   const root = temporaryDirectory(),
     workspace = path.join(root, "ws"),
     stateDirectory = path.join(root, "state"),
     configDirectory = path.join(root, "config"),
-    lines = [];
+    lines: string[] = [];
   initializeWorkspace(workspace);
   fs.mkdirSync(path.join(root, "home"));
   const clock = { now: 1_800_000_000_000 };
@@ -67,20 +80,30 @@ async function serve(t, options = {}) {
     config: workspaceConfig({ workspace, env: isolatedEnv(root) }),
     uiDir: fakeUi(root),
     stateDirectory,
-    configDirectory,
     home: path.join(root, "home"),
     registryOptions: {
       configPath: path.join(root, "machine", "config.json"),
       catalogPath: path.join(root, "machine", "catalog.sqlite"),
     },
     now: () => clock.now,
-    log: (line) => lines.push(line),
+    log: (line: string) => lines.push(line),
     ...options,
   });
-  t.after(() => new Promise((resolve) => server.close(resolve)));
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
   const port = server.port;
-  const call = (path_, { method = "GET", headers = {}, body } = {}) =>
-    new Promise((resolve, reject) => {
+  const call = (
+    path_: string,
+    {
+      method = "GET",
+      headers = {},
+      body,
+    }: {
+      method?: string;
+      headers?: Record<string, string | undefined>;
+      body?: string;
+    } = {},
+  ) =>
+    new Promise<Reply>((resolve, reject) => {
       const req = http.request(
         {
           host: "127.0.0.1",
@@ -90,11 +113,11 @@ async function serve(t, options = {}) {
           headers: { Host: `127.0.0.1:${port}`, ...headers },
         },
         (res) => {
-          const chunks = [];
-          res.on("data", (c) => chunks.push(c));
+          const chunks: Buffer[] = [];
+          res.on("data", (c: Buffer) => chunks.push(c));
           res.on("end", () =>
             resolve({
-              status: res.statusCode,
+              status: res.statusCode ?? 0,
               headers: res.headers,
               text: Buffer.concat(chunks).toString("utf8"),
             }),
@@ -105,17 +128,23 @@ async function serve(t, options = {}) {
       req.end(body);
     });
   const origin = `http://127.0.0.1:${port}`;
-  const token = new URL(server.ownerLink).searchParams.get("token");
+  const token = found(
+    new URL(found(server.ownerLink)).searchParams.get("token"),
+  );
   // Sign in with the first link: { cookie, csrf }.
-  const signIn = async (value = token) => {
+  const signIn = async (value = token): Promise<Session> => {
     const res = await call(`/login?token=${value}`);
     if (res.status !== 303) return { res };
-    const cookie = res.headers["set-cookie"][0].split(";")[0];
+    const cookie = found(res.headers["set-cookie"])[0].split(";")[0];
     const page = await call("/apps/avoozl", { headers: { Cookie: cookie } });
     const csrf = page.text.match(/name="avoozl-csrf" content="([^"]+)"/)?.[1];
     return { res, cookie, csrf };
   };
-  const post = (session, value, extra = {}) =>
+  const post = (
+    session: Session,
+    value: unknown,
+    extra: Record<string, string> = {},
+  ) =>
     call("/apps/avoozl/api/command", {
       method: "POST",
       headers: {
@@ -144,16 +173,22 @@ async function serve(t, options = {}) {
 }
 
 test("the listener is on 127.0.0.1 and nowhere else (SW3.6)", async (t) => {
-  const { server } = await serve(t);
-  assert.equal(server.address().address, "127.0.0.1");
-  assert.equal(server.address().family, "IPv4");
+  const { server } = await serve(t),
+    address = server.address();
+  assert.ok(address && typeof address === "object");
+  assert.equal(address.address, "127.0.0.1");
+  assert.equal(address.family, "IPv4");
 });
 
 test("a taken port exits with 'port N is in use' and tries no other (SW3.2)", async (t) => {
   const holder = net.createServer();
-  await new Promise((resolve) => holder.listen(0, "127.0.0.1", resolve));
+  await new Promise<void>((resolve) =>
+    holder.listen(0, "127.0.0.1", () => resolve()),
+  );
   t.after(() => holder.close());
-  const taken = holder.address().port;
+  const held = holder.address();
+  assert.ok(held && typeof held === "object");
+  const taken = held.port;
   const root = temporaryDirectory(),
     workspace = path.join(root, "ws");
   initializeWorkspace(workspace);
@@ -163,13 +198,16 @@ test("a taken port exits with 'port N is in use' and tries no other (SW3.2)", as
       uiDir: fakeUi(root),
       port: taken,
       stateDirectory: path.join(root, "state"),
-      configDirectory: path.join(root, "config"),
       log: () => {},
     }),
     new RegExp(`port ${taken} is in use`),
   );
   await assert.rejects(
-    startServe({ config: {}, uiDir: "x", port: 80 }),
+    startServe({
+      config: workspaceConfig({ workspace, env: isolatedEnv(root) }),
+      uiDir: "x",
+      port: 80,
+    }),
     /1024 to 65535/,
   );
 });
@@ -199,7 +237,7 @@ test("a link works once, and fails after use and after ten minutes with the same
 test("the cookie is HttpOnly, SameSite=Strict, Path=/, has no Domain and a port in its name (SW4.4)", async (t) => {
   const s = await serve(t);
   const { res } = await s.signIn();
-  const cookie = res.headers["set-cookie"][0];
+  const cookie = found(res.headers["set-cookie"])[0];
   assert.match(cookie, /; HttpOnly/);
   assert.match(cookie, /; SameSite=Strict/);
   assert.match(cookie, /; Path=\//);
@@ -216,7 +254,7 @@ test("sign-in returns to the decision a link asked for, and never off the page",
     "/apps/avoozl?workspace=main&decision=AbCdEfGhIjKlMnOp&x=1",
   );
   assert.equal(asked.status, 401);
-  const next = asked.headers["set-cookie"][0];
+  const next = found(asked.headers["set-cookie"])[0];
   assert.match(next, new RegExp(`^avoozl_next_${s.port}=`));
   assert.match(next, /; HttpOnly; SameSite=Lax; Path=\/login; Max-Age=600/);
   const signed = await s.call(`/login?token=${s.token}`, {
@@ -228,7 +266,7 @@ test("sign-in returns to the decision a link asked for, and never off the page",
     "/apps/avoozl?workspace=main&decision=AbCdEfGhIjKlMnOp",
   );
   assert.match(
-    signed.headers["set-cookie"][1],
+    found(signed.headers["set-cookie"])[1],
     /^avoozl_next_\d+=; .*Max-Age=0/,
   );
   // A page with no valid decision sets nothing to return to.
@@ -256,7 +294,7 @@ test("sign-in returns to the decision a link asked for, and never off the page",
     assert.equal(res.status, 303);
     // Always this page's own path: rebuilt from checked parts, never copied.
     assert.match(
-      res.headers.location,
+      String(res.headers.location),
       /^\/apps\/avoozl(\?decision=[A-Za-z0-9_-]+)?$/,
       forged,
     );
@@ -283,8 +321,8 @@ test("the CSRF token is in the page for a cookie request and in no cookie (SW4.6
   const s = await serve(t);
   const { res, cookie, csrf } = await s.signIn();
   assert.ok(csrf && csrf.length >= 43);
-  assert.ok(!res.headers["set-cookie"].join(";").includes(csrf));
-  assert.ok(!cookie.includes(csrf));
+  assert.ok(!found(res.headers["set-cookie"]).join(";").includes(csrf));
+  assert.ok(!found(cookie).includes(csrf));
   const bare = await s.call("/apps/avoozl");
   assert.ok(!bare.text.includes(csrf));
 });
@@ -292,20 +330,20 @@ test("the CSRF token is in the page for a cookie request and in no cookie (SW4.6
 test("each refusal of SW4.7 is a 403 before any other work, and a good request is not", async (t) => {
   const s = await serve(t);
   const session = await s.signIn();
-  const base = {
+  const base: Record<string, string | undefined> = {
     Cookie: session.cookie,
     Origin: s.origin,
     "Content-Type": "application/json",
     "X-Avoozl-CSRF": session.csrf,
   };
-  const send = (headers) =>
+  const send = (headers: Record<string, string | undefined>) =>
     s.call("/apps/avoozl/api/command", {
       method: "POST",
       headers,
       body: JSON.stringify({ operation: "workspaces.list" }),
     });
   assert.equal((await send(base)).status, 200, "a good request");
-  const without = (name) => {
+  const without = (name: string) => {
     const copy = { ...base };
     delete copy[name];
     return copy;
@@ -405,7 +443,7 @@ test("no response has an Access-Control-Allow header and every one has the SW4.8
 test("pages come from a fixed list; a path is never joined to a folder (SW3.4)", async (t) => {
   const s = await serve(t);
   const { cookie } = await s.signIn();
-  const get = (p) => s.call(p, { headers: { Cookie: cookie } });
+  const get = (p: string) => s.call(p, { headers: { Cookie: cookie } });
   assert.equal((await get("/")).status, 302);
   assert.equal((await get("/apps/avoozl/assets/a.js")).status, 200);
   assert.equal((await get("/apps/avoozl/NOTICE")).status, 404);
@@ -512,7 +550,7 @@ test("a session ends after 12 idle hours, after 7 days, and at logout (SW4.4, SW
     body: "{}",
   });
   assert.equal(out.status, 200);
-  assert.match(out.headers["set-cookie"][0], /Max-Age=0/);
+  assert.match(found(out.headers["set-cookie"])[0], /Max-Age=0/);
   assert.equal(
     (await s.call("/apps/avoozl", { headers: { Cookie: b.cookie } })).status,
     401,
@@ -522,11 +560,11 @@ test("a session ends after 12 idle hours, after 7 days, and at logout (SW4.4, SW
 test("the server's end is a sign-out: sessions are not on disk", async (t) => {
   const s = await serve(t);
   const a = await s.signIn();
-  const cookieValue = a.cookie.split("=")[1];
+  const cookieValue = found(a.cookie).split("=")[1];
   for (const file of fs.readdirSync(s.stateDirectory)) {
     const bytes = fs.readFileSync(path.join(s.stateDirectory, file));
     assert.ok(!bytes.includes(cookieValue), file);
-    assert.ok(!bytes.includes(a.csrf), file);
+    assert.ok(!bytes.includes(found(a.csrf)), file);
     assert.ok(!bytes.includes(s.token), file);
   }
 });
@@ -538,7 +576,7 @@ test("no token, cookie or CSRF value is in the log, serve.json or the database (
   await s.call(`/apps/avoozl?token=${s.token}`, {
     headers: { Cookie: a.cookie },
   });
-  const secrets = [s.token, a.cookie.split("=")[1], a.csrf];
+  const secrets = [s.token, found(a.cookie).split("=")[1], found(a.csrf)];
   const all = [s.lines.join("\n")];
   const state = JSON.parse(
     fs.readFileSync(path.join(s.stateDirectory, "serve.json"), "utf8"),
@@ -584,7 +622,7 @@ test("the machine state and configuration folders are outside a child's roots (S
     stateDirectory,
     configDirectory,
   });
-  const real = (p) => fs.realpathSync(p);
+  const real = (p: string) => fs.realpathSync(p);
   assert.ok(
     denied.includes(real(stateDirectory)),
     "serve.json and serve.sqlite",
@@ -668,7 +706,7 @@ test("the Kiro Crew gateway routes the page calls answer 'Needs Kiro Crew' or em
   const s = await serve(t);
   assert.equal((await s.call("/api/models")).status, 401);
   const a = await s.signIn();
-  const get = (p) => s.call(p, { headers: { Cookie: a.cookie } });
+  const get = (p: string) => s.call(p, { headers: { Cookie: a.cookie } });
   assert.deepEqual(JSON.parse((await get("/api/models")).text).models, []);
   assert.deepEqual(JSON.parse((await get("/api/chat/slots")).text), []);
   const radar = await get("/api/apps/issue-radar/crews");
@@ -705,7 +743,9 @@ test("stopping the server ends open keep-alive connections, so an old session ca
           res.on("end", () => resolve(res.statusCode));
         },
       );
-      req.on("error", (error) => resolve(error.code ?? "error"));
+      req.on("error", (error: Error & { code?: string }) =>
+        resolve(error.code ?? "error"),
+      );
     });
   assert.equal(await once(), 200);
   await new Promise((resolve) => s.server.close(resolve));
