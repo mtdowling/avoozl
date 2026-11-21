@@ -1,0 +1,65 @@
+{
+  "name": "claude-code",
+  "start": [
+    "claude",
+    "-p",
+    "--output-format",
+    "json",
+    "--session-id",
+    "{session_uuid}",
+    "--permission-mode",
+    "{permission}"
+  ],
+  "resume": [
+    "claude",
+    "-p",
+    "--output-format",
+    "json",
+    "--resume",
+    "{session_uuid}",
+    "--permission-mode",
+    "{permission}"
+  ],
+  "attach": ["claude", "--resume", "{session_uuid}"],
+  "home": "CLAUDE_CONFIG_DIR",
+  "label": ["--name", "{lane_header}"],
+  "sessions": "projects",
+  "promptFrom": "stdin",
+  "model": ["--model", "{model}"],
+  "permission": { "write": "acceptEdits", "read": "dontAsk" },
+  "writeRoots": ["{worktree}", "{tmp}", "{repository_cache_dirs}"],
+  "allow": ["--allowedTools", "Bash({repository_allow_commands}:*)"],
+  "context": {
+    "mcp": ["--mcp-config", "{context_mcp}", "--strict-mcp-config"]
+  },
+  "resultAllow": [
+    "--allowedTools",
+    "Edit(/{worktree}/.avoozl/result.json)",
+    "--allowedTools",
+    "Edit(/{worktree}/.avoozl/output/*)"
+  ],
+  "servedModel": { "from": "output", "field": "modelUsage" },
+  "cost": { "from": "output", "field": "total_cost_usd", "per": "session" },
+  "keepEnv": [
+    "ANTHROPIC_API_KEY",
+    "AWS_PROFILE",
+    "AWS_REGION",
+    "AWS_DEFAULT_REGION",
+    "AWS_CONFIG_FILE",
+    "AWS_SHARED_CREDENTIALS_FILE",
+    "CLAUDE_CODE_USE_BEDROCK"
+  ],
+  "reads": ["~/.claude", "~/.claude.json", "~/.aws"],
+  "homeFiles": ["~/.claude/settings.json"],
+  "probe": ["claude", "-p", "ok"],
+  "tmpEnv": ["CLAUDE_CODE_TMPDIR"],
+  "egress": ["bedrock-runtime.*.amazonaws.com"],
+  "credentialExport": [
+    "aws",
+    "configure",
+    "export-credentials",
+    "--format",
+    "process"
+  ],
+  "proved": ["read", "write"]
+}

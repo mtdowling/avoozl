@@ -69,6 +69,9 @@ the tick wraps it in:
   the network, and `sandbox.modelProxy` for the proxy the agent reaches its
   model through. Every role gets `modelProxy`, even one that reads only its
   folder, such as the code review; only `network` is withheld from those.
+- A harness definition with `egress` gets its own proxy on `127.0.0.1`,
+  which tunnels only to the hosts listed there. Its sandbox opens that one
+  port, so those hosts are all it can reach.
 - Token, key, secret and password variables, `GH_*`, `GITHUB_*`, `AWS_*`,
   `KIROCREW_*` and `SSH_AUTH_SOCK` are removed from its environment, and git
   gets no credential helper. The names its harness definition lists in
