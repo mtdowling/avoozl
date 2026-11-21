@@ -13,7 +13,7 @@ test("a decision with no kept failed checks gives no failed checks and no error"
   const [item] = addItemContext(store, store.read(), [
     { kind: "stale-session", taskId: task.id },
   ]);
-  assert.equal(item.context.failedChecks, null);
+  assert.equal(item.context?.failedChecks, null);
   // The same with a cause but no kept checks.
   store.put("task_deliveries", {
     id: task.id,
@@ -23,5 +23,5 @@ test("a decision with no kept failed checks gives no failed checks and no error"
   const [again] = addItemContext(store, store.read(), [
     { kind: "stale-session", taskId: task.id },
   ]);
-  assert.equal(again.context.failedChecks, null);
+  assert.equal(again.context?.failedChecks, null);
 });
