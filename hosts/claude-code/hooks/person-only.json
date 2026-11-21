@@ -40,14 +40,6 @@
     "approve"
   ],
   [
-    "plan",
-    "delete"
-  ],
-  [
-    "plan",
-    "restore"
-  ],
-  [
     "task",
     "done"
   ],

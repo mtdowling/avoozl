@@ -69,7 +69,6 @@ import {
   taskDetailView,
   withGraphState,
 } from "../api/page-views.mjs";
-import { archiveTask } from "../specs/plan-retire.mjs";
 import { conversationSettings } from "../settings/repository-settings.mjs";
 import { fail } from "../store/store.mjs";
 import { WORKSPACE_LOCK, readDeliveryPolicy } from "../tick/tick.mjs";
@@ -113,7 +112,10 @@ function taskArchiveHandler({ name, input, expectedRevision }) {
             fail("reason is one line of 1–200 characters.");
           task.archivedReason = input.reason.trim();
         }
-        return archiveTask(task);
+        const at = new Date().toISOString();
+        task.archivedAt = task.archivedAt || at;
+        task.updatedAt = at;
+        return task;
       }
       delete task.archivedReason;
       task.archivedAt = null;

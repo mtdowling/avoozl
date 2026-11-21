@@ -31,8 +31,6 @@ test('every destructive button asks first through a red confirm', () => {
   }
   // Two labels open or edit an unsaved form rather than act: Supersede opens
   // the replacement form (its Create replacement asks).
-  // Plans' trash buttons open DeletePlanDialog, whose red Delete plan button
-  // is the confirm itself (it says what happens and can't be sent by Enter).
   // Providers' limit Remove drops a row from the Thresholds form before Save.
   // The quick goal's Discard drops a proposal nobody has approved; nothing was written.
   // SaveFooter's Discard puts the form back to what is saved; nothing is written.
@@ -42,7 +40,6 @@ test('every destructive button asks first through a red confirm', () => {
     'DeliveryDetails.tsx: Supersede',
     'PlansView.tsx: )}',
     'PlansView.tsx: ',
-    'PlansView.tsx: Delete spec',
     'QuickGoalModal.tsx: Discard',
     'WorkspaceView.tsx: Remove from list',
     'SaveFooter.tsx: Discard',
@@ -161,7 +158,7 @@ test('the spec view keeps its details in a box on the Overview tab, with Edit an
     "Open this spec's documents and tasks",
     "Show this spec's tasks in the Graph",
     'Open this spec to check and approve it',
-    'Start a planner chat to change this spec',
+    'Run in a chat: the avoozl-spec skill revises this spec',
   ])
     assert.ok(plans.includes(`tooltip="${label}"`), label)
 })

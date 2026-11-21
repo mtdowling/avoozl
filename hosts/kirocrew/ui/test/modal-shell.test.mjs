@@ -104,8 +104,6 @@ async function assertCloses(name, opener) {
 const SCENARIOS = {
   'add-plugin': ['Add plugin', null, 'Cancel'],
   'repo-edit': ['Open the dialog', 'avoozl', 'Cancel'],
-  'archive-plan': ['Open the dialog', 'Archive the spec Modal plan?', 'Cancel'],
-  'delete-plan': ['Open the dialog', /^Delete the spec /, 'Cancel'],
   confirm: ['Remove', 'Remove avoozl?', 'Cancel'],
   'file-viewer': ['Open the dialog', 'docs/guide.md', 'Close'],
   'stop-line': ['Stop the line', 'Stop the line', 'Cancel'],

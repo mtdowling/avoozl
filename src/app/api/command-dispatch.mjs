@@ -124,10 +124,6 @@ export const APP_OPERATIONS = new Set([
   "github.settings.get",
   "github.settings.validate",
   "github.settings.update",
-  "plan.delete",
-  "plan.delete.preview",
-  "plan.archive",
-  "plan.unarchive",
   // Send message on a `process` session (R98.2).
   "session.send",
   "session.open",

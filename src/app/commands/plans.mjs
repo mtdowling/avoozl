@@ -55,59 +55,6 @@ export const commands = [
     },
   },
   {
-    command: "plan delete",
-    help: [
-      help(
-        "plan",
-        "plan delete PLAN_OR_SPEC [--yes] [--retire] [--delete-spec-folder]",
-        "Preview a plan delete; --yes deletes (a person only). --retire is for an approved plan",
-      ),
-    ],
-    async run({ options, positionals, localOrRequest, need }) {
-      const id = need(
-          positionals[1],
-          "plan delete PLAN_ID_OR_SPEC_NAME [--yes] [--retire] [--delete-spec-folder]",
-        ),
-        preview = await localOrRequest("plan.delete.preview", { id });
-      if (!options.yes) {
-        console.log(JSON.stringify(preview, null, 2));
-        console.error("Nothing changed. Add --yes to delete this plan.");
-      } else
-        console.log(
-          JSON.stringify(
-            await localOrRequest("plan.delete", {
-              id: preview.id,
-              retire: options.retire === true,
-              deleteSpecFolder: options["delete-spec-folder"] === true,
-            }),
-            null,
-            2,
-          ),
-        );
-    },
-  },
-  {
-    command: "plan restore",
-    help: [
-      help(
-        "plan",
-        "plan restore PLAN_ID",
-        "Bring a deleted plan back (a person only)",
-      ),
-    ],
-    async run({ positionals, localOrRequest, need }) {
-      console.log(
-        JSON.stringify(
-          await localOrRequest("plan.restore", {
-            id: need(positionals[1], "plan restore PLAN_ID"),
-          }),
-          null,
-          2,
-        ),
-      );
-    },
-  },
-  {
     command: "planning",
     help: [
       help(

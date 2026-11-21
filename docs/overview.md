@@ -91,24 +91,6 @@ The nav has six entries, defined in `hosts/kirocrew/ui/src/nav-api.ts`:
 with the matching skill and the item's IDs: a Kiro Crew chat inside Kiro Crew,
 and a process session on the standalone page.
 
-## Deleting a plan
-
-`avoozl plan delete PLAN_ID_OR_SPEC_NAME` prints a preview and changes nothing.
-The preview shows the open tasks that would be archived, tasks already done,
-running chats (left alone), dependents, and the spec folder state. A spec name
-works in place of the ID. If two plans share the name, the command refuses and
-lists their IDs.
-
-- `--yes` deletes. A draft is marked deleted and kept.
-- `--retire` is needed with `--yes` for a plan that was ever approved, as the
-  page's Delete asks.
-- `--delete-spec-folder` also removes the spec folder. It is off by default,
-  and the command refuses when the folder has uncommitted changes.
-
-`avoozl plan restore PLAN_ID` brings a deleted plan back. Both commands are for
-a person, and MCP and chat callers are refused. The CLI runs them anywhere but
-a `process` child, and says so when it runs inside an agent session.
-
 ## Agent prompts
 
 Each agent role's standing instructions are Markdown files in

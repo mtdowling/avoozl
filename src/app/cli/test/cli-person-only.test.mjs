@@ -44,7 +44,7 @@ test("a supervisor child is refused (R95.5)", () => {
   assert.equal(cliRefusal("session.report", {}, { env: child }), null);
 });
 
-test("the CLI runs plan.delete in an agent session and refuses it in a child", () => {
+test("the CLI runs plan.approve in an agent session and refuses it in a child", () => {
   const workspace = temporaryDirectory("avoozl-person-only-");
   initializeWorkspace(workspace, { name: "t" });
   const run = (extra, env) =>
@@ -52,9 +52,9 @@ test("the CLI runs plan.delete in an agent session and refuses it in a child", (
       process.execPath,
       [
         cli,
-        "plan.delete",
+        "plan.approve",
         "--json",
-        JSON.stringify({ planId: "nope" }),
+        JSON.stringify({ id: "nope" }),
         "--workspace",
         workspace,
         ...extra,

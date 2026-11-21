@@ -23,7 +23,7 @@ import AddPlugin from '../../src/AddPlugin.tsx'
 import { Modal } from '../../src/ui/Modal.tsx'
 import { specGraph } from './spec-graph-fixture.ts'
 import { installInlineFixture } from './settings-inline-fixture.ts'
-import PlansView, { ArchivePlanDialog, DeletePlanDialog } from '../../src/PlansView.tsx'
+import PlansView from '../../src/PlansView.tsx'
 import { DocumentReader } from '../../src/DocumentReader.tsx'
 import { StopLineButton } from '../../src/StopLine.tsx'
 import WorkspaceView from '../../src/WorkspaceView.tsx'
@@ -254,8 +254,6 @@ export const SCENARIOS: Record<string, Scenario> = {
   'add-plugin': own('Add plugin', <AddPlugin workspaceId="w" client={idle} supported={[1]} onChanged={async () => undefined} />),
   'repo-edit': repoEdit(false),
   'repo-edit-unsaved': repoEdit(true),
-  'archive-plan': shown((close) => <ArchivePlanDialog workspaceId="w" row={row as never} client={idle} onDone={close} />),
-  'delete-plan': shown((close) => <DeletePlanDialog workspaceId="w" row={row as never} client={idle} onDone={close} />),
   confirm: own(
     'Remove',
     <DangerBtn confirm={{ title: 'Remove avoozl?', body: 'Its settings go. The checkout stays.', action: 'Remove' }} onConfirm={() => undefined}>

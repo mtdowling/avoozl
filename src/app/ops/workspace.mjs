@@ -23,7 +23,6 @@ import {
   globalLocalIgnoreStatus,
 } from "../workspace/local-ignore.mjs";
 import { loadLayeredConfig } from "../settings/layered-config.mjs";
-import { archiveEnded } from "../specs/plan-retire.mjs";
 import { chatBrief } from "../workers/epic-context.mjs";
 import { fail } from "../store/store.mjs";
 import { recordReleased, tick, tickHealth, tickLog } from "../tick/tick.mjs";
@@ -90,8 +89,6 @@ export const entries = [
         contextBrief: (entry) => chatBrief(store, this, entry),
       });
       if (result.skipped) return result;
-      // A deleted plan's tasks whose chats have ended are archived now.
-      archiveEnded(store);
       // A cron or roster pass reads the layered config, so a bad file
       // refuses the pass naming its key (layered-config.mjs).
       if (

@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
-import { ARCHIVE_LINES, filterRows, planEventLine, rowActions } from '../src/plans-api.ts'
+import { filterRows, planEventLine } from '../src/plans-api.ts'
 import { filterGraph, matches, readFilter } from '../src/filters.ts'
 import { deliveryLanes, doneStatus, laneOf } from '../src/delivery-api.ts'
 import { summarize } from '../src/in-flight-api.ts'
@@ -75,7 +75,6 @@ test('Plans hides archived plans until Show archived', () => {
     ['live', 'old'],
   )
   assert.equal(planEventLine({ action: 'archived', by: 'Owner' }), 'Archived by Owner')
-  assert.match(ARCHIVE_LINES.join(' '), /Unarchive undoes all of it/)
 })
 
 test('Graph and Delivery hide archived tasks unless Show archived or that plan is picked', () => {
@@ -202,17 +201,6 @@ test('a review run shows role, round, models, verdict and its chat', () => {
     ],
   )
   assert.deepEqual(reviewRuns(item('none')), [])
-})
-
-test('Archive is a plain confirm and sits beside Delete; the plan page has a banner', () => {
-  const plans = src('PlansView.tsx')
-  assert.match(plans, /<Btn type="button" primary data-archive-confirm/)
-  assert.doesNotMatch(plans.slice(plans.indexOf('function ArchivePlanDialog'), plans.indexOf('function ArchivedBanner')), /data-danger|var\(--danger\)|dangerStyle/)
-  assert.match(plans, /icon=\{Archive\} label=\{`Archive \$\{row\.name\}`\} tooltip=\{ARCHIVE_TIP\}/)
-  assert.match(plans, /<ArchivedBanner row=\{row\}/)
-  assert.match(plans, /data-plan-timeline/)
-  assert.match(src('FilterBar.tsx'), /label: 'Show archived'/)
-  assert.equal(rowActions(row('x')).archivable, true)
 })
 
 test('the drawer shows review runs and the hand-set block', () => {

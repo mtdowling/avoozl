@@ -31,7 +31,7 @@ test('every modal is the shared Modal and every z-index is a named layer', async
 })
 const chrome = findChrome()
 const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the modal cover tests'
-const MODALS = ['add-plugin', 'repo-edit', 'archive-plan', 'delete-plan', 'confirm', 'file-viewer', 'stop-line', 'mark-done']
+const MODALS = ['add-plugin', 'repo-edit', 'confirm', 'file-viewer', 'stop-line', 'mark-done']
 const OPENERS = {
   'add-plugin': 'Add plugin',
   confirm: 'Remove',

@@ -108,7 +108,7 @@ test("an explicit session cannot bypass a pending prerequisite through another t
   assert.equal(w.store.list("session_requests").length, 0);
 });
 
-test("a queued request is rechecked after owner invalidation and resumes only after resolution", async (t) => {
+test("a queued request is rechecked once its source completes", async (t) => {
   const w = await pending(t);
   await approve(w, "source");
   await assert.rejects(
@@ -123,23 +123,6 @@ test("a queued request is rechecked after owner invalidation and resumes only af
     (await w.ops.execute("workspace.tick")).dispatch.some(
       (row) => row.task === "consumer-step",
     ),
-    true,
-  );
-  await w.ops.execute("plan.archive", { id: "source" });
-  const held = await w.ops.execute("workspace.tick");
-  assert.equal(
-    held.dispatch.some((row) => row.task === "consumer-step"),
-    false,
-  );
-  assert.equal(
-    w.store.list("session_requests").length,
-    1,
-    "Keep the request held rather than discard or execute it",
-  );
-  await w.ops.execute("plan.unarchive", { id: "source" });
-  const resumed = await w.ops.execute("workspace.tick");
-  assert.equal(
-    resumed.dispatch.some((row) => row.task === "consumer-step"),
     true,
   );
 });

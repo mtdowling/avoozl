@@ -22,7 +22,7 @@ test('every use of the shared Modal passes a title', () => {
 
 const chrome = findChrome()
 const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the modal layout tests'
-const MODALS = ['add-plugin', 'repo-edit', 'archive-plan', 'delete-plan', 'confirm', 'file-viewer', 'stop-line', 'mark-done']
+const MODALS = ['add-plugin', 'repo-edit', 'confirm', 'file-viewer', 'stop-line', 'mark-done']
 const OPENERS = { 'add-plugin': 'Add plugin', confirm: 'Remove', 'stop-line': 'Stop the line' }
 const opener = (name) => OPENERS[name] ?? 'Open the dialog'
 const findOpener = (name) => `[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === ${JSON.stringify(opener(name))})`

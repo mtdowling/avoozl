@@ -69,7 +69,7 @@ const tools = {
   },
   plans_plan: {
     summary:
-      "Plans and their Kiro spec folders. Approval and delete are a person's: an approver's commit on main, or Approve in the app.",
+      "Plans and their Kiro spec folders. Approval is a person's: an approver's commit on main, or Approve in the app.",
     actions: {
       list: ["plan.list", "stored plans"],
       table: ["plan.table", "plans grouped with progress"],
@@ -83,7 +83,6 @@ const tools = {
       read_spec: ["plan.spec.read", "a spec folder's documents"],
       lint: ["plan.lint", "deterministic checks on a stored revision"],
       preview: ["plan.preview", "the tasks approval would publish"],
-      delete_preview: ["plan.delete.preview", "what deleting would remove"],
       create: ["plan.create", "store a spec folder as a draft: {spec}"],
       save: [
         "plan.save",
@@ -94,9 +93,6 @@ const tools = {
         "propose adjacent work as a draft, not executable until approved",
       ],
       classify: ["plan.classify", "set plan metadata"],
-      archive: ["plan.archive", "archive a plan: holds its open tasks"],
-      unarchive: ["plan.unarchive", "undo archive"],
-      restore: ["plan.restore", "restore a deleted plan from trash"],
     },
   },
   plans_review: {

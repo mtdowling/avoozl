@@ -11,11 +11,9 @@ import { errorMessage } from './workspace-api'
 import { relativeTime } from './task-api.ts'
 import { Authority } from './Authority.tsx'
 import { DISCLOSURE, DisclosureMark } from './ui/Disclosure.tsx'
-import { COMPACT, DANGER, IconBtn, IconLabel, SectionHeading, ShowMore, SmallBtn, TipBtn, ViewHeading, usePages, useRunInChat } from './ui/controls.tsx'
+import { IconBtn, SectionHeading, ShowMore, SmallBtn, TipBtn, ViewHeading, usePages, useRunInChat } from './ui/controls.tsx'
 import {
-  Archive,
   CirclePlus,
-  ArchiveRestore,
   ArrowUpDown,
   CaseSensitive,
   Clock,
@@ -35,7 +33,6 @@ import {
   Pencil,
   Plus,
   RefreshCw,
-  Trash2,
   type LucideIcon,
 } from './icons.ts'
 import { MoreMenu } from './MoreMenu.tsx'
@@ -57,7 +54,6 @@ import { usePaneKeys } from './pane-keys.ts'
 import { useDetailTitleRef } from './ListDetail.tsx'
 import { useTitleScrolledOut } from './use-title-scrolled-out.ts'
 import { Modal } from './ui/Modal.tsx'
-import { Button } from './ui/Button.tsx'
 import { SpecGraph } from './SpecGraph.tsx'
 import { parseSpecTab, renderText, specTabLink } from './tabs.ts'
 import { Tabs } from './ui/Tabs.tsx'
@@ -74,10 +70,7 @@ import {
   groupByCategory,
   location,
   plansClient,
-  deleteLines,
-  ARCHIVE_LINES,
   planEventLine,
-  type DeletePreview,
   type PlansClient,
   progressPercent,
   specChip,
@@ -106,13 +99,11 @@ import { Hint } from './ui/Hint'
 import { Stack } from './ui/Stack'
 import { TextLink } from './ui/TextLink'
 import { Checkbox } from './ui/Checkbox'
-import { Switch } from './ui/Switch'
 import { Box } from './ui/Box'
 import { DetailsStyle, SpecRailStyle } from './ui/PageStyles'
 import { FadeText } from './ui/FadeText'
 import { PlainButton, PlainInput, PlainLink } from './ui/Plain'
 import { PILL, cell } from './ui/looks/PlansView.ts'
-import { Glyph } from './ui/Glyph'
 import { TONE } from './ui/tones.ts'
 
 // Where a row's Graph button goes; the filter is the tabs'
@@ -861,9 +852,6 @@ function PlanFilters(props: {
   )
 }
 
-const ARCHIVE_TIP = 'Archive this spec: its tasks stop starting and it is hidden. You can undo it.'
-const UNARCHIVE_TIP = 'Unarchive this spec: its tasks may start again and it shows everywhere.'
-
 // The Specs heading's Refresh: it re-reads plan.table (the spec folders on
 // disk and the stored plans) and imports nothing.
 export const REFRESH_PLANS_TIP = 'Reload specs from disk. Imports nothing.'
@@ -883,9 +871,6 @@ function RowButtons(props: {
   onReview?: () => void
   onChange?: () => void
   onImport?: () => void
-  onDelete?: () => void
-  onArchive?: () => void
-  onUnarchive?: () => void
   busy?: boolean
 }) {
   const { row } = props
@@ -904,21 +889,7 @@ function RowButtons(props: {
       {props.onOpen && <IconBtn icon={DetailsIcon} label={`Open docs for ${row.name}`} tooltip="Open this spec's documents and tasks" onClick={props.onOpen} />}
       {actions.scoped && <IconBtn icon={Network} label={`Graph of ${row.name}`} tooltip="Show this spec's tasks in the Graph" onClick={() => props.onScope('graph')} />}
       {actions.review && props.onReview && <IconBtn icon={ClipboardCheck} label={`Review ${row.name}`} tooltip="Open this spec to check and approve it" onClick={props.onReview} />}
-      {props.onChange && <IconBtn icon={Pencil} label={`Change spec ${row.name}`} tooltip="Start a planner chat to change this spec" onClick={props.onChange} />}
-      {props.onArchive && actions.archivable && <IconBtn icon={Archive} label={`Archive ${row.name}`} tooltip={ARCHIVE_TIP} disabled={props.busy} onClick={props.onArchive} />}
-      {props.onUnarchive && actions.unarchivable && (
-        <IconBtn icon={ArchiveRestore} label={`Unarchive ${row.name}`} tooltip={UNARCHIVE_TIP} disabled={props.busy} onClick={props.onUnarchive} />
-      )}
-      {props.onDelete && actions.deletable && (
-        <IconBtn
-          icon={Trash2}
-          label={`Delete ${row.name}`}
-          tooltip="Delete this spec. You confirm first; it stays in history."
-          disabled={props.busy}
-          onClick={props.onDelete}
-          look={DANGER}
-        />
-      )}
+      {props.onChange && <IconBtn icon={Pencil} label={`Change spec ${row.name}`} tooltip="Run in a chat: the avoozl-spec skill revises this spec" onClick={props.onChange} />}
     </Box>
   )
 }
@@ -1034,9 +1005,6 @@ interface SpecActions {
   onGraph?: () => void
   onFolder?: () => void
   github: string | null
-  onDelete?: () => void
-  onArchive?: () => void
-  onUnarchive?: () => void
   onPublish?: () => void
 }
 
@@ -1204,9 +1172,6 @@ function SpecHeader(props: { row: PlanRow; plan: SpecPlan | null; actions: SpecA
                 onClick={actions.onFolder}
               />
               <MenuItem icon={ExternalLink} label="Open on GitHub" tooltip={actions.github ? undefined : 'No GitHub repository holds this spec'} link={actions.github} />
-              {actions.onArchive && <MenuItem icon={Archive} label="Archive" tooltip={ARCHIVE_TIP} onClick={actions.onArchive} />}
-              {actions.onUnarchive && <MenuItem icon={ArchiveRestore} label="Unarchive" tooltip={UNARCHIVE_TIP} onClick={actions.onUnarchive} />}
-              {actions.onDelete && <MenuItem icon={Trash2} label="Delete" danger tooltip="Delete this spec. You confirm first; it stays in history." onClick={actions.onDelete} />}
             </Box>
           </MoreMenu>
         </Box>
@@ -1571,188 +1536,6 @@ function SpecRail(props: {
   )
 }
 
-// Archive plan: a plain confirm, not red, because Unarchive undoes it.
-export function ArchivePlanDialog(props: { workspaceId: string; row: PlanRow; client: PlansClient; onDone: (text: string | null) => void }) {
-  const { row, client, workspaceId } = props
-  const [error, setError] = useState<string | null>(null)
-  const [busy, setBusy] = useState(false)
-  const run = async () => {
-    setBusy(true)
-    setError(null)
-    try {
-      const done = await client.archive(workspaceId, row.planId!)
-      props.onDone(
-        `Archived ${row.name}. ${done.held} tasks held, ${done.running} running chats left alone, ${done.decisions} decisions opened. Show archived on Specs brings it back.`,
-      )
-    } catch (caught) {
-      setError(errorMessage(caught))
-    } finally {
-      setBusy(false)
-    }
-  }
-  return (
-    // Esc, Back and a click outside do what Cancel does.
-    <Modal
-      id="avoozl-archive-plan"
-      role="alertdialog"
-      width="32rem"
-      backLabel="Cancel"
-      dismissLabel="Cancel"
-      focusClose
-      attrs={{ 'data-archive-plan': true }}
-      title={`Archive the spec ${row.name}?`}
-      onDismiss={() => props.onDone(null)}
-      footer={
-        <>
-          <Btn type="button" primary data-archive-confirm {...COMPACT} disabled={busy} onClick={() => void run()}>
-            Archive spec
-          </Btn>
-        </>
-      }
-    >
-      <Box as="ul" css-list-style="disc" flex flexCol gap="1" pl="5" size="sm">
-        {ARCHIVE_LINES.map((line) => (
-          <li key={line}>{line}</li>
-        ))}
-      </Box>
-      {error && (
-        <ErrorText role="alert" size="sm">
-          {error}
-        </ErrorText>
-      )}
-    </Modal>
-  )
-}
-
-// The banner an archived plan's page shows, with its Unarchive button.
-function ArchivedBanner(props: { row: PlanRow; busy: boolean; onUnarchive: () => void }) {
-  const { archived } = props.row
-  if (!archived) return null
-  return (
-    <Box
-      role="status"
-      data-archived-banner
-      css-border-color="border"
-      css-background="mix-muted-10%-card-transparent"
-      mb="3"
-      flex
-      flexWrap
-      items="center"
-      gap="3"
-      rounded="lg"
-      border="all"
-      p="3"
-      size="sm"
-    >
-      <Glyph icon={Archive} size={18} aria-hidden="true" css-color="muted" />
-      <Box as="span" minW0 flex1>
-        <Box as="span" weight="medium">
-          This spec is archived.
-        </Box>{' '}
-        <Hint>
-          {archived.by ? `${archived.by} archived it` : 'Archived'}{' '}
-          <Tooltip text={archived.at}>
-            <span>{relativeTime(archived.at)}</span>
-          </Tooltip>
-          . Its tasks do not start, and it is hidden unless Show archived is on.
-        </Hint>
-      </Box>
-      <IconLabel look={COMPACT} icon={ArchiveRestore} primary disabled={props.busy} tooltip={UNARCHIVE_TIP} onClick={props.onUnarchive}>
-        Unarchive
-      </IconLabel>
-    </Box>
-  )
-}
-
-// Delete plan: the confirm names the plan, counts its tasks and says what
-// happens to each. The spec folder checkbox is off by default and removes
-// the folder from the working tree only, never committing or pushing.
-export function DeletePlanDialog(props: { workspaceId: string; row: PlanRow; client: PlansClient; onDone: (text: string | null) => void }) {
-  const { row, client, workspaceId } = props
-  const [preview, setPreview] = useState<DeletePreview | null>(null)
-  const [folder, setFolder] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [busy, setBusy] = useState(false)
-  useEffect(() => {
-    client.deletePreview(workspaceId, row.planId!).then(setPreview, (caught) => setError(errorMessage(caught)))
-  }, [client, workspaceId, row.planId])
-  const run = async () => {
-    if (!preview) return
-    setBusy(true)
-    setError(null)
-    try {
-      const done = await client.remove(workspaceId, preview.id, { retire: preview.retire, deleteSpecFolder: folder })
-      props.onDone(
-        `Deleted ${preview.title}. ${done.retired ? `Archived ${done.archived}, ${done.archiveWhenEnded} when their chats end, ${done.decisions} decisions opened. ` : ''}${
-          done.removedFolder ? `Removed ${done.removedFolder} from the working tree; nothing was committed.` : ''
-        }`,
-      )
-    } catch (caught) {
-      setError(errorMessage(caught))
-    } finally {
-      setBusy(false)
-    }
-  }
-  const blocked = Boolean(folder && preview?.folder?.dirty)
-  return (
-    // Esc, Back and a click outside do what Cancel does.
-    <Modal
-      id="avoozl-delete-plan"
-      role="alertdialog"
-      width="32rem"
-      backLabel="Cancel"
-      dismissLabel="Cancel"
-      focusClose
-      attrs={{ 'data-delete-plan': preview?.retire ? 'retire' : 'draft' }}
-      title={`Delete the spec ${preview?.title ?? row.name}?`}
-      onDismiss={() => props.onDone(null)}
-      footer={
-        <>
-          <Button type="button" variant="danger" disabled={!preview || busy || blocked} onClick={() => void run()} {...COMPACT}>
-            Delete spec
-          </Button>
-        </>
-      }
-    >
-      {!preview && !error && (
-        <Hint as="p" size="sm">
-          Counting its tasks…
-        </Hint>
-      )}
-      {preview && (
-        <Box as="ul" css-list-style="disc" flex flexCol gap="1" pl="5" size="sm">
-          {deleteLines(preview).map((line) => (
-            <li key={line}>{line}</li>
-          ))}
-        </Box>
-      )}
-      {preview?.folder?.exists && (
-        <Box as="label" flex flexCol gap="1" size="sm">
-          <Switch label="Also delete the spec folder from the repo" checked={folder} onChange={setFolder}>
-            Also delete the spec folder (.kiro/specs/{preview.spec}/) from the repo.
-          </Switch>
-          <Hint as="code" css-overflow-wrap="anywhere" pl="6" size="xs">
-            {preview.folder.path}
-          </Hint>
-          <Hint as="span" pl="6" size="xs">
-            Only the working tree. Avoozl never commits or pushes this.
-          </Hint>
-          {folder && preview.folder.dirty && (
-            <Box role="alert" as="span" pl="6" size="xs" tone="danger">
-              {preview.folder.reason}
-            </Box>
-          )}
-        </Box>
-      )}
-      {error && (
-        <ErrorText role="alert" size="sm">
-          {error}
-        </ErrorText>
-      )}
-    </Modal>
-  )
-}
-
 // How often an open Approve dialog reads the plan again.
 const DIALOG_POLL_MS = 3000
 
@@ -1983,8 +1766,6 @@ export default function PlansView(props: {
     )
   }, [settings, workspace])
   const { scrolledOut, titleRef } = useTitleScrolledOut()
-  const [deleting, setDeleting] = useState<PlanRow | null>(null)
-  const [archiving, setArchiving] = useState<PlanRow | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [table, setTable] = useState<PlanTable | null>(null)
   // Opening a plan is a Back step; Back from another tab reopens it.
@@ -2173,14 +1954,6 @@ export default function PlansView(props: {
     })
   }
   const importRow = (next: PlanRow) => next.spec && act((workspaceId) => plans.store(workspaceId, next.spec!))
-  // Unarchive needs no confirm: it only undoes an archive.
-  const unarchive = (next: PlanRow) =>
-    next.planId &&
-    act(async (workspaceId) => {
-      const done = await plans.unarchive(workspaceId, next.planId!)
-      setNotice(`Unarchived ${next.name}. ${done.released} tasks may start again; ${done.decisions} decisions closed.`)
-      return { id: next.planId! }
-    })
   const rows = table ? filterRows(table.items, filter) : []
   // Make the GitHub issues (R102.2): an approved spec with no spec issue yet,
   // in a workspace that uses GitHub. Never automatic.
@@ -2207,9 +1980,6 @@ export default function PlansView(props: {
       onGraph: actions.scoped ? () => scope('graph', row) : undefined,
       onFolder: table?.root && row.folder ? () => void reveal(`${table.root!.replace(/\/$/, '')}/${row.folder}`).then(setNotice) : undefined,
       github: repoHref && row.folder ? `${repoHref}/tree/HEAD/${row.folder}` : null,
-      onDelete: actions.deletable ? () => setDeleting(row) : undefined,
-      onArchive: actions.archivable ? () => setArchiving(row) : undefined,
-      onUnarchive: actions.unarchivable ? () => unarchive(row) : undefined,
       onPublish: specHome && specHome.mode !== 'local' && plan?.state === 'approved' && !plan.links?.issue && workspace ? () => publish(row, home) : undefined,
     }
   }
@@ -2281,7 +2051,6 @@ export default function PlansView(props: {
         css-position={phone ? undefined : 'relative'}
       >
         <Box id="avoozl-plan-main" css-gap="20" css-scroll-margin-top="48" flex minW0 flexCol>
-          <ArchivedBanner row={row} busy={busy} onUnarchive={() => unarchive(row)} />
           {row.categoryProblem && (
             <Hint as="p" size="sm">
               <Badge variant="warning">front-matter</Badge> {row.categoryProblem}
@@ -2323,33 +2092,6 @@ export default function PlansView(props: {
             setNotice(text)
             void load(singleApproval.workspaceId)
             void loadPlan(singleApproval.workspaceId, singleApproval.plan.id)
-          }}
-        />
-      )}
-      {deleting && workspace && (
-        <DeletePlanDialog
-          workspaceId={workspace}
-          row={deleting}
-          client={plans}
-          onDone={(text) => {
-            setDeleting(null)
-            if (text === null) return
-            setSelected(null)
-            setNotice(text)
-            void load(workspace)
-          }}
-        />
-      )}
-      {archiving && workspace && (
-        <ArchivePlanDialog
-          workspaceId={workspace}
-          row={archiving}
-          client={plans}
-          onDone={(text) => {
-            setArchiving(null)
-            if (text === null) return
-            setNotice(text)
-            void load(workspace)
           }}
         />
       )}

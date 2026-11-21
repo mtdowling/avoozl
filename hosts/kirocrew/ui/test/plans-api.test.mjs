@@ -164,17 +164,12 @@ test('progress is done over total, and no tasks is not 0%', () => {
 })
 
 test('row buttons follow the row', () => {
-  assert.deepEqual(rowActions(row('a')), { review: true, scoped: true, importable: true, deletable: false, archivable: false, unarchivable: false })
+  assert.deepEqual(rowActions(row('a')), { review: true, scoped: true, importable: true })
   assert.deepEqual(rowActions(row('a', { status: 'approved', planId: 'a' })), {
     review: false,
     scoped: true,
     importable: false,
-    deletable: true,
-    archivable: true,
-    unarchivable: false,
   })
-  const archived = rowActions(row('a', { status: 'approved', planId: 'a', archived: { at: 't', by: 'Owner' } }))
-  assert.deepEqual([archived.archivable, archived.unarchivable, archived.deletable], [false, true, true])
 })
 
 test('the table is one plan.table call', async () => {

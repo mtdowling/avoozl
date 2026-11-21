@@ -18,13 +18,7 @@ import { epicsView } from "../epics/epics-view.mjs";
 import { queuePublish } from "../specs/spec-publication.mjs";
 import { crossPlanEpics, epicOfPlan } from "../epics/epics.mjs";
 import { epicView, ownership, plansTableView } from "../api/page-views.mjs";
-import { archivePlan, unarchivePlan } from "../specs/plan-archive.mjs";
 import { lintPlan } from "../specs/plan-quality.mjs";
-import {
-  deletePlan,
-  deletePreview,
-  specFolderState,
-} from "../specs/plan-retire.mjs";
 import {
   approvePlan,
   createPlan,
@@ -46,62 +40,6 @@ import { planPage } from "../api/views.mjs";
 import { person, routed } from "../api/operation-policy.mjs";
 import { taskFile } from "../specs/spec-tasks.mjs";
 
-// Archive or unarchive a plan (plan-archive.mjs): a session may too
-// (R56.4), and either one undoes the other. Delete below is the one-way path.
-function planArchiveHandler({ name, input, context }) {
-  const store = this.store;
-
-  const plan = store.get("plans", input.id);
-  if (!plan || plan.deletedAt) fail("Plan not found.", 404);
-  return (name === "plan.archive" ? archivePlan : unarchivePlan)(store, plan, {
-    // A session is recorded as itself, never as the operator.
-    by:
-      context.caller || context.mcp
-        ? `session:${context.caller?.sessionKey || context.caller || "mcp"}`
-        : this.operator || null,
-  });
-}
-// Delete a plan (plan-retire.mjs): only a person, from the page or the
-// CLI. A plan with an approved revision needs {retire: true}.
-function planDeletePreviewHandler({ name, input, context }) {
-  const store = this.store;
-
-  if (name === "plan.delete" && (context.caller || context.mcp))
-    fail("Only a person deletes a plan, from the Avoozl page or the CLI.", 403);
-  // The id, or a spec name (the CLI passes either); a name shared by
-  // two plans is refused instead of guessed.
-  let plan = store.get("plans", input.id);
-  if (!plan && typeof input.id === "string") {
-    const named = store
-      .list("plans")
-      .filter((row) => row.spec === input.id && !row.deletedAt);
-    if (named.length > 1)
-      fail(
-        "More than one plan uses spec " +
-          input.id +
-          ". Use a plan id: " +
-          named.map((row) => row.id).join(", "),
-        409,
-      );
-    plan = named[0];
-  }
-  if (!plan || plan.deletedAt) fail("Plan not found.", 404);
-  let folder = null;
-  if (plan.spec)
-    try {
-      const spec = this.readSpec(plan.spec);
-      folder = spec.exists ? specFolderState(spec.root, plan.spec) : null;
-    } catch {
-      folder = null;
-    }
-  if (name === "plan.delete.preview")
-    return deletePreview(store, this.read(), plan, folder);
-  return deletePlan(store, plan, {
-    retire: input.retire === true,
-    deleteSpecFolder: input.deleteSpecFolder === true,
-    folder,
-  });
-}
 // Epics span plans (Requirement 59): every approved epic and every epic
 // folder on disk not yet approved, each with computed progress.
 function epicListHandler({ name, input }) {
@@ -189,58 +127,6 @@ export const entries = [
       return this.readSpecDocuments(input);
     },
   },
-  {
-    name: "plan.archive",
-    class: "protect",
-    github: "check-in",
-    policy: routed,
-    handler: planArchiveHandler,
-  },
-  {
-    name: "plan.unarchive",
-    class: "protect",
-    github: "check-in",
-    policy: routed,
-    handler: planArchiveHandler,
-  },
-  {
-    name: "plan.delete.preview",
-    class: "observe",
-    github: "check-in",
-    policy: routed,
-    handler: planDeletePreviewHandler,
-  },
-  {
-    name: "plan.delete",
-    class: "protect",
-    github: "check-in",
-    policy: person("Only a person deletes a plan."),
-    handler: planDeletePreviewHandler,
-  },
-
-  {
-    name: "plan.restore",
-    class: "protect",
-    github: "check-in",
-    policy: routed,
-    handler({ name, input }) {
-      const store = this.store;
-      return store.transaction(() => {
-        const row = store.get("plans", input.id);
-        if (!row) fail("Record not found.", 404);
-        if (row.state === "approved" || Object.keys(row.mapping || {}).length)
-          fail(
-            "Approved plans keep their task and approval history. Abandon the linked work instead.",
-            409,
-          );
-        delete row.deletedAt;
-        store.put("plans", row);
-        store.event(null, name, { id: row.id });
-        return { id: row.id, deletedAt: null };
-      });
-    },
-  },
-
   {
     name: "plan.list",
     class: "observe",
