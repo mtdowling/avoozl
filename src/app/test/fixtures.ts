@@ -1,8 +1,14 @@
-// @ts-nocheck: typing debt
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import { Store } from "../store/store.ts";
+import type { TestContext } from "node:test";
+import type { Task } from "../../types.ts";
+import type { Repository } from "../git/git.ts";
+import {
+  Store,
+  type StoredRecord,
+  type StoredSnapshot,
+} from "../store/store.ts";
 import { recordSpan } from "../flow/flow.ts";
 import { temporaryDirectory } from "./temporary.ts";
 import { createWorktree, validateUnlocked, withWorkLock } from "../git/git.ts";
@@ -49,7 +55,7 @@ export function snapshot() {
     unknownExtension: { preserve: true },
   };
 }
-export function fixture(t) {
+export function fixture(t: TestContext) {
   const root = temporaryDirectory(),
     store = new Store(path.join(root, "workspace.sqlite"));
   store.initialize(snapshot());
@@ -69,7 +75,7 @@ const fixtureRepository = {
   owner: "example",
   repo: "fixture",
 };
-function fixtureTask(id) {
+function fixtureTask(id: string): Task {
   return {
     id,
     title: "Fixture " + id,
@@ -80,7 +86,7 @@ function fixtureTask(id) {
     acceptance: [`${id} passes.`],
   };
 }
-function fixtureIssue(task, number) {
+function fixtureIssue(task: Task, number: number) {
   const nodeId = "fixture-issue-" + number;
   return {
     record: {
@@ -110,15 +116,15 @@ function fixtureIssue(task, number) {
     },
   };
 }
-export function workspaceFixture(t, shape = "local") {
+export function workspaceFixture(t: TestContext, shape = "local") {
   if (!workspaceShapes.includes(shape))
     throw Error("Unknown workspace fixture shape: " + shape);
   const root = temporaryDirectory(`avoozl-${shape}-`),
     store = new Store(path.join(root, "workspace.sqlite")),
-    data = snapshot(),
+    data: StoredSnapshot = snapshot(),
     localIds = shape === "github" ? [] : ["local-a", "local-b"],
     githubIds = shape === "local" ? [] : ["github-a", "github-b"],
-    issues = [];
+    issues: StoredRecord[] = [];
   data.tasks = localIds.map(fixtureTask);
   for (const [index, id] of githubIds.entries()) {
     const task = fixtureTask(id),
@@ -127,8 +133,6 @@ export function workspaceFixture(t, shape = "local") {
     task.dispatch = {
       ready: true,
       state: "authorized",
-      assignee: issue.record.assignees,
-      machineId: null,
     };
     issues.push(issue.record);
     data.tasks.push(task);
@@ -173,16 +177,24 @@ export function workspaceFixture(t, shape = "local") {
 // An isolated worktree on branch plans/<id> for a task, as validation and
 // integration read it.
 export async function recordedRun(
-  store,
-  { id, taskId = "sample-task", repositoryId },
+  store: Store,
+  {
+    id,
+    taskId = "sample-task",
+    repositoryId,
+  }: { id: string; taskId?: string; repositoryId: string },
 ) {
-  const repository = store.get("repositories", repositoryId),
-    worktree = await createWorktree(store, repository, id);
+  const repository = store.get<Repository>("repositories", repositoryId);
+  if (!repository) throw Error(`No repository ${repositoryId}.`);
+  const worktree = await createWorktree(store, repository, id);
   return { id, taskId, repositoryId, ...worktree };
 }
 // Record acceptance checks for a worktree from recordedRun and a ready
 // integration entry, under the repository work lock.
-export function validateRun(store, run) {
+export function validateRun(
+  store: Store,
+  run: Awaited<ReturnType<typeof recordedRun>>,
+) {
   return withWorkLock(
     store,
     {
@@ -196,7 +208,10 @@ export function validateRun(store, run) {
 // Wait for a condition rather than for a duration. A fixed sleep turns a
 // slower machine, or a busier test run, into a failure that says nothing
 // about the behavior under test.
-export async function waitFor(predicate, { timeoutMs = 20000, label } = {}) {
+export async function waitFor<T>(
+  predicate: () => T | Promise<T>,
+  { timeoutMs = 20000, label = "" } = {},
+): Promise<T> {
   const deadline = Date.now() + timeoutMs;
   for (;;) {
     const value = await predicate();
@@ -212,8 +227,16 @@ export const markdown = `# A small plan\n\n## Design\n\nKeep the design in one d
 // a worker chat, in workspace {root, checkout, store}. Returns its commit,
 // folder and branch. `extra` adds fields to the delivery and the binding,
 // each a function of the commit.
-export function verifiedTask(w, taskId, file = `${taskId}.txt`, extra = {}) {
-  const git = (cwd, ...args) =>
+export function verifiedTask(
+  w: { root: string; checkout: string; store: Store },
+  taskId: string,
+  file = `${taskId}.txt`,
+  extra: {
+    delivery?: (commit: string) => Record<string, unknown>;
+    binding?: (commit: string) => Record<string, unknown>;
+  } = {},
+) {
+  const git = (cwd: string, ...args: string[]) =>
     execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
   const branch = `avoozl/${taskId}`,
     wt = path.join(w.root, "wt", taskId);
@@ -252,11 +275,14 @@ export function verifiedTask(w, taskId, file = `${taskId}.txt`, extra = {}) {
 
 // Claim branches in acme/app's cache (simplify §D3): `own` lists the tasks
 // this runner claimed, `other` the ones another runner holds.
-export async function seedClaims(store, { own = [], other = [] } = {}) {
+export async function seedClaims(
+  store: Store,
+  { own = [], other = [] }: { own?: string[]; other?: string[] } = {},
+) {
   const { cacheClaim } = await import("../workers/claims.ts");
   for (const [task, mine] of [
-    ...own.map((id) => [id, true]),
-    ...other.map((id) => [id, false]),
+    ...own.map((id): [string, boolean] => [id, true]),
+    ...other.map((id): [string, boolean] => [id, false]),
   ])
     cacheClaim(store, "acme/app", {
       spec: "s",
@@ -271,16 +297,16 @@ export async function seedClaims(store, { own = [], other = [] } = {}) {
 // the old span table had: id, task, attempt, role, stage, start, end, source,
 // detail.
 export function seedSpan(
-  store,
-  id,
-  taskId,
-  attempt,
-  role,
-  stage,
-  startedAt,
-  endedAt,
-  source,
-  detail,
+  store: Store,
+  id: string,
+  taskId: string,
+  attempt: number | null,
+  role: string | null,
+  stage: string,
+  startedAt: string,
+  endedAt: string | null,
+  source: string,
+  detail?: unknown,
 ) {
   return recordSpan(store, {
     id,

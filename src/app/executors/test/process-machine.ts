@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The machine every process-executor test runs on: a state and config folder,
 // a git checkout with a linked worktree, an approved fake harness definition
 // and a running supervisor.
@@ -6,6 +5,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import type { TestContext } from "node:test";
 import {
   approveHarnessDefinition,
   harnessDefinitionHash,
@@ -13,7 +13,7 @@ import {
 import { sandboxKind } from "../sandbox.ts";
 import { openSupervisor } from "../supervisor.ts";
 import { snapshot } from "../../test/fixtures.ts";
-import { Store } from "../../store/store.ts";
+import { Store, type StoredSnapshot } from "../../store/store.ts";
 
 // A fake CLI that reads its prompt from stdin, the way Claude Code's `-p` does.
 export const AGENT = `
@@ -50,16 +50,28 @@ if (wait) {
 } else process.exit(code);
 `;
 
-export const gitIn = (cwd, ...args) =>
+export const gitIn = (cwd: string, ...args: string[]) =>
   execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
+
+// A cleanup run when the test ends.
+type Cleanup = () => unknown;
+// A scratch folder and how to add a cleanup to it.
+interface Scratch {
+  root: string;
+  defer: (fn: Cleanup) => unknown;
+}
 
 // The workspace store of a machine's test: its task on repository "app",
 // whose record is `repository`.
-export function appStore({ root, defer }, repository) {
+export function appStore(
+  { root, defer }: Scratch,
+  repository: Record<string, unknown>,
+) {
   const store = new Store(path.join(root, "workspace.sqlite"));
   defer(() => store.close());
-  const data = snapshot();
-  data.tasks[0].repository = "app";
+  const data: StoredSnapshot = snapshot();
+  const [task] = data.tasks;
+  if (task) task.repository = "app";
   store.initialize(data);
   store.put("repositories", { id: "app", ...repository });
   return store;
@@ -68,9 +80,9 @@ export function appStore({ root, defer }, repository) {
 // A scratch folder that goes when the test ends, after each `defer`red
 // cleanup, newest first: Windows cannot remove an open database or a live
 // process's folder.
-export function scratchRoot(t, prefix) {
+export function scratchRoot(t: TestContext, prefix: string): Scratch {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
-  const cleanups = [];
+  const cleanups: Cleanup[] = [];
   t.after(async () => {
     for (const fn of cleanups.reverse()) await fn();
     fs.rmSync(root, {
@@ -84,7 +96,7 @@ export function scratchRoot(t, prefix) {
 }
 
 // A git checkout of one commit, whose user is Test.
-export function initCheckout(checkout) {
+export function initCheckout(checkout: string) {
   fs.mkdirSync(checkout);
   gitIn(checkout, "init", "-q", "-b", "main");
   gitIn(checkout, "config", "user.name", "Test");
@@ -97,7 +109,15 @@ export function initCheckout(checkout) {
 // Write the fake CLI's definition, approve it (or opt it out of the sandbox
 // where this machine has none) and open a supervisor on it; each pass() is
 // one tick's.
-export function openFakeSupervisor({ stateDirectory, configDirectory, bytes }) {
+export function openFakeSupervisor({
+  stateDirectory,
+  configDirectory,
+  bytes,
+}: {
+  stateDirectory: string;
+  configDirectory: string;
+  bytes: string;
+}) {
   fs.writeFileSync(
     path.join(configDirectory, "harnesses", "fake-cli.json"),
     bytes,
@@ -112,7 +132,11 @@ export function openFakeSupervisor({ stateDirectory, configDirectory, bytes }) {
   return openSupervisor({ stateDirectory, configDirectory });
 }
 
-export function machine(t, extra = {}, { agent = AGENT } = {}) {
+export function machine(
+  t: TestContext,
+  extra: Record<string, unknown> = {},
+  { agent = AGENT } = {},
+) {
   const { root, defer } = scratchRoot(t, "avoozl-process-");
   const stateDirectory = path.join(root, "state");
   const configDirectory = path.join(root, "config");
@@ -158,7 +182,10 @@ export function machine(t, extra = {}, { agent = AGENT } = {}) {
   };
 }
 
-export async function until(check, timeoutMs = 30_000) {
+export async function until<T>(
+  check: () => T | Promise<T>,
+  timeoutMs = 30_000,
+): Promise<T> {
   const end = Date.now() + timeoutMs;
   for (;;) {
     const value = await check();
