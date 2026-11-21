@@ -7,57 +7,6 @@ import { Operations } from "../api/operations.mjs";
 import { git, integrateRun } from "../git/git.mjs";
 import { operatorName } from "../settings/config.mjs";
 
-test("approval needs only the two hashes, and records the operator it ran as", async (t) => {
-  const { store } = fixture(t),
-    ops = new Operations(store, { operator: "Workspace operator" }),
-    plan = await ops.execute("plan.create", {
-      prompt: "Feature",
-      text: markdown,
-    });
-  // Neither approvedBy nor evidence supplied.
-  const receipt = await ops.execute("plan.approve", {
-    id: plan.id,
-    expectedHash: plan.hash,
-    expectedRevision: store.read().revision,
-  });
-  assert.equal(receipt.taskIds.length, 2);
-  assert.equal(receipt.approvedBy, "Workspace operator");
-  assert.equal(receipt.evidence, "");
-  assert.equal("databaseRevision" in receipt, false);
-  assert.equal(store.get("plans", plan.id).state, "approved");
-  // The hashes still decide. A stale document or database revision is refused.
-  const second = await ops.execute("plan.create", {
-    prompt: "Second feature",
-    text: markdown.replaceAll("foundation", "groundwork"),
-  });
-  await assert.rejects(
-    ops.execute("plan.approve", {
-      id: second.id,
-      expectedHash: "stale",
-      expectedRevision: store.read().revision,
-    }),
-    /hash changed/,
-  );
-  await assert.rejects(
-    ops.execute("plan.approve", {
-      id: second.id,
-      expectedHash: second.hash,
-      expectedRevision: store.read().revision - 1,
-    }),
-    /Database changed/,
-  );
-  // A caller with something real to say still has the field.
-  const stated = await ops.execute("plan.approve", {
-    id: second.id,
-    expectedHash: second.hash,
-    expectedRevision: store.read().revision,
-    approvedBy: "Reviewer",
-    evidence: "Walked the design with the team on 2026-11-09.",
-  });
-  assert.equal(stated.approvedBy, "Reviewer");
-  assert.match(stated.evidence, /Walked the design/);
-});
-
 test("the operator falls back from configuration to git to the OS user", (t) => {
   const { root } = fixture(t);
   assert.equal(

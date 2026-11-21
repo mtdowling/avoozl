@@ -21,11 +21,6 @@ import {
   specDeclarations,
 } from "../specs/cross-spec-dependencies.mjs";
 import { reviewRoles as deliveryReviewRoles } from "../delivery/delivery.mjs";
-import {
-  createExtraction,
-  getExtraction,
-  proposalsFromFacts,
-} from "../specs/design-extraction.mjs";
 import { claimedTaskIds, refreshClaims } from "../workers/claims.mjs";
 import {
   publishApproved,
@@ -83,8 +78,7 @@ import {
   recordCredentialEvents,
   recordNoPerson,
 } from "../github/github-credentials.mjs";
-import { lintPlan } from "../specs/plan-quality.mjs";
-import { approvePlan, createPlan } from "../specs/plans.mjs";
+import { approvePlan } from "../specs/spec-approval.mjs";
 import { SUPPORTED_CONTRACTS } from "../plugins/plugin-contract.mjs";
 import { pluginHealth } from "../plugins/plugin-session.mjs";
 import {
@@ -601,22 +595,17 @@ export class Operations {
   approvalChecks(input) {
     const plan = this.store.get("plans", input.id);
     if (!plan) fail("Plan not found.", 404);
-    // New tasks from an archived plan would start; unarchive it first.
-    if (plan.archivedAt)
-      fail("This spec is archived. Unarchive it before approving.", 409);
+    if (!plan.spec) fail("Only a spec folder is approved.", 409);
     if (plan.hash !== input.expectedHash)
       fail("The reviewed document hash changed.", 409);
     // Approval is of the stored revision, and only while the folder on
     // disk still matches it.
-    if (plan.spec && this.readSpec(plan.spec).hash !== plan.hash)
+    if (this.readSpec(plan.spec).hash !== plan.hash)
       fail("The spec folder changed on disk. Reload it before approving.", 409);
-    const extraction = input.extractionId
-      ? getExtraction(this.store, input.extractionId)
-      : null;
     // Every spec file and the manifest at the approved hash (§4.9): a
     // match refuses approval and opens a decision; an allowance for the
     // exact content passes once.
-    if (plan.spec && !extraction) {
+    {
       const spec = { ...this.readSpec(plan.spec), files: plan.files || {} },
         content = enforceSpec(this.store, spec, { mode: "decide" });
       queueNotifications(this.store, content.notify);
@@ -631,28 +620,11 @@ export class Operations {
         );
       }
     }
-    const specQuality =
-        plan.spec && !extraction
-          ? this.lintSpecPlan(plan, retitledInput(input.retitled), {
-              content: false,
-            })
-          : null,
-      proposals = extraction
-        ? proposalsFromFacts(this.store, extraction.id)
-        : specQuality?.proposals,
-      quality =
-        specQuality ||
-        lintPlan({
-          text: plan.text,
-          plan,
-          data: {
-            ...this.read(),
-            repositories: this.store.list("repositories"),
-          },
-          ...(extraction ? { proposals } : {}),
-        });
-    if (extraction && !proposals.length)
-      fail("The extraction contains no accepted task facts to approve.", 409);
+    const specQuality = this.lintSpecPlan(plan, retitledInput(input.retitled), {
+        content: false,
+      }),
+      proposals = specQuality.proposals,
+      quality = specQuality;
     const blocking = quality.diagnostics.find(
       (diagnostic) => diagnostic.severity === "error",
     );
@@ -663,7 +635,6 @@ export class Operations {
       );
     return {
       plan,
-      extraction,
       specQuality,
       proposals,
       quality,
@@ -873,13 +844,9 @@ export class Operations {
             evidence: `Approval commit ${match.commit} by ${match.email}${match.evidence ? `, ${match.evidence}` : ""}.`,
             operator: this.operator,
             githubPolicy: this.githubPolicy(),
-            ...(specQuality
-              ? {
-                  proposals,
-                  baseline: true,
-                  declaredDependencies: specQuality.declaredDependencies,
-                }
-              : {}),
+            proposals,
+            baseline: true,
+            declaredDependencies: specQuality.declaredDependencies,
           });
           approved.push(id);
           left.delete(id);
@@ -1296,19 +1263,6 @@ export class Operations {
       codeChanges: taskCodeChanges(this.store, data, task, evidenceRecords),
     };
   }
-  startExtractionPipeline(input) {
-    const plan = this.store.get("plans", input.planId);
-    if (!plan) fail("Plan not found.", 404);
-    // A Kiro Crew planner session submits the rounds with
-    // plan.extraction.submit; Avoozl starts no extraction agent.
-    return createExtraction(this.store, {
-      planId: plan.id,
-      revisionHash: input.revisionHash || plan.hash,
-      repositoryId: input.repositoryId || plan.context?.repositoryId || null,
-      sequence: [],
-      parentRunId: input.parentRunId || null,
-    });
-  }
   // The repository `.avoozl.json`. The app backend runs without a settings
   // watcher, so it writes through a RepositorySettings of its own.
   settingsFile() {
@@ -1464,8 +1418,8 @@ export class Operations {
     )
       fail("Write a message.");
     const action = input.action || "task";
-    if (!["task", "draft", "ask", "run"].includes(action))
-      fail("Choose task, draft, ask or run.");
+    if (!["task", "ask", "run"].includes(action))
+      fail("Choose task, ask or run.");
     const submissionId = input.submissionId || randomUUID(),
       id = "intent:" + submissionId,
       requestHash = digest(
@@ -1511,16 +1465,7 @@ export class Operations {
         this.store.put("receipts", receipt);
         return { task };
       }
-      if (action === "draft") {
-        const plan = createPlan(this.store, {
-          ...saved,
-          id: "plan-" + digest(submissionId).slice(0, 12),
-        });
-        receipt.planId = plan.id;
-        this.store.put("receipts", receipt);
-        return { plan };
-      }
-      fail("Choose task or draft.");
+      fail("Choose task.");
     };
     const pending = execute();
     this.pendingIntents.set(id, pending);

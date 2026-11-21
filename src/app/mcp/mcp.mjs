@@ -25,19 +25,15 @@ export const NARROW_TOOLS = {
   ],
   plans_create_plan: [
     "plan.create",
-    "Narrow tool for the planner. Store one Kiro spec folder as a draft plan: {spec: <name>, prompt?, id?}. Avoozl reads <specs.path>/<name>/ (default .kiro/specs) in the planning repository; the plan ID defaults to the name and its hash is the folder revision. {prompt, text} stores a free-form design for extraction instead. Does not publish execution tasks.",
+    "Narrow tool for the planner. Store one Kiro spec folder as a draft plan: {spec: <name>, prompt?, id?}. Avoozl reads <specs.path>/<name>/ (default .kiro/specs) in the planning repository; the plan ID defaults to the name and its hash is the folder revision. Does not publish execution tasks.",
   ],
   plans_save_plan: [
     "plan.save",
-    "Narrow tool for the planner. Reload a spec plan's folder from disk as its next revision: {id, expectedHash}. An unchanged folder writes nothing. A free-form design saves {id, text, expectedHash}. An old-style plan with no spec links its folder as a draft revision with {id, spec, expectedHash}; every task it maps must be in tasks.md, and linking never approves. Amendments flag affected tasks for review.",
+    "Narrow tool for the planner. Reload a spec plan's folder from disk as its next revision: {id, expectedHash}. An unchanged folder writes nothing. Amendments flag affected tasks for review.",
   ],
   plans_get_plan: [
     "plan.get",
     "Narrow tool for the planner. Read a draft, its immutable revision history and approval receipts.",
-  ],
-  plans_submit_extraction: [
-    "plan.extraction.submit",
-    "Narrow tool for the design extraction chat. Submit one extraction round. Stated and inferred facts require one exact unique quote; this cannot approve the plan.",
   ],
   plans_prepare_worktree: [
     "worktree.prepare",
@@ -81,7 +77,7 @@ export const NARROW_TOOLS = {
   ],
   plans_approve_plan: [
     "plan.approve",
-    "Extract an explicitly authorized revision into tasks atomically. Requires expectedHash and expectedRevision; the reviewed document hash and database revision are the authorization. approvedBy and evidence are optional: approvedBy defaults to the workspace operator, and evidence records a real statement when there is one. For a spec plan, retitled lists approved task IDs whose tasks.md item text may change in this approval. Only a person approves, so an agent or MCP caller is refused.",
+    "Approve a stored spec revision as a commit on main, and create its tasks. Requires expectedHash and expectedRevision from plan.preview. approvedBy and evidence are optional. retitled lists approved task IDs whose tasks.md item text may change in this approval. Only a person approves, so an agent or MCP caller is refused.",
   ],
 };
 const operations = NARROW_TOOLS;

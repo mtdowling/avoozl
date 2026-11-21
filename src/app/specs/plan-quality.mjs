@@ -3,15 +3,8 @@ import {
   resolveTaskId,
   titleIndex,
 } from "../../task-identity.mjs";
-import { extractPlan } from "./plans.mjs";
 import { repositoryChecks } from "../workspace/repository-checks.mjs";
 import { isManual, taskKind } from "../../work-model.mjs";
-
-const taskBlocks = () => /^```task\s*\r?\n([\s\S]*?)^```\s*$/gm;
-
-function lineAt(text, index) {
-  return text.slice(0, index).split("\n").length;
-}
 
 function diagnostic(
   code,
@@ -120,36 +113,6 @@ function boundednessDiagnostics(task, repositoryId, repositories) {
   return found;
 }
 
-// Repeated IDs stop extraction, so they are found from the raw blocks.
-function duplicateIdDiagnostics(text, matches) {
-  const first = new Map(),
-    found = [];
-  for (const match of matches) {
-    let id;
-    try {
-      id = JSON.parse(match[1])?.id;
-    } catch {
-      continue;
-    }
-    if (typeof id !== "string") continue;
-    const lineStart = lineAt(text, match.index),
-      lineEnd = lineAt(text, match.index + match[0].length);
-    if (first.has(id))
-      found.push(
-        diagnostic(
-          "task.duplicate-id",
-          "error",
-          `Task ID "${id}" is already used at line ${first.get(id)}.`,
-          lineStart,
-          lineEnd,
-          { taskId: id },
-        ),
-      );
-    else first.set(id, lineStart);
-  }
-  return found;
-}
-
 function placeholderAcceptance(value) {
   const normalized = value
     .trim()
@@ -208,42 +171,16 @@ function cycleDiagnostics(tasks, mapping) {
   return diagnostics;
 }
 
+// The quality checks on a spec's proposed tasks: titles, acceptance,
+// repositories, references and cycles.
 export function lintPlan({
-  text,
   plan = {},
   data = {},
   proposals,
   declaredTasks = [],
 }) {
-  const diagnostics = [];
-  const matches = [...text.matchAll(taskBlocks())];
-  if (!matches.length && proposals === undefined)
-    return summarize(diagnostics, []);
-
-  let tasks = [];
-  try {
-    tasks = proposals === undefined ? extractPlan(text) : proposals;
-  } catch (cause) {
-    for (const match of matches) {
-      try {
-        extractPlan(match[0]);
-      } catch (blockCause) {
-        diagnostics.push(
-          diagnostic(
-            "task.schema",
-            "error",
-            blockCause.message,
-            lineAt(text, match.index),
-            lineAt(text, match.index + match[0].length),
-          ),
-        );
-      }
-    }
-    diagnostics.push(...duplicateIdDiagnostics(text, matches));
-    if (!diagnostics.length)
-      diagnostics.push(diagnostic("task.schema", "error", cause.message, 1));
-    return summarize(diagnostics, []);
-  }
+  const diagnostics = [],
+    tasks = proposals;
 
   const repositories = new Map(
     (data.repositories || []).map((repository) => [repository.id, repository]),

@@ -1,6 +1,5 @@
 // Operations of one feature: name, class, MCP policy and handler.
 import { frontMatterCategory } from "../../front-matter.mjs";
-import { digest } from "../../model.mjs";
 import { applyPlanMetadata } from "../../plan-model.mjs";
 import { approvedSpecDependency } from "../../spec-dependencies.mjs";
 import { resolveTaskId } from "../../task-identity.mjs";
@@ -8,28 +7,14 @@ import {
   enforce as enforceContent,
   enforceSpec,
 } from "../content/content-rules.mjs";
-import {
-  disposeFact,
-  getExtraction,
-  proposalsFromFacts,
-  submitExtraction,
-} from "../specs/design-extraction.mjs";
 import { epicsView } from "../epics/epics-view.mjs";
 import { queuePublish } from "../specs/spec-publication.mjs";
 import { crossPlanEpics, epicOfPlan } from "../epics/epics.mjs";
 import { epicView, ownership, plansTableView } from "../api/page-views.mjs";
-import { lintPlan } from "../specs/plan-quality.mjs";
-import {
-  approvePlan,
-  createPlan,
-  extractPlan,
-  proposeWork,
-  savePlan,
-} from "../specs/plans.mjs";
+import { approvePlan } from "../specs/spec-approval.mjs";
 import { specLinks } from "../tasks/scm-links.mjs";
 import {
   checkedItems,
-  linkSpecPlan,
   proposeSpecWork,
   saveSpecPlan,
   specCategory,
@@ -88,23 +73,6 @@ function epicListHandler({ name, input }) {
 }
 
 export const entries = [
-  {
-    name: "plan.extract",
-    class: "execute",
-    github: "check-in",
-    policy: routed,
-    handler({ input }) {
-      if (
-        input.provider ||
-        (Array.isArray(input.sequence) && input.sequence.length)
-      )
-        fail(
-          "plan.extract takes no provider; a planner session fills it.",
-          400,
-        );
-      return this.startExtractionPipeline(input);
-    },
-  },
   // The Epics screen (read only).
   {
     name: "epics.view",
@@ -227,7 +195,8 @@ export const entries = [
     handler({ input, context }) {
       const store = this.store;
 
-      if (input.spec === undefined) return createPlan(store, input);
+      if (input.spec === undefined)
+        fail("Name the spec folder to store: {spec}.", 400);
       return this.createSpecDraft(input, context);
     },
   },
@@ -247,13 +216,8 @@ export const entries = [
         if (spec.exists && agent) enforceSpec(store, spec, { mode: "refuse" });
         return saveSpecPlan(store, input, spec);
       }
-      // An old-style plan whose spec folder now exists: link it as a draft.
-      if (plan && !plan.spec && input.spec !== undefined) {
-        const spec = this.readSpec(input.spec);
-        if (spec.exists && agent) enforceSpec(store, spec, { mode: "refuse" });
-        return linkSpecPlan(store, input, spec);
-      }
-      return savePlan(store, input);
+      if (!plan) fail("Plan not found.", 404);
+      fail("A spec plan is read from its folder; save it without text.", 409);
     },
   },
 
@@ -280,7 +244,8 @@ export const entries = [
           );
         return proposeSpecWork(store, input, (spec) => this.readSpec(spec));
       }
-      return proposeWork(store, input);
+      if (!plan) fail("Plan not found.", 404);
+      fail("Propose work as a task on a spec plan: {id, proposal}.", 409);
     },
   },
 
@@ -308,25 +273,12 @@ export const entries = [
         epicTitle: epic?.title ?? null,
         epicNamed: plan.spec ? specEpic(plan.files) : null,
         phases: [...phases.values()],
-        quality: plan.spec
-          ? this.lintSpecPlan(plan)
-          : lintPlan({
-              text: plan.text,
-              plan,
-              data: {
-                ...this.read(),
-                repositories: store.list("repositories"),
-              },
-            }),
+        quality: plan.spec ? this.lintSpecPlan(plan) : null,
         ...(plan.spec ? { disk: this.specOnDisk(plan) } : {}),
         // The spec's Links box (R92.4): stored records only, no GitHub
         // call. A local read, so a private spec issue shows only here.
         ...(plan.spec ? { links: specLinks(store, plan.id) } : {}),
         approvals: store.list("approvals").filter((a) => a.planId === plan.id),
-        extractions: store
-          .list("extractions")
-          .filter((extraction) => extraction.planId === plan.id)
-          .map((extraction) => getExtraction(store, extraction.id)),
       };
     },
   },
@@ -341,18 +293,8 @@ export const entries = [
 
       const plan = store.get("plans", input.id);
       if (!plan) fail("Plan not found.", 404);
-      if (plan.spec) return this.lintSpecPlan(plan);
-      const text = input.text ?? plan.text;
-      if (typeof text !== "string" || text.length > 1000000)
-        fail("Plan text is required.");
-      return lintPlan({
-        text,
-        plan,
-        data: {
-          ...this.read(),
-          repositories: store.list("repositories"),
-        },
-      });
+      if (!plan.spec) fail("Only a spec plan is linted.", 409);
+      return this.lintSpecPlan(plan);
     },
   },
 
@@ -366,48 +308,26 @@ export const entries = [
 
       const plan = store.get("plans", input.id);
       if (!plan) fail("Plan not found.", 404);
-      if (plan.spec && input.text !== undefined)
+      if (!plan.spec) fail("Only a spec plan is approved.", 409);
+      if (input.text !== undefined)
         fail("A spec plan is previewed from its stored revision.");
-      const text = input.text ?? plan.text,
-        specQuality = plan.spec ? this.lintSpecPlan(plan) : null;
-      // Read-only: show exactly what approving this revision would extract,
+      const specQuality = this.lintSpecPlan(plan);
+      // Read-only: show exactly what approving this revision would create,
       // without creating anything. Approval remains a separate operation.
       const data = this.read(),
-        extraction = input.extractionId
-          ? getExtraction(store, input.extractionId)
-          : null,
-        proposals = extraction
-          ? proposalsFromFacts(store, extraction.id)
-          : specQuality
-            ? specQuality.proposals
-            : extractPlan(text),
+        proposals = specQuality.proposals,
         mapping = Object.fromEntries(
           proposals.map((p) => [
             p.id,
-            resolveTaskId(
-              data,
-              p.taskId ||
-                plan.mapping?.[p.id] ||
-                (plan.spec ? p.id : `${plan.id}-${p.id}`),
-            ),
+            resolveTaskId(data, p.taskId || plan.mapping?.[p.id] || p.id),
           ]),
         );
       const existing = new Set(data.tasks.map((t) => t.id));
       const rows = new Map(data.tasks.map((t) => [t.id, t]));
-      const quality =
-        specQuality ||
-        lintPlan({
-          text,
-          plan,
-          data: {
-            ...data,
-            repositories: store.list("repositories"),
-          },
-          ...(extraction ? { proposals } : {}),
-        });
+      const quality = specQuality;
       return {
         planId: plan.id,
-        reviewedHash: plan.spec ? plan.hash : digest(text),
+        reviewedHash: plan.hash,
         currentHash: plan.hash,
         state: plan.state,
         quality,
@@ -415,11 +335,7 @@ export const entries = [
         expectedRevision: data.revision,
         approved: store
           .list("approvals")
-          .some(
-            (a) =>
-              a.planId === plan.id &&
-              a.hash === (plan.spec ? plan.hash : digest(text)),
-          ),
+          .some((a) => a.planId === plan.id && a.hash === plan.hash),
         tasks: proposals.map((p) => ({
           localId: p.id,
           taskId: mapping[p.id],
@@ -443,7 +359,7 @@ export const entries = [
               from: mapping[ref] || ref,
               to: mapping[p.id],
               known: existing.has(mapping[ref] || ref) || Boolean(mapping[ref]),
-              ...(specQuality?.declaredDependencies.find(
+              ...(specQuality.declaredDependencies.find(
                 (entry) => entry.taskId === ref,
               )
                 ? {
@@ -473,7 +389,6 @@ export const entries = [
         retiring: Object.keys(plan.mapping || {}).filter((id) => !mapping[id]),
         // Checked [x] items approval creates as accepted (plans.mjs).
         baseline: (() => {
-          if (!specQuality) return { count: 0, taskIds: [], text: "" };
           const checked = checkedItems(plan.spec, plan.text),
             taskIds = proposals
               .filter((p) => checked.has(p.id) && !existing.has(mapping[p.id]))
@@ -486,9 +401,6 @@ export const entries = [
               : "",
           };
         })(),
-        extractionId: extraction?.id || null,
-        facts: extraction?.facts || [],
-        gaps: extraction?.gaps || [],
       };
     },
   },
@@ -500,19 +412,13 @@ export const entries = [
     policy: person("Only a person approves a plan."),
     async handler({ input, expectedRevision }) {
       const store = this.store;
-      const { plan, extraction, specQuality, proposals } =
-        this.approvalChecks(input);
+      const { plan, specQuality, proposals } = this.approvalChecks(input);
       const args = {
         ...input,
         githubPolicy: this.githubPolicy(),
-        ...(extraction ? { extraction, proposals } : {}),
-        ...(specQuality
-          ? {
-              proposals,
-              baseline: true,
-              declaredDependencies: specQuality.declaredDependencies,
-            }
-          : {}),
+        proposals,
+        baseline: true,
+        declaredDependencies: specQuality.declaredDependencies,
         approvedBy: input.approvedBy?.trim() || this.operator,
         operator: input.operator || this.operator,
         expectedRevision: input.expectedRevision ?? expectedRevision,
@@ -520,18 +426,16 @@ export const entries = [
       // The approval is a commit by the person on main (§4.42); the receipt
       // below is its cache. It is made only once the receipt would be
       // written, tried first on a scratch copy.
-      const commit = extraction
-        ? null
-        : (
-            await this.approveInGit([plan], () => {
-              const scratch = store.scratch();
-              try {
-                approvePlan(scratch, args);
-              } finally {
-                scratch.close();
-              }
-            })
-          )?.get(plan.id);
+      const commit = (
+        await this.approveInGit([plan], () => {
+          const scratch = store.scratch();
+          try {
+            approvePlan(scratch, args);
+          } finally {
+            scratch.close();
+          }
+        })
+      )?.get(plan.id);
       if (commit) {
         args.approvedBy = commit.email;
         args.evidence = input.evidence || commit.evidence;
@@ -541,40 +445,6 @@ export const entries = [
       // The next tick publishes its spec issue (workflow v1 rule 8.1).
       if (commit) queuePublish(store, plan.id, commit.commit);
       return approved;
-    },
-  },
-
-  {
-    name: "plan.extract.get",
-    class: "observe",
-    github: "check-in",
-    policy: routed,
-    handler({ input }) {
-      const store = this.store;
-      return getExtraction(store, input.id || input.extractionId);
-    },
-  },
-
-  {
-    name: "plan.extraction.submit",
-    class: "draft",
-    github: "check-in",
-    policy: routed,
-    handler({ input }) {
-      const store = this.store;
-
-      return submitExtraction(store, input);
-    },
-  },
-
-  {
-    name: "plan.extraction.dispose",
-    class: "draft",
-    github: "check-in",
-    policy: routed,
-    handler({ input }) {
-      const store = this.store;
-      return disposeFact(store, input);
     },
   },
 ];

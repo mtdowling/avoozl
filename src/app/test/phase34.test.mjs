@@ -2,7 +2,7 @@
 // manifest's ship fields. Every value is fake.
 import assert from "node:assert/strict";
 import test from "node:test";
-import { validateProposal } from "../specs/plans.mjs";
+import { validateProposal } from "../specs/spec-plans.mjs";
 
 const leaf = (id, extra = {}) => ({
   id,

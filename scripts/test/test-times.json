@@ -102,7 +102,6 @@
     "src/app/test/content-terms.test.mjs": 794,
     "src/app/test/conversations.test.mjs": 1602,
     "src/app/delivery/test/delivery.test.mjs": 3884,
-    "src/app/specs/test/design-extraction.test.mjs": 780,
     "src/app/plugins/test/design-skills.test.mjs": 407,
     "src/app/landing/test/direct-landing.test.mjs": 2364,
     "src/app/specs/test/epic-proposal.test.mjs": 791,

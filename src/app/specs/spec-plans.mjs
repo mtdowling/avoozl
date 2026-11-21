@@ -18,7 +18,7 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { digest } from "../../model.mjs";
 import { fail } from "../store/store.mjs";
-import { validateProposal, writeRevision } from "./plans.mjs";
+import { TASK_KINDS } from "../../work-model.mjs";
 import { lintPlan } from "./plan-quality.mjs";
 import { specFolderPath, specsDirectory } from "./specs-path.mjs";
 import {
@@ -29,7 +29,6 @@ import {
   withoutFacts,
 } from "./spec-facts.mjs";
 import { frontMatter, withoutFrontMatter } from "../../front-matter.mjs";
-import { resolveTaskId } from "../../task-identity.mjs";
 import {
   SPEC_TEXT,
   TASKS_FILE,
@@ -58,6 +57,111 @@ import {
   splitRefs,
   taskToken,
 } from "./spec-refs.mjs";
+
+// The field rules every proposed task meets, whichever file it came from.
+// Normalizes `requires` conditions in place.
+export function validateProposal(item) {
+  if (!item || typeof item !== "object" || Array.isArray(item))
+    fail("Describe each task as a JSON object.");
+  if (
+    typeof item.title !== "string" ||
+    !item.title.trim() ||
+    item.title.length > 240
+  )
+    fail("Each task needs a title of 1–240 characters.");
+  if (item.kind !== undefined && !TASK_KINDS.includes(item.kind))
+    fail(
+      item.kind === "epic"
+        ? 'kind "epic" is not a task kind: write "package". An epic is its own spec folder that lists plans.'
+        : "kind must be package or leaf.",
+    );
+  if (item.epic !== undefined)
+    fail(
+      'A task names no epic: its plan does. Use "phase" to group tasks inside a plan.',
+    );
+  // A step only a person does (R61.9); its other rules are lint's.
+  if (item.manual !== undefined && item.manual !== true)
+    fail("manual may only be true.");
+  // Packages complete from their children; leaves are checked.
+  const parent = item.kind === "package";
+  if (
+    (!parent || item.acceptance !== undefined) &&
+    (!Array.isArray(item.acceptance) ||
+      !item.acceptance.length ||
+      item.acceptance.some((x) => typeof x !== "string" || !x.trim()))
+  )
+    fail("Each proposed task needs observable acceptance criteria.");
+  for (const field of ["requires", "checks"])
+    if (
+      item[field] !== undefined &&
+      (!Array.isArray(item[field]) ||
+        item[field].some((x) => typeof x !== "string"))
+    )
+      fail(field + " must be a list of strings.");
+  // Every task runs its repository's checks: a stored proposal's own list
+  // is ignored.
+  delete item.checks;
+  // A proposal stored while the field was named `prose` loads as summary.
+  if (item.prose !== undefined) {
+    item.summary ??= item.prose;
+    delete item.prose;
+  }
+  for (const field of ["summary", "repository"])
+    if (item[field] !== undefined && typeof item[field] !== "string")
+      fail(field + " must be text.");
+  // A spec's type comes from its folder.
+  if (item.specType !== undefined && item.specType !== "bugfix")
+    fail('specType may only be "bugfix".');
+  if (
+    item.paths !== undefined &&
+    (!Array.isArray(item.paths) ||
+      item.paths.some((x) => typeof x !== "string"))
+  )
+    fail("paths must be a list of strings.");
+  // A type word (R53.1).
+  if (
+    item.type !== undefined &&
+    (typeof item.type !== "string" || !/^[a-z][a-z0-9-]{0,39}$/.test(item.type))
+  )
+    fail("type must be one lowercase word, such as test.");
+  return item;
+}
+
+// One revision of the design document. An amended approved plan no longer
+// matches its approval receipt, so its tasks require review until the next
+// explicit approval. A spec plan's revision is its folder's files and hash.
+export function writeRevision(store, plan, text, summary, spec = null) {
+  plan.history.push({
+    revision: plan.revision,
+    hash: plan.hash,
+    text: plan.text,
+    ...(plan.files ? { files: plan.files } : {}),
+    at: plan.updatedAt,
+    state: plan.state,
+  });
+  plan.revision++;
+  plan.text = text;
+  plan.hash = spec ? spec.hash : digest(text);
+  if (spec) plan.files = spec.files;
+  plan.title = spec?.title || text.match(/^# (.+)$/m)?.[1] || plan.title;
+  plan.state = "draft";
+  plan.updatedAt = new Date().toISOString();
+  store.put("plans", plan);
+  if (plan.documentId) {
+    const data = structuredClone(store.read()),
+      held = new Set(plan.reviewHeld || []);
+    for (const task of data.tasks.filter((t) => t.planId === plan.id)) {
+      if (!task.needsReview) held.add(task.id);
+      task.needsReview = true;
+    }
+    // Approval releases the tasks this draft held if their entry is unchanged.
+    plan.reviewHeld = [...held];
+    store.put("plans", plan);
+    store.commit(data, summary + plan.title);
+  }
+  store.event(null, "plan.changed", { planId: plan.id, hash: plan.hash });
+  return plan;
+}
 
 export { taskToken };
 
@@ -919,7 +1023,6 @@ export function lintSpec({
       parsed.kind === "epic"
         ? { diagnostics: [] }
         : lintPlan({
-            text: specTasks(spec.files)?.text ?? "",
             plan,
             data,
             proposals: parsed.proposals,
@@ -1261,67 +1364,6 @@ export function saveSpecPlan(store, { id, expectedHash }, spec) {
         files: spec.files,
         title: specTitle(spec),
       },
-    );
-  });
-}
-
-// Turn an old-style plan into a spec plan: its folder becomes the next draft
-// revision under the same plan ID. The folder must belong to this plan, and
-// every task the plan already mapped must be in tasks.md, so approval keeps
-// the same task IDs, history and edges. Linking never approves.
-export function linkSpecPlan(store, { id, expectedHash }, spec) {
-  requireFolder(spec);
-  return store.transaction(() => {
-    const plan = store.get("plans", id);
-    if (!plan || plan.deletedAt) fail("Plan not found.", 404);
-    if (plan.kind === "conversation")
-      fail("A conversation is not a plan. Create a spec plan instead.");
-    if (plan.spec) fail("This plan already reads its spec folder.", 409);
-    if (plan.hash !== expectedHash)
-      fail("This draft changed. Reload before saving.", 409);
-    if (
-      store
-        .list("plans")
-        .some(
-          (other) =>
-            other.id !== id && !other.deletedAt && other.spec === spec.name,
-        )
-    )
-      fail(`Spec ${spec.name} already belongs to another plan.`, 409);
-    if (
-      spec.name !== plan.id &&
-      !plan.documentId?.startsWith(
-        spec.folder ?? specFolderPath(null, spec.name),
-      )
-    )
-      fail(
-        `Spec ${spec.name} is not this plan's folder: the plan ID or its document must name it.`,
-        409,
-      );
-    // Spec mapping keys are tasks.md IDs; old keys were block IDs.
-    const data = store.read(),
-      resolve = (taskId) => resolveTaskId(data, taskId),
-      proposals = parseSpec(spec).proposals,
-      mapping = {};
-    for (const taskId of Object.values(plan.mapping || {})) {
-      const proposal = proposals.find(
-        (p) => resolve(p.taskId || p.id) === resolve(taskId),
-      );
-      if (!proposal)
-        fail(
-          `Task ${taskId} is missing from ${spec.name}/${taskFile(spec.files)}. Add it or retire it before linking.`,
-          409,
-        );
-      mapping[proposal.id] = taskId;
-    }
-    plan.mapping = mapping;
-    plan.spec = spec.name;
-    return writeRevision(
-      store,
-      plan,
-      specTasks(spec.files)?.text ?? "",
-      "Review amended spec: ",
-      { hash: spec.hash, files: spec.files, title: specTitle(spec) },
     );
   });
 }

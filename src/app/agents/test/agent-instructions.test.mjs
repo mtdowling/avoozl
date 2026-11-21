@@ -115,14 +115,6 @@ test("workflow categories inherit and local overrides only disable configured ru
     }),
     "task.review",
   );
-  assert.equal(
-    workflowCategory({
-      mode: "ask",
-      extraction: { planId: "design" },
-      context: {},
-    }),
-    "plan.extract",
-  );
 });
 
 test("extraction instructions inherit plan policy and honor repository paths", () => {

@@ -303,8 +303,6 @@ export function matchingAgentInstructions(data, category, task) {
 export function workflowCategory(run) {
   const explicit = run.context?.workflowCategory;
   if (categories.has(explicit)) return explicit;
-  if (run.extraction?.planId || run.extraction?.extractionId)
-    return "plan.extract";
   if (run.mode === "plan")
     return run.context?.planId || run.planId ? "plan.edit" : "plan.create";
   if (run.mode === "implement")

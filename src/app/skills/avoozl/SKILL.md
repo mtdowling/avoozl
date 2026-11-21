@@ -1,6 +1,6 @@
 ---
 name: avoozl
-description: Find, pick up, plan and maintain work in the Avoozl workspace through its shared CLI or MCP. Use for tracked tasks, design documents and work extraction, plan drafting and approval, progress updates, evidence and agent handoffs.
+description: Find, pick up, plan and maintain work in the Avoozl workspace through its shared CLI or MCP. Use for tracked tasks, spec drafting and approval, progress updates, evidence and agent handoffs.
 ---
 
 # Avoozl workflow
@@ -89,34 +89,28 @@ SQLite owns live tasks, status, relationships, evidence and agent state. Markdow
 Work you find mid-task has three dispositions. Normally the first applies:
 
 1. **In scope for the task you are doing.** Do it, and record the result as evidence on that task. Filing anything is the exception.
-2. **Related to the task's plan, but not this task.** Record a cited proposed
-   fact on that design through `plan.propose` / `plans_plan {action: "propose"}`. The
-   proposal stays in extraction review and never rewrites the author's prose or
-   becomes executable until an authorized extraction approval.
+2. **Related to the task's spec, but not this task.** Propose a task on that
+   spec through `plan.propose` / `plans_plan {action: "propose"}` with
+   `{id, proposal}`. It adds a draft item to the spec's `tasks.md` and runs only
+   after a person approves the spec.
 
 3. **Needs a different design.** Draft a new plan and tell the user; a design decision is theirs.
 
 Do not use capture as a discovery channel. `task.capture` / `plans_intake {action: "capture"}` is a person's own request from the view in front of them; using it for findings manufactures inert inbox tasks with no plan, no approval and no dependencies.
 
-## Draft and approve plans
+## Draft and approve specs
 
-Write the design as ordinary Markdown. Fenced `task` blocks remain compatible
-but are not required. Use `plan.extract` / `plans_review {action: "extract"}` to bind a read-only
-extraction to the exact revision, `plan.extract.get` / `plans_review {action: "extraction"}` to
-inspect rounds, cited facts, gaps and advisory coverage, and
-`plan.extraction.dispose` / `plans_review {action: "dispose_fact"}` to reject, edit, or reuse a
-fact. Every stated or inferred fact must cite one exact passage; missing
-decisions are gaps, not invented work.
+A spec is a folder under `.kiro/specs/<name>/`. Store it as a draft with
+`plan.create` / `plans_create_plan` and `{spec}`, reload it after an edit with
+`plan.save` / `plans_save_plan`, and check it with `plan.lint`. `plan.preview`
+shows the tasks approval would create.
 
-Approval must identify the exact document revision and extraction and come from
-explicit authorization; a design request or silence is not approval. Preview
-with `plan.preview` and its `extractionId`, then use `plan.approve` with the same
-ID. Approval records an immutable receipt and atomically extracts accepted
-facts without rewriting or publishing the design document. Review amendments
-before extracting changed scope; preserve existing task identities and
-evidence.
+Approval is a person's: an approver's commit on main, or Approve in the app
+with `plan.approve` and the previewed hash and revision. A design request or
+silence is not approval. Preserve existing task identities and evidence when
+a spec changes.
 
-After a plan edit, reconcile affected task records and design links in the same work.
+After a spec edit, reconcile affected task records in the same work.
 
 ## Agent sessions and reconnects
 
@@ -133,9 +127,8 @@ For operation arguments, task-block examples, validation/integration, models and
 ```
 
 MCP exposes the same workflow through tools including `plans_query`,
-`plans_task {action: "update"}`, `plans_get_plan`, `plans_review {action: "extract"}`,
-`plans_review {action: "extraction"}`, `plans_submit_extraction`, `plans_review {action: "dispose_fact"}`,
-`plans_approve_plan`, `plans_task {action: "handoff"}`, and `plans_task {action: "integrate"}`. Inspect `tools/list` for each tool's current input
+`plans_task {action: "update"}`, `plans_get_plan`, `plans_approve_plan`,
+`plans_task {action: "handoff"}`, and `plans_task {action: "integrate"}`. Inspect `tools/list` for each tool's current input
 schema. Approval and integration remain subject to the user's authorization.
 
 To refresh an installed copy, print the maintained skill with `{{CLI}} skill` and replace the installed `SKILL.md` with that output.

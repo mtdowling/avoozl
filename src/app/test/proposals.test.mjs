@@ -191,21 +191,6 @@ test("a stale hash or a folder changed on disk refuses the proposal", async (t) 
   );
 });
 
-test("a task proposal on a free-form design is refused instead of writing a fenced block", async (t) => {
-  const { store } = fixture(t),
-    ops = new Operations(store),
-    plan = await ops.execute("plan.create", {
-      prompt: "Feature",
-      text: markdown,
-    });
-  await assert.rejects(
-    ops.execute("plan.propose", { id: plan.id, proposal: proposal() }),
-    (error) =>
-      error.status === 409 && /no longer writes fenced task blocks/.test(error),
-  );
-  assert.equal(store.get("plans", plan.id).text, markdown);
-});
-
 test("the agent-facing surfaces route discoveries away from capture", async (t) => {
   const { store } = fixture(t),
     ops = new Operations(store);

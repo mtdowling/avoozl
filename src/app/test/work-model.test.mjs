@@ -16,7 +16,8 @@ const ready = (data, options = {}) =>
   queryTasks(data, { scope: "all", q: "ready:true", ...options }).map(
     (task) => task.id,
   );
-const block = (fields) => "```task\n" + JSON.stringify(fields) + "\n```\n";
+// One proposed task at lines 1-3, as a spec lists it.
+const block = (fields) => ({ lineStart: 1, lineEnd: 3, ...fields });
 const leaf = (id, extra = {}) => ({
   id,
   title: "Task " + id,
@@ -25,8 +26,12 @@ const leaf = (id, extra = {}) => ({
   checks: ["npm test"],
   ...extra,
 });
-const lint = (text, repositories = []) =>
-  lintPlan({ text, plan: { context: {} }, data: { repositories, tasks: [] } });
+const lint = (task, repositories = []) =>
+  lintPlan({
+    plan: { context: {} },
+    data: { repositories, tasks: [] },
+    proposals: [task],
+  });
 const codes = (result) => result.diagnostics.map((item) => item.code);
 
 test("legacy rows read with work-model defaults and are not rewritten", (t) => {
@@ -169,48 +174,6 @@ test("direct edits of GitHub-owned rows are refused and routed to projection", a
     title: "Renamed",
   });
   assert.equal(local.title, "Renamed");
-});
-
-test("plan blocks carry work-model fields and edges into approval", async (t) => {
-  const { store } = fixture(t),
-    ops = new Operations(store),
-    text =
-      "# Model\n\n" +
-      block({
-        id: "parent",
-        title: "Parent",
-        kind: "package",
-        summary: "All.",
-      }) +
-      block(leaf("base")) +
-      block(leaf("user", { requires: ["base"] })),
-    plan = await ops.execute("plan.create", { prompt: "Model.", text }),
-    preview = await ops.execute("plan.preview", { id: plan.id });
-  assert.equal(preview.quality.canApprove, true);
-  const receipt = await ops.execute("plan.approve", {
-      id: plan.id,
-      expectedHash: plan.hash,
-      expectedRevision: preview.expectedRevision,
-    }),
-    data = store.read(),
-    byLocal = (id) =>
-      data.tasks.find((task) => task.id === receipt.mapping[id]);
-  assert.equal(byLocal("parent").kind, "package");
-  assert.equal(byLocal("base").checks, undefined, "a task never names checks");
-  assert.equal(
-    data.edges.find((edge) => edge.to === receipt.mapping.user).from,
-    receipt.mapping.base,
-  );
-});
-
-test("validation reports a repeated task ID at its line", () => {
-  const text = "# Plan\n\n" + block(leaf("same")) + "\n" + block(leaf("same"));
-  const found = lint(text).diagnostics.find(
-    (item) => item.code === "task.duplicate-id",
-  );
-  assert.equal(found.severity, "error");
-  assert.equal(found.lineStart, 7);
-  assert.match(found.message, /already used at line 3/);
 });
 
 test("a leaf names one repository when the workspace has several", () => {

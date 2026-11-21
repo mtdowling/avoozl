@@ -145,7 +145,7 @@ merge, shown in chat and never committed.
 
 ## Phase 8: The old plan model
 
-- [ ] `sim-4.10` Cut the old plan-document model [SM14.1] (§D14)
+- [x] `sim-4.10` Cut the old plan-document model [SM14.1] (§D14)
   - `specs/plans.mjs`, `design-extraction.mjs`, `source-sync.mjs`, `plan-archive.mjs` and `plan-retire.mjs` are gone, with the old-plan lint in `plan-quality.mjs`, `avoozl generate`, the catalog's section review flags, plan archive and delete, and their operations, MCP tools and UI
   - Approval follows workflow v1: an approver's commit on main approves a spec, and the code that records it lives in the spec modules
 

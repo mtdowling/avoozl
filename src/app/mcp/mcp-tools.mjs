@@ -95,22 +95,6 @@ const tools = {
       classify: ["plan.classify", "set plan metadata"],
     },
   },
-  plans_review: {
-    summary: "Design extraction. None of these approve a plan.",
-    actions: {
-      extract: ["plan.extract", "open an extraction record"],
-      extraction: ["plan.extract.get", "extraction rounds and facts"],
-      submit_extraction: [
-        "plan.extraction.submit",
-        "submit one extraction round",
-      ],
-      dispose_fact: [
-        "plan.extraction.dispose",
-        "reject, edit, accept or reuse a fact",
-      ],
-      triage_design: ["queue.design.triage", "classify an untriaged design"],
-    },
-  },
   plans_task: {
     summary: "One task: read it, change it, deliver it.",
     actions: {

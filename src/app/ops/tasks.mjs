@@ -1096,52 +1096,6 @@ export const entries = [
   },
 
   {
-    name: "queue.design.triage",
-    class: "execute",
-    github: "check-in",
-    policy: routed,
-    handler({ input }) {
-      const store = this.store;
-
-      const plan = store.get("plans", input.planId);
-      if (!plan) fail("Plan not found.", 404);
-      if (!["extract", "context"].includes(input.action))
-        fail("Choose extract or context.");
-      if (input.action === "context") {
-        plan.triage = {
-          state: "context",
-          at: new Date().toISOString(),
-          by: this.operator || null,
-        };
-        store.put("plans", plan);
-        store.event(null, "queue.design.triaged", {
-          planId: plan.id,
-          action: "context",
-        });
-        return { plan, extraction: null };
-      }
-      const extraction = this.startExtractionPipeline({
-        ...input,
-        planId: plan.id,
-        revisionHash: plan.hash,
-      });
-      plan.triage = {
-        state: "extracting",
-        extractionId: extraction.id,
-        at: new Date().toISOString(),
-        by: this.operator || null,
-      };
-      store.put("plans", plan);
-      store.event(null, "queue.design.triaged", {
-        planId: plan.id,
-        action: "extract",
-        extractionId: extraction.id,
-      });
-      return { plan, extraction };
-    },
-  },
-
-  {
     name: "task.accept",
     class: "protect",
     github: "check-in",

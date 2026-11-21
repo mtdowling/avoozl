@@ -775,135 +775,6 @@ async function legacyPlan(ops) {
   return ops.execute("plan.get", { id: plan.id });
 }
 
-test("plan.save links an old-style plan to its spec folder as a draft", async (t) => {
-  const { root, store, ops } = workspace(t),
-    legacy = await legacyPlan(ops),
-    taskIds = () =>
-      store
-        .read()
-        .tasks.filter((task) => task.planId === "config")
-        .map((task) => task.id)
-        .sort();
-  assert.deepEqual(legacy.mapping, {
-    load: "config-load",
-    check: "config-check",
-  });
-  writeSpec(root, "config", legacySpec());
-  const linked = await ops.execute("plan.save", {
-    id: "config",
-    spec: "config",
-    expectedHash: legacy.hash,
-  });
-  assert.equal(linked.spec, "config");
-  assert.equal(linked.state, "draft");
-  assert.equal(linked.revision, legacy.revision + 1);
-  assert.equal(linked.hash, readSpecFolder(root, "config").hash);
-  assert.deepEqual(linked.mapping, {
-    "config-load": "config-load",
-    "config-check": "config-check",
-  });
-  assert.deepEqual(
-    linked.history.map((entry) => [entry.revision, entry.state]),
-    [[1, "approved"]],
-  );
-  assert.equal(linked.history[0].text, legacyText);
-  assert.equal(store.list("approvals").length, 1, "linking never approves");
-  assert.ok(
-    store.read().tasks.every((t) => t.planId !== "config" || t.needsReview),
-  );
-  await approve(ops);
-  assert.deepEqual(taskIds(), ["config-check", "config-load"]);
-  const data = store.read();
-  assert.ok(
-    data.edges.some(
-      (e) =>
-        e.from === "config-load" &&
-        e.to === "config-check" &&
-        e.kind === "requires",
-    ),
-  );
-  assert.equal(
-    data.tasks.find((task) => task.id === "config-check").source.document,
-    "spec:config",
-  );
-  const approved = await ops.execute("plan.get", { id: "config" });
-  assert.equal(approved.state, "approved");
-  assert.equal(approved.history.length, 1);
-  assert.equal(store.list("approvals").length, 2);
-});
-
-// The old plan's blocks named no edges; the graph's edges came from an
-// import or a hand edit, so they carry no planId. The linked spec's manifest
-// now names those same edges, and approval must take them over, not add a
-// second copy of each.
-test("re-approving a linked spec replaces the plan's edges instead of repeating them", async (t) => {
-  const { root, store, ops } = workspace(t);
-  await ops.execute("plan.create", {
-    id: "config",
-    prompt: "Load config",
-    text: legacyText.replace(',"requires":["load"]', ""),
-  });
-  await approve(ops);
-  // Another plan owns a task and an edge into this plan's work.
-  await ops.execute("plan.create", {
-    id: "other",
-    prompt: "Other",
-    text: `# Other\n\n\`\`\`task\n{"id":"prep","title":"Prepare","acceptance":["Ready."],"checks":["npm test"],"track":"catalog"}\n\`\`\`\n`,
-  });
-  await approve(ops, "other");
-  store.mutate("Imported graph", (data) => {
-    data.edges.push(
-      {
-        id: "config-load:requires:config-check",
-        from: "config-load",
-        to: "config-check",
-        kind: "requires",
-        reason: "Imported.",
-      },
-      {
-        id: "other-prep:requires:config-load",
-        from: "other-prep",
-        to: "config-load",
-        kind: "requires",
-        planId: "other",
-        reason: "Other plan.",
-      },
-    );
-  });
-  const legacy = await ops.execute("plan.get", { id: "config" }),
-    files = legacySpec(),
-    manifest = JSON.parse(files["avoozl/manifest.json"]);
-  manifest.tasks["config-load"].requires = ["other-prep"];
-  files["avoozl/manifest.json"] = JSON.stringify(manifest);
-  writeSpec(root, "config", files);
-  await ops.execute("plan.save", {
-    id: "config",
-    spec: "config",
-    expectedHash: legacy.hash,
-  });
-  await approve(ops);
-  const edges = store.read().edges,
-    ids = edges.map((e) => e.id);
-  assert.equal(new Set(ids).size, ids.length, "no repeated edges");
-  assert.deepEqual(
-    edges
-      .filter((e) => e.planId === "config")
-      .map((e) => e.id)
-      .sort(),
-    ["config-load:requires:config-check"],
-    "the plan owns exactly its manifest's edges, minus one another plan owns",
-  );
-  assert.equal(
-    edges.find((e) => e.id === "other-prep:requires:config-load").planId,
-    "other",
-    "another plan's edge is kept",
-  );
-  // Approving the same revision again changes nothing.
-  const count = edges.length;
-  await approve(ops);
-  assert.equal(store.read().edges.length, count);
-});
-
 test("a failed approval writes nothing and names repeated errors once", async (t) => {
   const { root, store, ops } = workspace(t);
   writeSpec(root, "config");
@@ -946,25 +817,6 @@ test("a failed approval writes nothing and names repeated errors once", async (t
   );
 });
 
-test("plan.save refuses to link a spec that does not fit the plan", async (t) => {
-  const { root, store, ops } = workspace(t),
-    legacy = await legacyPlan(ops),
-    link = (spec, expectedHash = legacy.hash) =>
-      ops.execute("plan.save", { id: "config", spec, expectedHash }),
-    before = JSON.stringify(store.get("plans", "config"));
-  writeSpec(root, "config", legacySpec(["config-load"]));
-  await assert.rejects(link("config"), /config-check is missing/);
-  writeSpec(root, "config", legacySpec());
-  await assert.rejects(link("config", "stale"), /changed/);
-  writeSpec(root, "unrelated", legacySpec());
-  await assert.rejects(link("unrelated"), /not this plan's folder/);
-  await ops.execute("plan.create", { spec: "config", id: "other" });
-  await assert.rejects(link("config"), /belongs to another plan/);
-  assert.equal(JSON.stringify(store.get("plans", "config")), before);
-});
-
-// Kiro checks off built work in tasks.md. The human-approved revision is
-// the baseline: its [x] items start accepted, and nothing else does.
 test("approval starts checked items as accepted from the approved tasks.md", async (t) => {
   const { root, store, ops } = workspace(t),
     files = specFiles(),
@@ -1035,7 +887,7 @@ test("a breakdown approval starts checked items planned", async (t) => {
     files = legacySpecFiles();
   // approvePlan reads marks only when its caller asks (plan.approve does;
   // a GitHub breakdown's child approval does not).
-  const { approvePlan } = await import("../plans.mjs");
+  const { approvePlan } = await import("../spec-approval.mjs");
   writeSpec(root, "other", {
     "tasks.md": files["tasks.md"].replaceAll("- [ ]", "- [x]"),
   });
