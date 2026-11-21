@@ -985,7 +985,11 @@ export function retryDelivery(
     for (const entry of dismiss)
       if (!open.has(entry.finding))
         fail(`${entry.finding} is not an open finding on ${task.id}.`, 409);
-    const { decisionNotifiedAt, cause, nudge, ...rest } = delivery,
+    const integrationRetry =
+        delivery.decisionStage === "integration" ||
+        (typeof delivery.cause === "string" &&
+          delivery.cause.startsWith("integration refused:")),
+      { decisionNotifiedAt, decisionStage, cause, nudge, ...rest } = delivery,
       next = {
         ...rest,
         ...(dismiss.length
@@ -1001,8 +1005,12 @@ export function retryDelivery(
               ],
             }
           : {}),
-        state: "failed",
-        retryFrom: delivery.attempts.length,
+        // An integration refusal did not invalidate the worker's commit,
+        // checks, or reviews. Retry that exact verified commit after the
+        // person resolves the checkout/worktree condition instead of
+        // spending another writer attempt and repeating every gate.
+        state: integrationRetry ? "verified" : "failed",
+        ...(integrationRetry ? {} : { retryFrom: delivery.attempts.length }),
         retriedAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -2809,6 +2817,7 @@ export async function integrateVerified(
       next = {
         ...delivery,
         state: "decision",
+        decisionStage: "integration",
         cause: "integration refused: " + error.message,
         decisionNotifiedAt: at,
         updatedAt: at,

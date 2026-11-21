@@ -17,6 +17,7 @@ import {
 } from "../../test/delivery-fixture.ts";
 import { loopOn } from "../../test/fixtures.ts";
 import { drainCheckRuns } from "../check-runs.ts";
+import { retryDelivery } from "../delivery.ts";
 
 // The tick starts and lands work only with the server loop on.
 loopOn();
@@ -202,6 +203,21 @@ test("a verified commit integrates with integrateRun and records the integrated 
   assert.equal(refused.notify.length, 1);
   assert.equal(git(dirty.checkout, "rev-parse", "main"), before);
   assert.deepEqual((await tick(dirty.ops)).notify, [], "decided once");
+  const attempts = dirty.store.get("task_deliveries", "b").attempts.length;
+  git(dirty.checkout, "checkout", "--", "README.md");
+  const retried = retryDelivery(dirty.store, { taskId: "b" }, { local: true });
+  assert.equal(
+    retried.delivery.state,
+    "verified",
+    "an integration retry keeps the approved commit",
+  );
+  await tick(dirty.ops);
+  assert.equal(dirty.store.get("task_deliveries", "b").state, "integrated");
+  assert.equal(
+    dirty.store.get("task_deliveries", "b").attempts.length,
+    attempts,
+    "integration retry does not spend another writer attempt",
+  );
 
   // A repository with no checks is judged by its reviewers only, and
   // integration still needs checks to run on the rebased work.
