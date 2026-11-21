@@ -1,12 +1,12 @@
-// @ts-nocheck: typing debt
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { SCOPE_RULE, SCOPE_STATEMENT, TAGLINE } from "../../work-split.ts";
 
 // rc-13.1: one source string; the README and Set up show the same words.
-const read = (path) => readFileSync(new URL(path, import.meta.url), "utf8");
-const flat = (path) => read(path).replace(/\s+/g, " ");
+const read = (path: string) =>
+  readFileSync(new URL(path, import.meta.url), "utf8");
+const flat = (path: string) => read(path).replace(/\s+/g, " ");
 
 test("the statement takes specs of any size, a light one as one pull request", () => {
   assert.match(SCOPE_STATEMENT, /any size/);

@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
@@ -12,7 +11,7 @@ const script = fileURLToPath(
 );
 
 // Lint spec folders `{name: {file: text}}` in a temporary repository.
-function lintSpecs(specs) {
+function lintSpecs(specs: Record<string, Record<string, string>>) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "spec-lint-"));
   try {
     for (const [name, files] of Object.entries(specs)) {
@@ -26,7 +25,8 @@ function lintSpecs(specs) {
     fs.rmSync(root, { recursive: true, force: true });
   }
 }
-const lintFolder = (name, files) => lintSpecs({ [name]: files });
+const lintFolder = (name: string, files: Record<string, string>) =>
+  lintSpecs({ [name]: files });
 
 test("spec lint passes on this repository's specs", () => {
   const run = spawnSync(process.execPath, [script], { encoding: "utf8" });

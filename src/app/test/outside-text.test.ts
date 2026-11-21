@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Text an outside party wrote (an issue's author, an intake source, a pull
 // request's author, a check) reaches an agent only quoted as data
 // (Requirement 10.6, 50.2, 54.6). Every name and term here is made up.
@@ -26,7 +25,7 @@ const fromIntake = {
 
 // The outside text sits inside one fence, after a line that says it is
 // data, and nothing outside the fence repeats it.
-function quotedOnly(brief, text = ATTACK) {
+function quotedOnly(brief: string, text = ATTACK) {
   const open = brief.indexOf("```text\n"),
     close = brief.indexOf("\n```", open + 8);
   assert.ok(open > 0 && close > open, "a fenced block");

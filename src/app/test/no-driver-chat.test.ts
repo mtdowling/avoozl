@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The driver chat was removed: no avoozl-driver agent, no driver session
 // operations, and no driver session setting. This fails if any comes back.
 // The per-spec driver lock (driver.*, §6.10) is a different feature and stays.
@@ -8,16 +7,20 @@ import test from "node:test";
 import { ROLES } from "../agents/role-table.ts";
 import { classifyOperation } from "../api/operation-table.ts";
 
-const read = (file) =>
+const read = (file: string) =>
   fs.readFileSync(new URL(`../../../${file}`, import.meta.url), "utf8");
-const exists = (file) =>
+const exists = (file: string) =>
   fs.existsSync(new URL(`../../../${file}`, import.meta.url));
 
 test("the avoozl-driver agent and the driver session setting stay removed", () => {
   const manifest = JSON.parse(read("hosts/kirocrew/app.json"));
-  assert.ok(!manifest.agents.some((file) => /avoozl-driver/.test(file)));
+  assert.ok(
+    !manifest.agents.some((file: string) => /avoozl-driver/.test(file)),
+  );
   const metadata = JSON.parse(read("roles.json"));
-  assert.ok(!metadata.some((agent) => agent.name === "avoozl-driver"));
+  assert.ok(
+    !metadata.some((agent: { name: string }) => agent.name === "avoozl-driver"),
+  );
   assert.ok(!exists("hosts/kirocrew/agents/avoozl-driver.json"));
   assert.ok(!exists("prompts/driver.md"));
   assert.doesNotMatch(read("hosts/kirocrew/bin/avoozl.mjs"), /driver hook/);

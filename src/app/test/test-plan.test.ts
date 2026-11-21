@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
@@ -30,6 +29,7 @@ test("a file not on the reviewed OS-neutral list counts as OS-sensitive", () => 
   const { osNeutral } = JSON.parse(
     fs.readFileSync(
       new URL("../../../scripts/test/test-map.json", import.meta.url),
+      "utf8",
     ),
   );
   assert.ok(osNeutral.length > 0);
@@ -50,7 +50,7 @@ test("Linux keeps the whole selection and puts the Chrome page tests apart", () 
 });
 
 test("macOS and Windows run only OS-sensitive tests on a pull request, and all of them otherwise", () => {
-  for (const system of ["macos", "windows"]) {
+  for (const system of ["macos", "windows"] as const) {
     const pr = planFor(sel, system, { pullRequest: true });
     const full = planFor(sel, system, { pullRequest: false });
     assert.deepEqual(pr.chrome, []);

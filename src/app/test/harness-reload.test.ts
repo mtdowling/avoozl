@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -66,8 +65,8 @@ function setup() {
     STUB_LOG: log,
     STUB_HOME: path.join(fs.realpathSync(t), "h", "home"),
   };
-  delete env.KIROCREW_HOME;
-  const run = (...args) => {
+  delete (env as NodeJS.ProcessEnv).KIROCREW_HOME;
+  const run = (...args: string[]) => {
     const r = spawnSync("bash", [script, ...args], { env, encoding: "utf8" });
     return { ...r, out: r.stdout + r.stderr };
   };

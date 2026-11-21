@@ -17,7 +17,9 @@ export interface Case {
   history?: { commit: string; files: Files; [key: string]: unknown }[];
   then?: Probes;
   expect?: Probes;
-  expectFail?: Record<string, unknown>;
+  expectFail?: Record<string, string>;
+  rules?: string[];
+  steps?: { do: string; [key: string]: unknown }[];
   [key: string]: unknown;
 }
 export type Verdict = "pass" | "fail" | "expected-fail" | "unexpected-pass";

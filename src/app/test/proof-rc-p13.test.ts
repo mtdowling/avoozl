@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Proof 13 (rc-p13): the work split. The scope statement shows in the README
 // from one source string. Quick goal and its one-pull-request hint
 // were removed (RC30.1); goals start in New spec as From a goal.
@@ -7,7 +6,7 @@ import fs from "node:fs";
 import test from "node:test";
 import { SCOPE_RULE, SCOPE_STATEMENT } from "../../work-split.ts";
 
-const read = (file) =>
+const read = (file: string) =>
   fs.readFileSync(new URL(`../../../${file}`, import.meta.url), "utf8");
 
 test("Proof 13: the statement shows in the README", () => {
