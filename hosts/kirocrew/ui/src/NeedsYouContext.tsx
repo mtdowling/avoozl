@@ -2,7 +2,7 @@
 // why, what answering unblocks, and the evidence Avoozl holds. It comes before
 // every button, so nothing is approved without it. Theme variables only.
 import type { ReactNode } from 'react'
-import { checkDot } from './dashboard-api.ts'
+import { checkDot } from './in-flight-api.ts'
 import { Tooltip } from './ui/Tooltip.tsx'
 import { useTaskDrawer } from './drawer-context.ts'
 import { useOpenSpec } from './spec-link.ts'

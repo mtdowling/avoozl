@@ -23,7 +23,6 @@ import { NavSlotProvider } from './nav-slot.tsx'
 import DeliveryView from './DeliveryView.tsx'
 import { VIEW_ICONS } from './icons.ts'
 import { LineBanner, useOpenStops } from './StopLine.tsx'
-import type { NewPlanForm } from './new-plan-api.ts'
 import SettingsView, { GITHUB_TABS, SETTINGS_TABS, type SettingsTab } from './SettingsView'
 import { parseSpecTab, readTab, specTabLink } from './tabs.ts'
 import { SETTINGS_HOME, settingsTabOnEnter } from './settings-api.ts'
@@ -96,8 +95,6 @@ function AvoozlPage() {
   const [drill, setDrill] = useState<Drill | null>(null)
   // Open conflicts, for the yellow count after the Conflicts tab's label.
   const [conflicts, setConflicts] = useState(0)
-  // No control here opens the New plan drawer; Plans opens it itself.
-  const [planGoal] = useState<{ n: number; seed?: Partial<NewPlanForm> }>({ n: 0 })
   const views = useMemo(() => viewsClient(api), [api])
 
   const waitingCount = conflicts
@@ -367,7 +364,7 @@ function AvoozlPage() {
                         }
                       />
                     ) : tab === 'plans' ? (
-                      <PlansView workspaceId={active} onScope={scopeTo} onDrill={openDrill} newPlanRequest={planGoal} onOpenSettings={openSettings} />
+                      <PlansView workspaceId={active} onScope={scopeTo} onDrill={openDrill} onOpenSettings={openSettings} />
                     ) : tab === 'graph' ? (
                       <GraphPage
                         workspaceId={active}

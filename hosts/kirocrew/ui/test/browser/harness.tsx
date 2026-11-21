@@ -38,7 +38,6 @@ import { emptyRepository, type RepositoryForm } from '../../src/settings-api.ts'
 import AvoozlApp from '../../src/App.tsx'
 import { MarkDoneDialog } from '../../src/ManualTask.tsx'
 import { needsContextItems } from './needs-context-fixture.ts'
-import NewPlanDrawer from '../../src/NewPlanDrawer.tsx'
 import { useTaskDrawer } from '../../src/drawer-context.ts'
 import ModelsSettings from '../../src/ModelsSettings.tsx'
 
@@ -267,16 +266,6 @@ export const SCENARIOS: Record<string, Scenario> = {
   'task-drawer': own('Open the dialog', <OpenTask />),
   'review-info': own('Open the dialog', <OpenReview />),
   'mark-done': shown((close) => <MarkDoneDialog workspaceId="w" taskId="team-review" title="Review with team" onClose={close} onDone={close} />),
-  // The real page shows New spec over the whole page, not inside a card.
-  // New spec with nothing picked: categories and epics to choose from.
-  'new-spec': shown((close) =>
-    createPortal(
-      <div {...{ [APP_ATTR]: '' }}>
-        <NewPlanDrawer workspaceId="w" taken={[]} categories={['Platform', 'Search']} epics={[{ id: 'sdk-target', title: 'SDK target architecture' }]} onClose={close} />
-      </div>,
-      document.body,
-    ),
-  ),
 }
 
 // One In flight row, for the title link test.

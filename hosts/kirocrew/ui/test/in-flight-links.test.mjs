@@ -4,7 +4,7 @@
 // found.
 import assert from 'node:assert/strict'
 import { after, before, test } from 'node:test'
-import { checkDot } from '../src/dashboard-api.ts'
+import { checkDot } from '../src/in-flight-api.ts'
 import { buildHarness } from './browser/build.mjs'
 import { findChrome, launch } from './browser/chrome.mjs'
 import { inFlight } from './browser/in-flight-nav.mjs'

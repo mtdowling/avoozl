@@ -119,7 +119,7 @@ test('the full-file reader is a trapped, closable modal over the page', () => {
   // SnippetBox with Open full file on its right, and no Hide or Read buttons.
   assert.match(drawer, /sourceExcerpt\(read\.text, source, SNIPPET_CONTEXT\)/)
   assert.match(drawer, /const SNIPPET_CONTEXT = 3/)
-  assert.doesNotMatch(drawer, /<CitedFile|'Hide'|'Read'/)
+  assert.doesNotMatch(drawer, /'Hide'|'Read'/)
 })
 
 test('a citation marks a range, a task block, or a heading through its section', async () => {
@@ -148,13 +148,10 @@ test('a citation marks a range, a task block, or a heading through its section',
   assert.deepEqual(citedNodes(nodes, null, null), [])
 })
 
-test('the cited file renders the whole text, marks with a class, and skips animation under reduced motion', () => {
-  const cited = readFileSync(new URL('../src/CitedFile.tsx', import.meta.url), 'utf8') + readFileSync(new URL('../src/ui/PageStyles.tsx', import.meta.url), 'utf8')
-  assert.match(cited, /<Markdown text=\{text\}/)
+test('the reader marks the cited lines with a class, and skips animation under reduced motion', () => {
+  const cited = readFileSync(new URL('../src/DocumentReader.tsx', import.meta.url), 'utf8') + readFileSync(new URL('../src/ui/PageStyles.tsx', import.meta.url), 'utf8')
   assert.match(cited, /node\.classList\.add\(CITED_CLASS\)/)
-  assert.match(cited, /export const CITED_CLASS = 'avoozl-cited'/)
+  assert.match(cited, /const CITED_CLASS = 'avoozl-cited'/)
   assert.match(cited, /box-shadow: inset 3px 0 0 var\(--accent\)/)
   assert.match(cited, /behavior: still \? 'auto' : 'smooth'/)
-  assert.match(cited, /prefers-reduced-motion: reduce/)
-  assert.match(cited, /css-max-height=\{props\.maxHeight \?\? 420\} css-overflow-y="auto"/)
 })

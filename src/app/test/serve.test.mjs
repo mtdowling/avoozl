@@ -673,19 +673,7 @@ test("the Kiro Crew gateway routes the page calls answer 'Needs Kiro Crew' or em
   const radar = await get("/api/apps/issue-radar/crews");
   assert.equal(radar.status, 409);
   assert.match(radar.text, /Needs Kiro Crew/);
-  const builder = await s.call("/api/apps/spec-builder/specs", {
-    method: "POST",
-    headers: {
-      Cookie: a.cookie,
-      Origin: s.origin,
-      "Content-Type": "application/json",
-      "X-Avoozl-CSRF": a.csrf,
-    },
-    body: "{}",
-  });
-  assert.equal(builder.status, 409);
-  assert.match(builder.text, /Needs Kiro Crew: Spec Builder/);
-  const bare = await s.call("/api/apps/spec-builder/specs", {
+  const bare = await s.call("/api/reveal", {
     method: "POST",
     headers: {
       Cookie: a.cookie,

@@ -30,8 +30,7 @@ test('every destructive button asks first through a red confirm', () => {
     }
   }
   // Two labels open or edit an unsaved form rather than act: Supersede opens
-  // the replacement form (its Create replacement asks), and TaskForm's Remove
-  // drops a prerequisite from the form before Save.
+  // the replacement form (its Create replacement asks).
   // Plans' trash buttons open DeletePlanDialog, whose red Delete plan button
   // is the confirm itself (it says what happens and can't be sent by Enter).
   // Providers' limit Remove drops a row from the Thresholds form before Save.
@@ -41,7 +40,6 @@ test('every destructive button asks first through a red confirm', () => {
   // the confirm itself (it names the folder and says nothing is deleted).
   const forms = new Set([
     'DeliveryDetails.tsx: Supersede',
-    'TaskForm.tsx: Remove',
     'PlansView.tsx: )}',
     'PlansView.tsx: ',
     'PlansView.tsx: Delete spec',

@@ -282,8 +282,7 @@ test('the views use the shared history: inner tabs, the plan, the Graph, the dra
   assert.match(source('PlansView.tsx'), /useSteppedState<string \| null>\(\s*'plans-selected',\s*'select'/)
   assert.match(source('GraphView.tsx'), /useRemembered<DrillEntry\[\]>\('graph-stack', \[\]\)/)
   assert.match(source('TaskDrawer.tsx'), /<Modal\s+id="avoozl-drawer"\s+role="dialog"\s+kind="drawer"/)
-  assert.match(source('NewPlanDrawer.tsx'), /<Modal\s+id="avoozl-new-plan"[\s\S]*?kind="drawer"[\s\S]*?unsaved=\{dirty/)
   // No view keeps its own Esc listener any more.
-  for (const name of ['ui/Modal.tsx', 'TaskDrawer.tsx', 'AddPlugin.tsx', 'DocumentReader.tsx', 'ui/controls.tsx', 'PlansView.tsx', 'NewPlanDrawer.tsx'])
+  for (const name of ['ui/Modal.tsx', 'TaskDrawer.tsx', 'AddPlugin.tsx', 'DocumentReader.tsx', 'ui/controls.tsx', 'PlansView.tsx'])
     assert.doesNotMatch(source(name), /key === 'Escape'|key !== 'Escape'/, name)
 })

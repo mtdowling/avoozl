@@ -33,14 +33,13 @@ import { EdgeList } from './EdgeList.tsx'
 import { HandSetReview, ReviewRuns } from './ReviewState.tsx'
 import { reviewRuns } from './views-api.ts'
 import { Markdown } from './ui/Markdown.tsx'
-import TaskForm from './TaskForm.tsx'
 import { Authority } from './Authority.tsx'
 import { Modal } from './ui/Modal.tsx'
 import { errorMessage } from './workspace-api.ts'
 import { IconLabel, SectionBox, ShowMore, TipBtn, useAskChat, usePages } from './ui/controls.tsx'
 import { resultMessage, settleTargets, whyLine } from './conflicts-api.ts'
 import { itemRef } from './chat-api.ts'
-import { FileText, MessageSquare, Network, Pause, Pencil, Play, Plus, RotateCcw } from './icons.ts'
+import { FileText, MessageSquare, Network, Pause, Play, RotateCcw } from './icons.ts'
 import { linkHref } from './views-api.ts'
 import { ManualTask } from './ManualTask.tsx'
 import { ReviewTaskContext, SpecLink } from './NeedsYouContext.tsx'
@@ -56,7 +55,7 @@ import { PlainButton, PlainLink } from './ui/Plain'
 // Lines shown either side of a task's own lines.
 const SNIPPET_CONTEXT = 3
 
-type Mode = { kind: 'task'; id: string; tab?: TaskTab } | { kind: 'add'; prerequisite?: string } | { kind: 'review'; group: ConflictItem; onReviewed?: () => void } | null
+type Mode = { kind: 'task'; id: string; tab?: TaskTab } | { kind: 'review'; group: ConflictItem; onReviewed?: () => void } | null
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -240,7 +239,6 @@ function TaskPanel(props: {
   const [detail, setDetail] = useState<TaskDetail | null>(null)
   const pages = usePages(props.id)
   const [error, setError] = useState<string | null>(null)
-  const [editing, setEditing] = useState(false)
   const chat = useAskChat(workspaceId)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null)
@@ -267,7 +265,6 @@ function TaskPanel(props: {
   }, [tasks, workspaceId, id])
   useEffect(() => {
     setDetail(null)
-    setEditing(false)
     setMessage(null)
     void load()
   }, [load])
@@ -398,11 +395,6 @@ function TaskPanel(props: {
             Resume
           </IconLabel>
         )}
-        {!plan && (
-          <IconLabel icon={Pencil} tooltip="Edit this task. It needs your review again before it starts." onClick={() => setEditing(!editing)}>
-            Edit
-          </IconLabel>
-        )}
         {!done && !local && issue && (
           <PlainLink href={linkHref(issue)} target="_blank" rel="noopener noreferrer" self="center" size="xs" underline>
             Defer on the board
@@ -434,21 +426,6 @@ function TaskPanel(props: {
             void load()
           }}
         />
-      )}
-      {editing && !plan && (
-        <Box css-border-color="border" rounded="base" border="all" p="3">
-          <TaskForm
-            workspaceId={workspaceId}
-            graph={props.graph}
-            detail={detail}
-            onSaved={() => {
-              setMessage({ ok: true, text: 'Saved. This task needs your review again before it starts.' })
-              setEditing(false)
-              void load()
-            }}
-            onCancel={() => setEditing(false)}
-          />
-        </Box>
       )}
       <Tabs id="task-tabs" label="Task details" tabs={shown} current={tab} onPick={pick} />
       <TabPanel id="task-tabs" current={tab}>
@@ -767,9 +744,6 @@ export function TaskDrawerProvider({
         if (now && (now.kind === 'review' || (now.kind === 'task' && now.id !== id))) setHistory((h) => [...h, now])
         setMode({ kind: 'task', id, tab })
       },
-      addTask: (prefill) => {
-        setMode({ kind: 'add', prerequisite: prefill?.prerequisite })
-      },
       openReview: (group, onReviewed) => {
         setHistory([])
         setMode({ kind: 'review', group, onReviewed })
@@ -829,7 +803,7 @@ export function TaskDrawerProvider({
           width="56rem"
           height="52rem"
           backLabel="Close the drawer"
-          dismissLabel={mode.kind === 'add' ? 'Cancel' : 'Close'}
+          dismissLabel="Close"
           attrs={{ 'data-task-modal': true }}
           title={title}
           onDismiss={close}
@@ -842,11 +816,6 @@ export function TaskDrawerProvider({
                 </TipBtn>
               )}
               <Box as="span" grow />
-              {mode.kind === 'task' && (
-                <IconLabel icon={Plus} tooltip="Add a draft task that waits on this one" onClick={() => api_.addTask({ prerequisite: mode.id })}>
-                  Add task after this
-                </IconLabel>
-              )}
             </>
           }
         >
@@ -862,7 +831,7 @@ export function TaskDrawerProvider({
               onFocus={onFocus}
               onTitle={showTitle}
             />
-          ) : mode.kind === 'review' ? (
+          ) : (
             <ReviewPanel
               workspaceId={workspaceId}
               group={mode.group}
@@ -872,8 +841,6 @@ export function TaskDrawerProvider({
                 close()
               }}
             />
-          ) : (
-            <TaskForm workspaceId={workspaceId} graph={graph} detail={null} prerequisite={mode.prerequisite} onSaved={(id) => setMode({ kind: 'task', id })} />
           )}
         </Modal>
       )}

@@ -5,7 +5,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import { manualClient } from '../src/manual-api.ts'
-import { summarize } from '../src/dashboard-api.ts'
+import { summarize } from '../src/in-flight-api.ts'
 import { deliveryLanes } from '../src/delivery-api.ts'
 
 const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
@@ -64,7 +64,7 @@ test('a manual task waiting for a person is tagged Manual in Needs you and on it
   assert.equal(lanes.waiting.find((card) => card.id === 'cutover').manual, false)
 })
 
-test('the drawer has Links and Mark done, and no notes; New spec has Blank or From a goal', () => {
+test('the drawer has Links and Mark done, and no notes', () => {
   const drawer = source('TaskDrawer.tsx')
   assert.match(drawer, /<SectionBox id="task-links" title="Links">/)
   assert.doesNotMatch(drawer, /Links and notes|id="notes"/)
@@ -76,9 +76,4 @@ test('the drawer has Links and Mark done, and no notes; New spec has Blank or Fr
   assert.doesNotMatch(notes, /<Markdown/)
   assert.match(notes, /<Modal/)
   assert.match(notes, /<RadioFold/)
-  const plan = source('NewPlanDrawer.tsx')
-  assert.match(plan, /title: 'Blank'/)
-  assert.match(plan, /title: 'From a goal'/)
-  assert.doesNotMatch(plan, /From template/)
-  assert.match(plan, /<RadioFold/)
 })

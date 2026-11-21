@@ -8,7 +8,7 @@ export const LAYER = {
   raised: 1,
   // Sticky columns: the plan view's left column.
   sticky: 10,
-  // The task drawer and the New plan drawer, with their backdrops.
+  // The task drawer, with its backdrop.
   drawer: 50,
   // A dropdown list under its field (Picker), over a drawer it opens in.
   popover: 60,

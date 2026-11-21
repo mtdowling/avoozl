@@ -10,8 +10,6 @@ import { useMedia } from './use-media.ts'
 import { errorMessage } from './workspace-api'
 import { relativeTime } from './task-api.ts'
 import { Authority } from './Authority.tsx'
-import NewPlanDrawer from './NewPlanDrawer.tsx'
-import type { NewPlanForm } from './new-plan-api.ts'
 import { DISCLOSURE, DisclosureMark } from './ui/Disclosure.tsx'
 import { COMPACT, DANGER, IconBtn, IconLabel, SectionHeading, ShowMore, SmallBtn, TipBtn, ViewHeading, useAskChat, usePages } from './ui/controls.tsx'
 import {
@@ -42,7 +40,6 @@ import {
 } from './icons.ts'
 import { MoreMenu } from './MoreMenu.tsx'
 import { useReveal } from './RepositoriesSettings.tsx'
-import { openSpecBuilder } from './spec-builder-api.ts'
 import { settingsClient } from './settings-api.ts'
 import { githubHref } from './repository-rows.ts'
 import { RailBlock, RailChips, RailDivider, RailRow, RailSortList, RailStyle, type RailSort } from './NavRail.tsx'
@@ -869,16 +866,12 @@ function PlanFilters(props: {
 const ARCHIVE_TIP = 'Archive this spec: its tasks stop starting and it is hidden. You can undo it.'
 const UNARCHIVE_TIP = 'Unarchive this spec: its tasks may start again and it shows everywhere.'
 
-// The Specs heading buttons, in the owner's order: New spec, then Refresh
-// last. New task lives in a spec's detail only (RC30.2). Refresh re-reads plan.table (the spec folders on disk and
-// the stored plans); it imports nothing.
+// The Specs heading's Refresh: it re-reads plan.table (the spec folders on
+// disk and the stored plans) and imports nothing.
 export const REFRESH_PLANS_TIP = 'Reload specs from disk. Imports nothing.'
-function PlansActions(props: { onNewPlan: () => void; onRefresh: () => void; busy: boolean }) {
+function PlansActions(props: { onRefresh: () => void; busy: boolean }) {
   return (
     <>
-      <IconLabel look={COMPACT} icon={Plus} primary tooltip="Describe what you want. Spec Builder drafts its spec folder; nothing is approved." onClick={props.onNewPlan}>
-        New spec
-      </IconLabel>
       <IconBtn icon={RefreshCw} label="Refresh specs" tooltip={REFRESH_PLANS_TIP} onClick={props.onRefresh} disabled={props.busy} />
     </>
   )
@@ -1036,12 +1029,10 @@ const SPEC_CHIP_VARIANT: Record<Exclude<SpecChip, 'draft'>, 'success' | 'info' |
 interface SpecActions {
   onEdit: () => void
   onDiscuss: () => void
-  onNewTask: () => void
   onImport?: () => void
   onReload?: () => void
   onApprove?: () => void
   approveBlocker?: string | null
-  onSpecBuilder?: () => void
   onGraph?: () => void
   onFolder?: () => void
   github: string | null
@@ -1060,10 +1051,10 @@ export function primaryAction(
   plan: { state: string } | null,
   blocker: string | null,
   publish = false,
-): 'import' | 'approve' | 'spec-builder' | 'publish' | 'edit' {
+): 'import' | 'approve' | 'publish' | 'edit' {
   if (row.status === 'not imported') return 'import'
-  if (plan && (plan.state === 'draft' || row.status === 'changed')) return blocker === null ? 'approve' : row.spec ? 'spec-builder' : 'edit'
-  if (row.status === 'draft') return row.spec ? 'spec-builder' : 'edit'
+  if (plan && (plan.state === 'draft' || row.status === 'changed')) return blocker === null ? 'approve' : 'edit'
+  if (row.status === 'draft') return 'edit'
   return publish ? 'publish' : 'edit'
 }
 
@@ -1107,12 +1098,6 @@ function SpecHeader(props: { row: PlanRow; plan: SpecPlan | null; actions: SpecA
   const primaryButton = {
     import: { label: 'Import', icon: Download, tooltip: 'Store this folder as a draft spec. Approves and starts nothing.', onClick: actions.onImport },
     approve: { label: 'Approve', icon: ClipboardCheck, tooltip: `Approve revision ${shortHash(plan?.hash)}. Its ready tasks may then start.`, onClick: actions.onApprove },
-    'spec-builder': {
-      label: 'Open in Spec Builder',
-      icon: FileText,
-      tooltip: actions.approveBlocker ? `Not ready to approve: ${actions.approveBlocker}` : "Open this draft in Kiro Crew's Spec Builder",
-      onClick: actions.onSpecBuilder,
-    },
     publish: {
       label: 'Make the GitHub issues',
       icon: CirclePlus,
@@ -1195,10 +1180,6 @@ function SpecHeader(props: { row: PlanRow; plan: SpecPlan | null; actions: SpecA
             <Box css-gap="2" flex flexCol>
               {primary !== 'edit' && <MenuItem icon={Pencil} label="Edit spec" tooltip="Start a planner chat that drafts a change to the spec files" onClick={actions.onEdit} />}
               <MenuItem icon={MessagesSquare} label="Discuss spec" tooltip="Start a chat about this spec. It makes no edits." onClick={actions.onDiscuss} />
-              <Box data-new-task as="span" contents>
-                <MenuItem icon={Plus} label="New task" tooltip="Add a draft task from this spec. It waits for your review." onClick={actions.onNewTask} />
-              </Box>
-              {primary !== 'spec-builder' && actions.onSpecBuilder && <MenuItem icon={FileText} label="Open in Spec Builder" onClick={actions.onSpecBuilder} />}
               {primary !== 'approve' && actions.onApprove && plan?.state === 'draft' && (
                 <MenuItem
                   icon={ClipboardCheck}
@@ -1969,8 +1950,6 @@ export default function PlansView(props: {
   workspaceId: string | null
   onScope?: (target: PlanTarget, filter: TaskFilter) => void
   onDrill?: (drill: Drill) => void
-  // Bumped by the header's Plan a goal: open the New plan drawer.
-  newPlanRequest?: { n: number; seed?: Partial<NewPlanForm> }
   // The rail's Repositories Edit: Settings › Repository setup.
   onOpenSettings?: (section: string) => void
 }) {
@@ -2003,10 +1982,6 @@ export default function PlansView(props: {
   const { scrolledOut, titleRef } = useTitleScrolledOut()
   const [deleting, setDeleting] = useState<PlanRow | null>(null)
   const [archiving, setArchiving] = useState<PlanRow | null>(null)
-  const [creating, setCreating] = useState<{ seed?: Partial<NewPlanForm> } | null>(null)
-  useEffect(() => {
-    if (props.newPlanRequest?.n) setCreating({ seed: props.newPlanRequest.seed })
-  }, [props.newPlanRequest])
   const [notice, setNotice] = useState<string | null>(null)
   const [table, setTable] = useState<PlanTable | null>(null)
   // Opening a plan is a Back step; Back from another tab reopens it.
@@ -2220,12 +2195,10 @@ export default function PlansView(props: {
     return {
       onEdit: () => change(row),
       onDiscuss: () => void chat.ask(discussSeed(row)),
-      onNewTask: () => drawer.addTask(),
       onImport: actions.importable ? () => importRow(row) : undefined,
       onReload: plan?.disk.changed ? () => act((workspaceId) => plans.reload(workspaceId, plan.id, plan.hash)) : undefined,
       onApprove: plan && workspace ? () => setSingleApproval({ workspaceId: workspace, plan }) : undefined,
       approveBlocker: plan ? blocker : null,
-      onSpecBuilder: row.spec ? () => openSpecBuilder(row.spec!, navigate) : undefined,
       onGraph: actions.scoped ? () => scope('graph', row) : undefined,
       onFolder: table?.root && row.folder ? () => void reveal(`${table.root!.replace(/\/$/, '')}/${row.folder}`).then(setNotice) : undefined,
       github: repoHref && row.folder ? `${repoHref}/tree/HEAD/${row.folder}` : null,
@@ -2243,12 +2216,7 @@ export default function PlansView(props: {
   // The specs list column.
   const specList = (
     <Stack gap={3} data-plans-list-pane>
-      <ViewHeading
-        id="avoozl-plans-title"
-        view="plans"
-        phoneMenu
-        actions={<PlansActions onNewPlan={() => setCreating({})} onRefresh={() => workspace && void load(workspace)} busy={busy} />}
-      >
+      <ViewHeading id="avoozl-plans-title" view="plans" phoneMenu actions={<PlansActions onRefresh={() => workspace && void load(workspace)} busy={busy} />}>
         Specs
       </ViewHeading>
       {table && table.items.length > 0 && (
@@ -2377,19 +2345,6 @@ export default function PlansView(props: {
             if (text === null) return
             setNotice(text)
             void load(workspace)
-          }}
-        />
-      )}
-      {creating && workspace && (
-        <NewPlanDrawer
-          workspaceId={workspace}
-          seed={creating.seed}
-          taken={(table?.items ?? []).flatMap((item) => [item.spec, item.planId]).filter((name): name is string => Boolean(name))}
-          categories={[...new Set((table?.items ?? []).map((item) => item.category).filter((name): name is string => Boolean(name)))].sort()}
-          epics={(table?.items ?? []).filter((item) => item.kind === 'epic' && item.spec).map((item) => ({ id: item.spec!, title: item.name }))}
-          onClose={(text) => {
-            setCreating(null)
-            if (text) setNotice(text)
           }}
         />
       )}

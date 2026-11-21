@@ -6,7 +6,7 @@ import test from 'node:test'
 import { ARCHIVE_LINES, filterRows, planEventLine, rowActions } from '../src/plans-api.ts'
 import { filterGraph, matches, readFilter } from '../src/filters.ts'
 import { deliveryLanes, doneStatus, laneOf } from '../src/delivery-api.ts'
-import { summarize } from '../src/dashboard-api.ts'
+import { summarize } from '../src/in-flight-api.ts'
 import { settleActionOf, whyLine } from '../src/conflicts-api.ts'
 import { noSessionLabel, reviewRuns } from '../src/views-api.ts'
 

@@ -18,25 +18,12 @@ import { recordWaitingRoles } from "./waiting-roles.mjs";
 // unavailable view.
 const PARTS = Object.freeze([
   {
-    id: "spec-builder",
-    what: "Spec Builder as a way to start a spec",
-    reason:
-      "Spec Builder is a Kiro Crew app; avoozl new-plan starts a spec without it.",
-    operations: {},
-  },
-  {
     id: "kirocrew-chat",
     what: "Attaching to a Kiro Crew chat",
     reason:
       "A chat lives in Kiro Crew; Stop all agents reaches chats only through it.",
     operations: { "flow.stop": ["sessionStopper"] },
     refuse: { "flow.stop": "sessionStopper" },
-  },
-  {
-    id: "side-panel",
-    what: "The Kiro Crew side panel",
-    reason: "The panel is drawn by Kiro Crew.",
-    operations: {},
   },
 ]);
 

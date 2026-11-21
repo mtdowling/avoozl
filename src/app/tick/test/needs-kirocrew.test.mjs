@@ -226,9 +226,9 @@ test("no module calls a Kiro Crew reader for an operation outside the table", ()
   assert.ok(seen.length > 0, "the scan found the readers");
 });
 
-test("the table holds the four parts, then each role that is still a chat", () => {
+test("the table holds its one part, then each role that is still a chat", () => {
   const parts = NEEDS_KIROCREW.filter((row) => !row.role).map((row) => row.id);
-  assert.deepEqual(parts, ["spec-builder", "kirocrew-chat", "side-panel"]);
+  assert.deepEqual(parts, ["kirocrew-chat"]);
   const roles = NEEDS_KIROCREW.filter((row) => row.role).map((row) => row.role);
   assert.deepEqual(
     roles,

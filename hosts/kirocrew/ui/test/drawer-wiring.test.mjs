@@ -10,8 +10,7 @@ const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url)
 
 test('Graph nodes, In flight rows and Conflicts items open the drawer', () => {
   for (const name of ['GraphView.tsx', 'InFlight.tsx', 'ConflictsView.tsx']) assert.match(source(name), /drawer\.openTask\(/, name)
-  assert.match(source('GraphView.tsx'), /drawer\.addTask\(/)
-  assert.match(source('PlansView.tsx'), /drawer\.addTask\(/)
+  for (const name of ['GraphView.tsx', 'PlansView.tsx', 'TaskDrawer.tsx']) assert.doesNotMatch(source(name), /addTask/, name)
   assert.match(source('App.tsx'), /<TaskDrawerProvider workspaceId=\{active\} onFocus=/)
 })
 
@@ -22,8 +21,6 @@ test('the task modal is the shared Modal: Esc, the X and Close close it, and foc
   assert.match(drawer, /<Modal\s+id="avoozl-drawer"\s+role="dialog"\s+kind="drawer"/)
   assert.match(drawer, /onDismiss=\{close\}/)
   assert.match(drawer, /onBack=\{\(\) => \(history\.length \? back\(\) : close\(\)\)\}/)
-  assert.match(drawer, /Add task after this/)
-  assert.match(drawer, /api_\.addTask\(\{ prerequisite: mode\.id \}\)/)
   assert.doesNotMatch(drawer, /aria-modal|fixed inset-0|useBackStep/)
   const modal = source('ui/Modal.tsx')
   assert.match(modal, /data-modal-footer-close/)
@@ -47,12 +44,11 @@ test('the drawer shows every section, and a linked task opens in it', () => {
   assert.doesNotMatch(drawer, /notes'/)
   assert.doesNotMatch(drawer, /SegmentedControl/)
   assert.match(source('ui/controls.tsx'), /<details\b/)
-  assert.match(drawer, /setEditing\(!editing\)/)
   // Focus shows the task's chain in the Graph; Ask in a chat seeds a chat.
   assert.match(drawer, /props\.onFocus!\(task\.id, task\.title\)/)
   assert.match(drawer, /chat\.ask\(\{ tasks: \[task\.id\] \}\)/)
   assert.match(drawer, /<EdgeList label=\{title\} items=\{items\} onOpen=\{open\} \/>/)
-  for (const action of ['Retry', 'Defer', 'Resume', 'ConflictActions', 'TaskForm']) assert.match(drawer, new RegExp(action))
+  for (const action of ['Retry', 'Defer', 'Resume', 'ConflictActions']) assert.match(drawer, new RegExp(action))
 })
 
 test('In flight rows have Info and a Session link to their chat', () => {
@@ -88,9 +84,8 @@ test('a spec row opens the spec in the detail column', () => {
   assert.match(plans, /props\.onScope\?\.\(target, \{ plan: rowPlanKey\(next\) \}\)/)
   // App sets the tabs' shared filter, then opens the tab.
   const app = source('App.tsx')
-  assert.match(app, /<PlansView\s+workspaceId=\{active\}\s+onScope=\{scopeTo\}\s+onDrill=\{openDrill\}\s+newPlanRequest=\{planGoal\}/)
+  assert.match(app, /<PlansView\s+workspaceId=\{active\}\s+onScope=\{scopeTo\}\s+onDrill=\{openDrill\}/)
   assert.doesNotMatch(app, /openChat/)
-  assert.match(plans, /if \(props\.newPlanRequest\?\.n\) setCreating\(\{ seed: props\.newPlanRequest\.seed \}\)/)
   assert.match(app, /if \(active\) setSharedFilter\(active, filter\)/)
   // The Graph page wraps GraphView as its All tasks tab (FocusTree.tsx).
   assert.match(app, /<GraphPage\s+workspaceId=\{active\}[\s\S]*?focus=\{focus\}\s+drill=\{drill\}\s+onDrill=\{setDrill\}\s+onOpenSpecs=\{\(\) => chooseTab\('plans'\)\}\s+\/>/)

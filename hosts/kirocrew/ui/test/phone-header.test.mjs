@@ -57,7 +57,7 @@ for (const dark of [false, true]) {
     await page.evaluate(`${heading}.querySelector('[data-more-button]').click()`)
     await wait()
     const items = await page.evaluate(`[...${heading}.querySelectorAll('[data-more-panel] button')].map((b) => b.textContent.trim())`)
-    assert.ok(items.includes('New spec') && !items.includes('New task'), `More holds the buttons (${items})`)
+    assert.ok(items.length > 0 && !items.includes('New task'), `More holds the buttons (${items})`)
     const wide = await page.evaluate(
       `[...document.querySelectorAll('body *')].filter((el) => el.getBoundingClientRect().right > innerWidth + 1).slice(0, 3).map((el) => el.tagName + '.' + String(el.className).slice(0, 40) + ':' + el.textContent.slice(0, 30))`,
     )
@@ -70,6 +70,6 @@ for (const dark of [false, true]) {
     await toSpecs(false)
     const heading = `document.querySelector('#avoozl-plans-title').closest('[data-section-heading]')`
     assert.equal(await page.evaluate(`Boolean(${heading}.querySelector('[data-heading-more]'))`), false)
-    assert.ok(await page.evaluate(`[...${heading}.querySelectorAll('[data-heading-actions] button')].some((b) => b.textContent.trim() === 'New spec')`))
+    assert.ok(await page.evaluate(`Boolean(${heading}.querySelector('[data-heading-actions] button[aria-label="Refresh specs"]'))`))
   })
 }

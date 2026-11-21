@@ -109,10 +109,10 @@ test('page: a section with no data renders nothing, with no empty line in its pl
   assert.deepEqual(page.errors, [])
 })
 
-test('page: a task a spec made has no Edit, and its line opens the spec', { skip }, async () => {
+test('page: no task has Edit, and a spec task line opens the spec', { skip }, async () => {
   const buttons = `[...document.querySelectorAll('button')].map((b) => b.textContent.trim())`
   await open('ready')
-  assert.ok((await page.evaluate(buttons)).includes('Edit'), 'a task no plan made keeps Edit')
+  assert.equal((await page.evaluate(buttons)).includes('Edit'), false, 'a task has no Edit')
   assert.equal(await page.evaluate(`document.querySelector('[data-task-from-spec]')`), null)
   await open('ready', 1280, { plan: 'spec' })
   assert.equal((await page.evaluate(buttons)).includes('Edit'), false)

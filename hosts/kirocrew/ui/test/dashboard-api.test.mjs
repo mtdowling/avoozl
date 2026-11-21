@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { SMALL, countsLayout, countsStyles, summarize } from '../src/dashboard-api.ts'
+import { SMALL, countsLayout, countsStyles, summarize } from '../src/in-flight-api.ts'
 
 const task = (id, state, extra = {}) => ({
   id,

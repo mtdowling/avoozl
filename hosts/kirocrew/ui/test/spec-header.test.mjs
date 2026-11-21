@@ -14,7 +14,7 @@ import { readFileSync } from 'node:fs'
 const chrome = findChrome()
 const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the spec header tests'
 
-test('the primary action: Import, Approve, Open in Spec Builder, Make the GitHub issues, or Edit spec', async () => {
+test('the primary action: Import, Approve, Make the GitHub issues, or Edit spec', async () => {
   const source = readFileSync(new URL('../src/PlansView.tsx', import.meta.url), 'utf8')
   // The rule is a pure function; check it from its source with a tiny eval.
   const body = source.slice(source.indexOf('export function primaryAction('), source.indexOf('function specMeta('))
@@ -22,7 +22,7 @@ test('the primary action: Import, Approve, Open in Spec Builder, Make the GitHub
   const primaryAction = new Function(js)()
   assert.equal(primaryAction({ status: 'not imported', spec: 's' }, null, null), 'import')
   assert.equal(primaryAction({ status: 'draft', spec: 's' }, { state: 'draft' }, null), 'approve')
-  assert.equal(primaryAction({ status: 'draft', spec: 's' }, { state: 'draft' }, 'Fix 2 errors first.'), 'spec-builder')
+  assert.equal(primaryAction({ status: 'draft', spec: 's' }, { state: 'draft' }, 'Fix 2 errors first.'), 'edit')
   assert.equal(primaryAction({ status: 'draft', spec: null }, { state: 'draft' }, 'Fix 2 errors first.'), 'edit')
   assert.equal(primaryAction({ status: 'approved', spec: 's' }, { state: 'approved' }, null), 'edit')
   assert.equal(primaryAction({ status: 'done', spec: 's' }, { state: 'approved' }, null), 'edit')
@@ -120,7 +120,7 @@ for (const dark of [false, true])
       await click(`document.querySelector('[data-spec-more] [data-more-button]')`)
       await wait(200)
       const items = await page.evaluate(`[...document.querySelectorAll('[data-spec-more] [data-spec-menu-item]')].map((b) => b.textContent.trim())`)
-      for (const name of ['New task', 'Delete', 'Open folder', 'Open on GitHub', 'Discuss spec']) assert.ok(items.includes(name), `the menu has ${name} (${items})`)
+      for (const name of ['Delete', 'Open folder', 'Open on GitHub', 'Discuss spec']) assert.ok(items.includes(name), `the menu has ${name} (${items})`)
       assert.equal(items.at(-1), 'Delete', 'Delete is last')
       assert.deepEqual(page.errors, [])
     })

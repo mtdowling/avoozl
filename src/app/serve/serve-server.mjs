@@ -96,14 +96,6 @@ const KIROCREW_ROUTES = new Map([
       { ok: false, copy: null, error: NEEDS("Reveal in the file manager") },
     ],
   ],
-  [
-    "GET /api/apps/spec-builder/specs",
-    [200, { specs: [], needsKiroCrew: true }],
-  ],
-  [
-    "POST /api/apps/spec-builder/specs",
-    [409, { error: NEEDS("Spec Builder"), needsKiroCrew: true }],
-  ],
 ]);
 
 function writeFileSync0600(file, text) {

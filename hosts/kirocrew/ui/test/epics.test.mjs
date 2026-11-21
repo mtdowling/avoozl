@@ -6,7 +6,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { drillGraph, drillInto, drillLabel, groupGraph, layoutGraph } from '../src/graph-layout.ts'
 import { NO_GROUP, filterChoices, filterGraph } from '../src/filters.ts'
-import { summarize } from '../src/dashboard-api.ts'
+import { summarize } from '../src/in-flight-api.ts'
 import { visibleSettings } from '../src/settings-api.ts'
 
 const task = (id, planId, epic, phase, state = 'waiting') => ({

@@ -17,7 +17,6 @@ import {
 import { epicsView } from "../epics/epics-view.mjs";
 import { queuePublish } from "../specs/spec-publication.mjs";
 import { crossPlanEpics, epicOfPlan } from "../epics/epics.mjs";
-import { requestNewPlan } from "../specs/new-plan.mjs";
 import { epicView, ownership, plansTableView } from "../api/page-views.mjs";
 import { archivePlan, unarchivePlan } from "../specs/plan-archive.mjs";
 import { lintPlan } from "../specs/plan-quality.mjs";
@@ -44,7 +43,6 @@ import {
 } from "../specs/spec-plans.mjs";
 import { fail } from "../store/store.mjs";
 import { planPage } from "../api/views.mjs";
-import { workspaceRepositories } from "../workspace/workspace-repositories.mjs";
 import { person, routed } from "../api/operation-policy.mjs";
 import { taskFile } from "../specs/spec-tasks.mjs";
 
@@ -335,29 +333,6 @@ export const entries = [
       );
     },
   },
-  // New plan: only a person asks, from the Avoozl page. It records the
-  // request and returns the planner chat's seed; it approves nothing.
-  {
-    name: "plan.new",
-    class: "draft",
-    github: "check-in",
-    policy: person("Only a person starts a new plan."),
-    handler({ input, context }) {
-      const store = this.store;
-
-      if (context.caller || context.mcp)
-        fail("Only a person starts a new plan, from the Avoozl page.", 403);
-      const result = requestNewPlan(store, input, {
-        readSpec: (spec) => this.readSpec(spec),
-        repositories: workspaceRepositories(store).filter(
-          (repo) => !repo.planning,
-        ),
-        specRoot: this.specRoots()[0] || null,
-      });
-      return result;
-    },
-  },
-
   {
     name: "plan.create",
     class: "draft",

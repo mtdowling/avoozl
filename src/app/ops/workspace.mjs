@@ -6,7 +6,7 @@ import {
   checksUnconfinedAllowed,
   isolationSetting,
 } from "../workspace/check-isolation.mjs";
-import { detectCheckout, repositoryConfig, withWorkLock } from "../git/git.mjs";
+import { detectCheckout, repositoryConfig } from "../git/git.mjs";
 import { expandHome } from "../workspace/folder-browse.mjs";
 import {
   machineIdentity,
@@ -20,23 +20,11 @@ import {
   ensureGlobalLocalIgnore,
   globalLocalIgnoreStatus,
 } from "../workspace/local-ignore.mjs";
-import { importNewPlans } from "../specs/new-plan.mjs";
 import { loadLayeredConfig } from "../settings/layered-config.mjs";
 import { archiveEnded } from "../specs/plan-retire.mjs";
 import { chatBrief } from "../workers/epic-context.mjs";
-import {
-  createSpecPlan,
-  lintSpec,
-  saveSpecPlan,
-} from "../specs/spec-plans.mjs";
 import { fail } from "../store/store.mjs";
-import {
-  WORKSPACE_LOCK,
-  recordReleased,
-  tick,
-  tickHealth,
-  tickLog,
-} from "../tick/tick.mjs";
+import { recordReleased, tick, tickHealth, tickLog } from "../tick/tick.mjs";
 import { planPage, recentIntegrations } from "../api/views.mjs";
 import {
   assertRepositoryRemovable,
@@ -105,42 +93,6 @@ export const entries = [
         (input.cron === true || Array.isArray(input.sessions))
       )
         loadLayeredConfig({ workspaceRoot: this.workspaceRoot });
-      try {
-        await withWorkLock(store, WORKSPACE_LOCK, async () => {
-          // New plan folders that lint clean become draft plans (never approved).
-          importNewPlans(store, {
-            // A picked epic's folder comes back as its own draft revision.
-            saveEpic: (epic) => {
-              const folder = this.readSpec(epic),
-                stored = store.get("plans", epic);
-              if (!folder.exists) return;
-              if (!stored) createSpecPlan(store, { id: epic }, folder);
-              else if (stored.hash !== folder.hash)
-                saveSpecPlan(
-                  store,
-                  { id: epic, expectedHash: stored.hash },
-                  folder,
-                );
-            },
-            readSpec: (spec) => this.readSpec(spec),
-            lint: (spec) =>
-              this.withContentDiagnostics(
-                lintSpec({
-                  spec,
-                  plan: { id: spec.name },
-                  data: {
-                    ...this.read(),
-                    repositories: store.list("repositories"),
-                  },
-                }),
-                spec,
-              ),
-          });
-        });
-      } catch (error) {
-        if (!error.contention) throw error;
-        // Another tick owns the post-import work; its next pass will finish it.
-      }
       if (input.cron === true) recordReleased(store, result);
       for (const failed of publishErrors)
         result.notify?.push({

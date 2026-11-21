@@ -419,7 +419,6 @@ const SAYS = [
   ["plan.approve", "approve this spec and turn its tasks into the graph"],
   ["plan.delete", "delete this spec"],
   ["plan.archive", "archive this spec"],
-  ["plan.new", "open a planner chat to write a new spec"],
   ["plan.", "change this spec"],
   ["github.setup", "create labels, fields and a Project on GitHub"],
   ["github.", "write to GitHub"],

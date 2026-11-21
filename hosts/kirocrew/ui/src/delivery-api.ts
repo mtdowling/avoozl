@@ -3,7 +3,7 @@
 import { nodeState, waves, type NodeState } from './graph-layout.ts'
 import { matches, type TaskFilter } from './filters.ts'
 import type { DeliveryItem, DeliverySession, Graph, GraphTask, RemoteWorker } from './views-api.ts'
-import { summarize } from './dashboard-api.ts'
+import { summarize } from './in-flight-api.ts'
 import { laneOf as sharedLaneOf } from '../../../../src/delivery-lanes.mjs'
 import { TONE } from './ui/tones.ts'
 

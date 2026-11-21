@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync, readdirSync } from 'node:fs'
 import test from 'node:test'
-import { attentionTarget, attentionTip } from '../src/dashboard-api.ts'
+import { attentionTarget, attentionTip } from '../src/in-flight-api.ts'
 
 const src = new URL('../src/', import.meta.url)
 const source = (name) => readFileSync(new URL(name, src), 'utf8')
@@ -32,7 +32,6 @@ test('headings with buttons pass them as the heading actions', () => {
   ])
     assert.match(source(file), new RegExp(`<ViewHeading\\s+id="avoozl-${view}-title"\\s+view="${view}"[\\s\\S]*?actions=\\{`), file)
   assert.match(source('GraphView.tsx'), /<SectionHeading\s+title=\{task\.title\}\s+actions=\{/)
-  assert.match(source('NewPlanDrawer.tsx'), /<Modal\s+id="avoozl-new-plan"[\s\S]*?title="New spec"/)
   // The reader's file name is the shared Modal's title; its copy and reveal buttons are the modal's footer.
   assert.match(source('DocumentReader.tsx'), /<Modal\s+id="avoozl-reader"[\s\S]*?title=\{<code>\{target\.document\}<\/code>\}[\s\S]*?footer=\{/)
   assert.match(
@@ -43,19 +42,13 @@ test('headings with buttons pass them as the heading actions', () => {
   for (const name of views) assert.doesNotMatch(source(name), /items-center gap-3">\s*<(ViewHeading|CardTitle)/, name)
 })
 
-test('Specs heading: New spec, then an icon-only Refresh last; New task only in a spec', () => {
+test('Specs heading: an icon-only Refresh, and no New spec or New task anywhere', () => {
   const plans = source('PlansView.tsx')
   const part = plans.slice(plans.indexOf('function PlansActions'), plans.indexOf("// The row's icon buttons"))
-  const at = (text) => part.indexOf(text)
-  assert.ok(at('New spec') > 0 && at('New spec') < at('RefreshCw') && at('Idea') === -1 && at('New task') === -1, 'order')
-  assert.equal(part.match(/<IconLabel (?:look=\{COMPACT\} )?icon=\{Plus\}/g).length, 1)
-  // New task is in the spec's own view, and nowhere else on the page.
-  assert.match(plans, /<Box data-new-task as="span" contents>/)
-  for (const name of views.filter((n) => n !== 'PlansView.tsx' && n !== 'Panel.tsx')) assert.doesNotMatch(source(name), />\s*New task\s*</, name)
   assert.match(part, /<IconBtn icon=\{RefreshCw\} label="Refresh specs" tooltip=\{REFRESH_PLANS_TIP\}/)
   assert.match(plans, /REFRESH_PLANS_TIP = 'Reload specs from disk\. Imports nothing\.'/)
   assert.match(plans, /actions=\{\s*<PlansActions/)
-  for (const name of views) assert.doesNotMatch(source(name), />\s*Add task\s*</, name)
+  for (const name of views) assert.doesNotMatch(source(name), />\s*(New task|New spec|Add task)\s*</, name)
 })
 
 test('a Needs you title opens what it is about', () => {

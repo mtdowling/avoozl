@@ -110,7 +110,6 @@ const SCENARIOS = {
   'file-viewer': ['Open the dialog', 'docs/guide.md', 'Close'],
   'stop-line': ['Stop the line', 'Stop the line', 'Cancel'],
   'mark-done': ['Open the dialog', 'Mark done: Review with team', 'Cancel'],
-  'new-spec': ['Open the dialog', 'New spec', 'Cancel'],
   'review-info': ['Open the dialog', 'Meal planner: sections changed', 'Close'],
 }
 
@@ -133,7 +132,7 @@ for (const [name, [openerText, title, label]] of Object.entries(SCENARIOS))
   })
 
 test('the shell holds on a phone in the dark theme', { skip }, async () => {
-  for (const name of ['confirm', 'mark-done', 'file-viewer', 'review-info', 'new-spec']) {
+  for (const name of ['confirm', 'mark-done', 'file-viewer', 'review-info']) {
     const [openerText, title, label] = SCENARIOS[name]
     await page.open(harness.url({ modal: name, theme: 'dark' }), { width: 390, height: 800, dark: true })
     await page.until(hasButton(openerText))
@@ -144,7 +143,7 @@ test('the shell holds on a phone in the dark theme', { skip }, async () => {
   }
 })
 
-test('the task modal: the task title with its id, Close, Add task after this', { skip }, async () => {
+test('the task modal: the task title with its id, and Close', { skip }, async () => {
   await page.open(harness.url({ modal: 'task-drawer' }), { width: 1280, height: 800 })
   await page.until(hasButton('Open the dialog'))
   const opener = () => page.evaluate(press('Open the dialog'))
@@ -159,15 +158,7 @@ test('the task modal: the task title with its id, Close, Add task after this', {
     false,
     'the title repeats in the body',
   )
-  assert.deepEqual(await footerButtons(), ['Close', 'Add task after this'])
-  // Add task after this: the add form, with this task as its prerequisite.
-  await page.evaluate(`[...${TOP}.querySelectorAll('[data-modal-footer] button')].find((b) => b.textContent.trim() === 'Add task after this').click()`)
-  await page.until(`${TOP}.querySelector('[data-modal-header] h2').textContent.trim() === 'Add a task'`)
-  const body = await page.evaluate(`${TOP}.querySelector('[data-modal-body]').innerText`)
-  assert.match(body, /team-review/, 'the prerequisite is set to the task')
-  // The add form is a form: its footer says Cancel, and the form has no Cancel of its own.
-  assert.equal((await footerButtons())[0], 'Cancel')
-  assert.deepEqual(await page.evaluate(`[...${TOP}.querySelectorAll('button')].map((b) => b.textContent.trim()).filter((t) => t === 'Cancel' || t === 'Close')`), ['Cancel'])
+  assert.deepEqual(await footerButtons(), ['Close'])
   await assertCloses('task modal', opener)
 })
 
@@ -192,7 +183,7 @@ test('the task modal from Needs you in the full app', { skip }, async () => {
     await page.until(`Boolean(${TOP}) && ${TOP}.querySelector('[data-modal-header] h2').textContent.includes('Review with team')`, 30000)
     await settle()
     await assertShell(`Needs you task modal at ${width}`, /^Review with team\s*t1$/)
-    assert.deepEqual(await footerButtons(), ['Close', 'Add task after this'])
+    assert.deepEqual(await footerButtons(), ['Close'])
     await page.key('Escape', 'Escape', 27)
     await page.until(CLOSED)
     assert.equal(await page.evaluate(`document.activeElement?.textContent.trim()`), 'Task details', 'focus returns to the opener')

@@ -66,7 +66,6 @@ export const APP_OPERATIONS = new Set([
   "plan.table",
   "epic.list",
   "epic.get",
-  "plan.new",
   "github.repository.inspect",
   "task.change.preview",
   "plugins.list",

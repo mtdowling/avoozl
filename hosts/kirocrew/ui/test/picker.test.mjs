@@ -80,7 +80,6 @@ test('every task and spec choice uses the picker', () => {
   assert.match(source('FilterBar.tsx'), /kind: 'pick', key: 'plan'/)
   assert.match(source('ConflictsView.tsx'), /kind: 'pick', key: 'plan'/)
   assert.match(source('FilterPanel.tsx'), /field\.kind === 'pick'/)
-  assert.match(source('TaskForm.tsx'), /<Picker\s+label="Add a prerequisite"/)
 })
 
 test('filtering 5,000 tasks shows at most 50', () => {

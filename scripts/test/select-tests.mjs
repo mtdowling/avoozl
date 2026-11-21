@@ -52,7 +52,6 @@ const READS = {
     "page-operations",
     "release-scan",
     "role-prompts",
-    "spec-builder-grant",
   ],
 };
 
