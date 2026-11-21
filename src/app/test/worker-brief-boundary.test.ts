@@ -1,11 +1,10 @@
-// @ts-nocheck: typing debt
 // The worker edits and reports; Avoozl reads HEAD, checks, pushes and lands
 // (Requirement 86.3, 96; design §4.26). Every name here is made up.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import {
   EDIT_ONLY_STEP,
   localSteps,
@@ -13,7 +12,8 @@ import {
 } from "../delivery/delivery.ts";
 import { Operations } from "../api/operations.ts";
 import { rolePrompt } from "../agents/prompts.ts";
-import { Store } from "../store/store.ts";
+import type { SessionBinding } from "../sessions/session-bindings.ts";
+import { Store, type StatusError } from "../store/store.ts";
 import { snapshot } from "./fixtures.ts";
 import { temporaryDirectory } from "./temporary.ts";
 
@@ -33,7 +33,11 @@ const PUBLISH = [
   /\bwait (on|for) (ci|checks|the pull request)/i,
 ];
 
-function editsAndReportsOnly(text, label, { boundary = true } = {}) {
+function editsAndReportsOnly(
+  text: string,
+  label: string,
+  { boundary = true } = {},
+) {
   if (boundary) assert.ok(text.includes(EDIT_ONLY_STEP), `${label}: boundary`);
   const rest = text.split(EDIT_ONLY_STEP).join("");
   for (const pattern of PUBLISH)
@@ -44,25 +48,35 @@ function editsAndReportsOnly(text, label, { boundary = true } = {}) {
 
 test("worker briefs say edit, commit and report, never push, merge or comment", () => {
   editsAndReportsOnly(
-    workerBrief(TASK, REPOSITORY, { attempt: 1 }) + "\n" + rolePrompt("worker"),
+    workerBrief(TASK, REPOSITORY, {
+      attempt: 1,
+      worktree: undefined,
+      previous: undefined,
+    }) +
+      "\n" +
+      rolePrompt("worker"),
     "local",
   );
   editsAndReportsOnly(
     workerBrief(TASK, REPOSITORY, {
       attempt: 1,
-      steps: localSteps(TASK, REPOSITORY, { relay: true }),
+      worktree: undefined,
+      previous: undefined,
+      steps: localSteps(TASK, REPOSITORY, {
+        cliReport: { workspace: "/tmp/w", worktree: "/tmp/wt", token: "t" },
+      }),
     }),
-    "relay",
+    "cli report",
   );
   // The shipped standing rules carry no publishing step of their own.
   editsAndReportsOnly(rolePrompt("worker"), "worker.md", { boundary: false });
 });
 
-function git(cwd, ...args) {
+function git(cwd: string, ...args: string[]) {
   return execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
 }
 
-function setup(t) {
+function setup(t: TestContext) {
   const root = temporaryDirectory("avoozl-boundary-"),
     checkout = path.join(root, "app");
   fs.mkdirSync(checkout);
@@ -114,9 +128,12 @@ test("a local worker's done is HEAD of its worktree, never the reported commit",
     source: "tick",
     title: "avoozl:a worker",
   });
-  const { path: worktree } = await ops.execute("worktree.prepare", {
-    taskId: "a",
-  });
+  const { path: worktree } = await ops.execute<{ path: string }>(
+    "worktree.prepare",
+    {
+      taskId: "a",
+    },
+  );
   const base = git(worktree, "rev-parse", "HEAD");
   fs.writeFileSync(path.join(worktree, "a.txt"), "work\n");
   git(worktree, "add", ".");
@@ -130,9 +147,13 @@ test("a local worker's done is HEAD of its worktree, never the reported commit",
       undefined,
       as,
     ),
-    (error) => error.status === 409 && error.message.includes(head),
+    (error: StatusError) =>
+      error.status === 409 && error.message.includes(head),
   );
-  assert.equal(store.get("session_bindings", "w-1").report, undefined);
+  assert.equal(
+    store.get<SessionBinding>("session_bindings", "w-1")?.report,
+    undefined,
+  );
   // A done with no commit takes HEAD from the worktree.
   await ops.execute(
     "session.report",
@@ -140,5 +161,8 @@ test("a local worker's done is HEAD of its worktree, never the reported commit",
     undefined,
     as,
   );
-  assert.equal(store.get("session_bindings", "w-1").report.commit, head);
+  assert.equal(
+    store.get<SessionBinding>("session_bindings", "w-1")?.report?.commit,
+    head,
+  );
 });

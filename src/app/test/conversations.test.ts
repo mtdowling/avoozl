@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 import test from "node:test";
 import assert from "node:assert/strict";
 import { fixture } from "./fixtures.ts";
@@ -30,11 +29,14 @@ test("external landing metadata remains separate from acceptance and workspace r
     };
   await ops.execute("task.update", { id: "sample-task", integration });
   const task = store.read().tasks[0];
-  assert.equal(task.integration.commit, integration.commit);
+  assert.equal(task.integration?.commit, integration.commit);
   assert.equal(task.status, "planned");
   assert.equal(task.acceptanceEvidence, undefined);
-  assert.ok(task.integration.recordedAt);
-  assert.ok(task.evidence.includes("evidence/landing.json"));
+  assert.ok(task.integration?.recordedAt);
+  assert.ok(
+    Array.isArray(task.evidence) &&
+      task.evidence.includes("evidence/landing.json"),
+  );
   for (const invalid of [
     { ...integration, commit: 1234567 },
     { ...integration, evidence: [] },
@@ -46,7 +48,7 @@ test("external landing metadata remains separate from acceptance and workspace r
       /Integration requires/,
     );
   assert.equal(
-    store.read().tasks[0].integration.commit,
+    store.read().tasks[0].integration?.commit,
     integration.commit,
     "Invalid writes roll back.",
   );
@@ -65,7 +67,10 @@ test("external landing metadata remains separate from acceptance and workspace r
     state: "ready",
     commit: "abcdef0",
   });
-  const workspace = await ops.execute("workspace");
+  const workspace = await ops.execute<{
+    recentIntegrations: { id: string; evidenceIds?: unknown }[];
+    integrations: unknown[];
+  }>("workspace");
   assert.equal(workspace.recentIntegrations.length, 100);
   assert.equal(workspace.recentIntegrations[0].id, "landing-109");
   assert.equal(workspace.recentIntegrations[0].evidenceIds, undefined);

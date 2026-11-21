@@ -35,7 +35,7 @@ export interface SessionBinding {
   statusAt?: string;
   served?: unknown;
   interrupted?: unknown;
-  report?: { kind?: string; at?: string } | null;
+  report?: { kind?: string; at?: string; commit?: string } | null;
   [key: string]: unknown;
 }
 // What a caller asks to bind; every field is checked here.

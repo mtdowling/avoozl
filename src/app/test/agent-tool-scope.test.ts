@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Agent tool scope (R56.3): every Avoozl tool an agent names is registered,
 // and an agent never gets a grouped tool with write actions where it could
 // widen what runs unprompted or what a read-only role can do.
@@ -11,13 +10,19 @@ import { classifyOperation } from "../api/operation-table.ts";
 import { Operations } from "../api/operations.ts";
 import { fixture } from "./fixtures.ts";
 
-const agents = JSON.parse(
+// One agent in roles.json: the tools it names and the ones it runs unprompted.
+interface Agent {
+  name: string;
+  tools: string[];
+  allowedTools: string[];
+}
+const agents: Agent[] = JSON.parse(
   fs.readFileSync(new URL("../../../roles.json", import.meta.url), "utf8"),
 );
 const OWN = "@avoozl:avoozl/";
 // Agents that change no file and write nothing beyond their one report.
 const READ_ONLY = new Set(["avoozl-responder", "avoozl-reviewer"]);
-const writes = (name) =>
+const writes = (name: string) =>
   Object.hasOwn(GROUPED_TOOLS, name) &&
   Object.values(GROUPED_TOOLS[name].actions).some(
     ([operation]) => classifyOperation(operation) !== "observe",
@@ -25,21 +30,19 @@ const writes = (name) =>
 
 test("each agent names only registered tools, and read-only roles get no grouped write tool", async (t) => {
   const { store } = fixture(t),
-    listed = new Set(
-      (
-        await handleMcp(
-          { jsonrpc: "2.0", id: 1, method: "tools/list" },
-          new Operations(store),
-        )
-      ).body.result.tools.map((tool) => tool.name),
-    );
+    reply = await handleMcp(
+      { jsonrpc: "2.0", id: 1, method: "tools/list" },
+      new Operations(store),
+    ),
+    { tools } = reply.body?.result as { tools: { name: string }[] },
+    listed = new Set(tools.map((tool) => tool.name));
   for (const name of READ_ONLY)
     assert.ok(
       agents.some((agent) => agent.name === name),
       `${name} ships`,
     );
   for (const agent of agents) {
-    const own = (list) =>
+    const own = (list: string[]) =>
       list
         .filter((ref) => ref.startsWith(OWN))
         .map((ref) => ref.slice(OWN.length));
