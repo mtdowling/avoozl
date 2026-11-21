@@ -142,7 +142,7 @@ function claudeCode(root, source, { personOnly, version }) {
               {
                 type: "command",
                 command: "node",
-                args: ["${CLAUDE_PLUGIN_ROOT}/hooks/guard.mjs"],
+                args: ["${CLAUDE_PLUGIN_ROOT}/hooks/guard.ts"],
               },
             ],
           },
@@ -150,7 +150,7 @@ function claudeCode(root, source, { personOnly, version }) {
       },
     }),
   );
-  // hooks/guard.mjs is hand-written and kept: it reads person-only.json.
+  // hooks/guard.ts is hand-written and kept: it reads person-only.json.
   files.set(path.join("hooks", "person-only.json"), json(personOnly));
   files.set(
     path.join("skills", "avoozl", "SKILL.md"),

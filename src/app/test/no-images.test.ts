@@ -5,7 +5,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { trackedImages } from "../../../scripts/check/check-no-images.ts";
-import { assertShotOutsideGit } from "../../../hosts/kirocrew/ui/test/browser/chrome.mjs";
+import { assertShotOutsideGit } from "../../../hosts/kirocrew/ui/test/browser/chrome.ts";
 
 const repo = fileURLToPath(new URL("../../../", import.meta.url));
 

@@ -56,13 +56,13 @@ test("installed into a Claude Code config, the plugin has its skills, MCP entry 
   const [entry] = hooks.hooks.PreToolUse;
   assert.equal(entry.matcher, "Bash");
   assert.deepEqual(entry.hooks[0].args, [
-    "${CLAUDE_PLUGIN_ROOT}/hooks/guard.mjs",
+    "${CLAUDE_PLUGIN_ROOT}/hooks/guard.ts",
   ]);
-  assert.ok(fs.existsSync(path.join(installed, "hooks", "guard.mjs")));
+  assert.ok(fs.existsSync(path.join(installed, "hooks", "guard.ts")));
 });
 
 function guard(command) {
-  return spawnSync(process.execPath, [path.join(host, "hooks", "guard.mjs")], {
+  return spawnSync(process.execPath, [path.join(host, "hooks", "guard.ts")], {
     input: JSON.stringify({ tool_name: "Bash", tool_input: { command } }),
     encoding: "utf8",
   });
