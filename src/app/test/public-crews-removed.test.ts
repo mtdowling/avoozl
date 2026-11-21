@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The public crew sign-off and audit were removed: opening a workspace drops
 // their stored records and the stops they pulled, and keeps everything else.
 import assert from "node:assert/strict";

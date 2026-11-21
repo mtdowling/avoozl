@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Avoozl's spec rules as a Kiro steering file's text: the `steering.specs`
 // prompt (prompts.mjs) that a workspace may override.
 

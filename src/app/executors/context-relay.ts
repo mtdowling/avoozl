@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The MCP relay (epic-context EC7): a harness starts this in place of an MCP
 // server. It connects to the session's socket, which Avoozl's supervisor
 // listens on outside the sandbox, says which alias it wants, and pipes its

@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Every example policy in the docs validates.
 import assert from "node:assert/strict";
 import fs from "node:fs";

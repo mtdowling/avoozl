@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // A task waiting on a decision that did not come from failing checks has no
 // failed checks to show. Reading its `commit` threw, and conflicts.view
 // answered 500 for the whole Needs you page.

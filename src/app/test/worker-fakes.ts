@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Fake executors that follow a brief to its end and record how they finished.
 // The chat reads the report instruction in the brief; the child writes the
 // result file the brief names, and Avoozl's own reader (readChildResult)
@@ -9,7 +8,7 @@ import { readChildResult, RESULT_FILE } from "../executors/supervisor.ts";
 
 // The way a chat finishes, read from its brief: the command-line report with
 // a token, a runner-machine report, a plans_report call, or "report done".
-const CHAT_FINISH = [
+const CHAT_FINISH: [RegExp, string][] = [
   [/runner report (\S+) done --token (\S+)/, "cli"],
   [/runner report (\S+) --state done/, "machine"],
   [/plans_report with \{"input": \{"taskId": "([^"]+)", "kind": "done"/, "mcp"],
@@ -18,7 +17,7 @@ const CHAT_FINISH = [
 ];
 
 // A fake Kiro Crew chat. Returns { via, taskId } or { problem }.
-export function fakeChat(brief) {
+export function fakeChat(brief: string) {
   for (const [pattern, via] of CHAT_FINISH) {
     const match = pattern.exec(brief);
     if (match) return { via, state: "done", taskId: match[1] ?? null };
@@ -28,7 +27,7 @@ export function fakeChat(brief) {
 
 // A fake `process` child. It writes the done result the brief shows, in
 // `worktree`, and returns what Avoozl reads from it.
-export function fakeChild(brief, worktree) {
+export function fakeChild(brief: string, worktree: string) {
   const shown = /(\{"state": "done", "text": "<[^>]*>"\})/.exec(brief);
   if (!shown) return { problem: "The brief names no result file." };
   fs.mkdirSync(path.join(worktree, path.dirname(RESULT_FILE)), {
@@ -42,5 +41,8 @@ export function fakeChild(brief, worktree) {
 }
 
 // Run `brief` on the fake of `executor`. Returns the recorded result.
-export const fakeExecutor = (executor, brief, worktree) =>
-  executor === "process" ? fakeChild(brief, worktree) : fakeChat(brief);
+export const fakeExecutor = (
+  executor: string,
+  brief: string,
+  worktree: string,
+) => (executor === "process" ? fakeChild(brief, worktree) : fakeChat(brief));

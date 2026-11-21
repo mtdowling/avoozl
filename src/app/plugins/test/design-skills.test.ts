@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The avoozl-plugin and avoozl-rules skills behind Design a plugin and
 // Design a rule set: each lists what the code accepts, computed from the
 // code, and stays public.
@@ -46,11 +45,13 @@ test("avoozl-plugin lists the parts, kinds and contract versions the loader acce
     [...PARTS].sort(),
   );
   const kinds = /The code kinds are (.+?)\./.exec(text)?.[1];
+  assert.ok(kinds);
   assert.deepEqual(
     [...kinds.matchAll(/`([a-z]+)`/g)].map((m) => m[1]).sort(),
     [...KINDS].sort(),
   );
   const contracts = /supports contract version (.+?)\./.exec(text)?.[1];
+  assert.ok(contracts);
   assert.deepEqual(
     [...contracts.matchAll(/`(\d+)`/g)].map((m) => Number(m[1])),
     SUPPORTED_CONTRACTS,

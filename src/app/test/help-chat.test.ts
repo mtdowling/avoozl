@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Ask for help (design §8.9): chat.context with purpose "help" seeds a chat
 // with the page, section, its words, its settings and a docs pointer, and
 // tells the chat not to save anything.

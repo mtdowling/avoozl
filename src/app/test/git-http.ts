@@ -1,11 +1,11 @@
-// @ts-nocheck: typing debt
 // A fake smart-HTTP git remote for tests and proofs: `basicToken(req)` reads
 // git's Basic credentials, and `serveGit(req, res, project, body)` runs
 // `git http-backend` over the bare repositories under `project`. `body`, when
 // given, is the request body already read; otherwise the request is piped.
 import { spawn } from "node:child_process";
+import type { IncomingMessage, ServerResponse } from "node:http";
 
-export function basicToken(req) {
+export function basicToken(req: IncomingMessage) {
   const [user, token] = Buffer.from(
     (req.headers.authorization || "").replace(/^Basic /, ""),
     "base64",
@@ -16,20 +16,25 @@ export function basicToken(req) {
 }
 
 // `owner/name` of a smart-HTTP path such as /acme/api.git/info/refs.
-export const repositoryOfPath = (pathname) =>
+export const repositoryOfPath = (pathname: string) =>
   pathname
     .split("/")
     .slice(1, 3)
     .join("/")
     .replace(/\.git$/, "");
 
-export function challenge(res) {
+export function challenge(res: ServerResponse) {
   res.writeHead(401, { "WWW-Authenticate": 'Basic realm="fake"' });
   res.end();
 }
 
-export function serveGit(req, res, project, body) {
-  const url = new URL(req.url, "http://x");
+export function serveGit(
+  req: IncomingMessage,
+  res: ServerResponse,
+  project: string,
+  body?: Buffer | string,
+) {
+  const url = new URL(String(req.url), "http://x");
   const cgi = spawn("git", ["http-backend"], {
     env: {
       ...process.env,
@@ -52,7 +57,7 @@ export function serveGit(req, res, project, body) {
     head = Buffer.concat([head, chunk]);
     const at = head.indexOf("\r\n\r\n");
     if (at < 0) return;
-    const headers = {};
+    const headers: Record<string, string> = {};
     let status = 200;
     for (const line of head.subarray(0, at).toString().split("\r\n")) {
       const [key, ...value] = line.split(":");

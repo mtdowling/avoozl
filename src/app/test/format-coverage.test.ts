@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // `npm run format:check` must reach every JS/TS-family, JSON and CSS file in
 // the repository, wherever it lives. Only the paths below may be left out.
 import assert from "node:assert/strict";
