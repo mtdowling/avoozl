@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Settings > Content rules editing: a person reads and writes one set's
 // terms file, only under .avoozl/local/content-rules, owner-only; problems
 // name a line, never the term; sets are saved into .avoozl.json; sessions
@@ -7,12 +6,30 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { checkTermsText, describeSets } from "../content/content-rules.ts";
 import { Operations } from "../api/operations.ts";
 import { previewPlugin } from "../plugins/plugins.ts";
 import { fixture } from "./fixtures.ts";
+import type { StatusError } from "../store/store.ts";
 import { temporaryDirectory } from "./temporary.ts";
+
+// What the content operations answer, for the fields read here.
+interface Terms {
+  exists: boolean;
+  editable: boolean;
+  text: string;
+  file: string;
+}
+interface Saved {
+  saved: boolean;
+  rules: number;
+}
+interface Sets {
+  configHash: string;
+  choices: { repositories: unknown };
+  sets: { id: string; action: string }[];
+}
 
 process.env.XDG_CONFIG_HOME ||= temporaryDirectory("avoozl-xdg-");
 process.env.GIT_CONFIG_GLOBAL = path.join(
@@ -21,7 +38,10 @@ process.env.GIT_CONFIG_GLOBAL = path.join(
 );
 fs.writeFileSync(process.env.GIT_CONFIG_GLOBAL, "");
 
-function setup(t, sets = [{ id: "made-up" }]) {
+function setup(
+  t: TestContext,
+  sets: Record<string, unknown>[] = [{ id: "made-up" }],
+) {
   const { root, store } = fixture(t);
   fs.writeFileSync(
     path.join(root, ".avoozl.json"),
@@ -63,13 +83,15 @@ test("allow lines are counted apart and their problems name only the line", () =
 
 test("a person writes the terms file owner-only; Settings never sees a term", async (t) => {
   const { root, store, ops } = setup(t);
-  const empty = await ops.execute("content.terms.get", { id: "made-up" });
+  const empty = await ops.execute<Terms>("content.terms.get", {
+    id: "made-up",
+  });
   assert.deepEqual(
     [empty.exists, empty.editable, empty.text],
     [false, true, ""],
   );
   assert.equal(empty.file, ".avoozl/local/content-rules/made-up.txt");
-  const saved = await ops.execute("content.terms.update", {
+  const saved = await ops.execute<Saved>("content.terms.update", {
     id: "made-up",
     text: "zebra-falcon: zebra\\s+falcon\ncobalt-heron: cobalt heron",
   });
@@ -88,7 +110,9 @@ test("a person writes the terms file owner-only; Settings never sees a term", as
     assert.equal(fs.statSync(path.dirname(file)).mode & 0o777, 0o700);
   }
   assert.match(fs.readFileSync(file, "utf8"), /cobalt heron\n$/);
-  const back = await ops.execute("content.terms.get", { id: "made-up" });
+  const back = await ops.execute<Terms>("content.terms.get", {
+    id: "made-up",
+  });
   assert.match(back.text, /zebra/);
   // The list, the event log and errors carry counts and lines only.
   const listed = JSON.stringify(await ops.execute("content.rules", {}));
@@ -101,7 +125,7 @@ test("a person writes the terms file owner-only; Settings never sees a term", as
       id: "made-up",
       text: "ok: fine\nbad: amber(",
     }),
-    (error) => {
+    (error: StatusError) => {
       assert.equal(error.status, 422);
       assert.match(error.message, /Line 2/);
       assert.doesNotMatch(error.message, /amber/);
@@ -113,13 +137,16 @@ test("a person writes the terms file owner-only; Settings never sees a term", as
 
 test("sessions can neither read nor write terms or sets", async (t) => {
   const { ops } = setup(t);
-  for (const [name, input] of [
+  const calls: [string, Record<string, unknown>][] = [
     ["content.terms.get", { id: "made-up" }],
     ["content.terms.update", { id: "made-up", text: "a: b" }],
     ["content.sets.update", { sets: [], expectedHash: null }],
-  ]) {
+  ];
+  for (const [name, input] of calls) {
     await assert.rejects(
-      ops.execute(name, input, undefined, { caller: "session-1" }),
+      ops.execute(name, input, undefined, {
+        caller: { sessionKey: "session-1" },
+      }),
       /Only a person/,
     );
     await assert.rejects(
@@ -163,7 +190,7 @@ test("terms are refused for an unknown set, a plugin set, and a tracked file", a
     ),
   );
   fs.writeFileSync(path.join(root, ".gitignore"), ".avoozl/local/\n");
-  const saved = await ops.execute("content.terms.update", {
+  const saved = await ops.execute<Saved>("content.terms.update", {
     id: "made-up",
     text: "a: b",
   });
@@ -172,10 +199,10 @@ test("terms are refused for an unknown set, a plugin set, and a tracked file", a
 
 test("sets are saved into .avoozl.json with the hash check; an unknown plugin is refused", async (t) => {
   const { root, store, ops } = setup(t);
-  const listed = await ops.execute("content.rules", {});
+  const listed = await ops.execute<Sets>("content.rules", {});
   assert.ok(listed.configHash);
   assert.ok(Array.isArray(listed.choices.repositories));
-  const next = await ops.execute("content.sets.update", {
+  const next = await ops.execute<Sets>("content.sets.update", {
     expectedHash: listed.configHash,
     sets: [
       { id: "made-up" },
@@ -214,7 +241,7 @@ test("sets are saved into .avoozl.json with the hash check; an unknown plugin is
     }),
     /could hold a rule/,
   );
-  const cleared = await ops.execute("content.sets.update", {
+  const cleared = await ops.execute<Sets>("content.sets.update", {
     expectedHash: next.configHash,
     sets: [],
   });
@@ -241,6 +268,7 @@ test("plugin.preview reads a folder's manifest without declaring it", async (t) 
     settingsFile: path.join(root, "machine", "plugins.json"),
   };
   const found = await previewPlugin(options, { path: folder });
+  assert.ok("id" in found && "supported" in found, JSON.stringify(found));
   assert.deepEqual(
     [found.id, found.version, found.contract, found.supported],
     ["made-up-rules", "1.2.0", 1, true],
@@ -256,7 +284,7 @@ test("plugin.preview reads a folder's manifest without declaring it", async (t) 
   // A git source resolves to a commit and is not fetched.
   const repo = path.join(root, "repo");
   fs.mkdirSync(repo);
-  const git = (...args) =>
+  const git = (...args: string[]) =>
     execFileSync("git", args, { cwd: repo, encoding: "utf8" }).trim();
   git("init", "-q", "-b", "main");
   fs.writeFileSync(path.join(repo, "a.txt"), "a");
