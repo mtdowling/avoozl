@@ -1154,7 +1154,7 @@ export function lintSpec({
   approved?: { files?: Record<string, string> } | null;
   retitled?: string[];
   namespace?: ((name: string) => SpecFolder | null) | null;
-  declaredTasks?: Proposal[];
+  declaredTasks?: { id?: string; requires?: string[] }[];
 }) {
   const data = { tasks: [], ...given } as {
       tasks: { id: string; planId?: unknown; [key: string]: unknown }[];

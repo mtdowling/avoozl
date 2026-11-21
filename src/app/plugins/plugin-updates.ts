@@ -19,7 +19,7 @@ import {
 import { fail, type Store } from "../store/store.ts";
 
 // The fields of an inspected plugin (inspectPlugins) a check reads.
-interface Inspected {
+export interface Inspected {
   id?: string;
   state: string;
   source?: string;

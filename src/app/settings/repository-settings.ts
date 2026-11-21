@@ -560,6 +560,7 @@ export function conversationSettings(store) {
 const DELIVERY_FORM_KEYS = [];
 
 export class RepositorySettings {
+  declare workspaceRoot: string;
   // The file this reads and the last load's outcome.
   declare state: {
     filename: string;

@@ -18,6 +18,7 @@ export {
   APP_OPERATIONS,
   principalAllows,
 } from "../../api/command-dispatch.ts";
+import type { Operations } from "../../api/operations.ts";
 import { gatewayPusher } from "../../tick/notifications.ts";
 import {
   gatewaySessionStopper,
@@ -223,7 +224,7 @@ export function startAppBackend({
   secret?: string;
   registryOptions?: Record<string, unknown>;
   now?: () => number;
-  notifier?: unknown;
+  notifier?: Operations["notifier"];
   slotReader?: Parameters<typeof observeSessions>[1] | null;
   rowReader?: Parameters<typeof observeToolRows>[1] | null;
   usageReader?: Parameters<typeof observeUsage>[1] | null;
