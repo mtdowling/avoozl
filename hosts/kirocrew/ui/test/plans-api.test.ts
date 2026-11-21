@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Runs under node's type stripping: `node --test hosts/kirocrew/ui/test`.
 import assert from 'node:assert/strict'
 import test from 'node:test'
@@ -16,21 +15,15 @@ import {
   plansClient,
   revisionChange,
   specStatus,
+  type Diagnostic,
+  type PlanListFilter,
+  type PlanRow,
+  type SpecPlan,
+  type SpecSort,
+  type SpecSummary,
 } from '../src/plans-api.ts'
 import { COMMAND_PATH } from '../src/workspace-api.ts'
-
-function fakeApi(reply) {
-  const calls = []
-  return {
-    calls,
-    api: {
-      post: async (path, body) => {
-        calls.push({ path, body })
-        return { result: reply(body) }
-      },
-    },
-  }
-}
+import { fakeApi } from './fake-api.ts'
 
 const hash = 'a'.repeat(64)
 
@@ -76,7 +69,8 @@ test('a move between the check and plan.approve reads as the same change; other 
     if (body.operation === 'plan.preview') return { reviewedHash: previews++ ? 'b'.repeat(64) : hash, expectedRevision: 7 }
     throw new Error('The reviewed document hash changed.')
   })
-  assert.equal((await plansClient(api).approve('ws', 'config', hash)).changed.reviewedHash, 'b'.repeat(64))
+  const result = await plansClient(api).approve('ws', 'config', hash)
+  assert.equal('changed' in result ? result.changed.reviewedHash : null, 'b'.repeat(64))
   const refused = fakeApi((body) => {
     if (body.operation === 'plan.preview') return { reviewedHash: hash, expectedRevision: 7 }
     throw new Error('The spec folder changed on disk.')
@@ -90,7 +84,17 @@ test('a revision change lists changed files with line counts', () => {
 })
 
 test('a spec row reads as one line', () => {
-  const spec = (plan, error = 0) => ({ counts: { error, warning: 0, info: 0 }, plan })
+  const spec = (plan: SpecSummary['plan'], error = 0): SpecSummary => ({
+    name: 'config',
+    folder: '.kiro/specs/config/',
+    type: 'feature',
+    hash,
+    files: [],
+    counts: { error, warning: 0, info: 0 },
+    taskCount: 0,
+    critique: null,
+    plan,
+  })
   const stored = { id: 'config', state: 'draft', hash, revision: 2, changed: false, approved: false }
   assert.equal(specStatus(spec(null, 2)), 'Not imported · 2 errors')
   assert.equal(specStatus(spec(stored, 1)), 'Draft · revision 2 · 1 error')
@@ -99,22 +103,29 @@ test('a spec row reads as one line', () => {
 })
 
 test('approve is off until the revision is stored, current, unapproved, and valid', () => {
-  const plan = {
+  const plan: SpecPlan = {
+    id: 'config',
+    spec: 'config',
+    title: 'Config',
     hash,
-    disk: { changed: false },
+    revision: 2,
+    state: 'draft',
+    files: {},
+    disk: { folder: '.kiro/specs/config/', exists: true, hash, changed: false, critique: null },
     approvals: [],
-    quality: { canApprove: true },
+    quality: { canApprove: true, counts: { error: 0, warning: 0, info: 0 }, diagnostics: [] },
   }
-  assert.match(approveBlocker(null), /Store this spec/)
-  assert.match(approveBlocker({ ...plan, disk: { changed: true } }), /changed on disk/)
-  assert.match(approveBlocker({ ...plan, approvals: [{ hash }] }), /is approved/)
-  assert.match(approveBlocker({ ...plan, quality: { canApprove: false } }), /Fix the errors/)
+  assert.match(approveBlocker(null) ?? '', /Store this spec/)
+  assert.match(approveBlocker({ ...plan, disk: { ...plan.disk, changed: true } }) ?? '', /changed on disk/)
+  assert.match(approveBlocker({ ...plan, approvals: [{ id: 'a1', hash, at: 'then', approvedBy: 'person' }] }) ?? '', /is approved/)
+  assert.match(approveBlocker({ ...plan, quality: { ...plan.quality, canApprove: false } }) ?? '', /Fix the errors/)
   assert.equal(approveBlocker(plan), null)
-  assert.equal(location({ file: 'avoozl/manifest.json', lineStart: 4 }), 'avoozl/manifest.json:4')
-  assert.equal(location({ lineStart: 2 }), 'tasks.md:2')
+  const diagnostic: Diagnostic = { id: 'd1', code: 'x', severity: 'error', message: 'm', lineStart: 2 }
+  assert.equal(location({ ...diagnostic, file: 'avoozl/manifest.json', lineStart: 4 }), 'avoozl/manifest.json:4')
+  assert.equal(location(diagnostic), 'tasks.md:2')
 })
 
-const row = (name, extra = {}) => ({
+const row = (name: string, extra: Partial<PlanRow> = {}): PlanRow => ({
   key: `spec::${name}`,
   kind: 'spec',
   name,
@@ -128,7 +139,6 @@ const row = (name, extra = {}) => ({
   status: 'not imported',
   tasks: { total: 0, done: 0 },
   now: { ready: 0, running: 0, needsYou: 0 },
-  epics: 0,
   lastChange: null,
   ...extra,
 })
@@ -172,7 +182,7 @@ test('the Plans list filters by text, category, status and what a plan has', () 
     row('beta', { category: 'Compiler', status: 'approved', planId: 'beta', now: { ready: 0, running: 1, needsYou: 0 } }),
     row('gamma', { planId: 'g', status: 'draft', now: { ready: 0, running: 0, needsYou: 3 } }),
   ]
-  const names = (filter) => filterRows(rows, filter).map((r) => r.name)
+  const names = (filter: PlanListFilter) => filterRows(rows, filter).map((r) => r.name)
   assert.deepEqual(names({}), ['alpha', 'beta', 'gamma'])
   assert.deepEqual(names({ q: 'ALP' }), ['alpha'])
   assert.deepEqual(names({ category: 'Compiler' }), ['beta'])
@@ -202,7 +212,7 @@ test('the Specs list filters by epic and sorts by name, last update or tasks', (
     { value: 'e1', label: 'Runtime', count: 2 },
     { value: NO_EPIC, label: 'No epic', count: 1 },
   ])
-  const names = (...args) => sortRows(rows, ...args).map((r) => r.name)
+  const names = (sort?: SpecSort, dir?: 'asc' | 'desc') => sortRows(rows, sort, dir).map((r) => r.name)
   assert.deepEqual(names(), ['alpha', 'beta', 'gamma'])
   assert.deepEqual(names('name', 'desc'), ['gamma', 'beta', 'alpha'])
   assert.deepEqual(names('updated'), ['alpha', 'beta', 'gamma'])

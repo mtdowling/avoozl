@@ -1,26 +1,30 @@
-// @ts-nocheck: typing debt
 // The page's navigation on a phone follows Kiro Crew's list-detail pattern.
 // In a real Chrome (AVOOZL_CHROME, or an installed Chrome or Chromium) on the
 // harness page, at 390 and 1280 px, light and dark: a phone has a thin top bar
 // that opens a full-page list and closes when a section is picked; a desktop
 // keeps its left nav. Skipped when no Chrome is found.
 import assert from 'node:assert/strict'
-import { after, before, test } from 'node:test'
-import { findChrome, startChrome, stopChrome } from './browser/chrome.ts'
+import { test } from 'node:test'
+import { findChrome, type Harness, type Page } from './browser/chrome.ts'
+import { withChrome } from './browser/harness-page.ts'
 
 const chrome = findChrome()
 const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the phone rail tests'
-let harness, browser, page
-before(async () => {
-  if (!skip) ({ harness, browser, page } = await startChrome(chrome))
-})
-after(() => stopChrome(browser, harness))
+let harness: Harness, page: Page
+withChrome(chrome, (got) => ({ harness, page } = got))
 
 const settle = () => page.evaluate('new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))')
-const box = (selector) =>
-  page.evaluate(
+// The element's box, or null when it is not on the page.
+const boxOrNull = (selector: string) =>
+  page.evaluate<{ top: number; left: number; width: number; height: number; hidden: boolean } | null>(
     `(() => { const el = document.querySelector(${JSON.stringify(selector)}); if (!el) return null; const r = el.getBoundingClientRect(); return { top: r.top, left: r.left, width: r.width, height: r.height, hidden: el.hidden } })()`,
   )
+// The box of an element a test needs on the page.
+const box = async (selector: string) => {
+  const found = await boxOrNull(selector)
+  assert.ok(found, `${selector} is on the page`)
+  return found
+}
 const sideways = () => page.evaluate(`Math.max(document.scrollingElement.scrollWidth, document.querySelector('[data-avoozl-pane]').scrollWidth) > innerWidth`)
 
 for (const dark of [false, true]) {
@@ -52,7 +56,7 @@ for (const dark of [false, true]) {
     assert.equal(await page.evaluate(`document.querySelectorAll('[data-top-rail-list] [data-nav-section][data-open]').length`), 1, 'only Needs you is open')
     await page.evaluate(`document.querySelector('[data-top-rail-list] [data-nav-item="waiting/decisions"]').click()`)
     await settle()
-    assert.equal(await box('[data-top-rail-list]'), null, 'picking collapses the rail')
+    assert.equal(await boxOrNull('[data-top-rail-list]'), null, 'picking collapses the rail')
     assert.match(await page.evaluate(`document.querySelector('[data-top-rail-bar]').textContent`), /Needs you · Decisions/)
     assert.ok((await box('[data-avoozl-pane]')).height > 100, 'the page shows again')
   })
@@ -62,7 +66,7 @@ for (const dark of [false, true]) {
     await page.until(`Boolean(document.querySelector('[data-top-row] [data-nav-head]'))`)
     await settle()
     assert.equal(await page.evaluate(`document.querySelectorAll('[data-top-row] [data-nav-head]').length`), 7)
-    assert.equal(await box('[data-top-rail-bar]'), null, 'no top bar')
+    assert.equal(await boxOrNull('[data-top-rail-bar]'), null, 'no top bar')
     assert.equal(await sideways(), false)
   })
 }

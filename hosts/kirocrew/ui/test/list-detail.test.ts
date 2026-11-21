@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // A phone shows one pane of a list-and-detail page; a desktop shows both.
 import assert from 'node:assert/strict'
 import test from 'node:test'

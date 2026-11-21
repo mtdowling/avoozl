@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Settings > Plugins (Add plugin and Installed plugins) and Settings >
 // Content rules (the rule set list and its details) pair two cards through
 // the shared PairedCards part: side by side the two share one height and the
@@ -7,10 +6,11 @@
 // Chrome is found.
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { after, before, test } from 'node:test'
-import { findChrome, startChrome, stopChrome } from './browser/chrome.ts'
+import { test } from 'node:test'
+import { findChrome, type Harness, type Page } from './browser/chrome.ts'
+import { withChrome } from './browser/harness-page.ts'
 
-const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
+const source = (name: string) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
 
 test('both Plugins cards are PairedCards in one PairedCards row', () => {
   assert.match(source('PluginsSettings.tsx'), /<PairedCards paired=\{wide\}[\s\S]*<AddPlugin [\s\S]*<PairedCard title="Installed plugins"[\s\S]*<\/PairedCards>/)
@@ -25,17 +25,14 @@ test('both Content rules panels are PairedCards in one PairedCards row', () => {
 
 const chrome = findChrome()
 const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the paired cards tests'
-let harness, browser, page
-before(async () => {
-  if (!skip) ({ harness, browser, page } = await startChrome(chrome))
-})
-after(() => stopChrome(browser, harness))
+let harness: Harness, page: Page
+withChrome(chrome, (got) => ({ harness, page } = got))
 const settle = () => page.evaluate('new Promise((r) => setTimeout(r, 300))')
 
 const PLUGINS = ['Plugins', '[data-plugins-layout]']
 const RULES = ['Content rules', '[data-content-layout]']
 
-async function open(query, width, height, [label, layout] = PLUGINS) {
+async function open(query: Record<string, string>, width: number, height: number, [label, layout] = PLUGINS) {
   await page.open(harness.url({ page: 'app', roles: 'single', ...query }), { width, height })
   await page.until(`Boolean(document.querySelector('[data-shell-main]'))`)
   const scope = width < 768 ? '[data-top-rail-list]' : '[data-left-nav]'

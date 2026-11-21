@@ -1,9 +1,8 @@
-// @ts-nocheck: typing debt
 // The Isolation panel's form: defaults, what it refuses, and the setting it
 // writes with repository.configure.
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { RUN_CHOICES, isolationForm, isolationInput, isolationProblem } from '../src/isolation-form.ts'
+import { RUN_CHOICES, isolationForm, isolationInput, isolationProblem, type Isolation } from '../src/isolation-form.ts'
 
 test('a repository with no setting reads as the sandbox with the network off', () => {
   const form = isolationForm(null)
@@ -16,7 +15,7 @@ test('a repository with no setting reads as the sandbox with the network off', (
 })
 
 test('the form round-trips a setting with paths and prepare', () => {
-  const value = {
+  const value: Isolation = {
     run: 'sandbox',
     network: 'on',
     readable: ['/opt/sdk'],

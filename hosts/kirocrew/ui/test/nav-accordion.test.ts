@@ -1,25 +1,23 @@
-// @ts-nocheck: typing debt
 // The left nav is Issue Radar's accordion: Plans, In flight, Needs you and Settings open
 // in the nav to their pages, one section is open at a time, and the content
 // shows only the picked page (no tab bar or section list in it). Each pick is
 // a Back step. On a phone the same accordion is in the menu. Skipped when no
 // Chrome is found.
 import assert from 'node:assert/strict'
-import { after, before, test } from 'node:test'
-import { findChrome, startChrome, stopChrome } from './browser/chrome.ts'
+import { test } from 'node:test'
+import { findChrome, type Harness, type Page } from './browser/chrome.ts'
+import { withChrome } from './browser/harness-page.ts'
 
 const chrome = findChrome()
 const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the nav accordion tests'
-let harness, browser, page
-before(async () => {
-  if (!skip) ({ harness, browser, page } = await startChrome(chrome))
-})
-after(() => stopChrome(browser, harness))
+let harness: Harness, page: Page
+withChrome(chrome, (got) => ({ harness, page } = got))
 const settle = () => page.evaluate('new Promise((r) => setTimeout(r, 250))')
-const click = (selector) => page.evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`)
+const click = (selector: string) => page.evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`)
 // The sections drawn open, inside the given nav.
-const openPills = (scope) => page.evaluate(`[...document.querySelectorAll(${JSON.stringify(scope + ' [data-nav-section][data-open]')})].map((x) => x.dataset.navSection)`)
-const has = (selector) => page.evaluate(`Boolean(document.querySelector(${JSON.stringify(selector)}))`)
+const openPills = (scope: string) =>
+  page.evaluate<string[]>(`[...document.querySelectorAll(${JSON.stringify(scope + ' [data-nav-section][data-open]')})].map((x) => x.dataset.navSection)`)
+const has = (selector: string) => page.evaluate<boolean>(`Boolean(document.querySelector(${JSON.stringify(selector)}))`)
 
 test('Settings opens in the nav; the page shows one section; Needs you does the same and shuts Settings', { skip }, async () => {
   await page.open(harness.url({ app: '1', basic: '1' }), { width: 1280, height: 800 })
@@ -86,7 +84,7 @@ test('a phone: the menu holds the same accordion, and picking a page closes the 
 for (const [width, height, scope] of [
   [1280, 800, '[data-left-nav]'],
   [390, 844, '[data-top-rail-list]'],
-])
+] as [number, number, string][])
   test(`at ${width} px one pill is open: Insights, then In flight, then Needs you, then a pill opened by hand`, { skip }, async () => {
     await page.open(harness.url({ app: '1', basic: '1', specs: '1' }), { width, height })
     await page.until(`Boolean(document.querySelector('[data-shell-main]'))`)
@@ -95,7 +93,7 @@ for (const [width, height, scope] of [
       await click('[data-top-rail-bar]')
       await page.until(`Boolean(document.querySelector('[data-top-rail-list]'))`)
     }
-    const go = async (key) => {
+    const go = async (key: string) => {
       await menu()
       await click(`${scope} [data-nav-group="${key}"]`)
       await page.until(`Boolean(document.querySelector('${scope} [data-nav-children="${key}"]'))`)

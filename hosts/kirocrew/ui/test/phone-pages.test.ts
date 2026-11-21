@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Pages with a list and a detail follow Kiro Crew's list-detail pattern on a
 // phone. In a real Chrome (AVOOZL_CHROME, or an installed Chrome or Chromium)
 // on the harness page with the sample workspace, at 390 and 1280 px, light and
@@ -6,37 +5,28 @@
 // row, Back returns to the list, and a desktop is unchanged. Skipped when no
 // Chrome is found.
 import assert from 'node:assert/strict'
-import { after, before, test } from 'node:test'
-import { buildHarness } from './browser/build.ts'
-import { findChrome, launch } from './browser/chrome.ts'
-import { demoReplies, demoScript } from './browser/demo-replies.ts'
+import { test } from 'node:test'
+import { findChrome, type Harness, type Page } from './browser/chrome.ts'
+import { withChrome } from './browser/harness-page.ts'
+import { demoHarness } from './browser/demo-replies.ts'
 
 const chrome = findChrome()
 const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the phone page tests'
-let harness, browser, page
-before(async () => {
-  if (skip) return
-  harness = await buildHarness({ scripts: { 'demo.js': demoScript(await demoReplies()) } })
-  browser = await launch(chrome)
-  page = await browser.page()
-})
-after(async () => {
-  await browser?.close()
-  harness?.remove()
-})
+let harness: Harness, page: Page
+withChrome(chrome, (got) => ({ harness, page } = got), demoHarness)
 
 const wait = (ms = 250) => page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
-const has = (selector) => page.evaluate(`Boolean(document.querySelector(${JSON.stringify(selector)}))`)
-const click = (expression) => page.evaluate(`(() => { const el = ${expression}; el.click(); return true })()`)
-const button = (text, scope = 'document') => `[...${scope}.querySelectorAll('button')].find((b) => b.textContent.trim().startsWith(${JSON.stringify(text)}))`
+const has = (selector: string) => page.evaluate<boolean>(`Boolean(document.querySelector(${JSON.stringify(selector)}))`)
+const click = (expression: string) => page.evaluate(`(() => { const el = ${expression}; el.click(); return true })()`)
+const button = (text: string, scope = 'document') => `[...${scope}.querySelectorAll('button')].find((b) => b.textContent.trim().startsWith(${JSON.stringify(text)}))`
 
-async function start(width, dark) {
+async function start(width: number, dark: boolean) {
   await page.open(harness.url({ page: 'demo', theme: dark ? 'dark' : 'light' }), { width, height: 800, dark })
   await page.until(`Boolean(document.querySelector('[data-top-row],[data-top-rail-bar]'))`)
   await wait(500)
 }
 // A phone picks a page in the top rail; a desktop clicks its tab.
-async function goto(name, width) {
+async function goto(name: string, width: number) {
   if (width < 768) {
     await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
     await wait(100)
@@ -49,7 +39,7 @@ async function goto(name, width) {
   await wait(500)
 }
 // A section of the nav opens to its pages; on a phone the menu may need opening first.
-async function pickPage(selector, width) {
+async function pickPage(selector: string, width: number) {
   if (width < 768 && !(await page.evaluate(`Boolean(document.querySelector('[data-top-rail-list]'))`))) {
     await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
     await wait(200)
@@ -108,7 +98,7 @@ for (const dark of [false, true]) {
     const gap = `Math.abs(document.querySelector('[data-detail-bar]').getBoundingClientRect().top - ${pane}.getBoundingClientRect().top)`
     await page.evaluate(`${pane}.scrollTop = ${pane}.scrollHeight`)
     await wait(400)
-    assert.ok((await page.evaluate(gap)) <= 1, 'the row sticks to the top of the pane')
+    assert.ok((await page.evaluate<number>(gap)) <= 1, 'the row sticks to the top of the pane')
     assert.equal(await echo(), '1', 'the compact title shows once the big one has scrolled out')
     // The details are a box in the Overview; the header's title is the one big title.
     assert.equal(await page.evaluate(`document.querySelectorAll('[data-detail-title], #avoozl-plan-title').length`), 1, 'one big title')

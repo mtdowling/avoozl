@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // One searchable picker for tasks and specs (design §8.9, R73): matching,
 // keys, ARIA, where it is used, and speed at 5,000 tasks. Also the Stop all
 // agents choice in the Stop the line dialog (R64.12-R64.13).
@@ -7,8 +6,9 @@ import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import { MAX_SHOWN, optionItems, pickIndex, pickKey, pickLabel, pickMatches } from '../src/picker.ts'
 import { FULL_STOP_WARNING, PULL_KINDS, bannerText, emptyPull, toPull } from '../src/line-api.ts'
+import { lineStop } from './line-stop-fixture.ts'
 
-const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
+const source = (name: string) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
 
 const items = [
   { id: '24.1', title: 'Pulled stops in the backend', spec: 'avoozl', state: 'done' },
@@ -105,19 +105,20 @@ test('the dialog offers Stop all agents, which asks first and warns', () => {
   assert.match(pull, /body: FULL_STOP_WARNING/)
   assert.match(dialog, /name="avoozl-stop-kind"/)
   assert.equal(
-    bannerText({
-      id: 's',
-      manual: true,
-      full: true,
-      by: { kind: 'person', name: 'dashboard' },
-      reason: 'runaway',
-      scope: 'all',
-      paused: 4,
-      sessions: [
-        { slot: 'a', taskId: 'a1', role: 'worker', attempt: 1, stopped: true },
-        { slot: 'b', taskId: 'b1', role: 'worker', attempt: 1, stopped: false, error: 'refused' },
-      ],
-    }),
+    bannerText(
+      lineStop({
+        manual: true,
+        full: true,
+        by: { kind: 'person', name: 'dashboard' },
+        reason: 'runaway',
+        scope: 'all',
+        paused: 4,
+        sessions: [
+          { slot: 'a', taskId: 'a1', role: 'worker', attempt: 1, stopped: true },
+          { slot: 'b', taskId: 'b1', role: 'worker', attempt: 1, stopped: false, error: 'refused' },
+        ],
+      }),
+    ),
     'All agents stopped by dashboard: runaway. 1 chat stopped; 1 could not be stopped. 4 tasks paused.',
   )
   assert.match(source('StopLine.tsx'), /stop\.full \? 'Resume all agents\?'/)

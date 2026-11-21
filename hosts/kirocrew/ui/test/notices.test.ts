@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Browser notices for Needs you (SW8) and the standalone page's Needs Kiro Crew
 // states (SW10.1): the pure parts. The page itself is in standalone-page.test.mjs.
 import assert from 'node:assert/strict'
@@ -8,11 +7,11 @@ import { harnessOptions } from '../src/models-api.ts'
 import { NOTICE_INTERVAL_MS, noticeText, noticesOn, setNotices, takeNew } from '../src/notices.ts'
 
 const memory = () => {
-  const map = new Map()
-  return { getItem: (k) => map.get(k) ?? null, setItem: (k, v) => void map.set(k, String(v)) }
+  const map = new Map<string, string>()
+  return { getItem: (k: string) => map.get(k) ?? null, setItem: (k: string, v: unknown) => void map.set(k, String(v)) }
 }
-const items = (...ids) => ids.map((id) => ({ id, title: `Item ${id}` }))
-const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
+const items = (...ids: string[]) => ids.map((id) => ({ id, title: `Item ${id}` }))
+const source = (name: string) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
 
 test('notices are off by default and only a stored choice turns them on', () => {
   const storage = memory()
@@ -63,7 +62,7 @@ test('only a click asks the browser for permission', () => {
 })
 
 test('the standalone page says Needs Kiro Crew on the Kiro Crew chat harness, and the Kiro Crew page does not', () => {
-  const label = (host) => harnessOptions([], '', 'write', host).find((o) => o.value === 'kirocrew').label
+  const label = (host?: string) => harnessOptions([], '', 'write', host).find((o) => o.value === 'kirocrew')?.label
   assert.equal(label('standalone'), 'Kiro Crew chat (Needs Kiro Crew)')
   assert.equal(label('kirocrew'), 'Kiro Crew chat')
   assert.equal(label(undefined), 'Kiro Crew chat')
@@ -77,7 +76,7 @@ test('autoSend never starts a session: Start is a click (SW7.6)', () => {
 
 test('an item with no id, such as a blocked task, is known by its kind and task', () => {
   const storage = memory()
-  const blocked = (taskId) => ({ kind: 'needs-human', taskId, title: `Blocked ${taskId}` })
+  const blocked = (taskId: string) => ({ kind: 'needs-human', taskId, title: `Blocked ${taskId}` })
   assert.deepEqual(takeNew(storage, []), [])
   assert.deepEqual(
     takeNew(storage, [blocked('a'), blocked('b')]).map((i) => i.title),
