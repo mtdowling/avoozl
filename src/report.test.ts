@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -6,7 +5,8 @@ import os from "node:os";
 import path from "node:path";
 
 import { queryTasks, validate } from "./model.ts";
-const minimal = () => ({
+import type { Snapshot } from "./types.ts";
+const minimal = (): Snapshot => ({
   schemaVersion: 1,
   revision: 1,
   updatedAt: new Date().toISOString(),
@@ -120,9 +120,9 @@ test("prompt capture inherits view context without inventing dependencies or com
   assert.equal(result.task.scope, "runtime");
   assert.equal(result.task.track, "storage");
   assert.equal(result.task.status, "planned");
-  assert.ok(result.task.tags.includes("cleanup"));
+  assert.ok(result.task.tags?.includes("cleanup"));
   assert.equal(result.task.prompt, input.prompt);
-  assert.deepEqual(result.task.capture.context.taskIds, ["io-task"]);
+  assert.deepEqual(result.task.capture?.context?.taskIds, ["io-task"]);
   assert.deepEqual(d.edges, before);
   assert.equal(captureTask(d, input).task.id, result.task.id);
   assert.equal(d.tasks.length, 2);
@@ -219,7 +219,7 @@ test("activity reports work independently of progress, expires, and prevents sta
       ),
     /lease changed/,
   );
-  assert.equal(d.tasks[0].activityHistory[0].owner, "Agent A");
+  assert.equal(d.tasks[0].activityHistory?.[0].owner, "Agent A");
   applyActivity(
     d,
     { id: "work", action: "pause", leaseId: second.activity.leaseId },

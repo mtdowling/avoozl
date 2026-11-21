@@ -1,12 +1,40 @@
-// @ts-nocheck: typing debt
 // The MCP protocol layer shared by every Avoozl server: request checks,
 // initialize and ping. Tools live in src/app/mcp.mjs.
 import { resolveTaskId } from "./task-identity.ts";
+import type { Snapshot } from "./types.ts";
+
+// One JSON-RPC message as it arrives: nothing in it is trusted yet.
+export interface McpMessage {
+  jsonrpc?: unknown;
+  id?: string | number | null;
+  method?: unknown;
+  params?: { _meta?: Record<string, unknown>; [key: string]: unknown };
+  [key: string]: unknown;
+}
+export interface McpReply {
+  status: number;
+  body: Record<string, unknown> | null;
+}
+type McpError = (
+  code: number,
+  text: string,
+  status?: number,
+  extra?: Record<string, unknown>,
+) => McpReply;
+interface Finding {
+  taskId: string;
+  kind: string;
+  action?: string;
+  document?: string;
+}
 const MCP_VERSIONS = ["2026-07-28", "2025-11-25", "2025-06-18", "2025-03-26"];
 const identity = { name: "avoozl", version: "0.1.0" };
-export function auditPlans(data, { scope = "all" } = {}) {
+export function auditPlans(
+  data: Snapshot,
+  { scope = "all" }: { scope?: string } = {},
+) {
   const ids = new Set(data.tasks.map((t) => t.id)),
-    findings = [];
+    findings: Finding[] = [];
   for (const task of data.tasks.filter(
     (t) => scope === "all" || t.scope === scope,
   )) {
@@ -23,7 +51,7 @@ export function auditPlans(data, { scope = "all" } = {}) {
         kind: "removed-source",
         action: "Relink, retire, or explicitly retain this task.",
       });
-    for (const id of task.contextDocuments || [])
+    for (const id of (task.contextDocuments as string[] | undefined) || [])
       if (!data.documents[id])
         findings.push({
           taskId: task.id,
@@ -32,11 +60,13 @@ export function auditPlans(data, { scope = "all" } = {}) {
         });
   }
   for (const doc of Object.values(data.documents))
-    for (const match of doc.text.matchAll(/<!--\s*task:([a-z0-9-]+)\s*-->/g))
+    for (const match of (doc.text ?? "").matchAll(
+      /<!--\s*task:([a-z0-9-]+)\s*-->/g,
+    ))
       if (!ids.has(resolveTaskId(data, match[1])))
         findings.push({
           kind: "unknown-task-reference",
-          document: doc.id,
+          document: doc.id as string,
           taskId: match[1],
         });
   return {
@@ -47,8 +77,11 @@ export function auditPlans(data, { scope = "all" } = {}) {
       "The database owns status/dependencies/order. Markdown owns design prose. Source checkbox disagreement alone is not proof of stale authored acceptance.",
   };
 }
-export function validateMcpRequest(message, { versionHeader } = {}) {
-  const error = (code, text, status = 200, extra = {}) => ({
+export function validateMcpRequest(
+  message: McpMessage | null | undefined,
+  { versionHeader }: { versionHeader?: string } = {},
+): McpReply | null {
+  const error: McpError = (code, text, status = 200, extra = {}) => ({
     status,
     body: {
       jsonrpc: "2.0",
@@ -67,10 +100,11 @@ export function validateMcpRequest(message, { versionHeader } = {}) {
   )
     return error(-32600, "Invalid JSON-RPC request", 400);
   const meta = message.params?._meta || {},
-    version =
+    version = String(
       meta["io.modelcontextprotocol/protocolVersion"] ||
-      versionHeader ||
-      "2025-11-25",
+        versionHeader ||
+        "2025-11-25",
+    ),
     modern = version === "2026-07-28";
   if (!MCP_VERSIONS.includes(version))
     return error(-32022, "Unsupported protocol version", 400, {
@@ -95,10 +129,13 @@ export function validateMcpRequest(message, { versionHeader } = {}) {
   if (!Object.hasOwn(message, "id")) return { status: 202, body: null };
   return null;
 }
-export function dispatchMcp(message, { versionHeader } = {}) {
+export function dispatchMcp(
+  message: McpMessage,
+  { versionHeader }: { versionHeader?: string } = {},
+): McpReply {
   const invalid = validateMcpRequest(message, { versionHeader });
   if (invalid) return invalid;
-  const error = (code, text, status = 200, extra = {}) => ({
+  const error: McpError = (code, text, status = 200, extra = {}) => ({
     status,
     body: {
       jsonrpc: "2.0",
@@ -109,13 +146,13 @@ export function dispatchMcp(message, { versionHeader } = {}) {
   const modern =
     (message.params?._meta?.["io.modelcontextprotocol/protocolVersion"] ||
       versionHeader) === "2026-07-28";
-  let result;
+  let result: Record<string, unknown>;
   const method = message.method,
     args = message.params || {};
   if (method === "initialize")
     result = {
       protocolVersion:
-        MCP_VERSIONS.includes(args.protocolVersion) &&
+        MCP_VERSIONS.includes(String(args.protocolVersion)) &&
         args.protocolVersion !== "2026-07-28"
           ? args.protocolVersion
           : "2025-11-25",
@@ -161,9 +198,14 @@ const LISTS = new Set([
   "resources/list",
   "resources/templates/list",
 ]);
-export function complete(message, result) {
+export function complete(
+  message: McpMessage | null | undefined,
+  result: Record<string, unknown>,
+) {
   return {
-    ...(LISTS.has(message?.method) ? { ttlMs: 0, cacheScope: "private" } : {}),
+    ...(LISTS.has(String(message?.method))
+      ? { ttlMs: 0, cacheScope: "private" }
+      : {}),
     ...result,
     resultType: "complete",
   };

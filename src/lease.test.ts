@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 import assert from "node:assert/strict";
 import test from "node:test";
 import { endLease, leaseState, renewLease, takeLease } from "./lease.ts";
@@ -49,12 +48,12 @@ test("renew and end need the right lease ID", () => {
     leaseId: record.leaseId,
     now: T0 + 30000,
   });
-  assert.equal(renewed.record.expiresAt, new Date(T0 + 90000).toISOString());
+  assert.equal(renewed.record?.expiresAt, new Date(T0 + 90000).toISOString());
   const ended = endLease(renewed.record, {
     leaseId: record.leaseId,
     now: T0 + 40000,
   });
-  assert.equal(ended.record.state, "ended");
+  assert.equal(ended.record?.state, "ended");
   assert.equal(leaseState(ended.record, T0 + 41000), "ended");
   // An ended lease can be taken by anyone.
   assert.ok(
@@ -79,5 +78,8 @@ test("a lease lasts a whole number of seconds", () => {
     () => takeLease(null, { sessionId: "a", seconds: 1.5 }),
     /whole number of seconds/,
   );
-  assert.throws(() => takeLease(null, { seconds: 5 }), /names the session/);
+  assert.throws(
+    () => takeLease(null, { sessionId: undefined, seconds: 5 }),
+    /names the session/,
+  );
 });

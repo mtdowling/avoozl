@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // A plan's category and epic, read from YAML front-matter at the top of its
 // prose (Requirements 30.9 and 59.2):
 //
@@ -16,13 +15,14 @@ const CLOSE = /^(?:---|\.\.\.)[ \t]*\r?$/;
 const MAX_CATEGORY = 160;
 // An epic is named by its spec folder (spec-plans.mjs NAME).
 const EPIC_NAME = /^[a-z0-9][a-z0-9-]{0,79}$/;
-const KEYS = {
+type Key = "category" | "epic";
+const KEYS: Record<Key, { valid: (value: string) => boolean; hint: string }> = {
   category: {
-    valid: (value) => value.length <= MAX_CATEGORY,
+    valid: (value: string) => value.length <= MAX_CATEGORY,
     hint: `Write category as one line of text up to ${MAX_CATEGORY} characters, such as "category: Runtime".`,
   },
   epic: {
-    valid: (value) => EPIC_NAME.test(value),
+    valid: (value: string) => EPIC_NAME.test(value),
     hint: 'Write epic as the epic\'s spec folder name, such as "epic: rewrite".',
   },
 };
@@ -31,8 +31,16 @@ const KEYS = {
 // the block takes, fences included (0 when the text has none). `problem` is
 // { line, key, message } for a block a person must fix; the key it names
 // reads as null (the whole block when its end is missing).
-export function frontMatter(text) {
-  const none = {
+export interface FrontMatter {
+  lines: number;
+  category: string | null;
+  epic: string | null;
+  epicLine: number | null;
+  problem: { line: number; key: Key | null; message: string } | null;
+}
+
+export function frontMatter(text: unknown): FrontMatter {
+  const none: FrontMatter = {
     lines: 0,
     category: null,
     epic: null,
@@ -53,14 +61,15 @@ export function frontMatter(text) {
           "Front-matter starts with --- on line 1 but has no closing --- line. Close it, or remove the opening ---.",
       },
     };
-  const block = { ...none, lines: end + 1 },
-    found = {};
+  const block: FrontMatter = { ...none, lines: end + 1 },
+    found: Partial<Record<Key, number>> = {};
   for (let index = 1; index < end; index++) {
     const match = /^(category|epic)[ \t]*:(.*)$/.exec(
       rows[index].replace(/\r$/, ""),
     );
     if (!match) continue;
-    const [, key, raw] = match,
+    const key = match[1] as Key,
+      raw = match[2],
       line = index + 1;
     if (found[key]) {
       block[key] = null;
@@ -86,7 +95,7 @@ export function frontMatter(text) {
 
 // One YAML scalar on one line: plain, "double" or 'single' quoted. Lists,
 // maps, block scalars, anchors and tags are refused, not interpreted.
-function scalar(raw) {
+function scalar(raw: string) {
   const value = raw.trim();
   if (!value || /^[[{|>&*!]/.test(value)) return null;
   const quoted = /^(["'])(.*)\1(?:\s+#.*)?$/.exec(value);
@@ -98,11 +107,12 @@ function scalar(raw) {
   return value.replace(/\s+#.*$/, "").trim() || null;
 }
 
-export const frontMatterCategory = (text) => frontMatter(text).category;
+export const frontMatterCategory = (text: unknown) =>
+  frontMatter(text).category;
 
 // The text with its front-matter lines blanked, so line numbers still match
 // the file and a YAML `# comment` is never read as a Markdown heading.
-export function withoutFrontMatter(text) {
+export function withoutFrontMatter(text: string) {
   const { lines } = frontMatter(text);
   if (!lines) return text;
   const rows = text.split("\n");

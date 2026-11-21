@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 import test from "node:test";
 import assert from "node:assert/strict";
 import { taskSignals } from "./workbench-model.ts";
@@ -6,7 +5,7 @@ import { queryTasks } from "./query.ts";
 
 const now = Date.parse("2026-11-09T01:00:00Z");
 function fixture() {
-  const task = (id, extra = {}) => ({
+  const task = (id: string, extra = {}) => ({
     id,
     title: id,
     epic: "W1",

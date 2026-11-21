@@ -13,7 +13,15 @@
     "resolveJsonModule": true,
     "allowJs": true,
     "checkJs": false,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "paths": {
+      "@kirocrew/app-sdk": ["./hosts/kirocrew/ui/src/kirocrew-app-sdk.d.ts"]
+    }
   },
-  "include": ["scripts/**/*.ts", "workflow-kit/**/*.ts"]
+  "include": [
+    "cli.ts",
+    "src/**/*.ts",
+    "scripts/**/*.ts",
+    "workflow-kit/**/*.ts"
+  ]
 }

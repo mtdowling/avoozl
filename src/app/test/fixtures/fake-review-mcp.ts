@@ -1,3 +1,4 @@
+// @ts-nocheck: typing debt
 // A fake stdio MCP review server for plugin check tests and proof pk-p1.
 // create_review returns an id at once; get_review reports `running` for
 // --running polls (or --running-ms milliseconds), then a verdict: `differs`

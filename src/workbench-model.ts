@@ -1,27 +1,33 @@
-// @ts-nocheck: typing debt
 import { hasPendingSpecDependencies } from "./spec-dependencies.ts";
 import { activityState } from "./activity.ts";
 import { statusComplete } from "./query.ts";
+import type { Snapshot, Task } from "./types.ts";
 
-const indexes = new WeakMap();
-function taskIndex(data) {
-  if (indexes.has(data)) return indexes.get(data);
+interface TaskIndex {
+  tasks: Map<string, Task>;
+  prerequisites: Map<string, string[]>;
+  dependents: Map<string, string[]>;
+}
+const indexes = new WeakMap<Snapshot, TaskIndex>();
+function taskIndex(data: Snapshot): TaskIndex {
+  const known = indexes.get(data);
+  if (known) return known;
   const tasks = new Map(data.tasks.map((task) => [task.id, task]));
-  const prerequisites = new Map(),
-    dependents = new Map();
+  const prerequisites = new Map<string, string[]>(),
+    dependents = new Map<string, string[]>();
   for (const edge of data.edges) {
     if (!["requires", "sequence"].includes(edge.kind)) continue;
     if (!prerequisites.has(edge.to)) prerequisites.set(edge.to, []);
     if (!dependents.has(edge.from)) dependents.set(edge.from, []);
-    prerequisites.get(edge.to).push(edge.from);
-    dependents.get(edge.from).push(edge.to);
+    prerequisites.get(edge.to)!.push(edge.from);
+    dependents.get(edge.from)!.push(edge.to);
   }
   const index = { tasks, prerequisites, dependents };
   indexes.set(data, index);
   return index;
 }
 
-export function taskSignals(data, task, now = Date.now()) {
+export function taskSignals(data: Snapshot, task: Task, now = Date.now()) {
   const index = taskIndex(data);
   const pending = new Set(
     (task.pendingSpecDependencies || [])
@@ -57,8 +63,8 @@ export function taskSignals(data, task, now = Date.now()) {
   };
 }
 
-export function isPlanInventory(data, task) {
-  const document = data.documents[task.source?.document];
+export function isPlanInventory(data: Snapshot, task: Task) {
+  const document = data.documents[task.source?.document ?? ""];
   return Boolean(
     task.tags?.some((tag) => ["historical", "plan-inventory"].includes(tag)) ||
       document?.historical ||
