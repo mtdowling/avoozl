@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The Kiro Crew stylesheet the class check runs against (UC4).
 //
 // kirocrew-css.json names a release, its published package, the stylesheet
@@ -12,12 +11,12 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { inflateRawSync } from 'node:zlib'
 
-export const pin = JSON.parse(readFileSync(new URL('./kirocrew-css.json', import.meta.url), 'utf8'))
+export const pin: { release: string; package: string; member: string; sha256: string } = JSON.parse(readFileSync(new URL('./kirocrew-css.json', import.meta.url), 'utf8'))
 
-export const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex')
+export const sha256 = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex')
 
 // Returns the stylesheet text when its digest is the pinned one.
-export function checkDigest(bytes, expected = pin.sha256) {
+export function checkDigest(bytes: Buffer, expected: string = pin.sha256) {
   const actual = sha256(bytes)
   if (actual !== expected) throw new Error(`Kiro Crew stylesheet refused: sha256 ${actual}, pinned ${expected}`)
   return bytes.toString('utf8')
@@ -25,8 +24,8 @@ export function checkDigest(bytes, expected = pin.sha256) {
 
 // A request that stalls is cut after 15 seconds and tried again, three times
 // in all, so one slow connection does not hold a CI job to its test timeout.
-async function retried(url, init) {
-  let last
+async function retried(url: string, init: RequestInit) {
+  let last: unknown
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
       return await fetch(url, { ...init, signal: AbortSignal.timeout(15000) })
@@ -37,7 +36,7 @@ async function retried(url, init) {
   throw last
 }
 
-async function range(url, start, end) {
+async function range(url: string, start: number, end: number) {
   const response = await retried(url, {
     headers: { Range: `bytes=${start}-${end}` },
   })
@@ -48,7 +47,8 @@ async function range(url, start, end) {
 // Reads one member of a remote zip: the end record, the central directory,
 // the local header, then the member's bytes. Zip64 is not handled; a wheel
 // of a few hundred megabytes does not need it.
-export async function readZipMember(url, matches) {
+// `matches` picks the member by its name.
+export async function readZipMember(url: string, matches: (name: string) => boolean) {
   const head = await retried(url, { method: 'HEAD' })
   const size = Number(head.headers.get('content-length'))
   if (!size) throw new Error(`${url}: no content-length`)
@@ -93,7 +93,7 @@ export async function kirocrewStylesheet() {
       // a damaged cache file is fetched again
     }
   }
-  const bytes = await readZipMember(pin.package, (name) => new RegExp(pin.member).test(name))
+  const bytes = await readZipMember(pin.package, (name: string) => new RegExp(pin.member).test(name))
   const text = checkDigest(bytes)
   mkdirSync(cache, { recursive: true })
   writeFileSync(file, bytes)

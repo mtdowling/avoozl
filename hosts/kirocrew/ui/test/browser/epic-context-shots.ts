@@ -43,10 +43,10 @@ try {
     `(() => { const b = [...document.querySelectorAll('${scope(width)} [data-nav-item]')].filter((x) => x.textContent.trim() === ${JSON.stringify(text)}).at(-1); if (b) b.click(); return Boolean(b) })()`
   for (const [view, group, name, shows, extra] of VIEWS)
     for (const theme of ['light', 'dark'])
-      for (const [size, width] of <[string, number][]>[
+      for (const [size, width] of [
         ['desktop', 1280],
         ['phone', 390],
-      ]) {
+      ] as [string, number][]) {
         const open = async (height: number) => {
           await page.open(harness.url({ page: 'app', theme, roles: 'single', ghfull: '1', epiccontext: '1', ...extra }), { width, height, dark: theme === 'dark' })
           await page.until(`Boolean(document.querySelector('[data-shell-main]'))`)

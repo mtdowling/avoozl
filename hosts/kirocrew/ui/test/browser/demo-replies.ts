@@ -7,6 +7,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { demoOperations, installDemo } from '../../../../../src/app/test/demo-fixture.ts'
+import type { HarnessOptions } from './build.ts'
 
 const src = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../src')
 
@@ -51,3 +52,6 @@ export async function demoReplies({ plan }: { plan?: { id: string; with: Record<
 
 // The classic script the harness loads before the page.
 export const demoScript = (value: unknown) => `window.__DEMO = ${JSON.stringify(value)};`
+
+// A harness on the sample workspace's replies (?page=demo).
+export const demoHarness = async (): Promise<HarnessOptions> => ({ scripts: { 'demo.js': demoScript(await demoReplies()) } })

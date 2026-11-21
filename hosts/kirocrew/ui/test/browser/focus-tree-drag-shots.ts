@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt
 // Screenshots of drag to pan in Dashboards › Graph (graph-chains.ts):
 // the Focus tree of spec billing at rest (cursor grab), mid left drag on
 // empty space (grabbing, scrolled), mid middle drag over a card, and All
@@ -12,10 +11,11 @@
 // AVOOZL_CHROME names the browser; AVOOZL_HOST_CSS the host's stylesheet.
 import path from 'node:path'
 import { startShots } from './shots.ts'
+import type { Page } from './chrome.ts'
 
 const { out, harness, browser } = await startShots('focus-tree-drag-shots.mjs <out dir>')
 
-async function openTree(page, { width, height, theme }) {
+async function openTree(page: Page, { width, height, theme }: { width: number; height: number; theme: string }) {
   await page.open(harness.url({ page: 'app', graph: 'chains', theme }), { width, height, dark: theme === 'dark' })
   await page.until(`Boolean(document.querySelector('[data-shell]'))`)
   if (width < 768) await page.evaluate(`document.querySelector('[data-top-rail-bar]')?.click()`)
@@ -30,7 +30,7 @@ async function openTree(page, { width, height, theme }) {
 }
 
 // The marker: a dot at the pointer and the cursor CSS gives there.
-const mark = (page, x, y) =>
+const mark = (page: Page, x: number, y: number) =>
   page.evaluate(`(() => {
     document.querySelector('#shot-pointer')?.remove()
     const cursor = getComputedStyle(document.elementFromPoint(${x}, ${y})).cursor
@@ -43,8 +43,8 @@ const mark = (page, x, y) =>
   })()`)
 
 // An empty spot in the tree box, in whole pixels, clear of cards.
-const empty = (page) =>
-  page.evaluate(`(() => {
+const empty = (page: Page) =>
+  page.evaluate<{ x: number; y: number } | null>(`(() => {
     const box = document.querySelector('[data-tree-scroll]').getBoundingClientRect()
     const clear = (x, y) => [[0, 0], [-4, 0], [4, 0], [0, -4], [0, 4]].every(([dx, dy]) => {
       const at = document.elementFromPoint(x + dx, y + dy)
@@ -54,8 +54,8 @@ const empty = (page) =>
       for (let x = Math.floor(box.right) - 40; x > box.left + 8; x -= 6) if (clear(x, y)) return { x, y }
     return null
   })()`)
-const center = (page, selector) =>
-  page.evaluate(
+const center = (page: Page, selector: string) =>
+  page.evaluate<{ x: number; y: number }>(
     `(() => { const r = document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect(); return { x: Math.round(r.left + r.width / 3), y: Math.round(r.top + r.height / 2) } })()`,
   )
 
@@ -65,8 +65,8 @@ try {
     [1280, 900, 'light'],
     [1280, 900, 'dark'],
     [390, 844, 'light'],
-  ]) {
-    const shoot = async (name) => {
+  ] as [number, number, string][]) {
+    const shoot = async (name: string) => {
       const file = path.join(out, `${name}-${width}-${theme}.png`)
       await page.screenshot(file)
       console.log(file)

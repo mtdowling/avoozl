@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // No page part opens from the right edge; dialogs are centered modals
 // (modal-layout.test.mjs and modal-cover.test.mjs drive them in Chrome).
 import assert from 'node:assert/strict'

@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The Approve dialog: it approves the exact revision it shows, follows a
 // revision written while it is open, and shows the diff since the approved
 // revision. Skipped when no Chrome is found.
@@ -6,13 +5,13 @@ import assert from 'node:assert/strict'
 import { fileURLToPath } from 'node:url'
 import { after, before, test } from 'node:test'
 import { buildHarness } from './browser/build.ts'
-import { findChrome, launch } from './browser/chrome.ts'
+import { findChrome, launch, type Browser, type Harness, type Page } from './browser/chrome.ts'
 
 const chrome = findChrome()
 const skip = chrome ? false : 'no Chrome found'
-let harness, browser, page
+let harness: Harness, browser: Browser | undefined, page: Page
 before(async () => {
-  if (skip) return
+  if (!chrome) return
   harness = await buildHarness({ entry: fileURLToPath(new URL('./browser/approve-spec.tsx', import.meta.url)) })
   browser = await launch(chrome)
   page = await browser.page()
@@ -21,8 +20,8 @@ after(async () => {
   await browser?.close()
   harness?.remove()
 })
-const click = (selector) => page.evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`)
-const calls = () => page.evaluate('window.__approveCalls')
+const click = (selector: string) => page.evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`)
+const calls = () => page.evaluate<{ operation?: string; id?: string; expectedHash?: string }[]>('window.__approveCalls')
 async function open(width = 1280, dark = false) {
   await page.open(harness.url({ theme: dark ? 'dark' : 'light' }), { width, height: 900, dark })
   await page.until(`Boolean(document.querySelector('[data-approve-spec-go]'))`)
@@ -41,11 +40,11 @@ test('a revision written while the dialog is open updates it in place and resets
   for (const [width, dark] of [
     [1280, false],
     [390, true],
-  ]) {
+  ] as [number, boolean][]) {
     await open(width, dark)
     await page.evaluate(`window.__moveRevision('spec')`)
     await page.until(`Boolean(document.querySelector('[data-revision-moved]'))`, 10000)
-    const text = await page.evaluate(`document.querySelector('[data-revision-moved]').textContent`)
+    const text = await page.evaluate<string>(`document.querySelector('[data-revision-moved]').textContent`)
     assert.match(text, /Changed while open: a{12,} → c{12,}/)
     assert.match(text, /requirements\.md \+1 −1/)
     assert.match(text, /tasks\.md \+1 −0/)
@@ -109,12 +108,12 @@ test('the revision opens its diff since the approved revision', { skip }, async 
   for (const [width, dark] of [
     [1280, false],
     [390, true],
-  ]) {
+  ] as [number, boolean][]) {
     await open(width, dark)
     assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-revision-diff]'))`), false)
     await click('[data-revision-diff-toggle]')
     await page.until(`Boolean(document.querySelector('[data-revision-diff]'))`)
-    const text = await page.evaluate(`document.querySelector('[data-revision-diff]').textContent`)
+    const text = await page.evaluate<string>(`document.querySelector('[data-revision-diff]').textContent`)
     assert.match(text, /approved revision bbbbbbbb/)
     assert.match(text, /requirements\.md/)
     assert.match(text, /-Old goal\./)

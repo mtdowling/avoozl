@@ -1,12 +1,14 @@
 // A scratch workspace's graph.view with real chains across three specs:
 // done blockers, newly unlocked tasks, cross-spec waits and one sequence
 // edge. The Graph's Focus tree tests and screenshots use it (&graph=chains).
+import type { Graph, GraphTask } from '../../src/views-api.ts'
+
 const PLANS = [
   { id: 'search-v2', title: 'Search v2', spec: 'search-v2', epic: 'find', phases: [] },
   { id: 'sync-engine', title: 'Sync engine', spec: 'sync-engine', epic: 'core', phases: [] },
   { id: 'billing', title: 'Billing', spec: 'billing', epic: 'core', phases: [] },
 ]
-const T: [string, string, string, string][] = [
+const T: [string, string, NonNullable<GraphTask['state']>, string][] = [
   ['S1', 'search-v2', 'done', 'Tokenize recipe text'],
   ['S2', 'search-v2', 'done', 'Store the search index'],
   ['S3', 'search-v2', 'ready', 'Rank results by match'],
@@ -39,7 +41,7 @@ const E: [string, string, boolean, string?][] = [
   ['B2', 'B5', false],
 ]
 
-export const chainsGraph = {
+export const chainsGraph: Graph = {
   revision: 1,
   epics: [
     { id: 'find', title: 'Find recipes', count: 6, plans: ['search-v2'] },
@@ -52,25 +54,27 @@ export const chainsGraph = {
   ],
   repositories: ['example/recipe-box'],
   total: T.length,
-  tasks: T.map(([id, plan, state, title]) => ({
-    id,
-    title,
-    epic: PLANS.find((p) => p.id === plan)!.epic,
-    planId: plan,
-    spec: plan,
-    phase: null,
-    kind: 'leaf',
-    authority: 'local',
-    route: 'local',
-    completion: 'integrated',
-    repository: 'example/recipe-box',
-    status: state === 'done' ? 'done' : 'planned',
-    complete: state === 'done',
-    ready: state === 'ready',
-    state,
-    decision: state === 'needs-you' ? 'Which weights: title first, or ingredients first?' : null,
-    issue: null,
-  })),
+  tasks: T.map(
+    ([id, plan, state, title]): GraphTask => ({
+      id,
+      title,
+      epic: PLANS.find((p) => p.id === plan)?.epic ?? null,
+      planId: plan,
+      spec: plan,
+      phase: null,
+      kind: 'leaf',
+      authority: 'local',
+      route: 'local',
+      completion: 'integrated',
+      repository: 'example/recipe-box',
+      status: state === 'done' ? 'done' : 'planned',
+      complete: state === 'done',
+      ready: state === 'ready',
+      state,
+      decision: state === 'needs-you' ? 'Which weights: title first, or ingredients first?' : null,
+      issue: null,
+    }),
+  ),
   edges: E.map(([from, to, satisfied, kind]) => ({ from, to, kind: kind ?? 'requires', condition: null, blocking: kind !== 'sequence', satisfied })),
 }
 
@@ -91,32 +95,34 @@ const DE: [string, string, string?][] = [
   ['B2', 'M3'],
   ['M3', 'M4', 'sequence'],
 ]
-export const draftsGraph = {
+export const draftsGraph: Graph & { drafts: NonNullable<Graph['drafts']> } = {
   ...chainsGraph,
   drafts: {
     specs: [{ name: 'meal-plans', title: 'Meal plans', status: 'not stored', count: D.length }],
     total: D.length,
-    tasks: D.map(([id, title], i) => ({
-      id,
-      title,
-      epic: null,
-      planId: null,
-      spec: 'meal-plans',
-      phase: null,
-      order: T.length + i,
-      kind: 'leaf',
-      authority: 'local',
-      route: 'local',
-      completion: 'integrated',
-      repository: 'example/recipe-box',
-      status: 'draft',
-      complete: false,
-      ready: false,
-      state: 'draft',
-      draft: { spec: 'meal-plans', status: 'not stored' },
-      decision: null,
-      issue: null,
-    })),
+    tasks: D.map(
+      ([id, title], i): GraphTask => ({
+        id,
+        title,
+        epic: null,
+        planId: null,
+        spec: 'meal-plans',
+        phase: null,
+        order: T.length + i,
+        kind: 'leaf',
+        authority: 'local',
+        route: 'local',
+        completion: 'integrated',
+        repository: 'example/recipe-box',
+        status: 'draft',
+        complete: false,
+        ready: false,
+        state: 'draft',
+        draft: { spec: 'meal-plans', status: 'not stored' },
+        decision: null,
+        issue: null,
+      }),
+    ),
     edges: DE.map(([from, to, kind]) => ({ from, to, kind: kind ?? 'requires', condition: null, blocking: true, satisfied: from === 'S1', draft: true })),
   },
 }

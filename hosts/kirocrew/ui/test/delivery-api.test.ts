@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { readFileSync } from 'node:fs'
@@ -19,43 +18,18 @@ import {
   progressGroups,
   resumeStatus,
 } from '../src/delivery-api.ts'
-import { filterActive, filterChoices, readFilter, writeFilter, NO_REPOSITORY } from '../src/filters.ts'
+import { filterActive, filterChoices, readFilter, writeFilter, NO_REPOSITORY, type TaskFilter } from '../src/filters.ts'
+import type { DrawnLaneId, LaneCard, LaneId } from '../src/delivery-api.ts'
+import type { DeliveryItem, Graph, GraphTask, RemoteWorker } from '../src/views-api.ts'
+import { deliveryItem, deliverySession, graphTask } from './graph-fixture.ts'
+import { memoryStorage } from './memory-storage.ts'
 
-const task = (id, state, extra = {}) => ({
-  id,
-  title: id,
-  epic: 'e1',
-  kind: 'leaf',
-  authority: 'local',
-  route: 'local',
-  completion: 'merged',
-  repository: null,
-  status: null,
-  complete: state === 'done',
-  ready: state === 'ready',
-  state,
-  decision: null,
-  issue: null,
-  ...extra,
-})
+const task = (id: string, state: GraphTask['state'], extra: Partial<GraphTask> = {}) =>
+  graphTask(id, { title: id, epic: 'e1', completion: 'merged', status: null, complete: state === 'done', ready: state === 'ready', state, ...extra })
 
-const item = (id, extra = {}) => ({
-  id,
-  title: id,
-  status: null,
-  complete: false,
-  repository: null,
-  sessions: [],
-  evidence: [],
-  integration: null,
-  pullRequests: [],
-  deliveries: [],
-  worktrees: [],
-  rounds: [],
-  ...extra,
-})
+const item = (id: string, extra: Partial<DeliveryItem> = {}) => deliveryItem(id, { title: id, status: null, rounds: [], ...extra })
 
-const session = (role, status, attempt = 1) => ({ slot: `${role}-${attempt}`, role, attempt, status, title: null, statusAt: null, boundAt: null })
+const session = (role: string, status: string, attempt = 1) => deliverySession({ slot: `${role}-${attempt}`, role, attempt, status })
 
 test('each delivery lands in one lane by its state', () => {
   assert.equal(laneOf(task('a', 'ready'), null), 'ready')
@@ -71,7 +45,7 @@ test('each delivery lands in one lane by its state', () => {
 })
 
 test('lanes hold delivery records and ready leaves, newest done first', () => {
-  const graph = {
+  const graph: Graph = {
     revision: 3,
     epics: [{ id: 'e1', title: 'Epic one', count: 4 }],
     statuses: [
@@ -81,7 +55,7 @@ test('lanes hold delivery records and ready leaves, newest done first', () => {
     ],
     repositories: [],
     total: 4,
-    tasks: [task('r', 'ready'), task('w', 'running'), task('old', 'done'), task('new', 'done'), task('epic', 'ready', { kind: 'epic' })],
+    tasks: [task('r', 'ready'), task('w', 'running'), task('old', 'done'), task('new', 'done'), task('epic', 'ready', { kind: 'package' })],
     edges: [],
   }
   const lanes = deliveryLanes(graph, [
@@ -122,13 +96,16 @@ test('the Delivery tab draws four lanes, In progress holding running and reviewi
   }
 })
 
-const card = (id, extra = {}) => ({
+const card = (id: string, extra: Partial<LaneCard> = {}): LaneCard => ({
   id,
   title: `Task ${id}`,
   epic: null,
   epicId: null,
   repository: null,
   planId: null,
+  plan: null,
+  phase: null,
+  subIssue: null,
   spec: null,
   state: 'waiting',
   wave: 1,
@@ -142,10 +119,15 @@ const card = (id, extra = {}) => ({
   reviewRounds: 0,
   deliveryState: null,
   deferred: false,
+  review: false,
+  handSetReview: false,
+  noSession: null,
+  nextAction: null,
+  planArchived: null,
   at: null,
   ...extra,
 })
-const board = () => ({
+const board = (): Record<LaneId, LaneCard[]> => ({
   ready: [card('r1', { planId: 'p1', epicId: 'e1', epic: 'e1', repository: 'app', state: 'ready', wave: 1 })],
   running: [card('w1', { planId: 'p1', repository: 'app', state: 'running', wave: 2 }), card('w2', { spec: 'p2', state: 'running', wave: 2 })],
   reviewing: [card('v1', { spec: 'p2', title: 'Review the parser', state: 'running', wave: 3 })],
@@ -175,8 +157,8 @@ test('In progress groups running then reviewing, and leaves out an empty group',
 
 test('the shared filter applies across lanes, and lane counts are the filtered counts', () => {
   const lanes = board()
-  const count = (filtered, lane) => drawnLane(filtered, lane).length
-  const ids = (filter) =>
+  const count = (filtered: Record<LaneId, LaneCard[]>, lane: DrawnLaneId) => drawnLane(filtered, lane).length
+  const ids = (filter: TaskFilter) =>
     Object.values(filterLanes(lanes, filter))
       .flat()
       .map((c) => c.id)
@@ -213,25 +195,8 @@ test('the shared filter applies across lanes, and lane counts are the filtered c
 // plan IDs and repositories stored on tasks. Spec tasks carry no plan ID
 // (membership is their spec folder) and Nupp's tasks name no repository.
 test('Plan and Repository choices come from spec folders and the registered repositories', () => {
-  const task = (id, extra) => ({
-    id,
-    title: id,
-    epic: null,
-    kind: 'leaf',
-    authority: 'local',
-    route: 'local',
-    completion: 'merged',
-    repository: null,
-    status: null,
-    complete: false,
-    ready: false,
-    state: 'waiting',
-    decision: null,
-    issue: null,
-    planId: null,
-    ...extra,
-  })
-  const graph = {
+  const task = (id: string, extra: Partial<GraphTask>) => graphTask(id, { title: id, completion: 'merged', status: null, state: 'waiting', planId: null, ...extra })
+  const graph: Graph = {
     revision: 1,
     epics: [],
     statuses: [],
@@ -253,8 +218,8 @@ test('Plan and Repository choices come from spec folders and the registered repo
 })
 
 test('the filter is remembered per workspace, shared by Graph and Delivery, and bad values are dropped', () => {
-  const store = new Map()
-  const storage = { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => store.set(k, v) }
+  const storage = memoryStorage()
+  const store = storage.values
   writeFilter(storage, 'a', { q: 'x', state: 'ready', needsYou: true, waveMin: 2 })
   assert.deepEqual(readFilter(storage, 'a'), { q: 'x', state: 'ready', needsYou: true, waveMin: 2 })
   assert.deepEqual(readFilter(storage, 'b'), {})
@@ -271,7 +236,7 @@ test('Start now is offered only on local-route cards Avoozl codes itself', () =>
 })
 
 test('all four lanes share one row above phone width; a phone stacks them', () => {
-  const at = (n, gap = 16) => n * LANE_MIN_WIDTH + (n - 1) * gap
+  const at = (n: number, gap = 16) => n * LANE_MIN_WIDTH + (n - 1) * gap
   // The narrowest board above phone width: a 768 px window beside the left
   // nav, in the full app shell with the host's stylesheet (measured).
   const smallest = 408
@@ -324,7 +289,7 @@ test('In flight is a nav entry with nav rail filters', async () => {
 
 test('chip counts keep only values a card has, in the choices order', async () => {
   const { chipCounts } = await import('../src/delivery-api.ts')
-  const cards = [{ epicId: 'b' }, { epicId: 'b' }, { epicId: null }]
+  const cards = [card('1', { epicId: 'b' }), card('2', { epicId: 'b' }), card('3', { epicId: null })]
   assert.deepEqual(
     chipCounts(
       [
@@ -343,9 +308,9 @@ test('chip counts keep only values a card has, in the choices order', async () =
 })
 
 test('each machine counts its running chats against its lane limit; a card names its host', () => {
-  const live = (id, n) => item(id, { sessions: Array.from({ length: n }, (_, i) => session('worker', 'working', i + 1)) })
+  const live = (id: string, n: number) => item(id, { sessions: Array.from({ length: n }, (_, i) => session('worker', 'working', i + 1)) })
   const items = [live('a', 2), live('b', 1), item('c', { sessions: [session('worker', 'closed')] })]
-  const worker = (host, taskId, n) => ({
+  const worker = (host: string, taskId: string, n: number): RemoteWorker => ({
     host,
     crewId: 'c',
     taskId,
