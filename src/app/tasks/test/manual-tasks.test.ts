@@ -20,8 +20,20 @@ const TASKS = [
   "# Tasks",
   "",
   "- [ ] 1 Build the client",
-  "- [ ] 2 Review with team",
+  "- [ ] 2 Review with team (§D1)",
   "- [ ] 3 Cut over",
+  "",
+].join("\n");
+const DESIGN = [
+  "# Design",
+  "",
+  "## D1. Team review",
+  "",
+  "Confirm the client behavior and rollout plan.",
+  "",
+  "## D2. Cutover",
+  "",
+  "Release the approved client.",
   "",
 ].join("\n");
 const leaf = (extra = {}) => ({
@@ -50,6 +62,7 @@ function workspace(t, review = REVIEW) {
     checks: ["npm test"],
   });
   writeSpec(root, "sdk", {
+    "design.md": DESIGN,
     "tasks.md": TASKS,
     "avoozl/manifest.json": manifest({
       1: leaf(),
@@ -112,10 +125,24 @@ test("a manual leaf is never ready; once its blockers hold it waits in Needs you
     [
       [
         "sdk.2",
-        "This manual task is ready. Do it, then Mark done in its drawer.",
+        "This manual task is ready. Review its approval criteria and referenced material, then Mark done in its drawer.",
       ],
     ],
   );
+  assert.deepEqual(rows[0].context.referenceMaterial, [
+    {
+      kind: "design",
+      ref: "§D1",
+      path: ".kiro/specs/sdk/design.md",
+      lineStart: 3,
+      lineEnd: 5,
+      text: [
+        "## D1. Team review",
+        "",
+        "Confirm the client behavior and rollout plan.",
+      ].join("\n"),
+    },
+  ]);
   assert.deepEqual(ours(next.waiting), ["sdk.3"]);
 });
 

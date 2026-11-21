@@ -28,6 +28,7 @@ export function askLine(item: ConflictItem): string {
       return 'Assign the spec issue to exactly one person on GitHub; that person drives it.'
     case 'needs-human':
       if (item.reason === 'blocked') return 'Unblock the task, or leave it blocked.'
+      if (item.reason === 'manual-ready') return 'Review the approval criteria and referenced material below. Mark done only if you approve this exact scope.'
       if (item.reason === 'autopilot-off') return 'Turn on Autopilot in Settings › Autopilot, or run avoozl next --claim to take one task.'
       if (item.reason === 'crew-mode') return "Choose Let the tick run it. Avoozl then starts this workspace's ready tasks; until then it starts none."
       if (item.reason === 'review') return 'Read the task, then mark it reviewed so it may start.'
@@ -101,11 +102,12 @@ export function reviewEvidence(title: string, context: ItemContext | undefined):
 }
 
 // Which evidence blocks an item has. An item with none says so on the page.
-export type Evidence = 'review' | 'links' | 'checks' | 'content' | 'text'
+export type Evidence = 'review' | 'links' | 'checks' | 'content' | 'text' | 'references'
 export function evidenceOf(item: ConflictItem): Evidence[] {
   const out: Evidence[] = []
   if (item.kind === 'review' && item.tasks?.length) out.push('review')
-  if (item.context?.text && item.kind !== 'review' && item.context.text.summary) out.push('text')
+  if (item.context?.text && item.kind !== 'review' && (item.context.text.summary || item.context.text.acceptance.length)) out.push('text')
+  if (item.context?.referenceMaterial?.length) out.push('references')
   const links = item.context?.links
   if (links && (links.branch || links.pr || links.checks)) out.push('links')
   if (item.context?.failedChecks?.checks.length) out.push('checks')
