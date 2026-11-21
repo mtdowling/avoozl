@@ -560,6 +560,14 @@ export function conversationSettings(store) {
 const DELIVERY_FORM_KEYS = [];
 
 export class RepositorySettings {
+  // The file this reads and the last load's outcome.
+  declare state: {
+    filename: string;
+    exists: boolean;
+    hash: string | null;
+    loadedAt: string | null;
+    error: { message: string; at: string } | null;
+  };
   constructor(
     store,
     {
@@ -569,6 +577,13 @@ export class RepositorySettings {
       baseConfig = {},
       debounceMs = 350,
       watchFactory = fs.watch,
+    }: {
+      workspaceRoot?: string;
+      files?: { repository?: string; global?: string };
+      sources?: unknown[];
+      baseConfig?: Record<string, unknown>;
+      debounceMs?: number;
+      watchFactory?: typeof fs.watch;
     } = {},
   ) {
     if (!workspaceRoot) fail("Choose a workspace root.");

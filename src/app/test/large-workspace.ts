@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // A large synthetic workspace for performance work: spec folders on disk,
 // their approved plans in SQLite, and the delivery, decision, conflict, flow
 // and intake rows a busy workspace accumulates. Every value is made up and
@@ -18,7 +17,7 @@ import { Operations } from "../api/operations.ts";
 import { withFacts } from "./spec-fixture.ts";
 
 // Small, fast, seeded: the same seed gives the same workspace.
-function random(seed) {
+function random(seed: number) {
   let state = seed >>> 0 || 1;
   return () => {
     state ^= state << 13;
@@ -52,17 +51,30 @@ function emptySnapshot() {
   };
 }
 
-const specNameOf = (i) => `synthetic-${String(i + 1).padStart(2, "0")}`;
+const specNameOf = (i: number) => `synthetic-${String(i + 1).padStart(2, "0")}`;
 
 // One spec folder: `groups` epics, each over `leaves` leaves. Each leaf
 // after the first in a group requires the one before it, and some require a
 // leaf from an earlier group.
-function specFiles(name, { groups, leaves, extraPerLeaf, next }) {
+function specFiles(
+  name: string,
+  {
+    groups,
+    leaves,
+    extraPerLeaf,
+    next,
+  }: {
+    groups: number;
+    leaves: number;
+    extraPerLeaf: number;
+    next: () => number;
+  },
+) {
   const lines = ["# Tasks", ""],
-    manifest = {};
+    manifest: Record<string, Record<string, unknown>> = {};
   for (let g = 1; g <= groups; g++) {
     const epic = String(g),
-      members = [];
+      members: string[] = [];
     lines.push(`- [ ] ${epic} Deliver area ${g} of ${name}`);
     for (let l = 1; l <= leaves; l++) {
       const key = `${g}.${l}`,
@@ -100,7 +112,7 @@ function specFiles(name, { groups, leaves, extraPerLeaf, next }) {
   });
 }
 
-function git(cwd, ...args) {
+function git(cwd: string, ...args: string[]) {
   execFileSync("git", args, { cwd, stdio: "ignore" });
 }
 
@@ -108,7 +120,7 @@ function git(cwd, ...args) {
 // it, and what was made. Defaults are the large size: about 60 specs, 5,000
 // tasks and 15,000 edges.
 export async function largeWorkspace(
-  root,
+  root: string,
   {
     specs = 60,
     groups = 6,
@@ -147,7 +159,7 @@ export async function largeWorkspace(
   const ops = new Operations(store, { workspaceRoot: root, operator: "Owner" });
 
   // Spec folders, each stored and approved the way the Plans page does it.
-  const names = [];
+  const names: string[] = [];
   for (let i = 0; i < specs; i++) {
     const name = specNameOf(i),
       directory = path.join(root, ".kiro", "specs", name);
@@ -156,7 +168,10 @@ export async function largeWorkspace(
       specFiles(name, { groups, leaves, extraPerLeaf, next }),
     ))
       fs.writeFileSync(path.join(directory, file), text);
-    const plan = await ops.execute("plan.create", { spec: name });
+    const plan = await ops.execute<{ id: string; hash: string }>(
+      "plan.create",
+      { spec: name },
+    );
     await ops.execute("plan.approve", {
       id: plan.id,
       expectedHash: plan.hash,
@@ -174,11 +189,16 @@ export async function largeWorkspace(
       scope: "catalog",
     }),
   );
-  const picked = { running: [], review: [], decisions: 0, conflicts: 0 };
+  const picked = {
+    running: [] as string[],
+    review: [] as string[],
+    decisions: 0,
+    conflicts: 0,
+  };
   store.mutate("Synthetic state", (data) => {
     const index = new Map(names.map((name, i) => [name, i]));
     for (const task of data.tasks) {
-      const spec = index.get(task.planId) ?? 0,
+      const spec = index.get(task.planId ?? "") ?? 0,
         roll = next();
       // Each task's phase stands for its area (Requirement 59.5).
       const area = epics[Math.floor(spec / 5)];
@@ -316,7 +336,7 @@ export async function largeWorkspace(
           ["queued", 0, 600000],
           ["coding", 600000, 1800000],
           ["tests", 2400000, 600000],
-        ])
+        ] as const)
           span(store, {
             key: `${task.id}:${stage}`,
             taskId: task.id,

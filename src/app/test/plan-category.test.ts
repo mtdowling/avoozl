@@ -1,10 +1,9 @@
-// @ts-nocheck: typing debt
 // A plan's category comes only from YAML front-matter a person wrote
 // (Requirement 30.9), and the Plans table groups and counts by it.
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { Operations } from "../api/operations.ts";
 import {
   frontMatter,
@@ -21,13 +20,52 @@ import {
 import { fixture } from "./fixtures.ts";
 import { specFiles, writeSpec } from "./spec-fixture.ts";
 import { temporaryDirectory } from "./temporary.ts";
+import {
+  found,
+  type GraphView,
+  type PlanDraft,
+  type PlanPreview,
+} from "./view-shapes.ts";
 
 process.env.XDG_CONFIG_HOME = temporaryDirectory("avoozl-xdg-");
 
 const requirements = specFiles()["requirements.md"];
-const withFront = (front) => `---\n${front}\n---\n${requirements}`;
+const withFront = (front: string) => `---\n${front}\n---\n${requirements}`;
 
-function workspace(t) {
+// One plan.table row, for the fields read here.
+interface PlanRow {
+  spec: string;
+  category: string | null;
+  categoryProblem?: string;
+  status: string;
+  planId: string;
+  tasks: { total: number; done: number };
+  phases: number;
+  onGitHub: boolean;
+  epic: string | null;
+  now: { ready: number; running: number; needsYou: number };
+  lastChange?: string;
+}
+interface PlanTable {
+  items: PlanRow[];
+  specs: unknown[];
+  problem?: string;
+}
+
+// Creates, previews and approves the plan for spec `name`.
+async function approve(ops: Operations, name: string) {
+  const plan = await ops.execute<PlanDraft>("plan.create", { spec: name });
+  const preview = await ops.execute<PlanPreview>("plan.preview", {
+    id: plan.id,
+  });
+  await ops.execute("plan.approve", {
+    id: plan.id,
+    expectedHash: plan.hash,
+    expectedRevision: preview.expectedRevision,
+  });
+}
+
+function workspace(t: TestContext) {
   const { root, store } = fixture(t);
   return { root, store, ops: new Operations(store, { workspaceRoot: root }) };
 }
@@ -60,16 +98,16 @@ test("front-matter category: plain, quoted, commented, absent", () => {
 test("malformed front-matter is a clear problem, not a crash", () => {
   const open = frontMatter(`---\ncategory: Runtime\n${requirements}`);
   assert.equal(open.category, null);
-  assert.equal(open.problem.line, 1);
-  assert.match(open.problem.message, /no closing --- line/);
+  assert.equal(open.problem?.line, 1);
+  assert.match(found(open.problem).message, /no closing --- line/);
   for (const value of ["[a, b]", "{a: 1}", "|", ""]) {
     const result = frontMatter(withFront(`category: ${value}`));
     assert.equal(result.category, null, value);
-    assert.equal(result.problem.line, 2, value);
-    assert.match(result.problem.message, /one line of text/);
+    assert.equal(result.problem?.line, 2, value);
+    assert.match(found(result.problem).message, /one line of text/);
   }
   const twice = frontMatter(withFront("category: A\ncategory: B"));
-  assert.match(twice.problem.message, /twice \(lines 2 and 3\)/);
+  assert.match(found(twice.problem).message, /twice \(lines 2 and 3\)/);
 });
 
 test("front-matter keeps the spec reader, title and lint working", (t) => {
@@ -103,10 +141,12 @@ test("malformed front-matter is a warning with its line; approval is not blocked
     spec: readSpecFolder(root, "config"),
     plan: { id: "config" },
   });
-  const found = quality.diagnostics.find((d) => d.code === "spec.front-matter");
-  assert.equal(found.severity, "warning");
-  assert.equal(found.file, "requirements.md");
-  assert.equal(found.lineStart, 2);
+  const warning = found(
+    quality.diagnostics.find((d) => d.code === "spec.front-matter"),
+  );
+  assert.equal(warning.severity, "warning");
+  assert.equal(warning.file, "requirements.md");
+  assert.equal(warning.lineStart, 2);
   assert.equal(quality.canApprove, true);
 });
 
@@ -123,18 +163,10 @@ test("approval records the front-matter category and never invents one", async (
     "requirements.md": withFront("category: Runtime"),
   });
   writeSpec(root, "plain");
-  for (const name of ["config", "plain"]) {
-    const plan = await ops.execute("plan.create", { spec: name });
-    const preview = await ops.execute("plan.preview", { id: plan.id });
-    await ops.execute("plan.approve", {
-      id: plan.id,
-      expectedHash: plan.hash,
-      expectedRevision: preview.expectedRevision,
-    });
-  }
+  for (const name of ["config", "plain"]) await approve(ops, name);
   const docs = store.read().documents;
-  assert.equal(docs["spec:config"].plan.category, "Runtime");
-  assert.equal("category" in docs["spec:plain"].plan, false);
+  assert.equal(docs["spec:config"].plan?.category, "Runtime");
+  assert.equal("category" in found(docs["spec:plain"].plan), false);
 });
 
 test("plan.table: one row per plan with counts, grouped by authored category", async (t) => {
@@ -145,15 +177,9 @@ test("plan.table: one row per plan with counts, grouped by authored category", a
   writeSpec(root, "broken", {
     "requirements.md": `---\ncategory: Runtime\n${requirements}`,
   });
-  const plan = await ops.execute("plan.create", { spec: "config" });
-  const preview = await ops.execute("plan.preview", { id: plan.id });
-  await ops.execute("plan.approve", {
-    id: plan.id,
-    expectedHash: plan.hash,
-    expectedRevision: preview.expectedRevision,
-  });
+  await approve(ops, "config");
   const before = ops.read().revision;
-  const table = await ops.execute("plan.table", {});
+  const table = await ops.execute<PlanTable>("plan.table", {});
   assert.equal(ops.read().revision, before, "plan.table writes nothing");
   const byName = Object.fromEntries(table.items.map((row) => [row.spec, row]));
   assert.equal(byName.config.category, "Runtime");
@@ -173,18 +199,19 @@ test("plan.table: one row per plan with counts, grouped by authored category", a
   );
   assert.ok(byName.config.lastChange);
   assert.equal(byName.broken.category, null);
-  assert.match(byName.broken.categoryProblem, /no closing ---/);
+  assert.match(found(byName.broken.categoryProblem), /no closing ---/);
   assert.equal(byName.broken.status, "not imported");
   assert.equal(table.specs.length, 2);
   // The Graph filter shows one plan's tasks.
-  const graph = await ops.execute("graph.view", { plan: "config" });
+  const graph = await ops.execute<GraphView>("graph.view", { plan: "config" });
   assert.deepEqual(graph.tasks.map((task) => task.id).sort(), [
     "config.1",
     "config.1.1",
     "config.1.2",
   ]);
   assert.equal(
-    (await ops.execute("graph.view", { plan: "other" })).tasks.length,
+    (await ops.execute<GraphView>("graph.view", { plan: "other" })).tasks
+      .length,
     0,
   );
 });
@@ -195,7 +222,7 @@ test("plan.table still lists stored plans when the mode has no spec folders", as
     path.join(root, ".avoozl.json"),
     JSON.stringify({ version: 1, github: { mode: "single-repo" } }),
   );
-  const table = await ops.execute("plan.table", {});
-  assert.match(table.problem, /code repository/);
+  const table = await ops.execute<PlanTable>("plan.table", {});
+  assert.match(found(table.problem), /code repository/);
   assert.deepEqual(table.items, []);
 });

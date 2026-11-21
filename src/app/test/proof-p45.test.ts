@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 import { nativeDispatch } from "./executor-fixture.ts";
 // Proof P45 (design §4.24–§4.25): staying current with the base branch. Every
 // value is fake: a temporary workspace with a real Git checkout, fake workers
@@ -8,7 +7,7 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { Operations } from "../api/operations.ts";
 import { Store } from "../store/store.ts";
 import {
@@ -20,14 +19,15 @@ import { conflictsView } from "../api/page-views.ts";
 import { fixture, snapshot } from "./fixtures.ts";
 import { temporaryDirectory } from "./temporary.ts";
 import { loopOn } from "./fixtures.ts";
+import { found } from "./view-shapes.ts";
 
 // The tick starts and lands work only with the server loop on.
 loopOn();
 
-const git = (cwd, ...args) =>
+const git = (cwd: string, ...args: string[]) =>
   execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
-const as = (slot) => ({ caller: { sessionKey: "dashboard:" + slot } });
-const leaf = (id, extra = {}) => ({
+const as = (slot: string) => ({ caller: { sessionKey: "dashboard:" + slot } });
+const leaf = (id: string, extra: Record<string, unknown> = {}) => ({
   id,
   title: "Task " + id,
   scope: "catalog",
@@ -42,7 +42,13 @@ const leaf = (id, extra = {}) => ({
 
 // A local workspace with a real checkout `app`, leaves a1, a2 (`investigate: false`), a3,
 // and a bugfix spec's f1.
-function local(t, delivery = {}) {
+// The worktree worktree.prepare makes for a task.
+interface Worktree {
+  path: string;
+  branch: string;
+}
+
+function local(t: TestContext, delivery: Record<string, unknown> = {}) {
   const root = temporaryDirectory("avoozl-p45-"),
     checkout = path.join(root, "app");
   fs.mkdirSync(checkout);
@@ -78,12 +84,16 @@ function local(t, delivery = {}) {
     }),
   );
   const ops = new Operations(store, { workspaceRoot: root });
-  const bound = [];
+  const bound: string[] = [];
   const tick = () =>
     ops.execute("workspace.tick", {
       sessions: bound.map((slot) => ({ target: slot, status: "working" })),
     });
-  const bind = async (taskId, slot, extra = {}) => {
+  const bind = async (
+    taskId: string,
+    slot: string,
+    extra: { role?: string; attempt?: number } = {},
+  ) => {
     bound.push(slot);
     await ops.execute("session.bind", {
       taskId,
@@ -93,7 +103,7 @@ function local(t, delivery = {}) {
       ...extra,
     });
   };
-  const report = (slot, input) =>
+  const report = (slot: string, input: Record<string, unknown>) =>
     ops.execute("session.report", input, undefined, as(slot));
   return {
     root,
@@ -116,7 +126,9 @@ const findings = (confidence = "high") => ({
 
 test("P45 (5) local: a task branch behind the integration branch is merged forward with a merge commit", async (t) => {
   const w = local(t, { investigate: { mode: "off" } });
-  const tree = await w.ops.execute("worktree.prepare", { taskId: "a1" });
+  const tree = await w.ops.execute<Worktree>("worktree.prepare", {
+    taskId: "a1",
+  });
   fs.writeFileSync(path.join(tree.path, "a1.txt"), "a1\n");
   git(tree.path, "add", ".");
   git(tree.path, "commit", "-m", "a1");
@@ -133,7 +145,7 @@ test("P45 (5) local: a task branch behind the integration branch is merged forwa
     w.store.get("task_worktrees", "a1"),
     commit,
   );
-  assert.equal(moved.how, "merge");
+  assert.equal(moved?.how, "merge");
   const parents = git(
     tree.path,
     "rev-list",
@@ -149,7 +161,9 @@ test("P45 (5) local: a task branch behind the integration branch is merged forwa
 test("P45 (5) local: a conflict when merging the base forward goes back to the worker chat", async (t) => {
   const w = local(t, { investigate: { mode: "off" } });
   await w.bind("a1", "w-a1", { attempt: 1 });
-  const tree = await w.ops.execute("worktree.prepare", { taskId: "a1" });
+  const tree = await w.ops.execute<Worktree>("worktree.prepare", {
+    taskId: "a1",
+  });
   fs.writeFileSync(path.join(tree.path, "same.txt"), "from the task\n");
   git(tree.path, "add", ".");
   git(tree.path, "commit", "-m", "a1");
@@ -170,7 +184,12 @@ test("P45 (5) local: a conflict when merging the base forward goes back to the w
   assert.equal(messages.length, 1);
   assert.equal(messages[0].slot, "w-a1");
   assert.match(messages[0].text, /same\.txt/);
-  const delivery = w.store.get("task_deliveries", "a1");
+  const delivery = found(
+    w.store.get<{ state: string; landingConflicts: unknown[] }>(
+      "task_deliveries",
+      "a1",
+    ),
+  );
   assert.equal(delivery.state, "running");
   assert.equal(delivery.landingConflicts.length, 1);
   assert.equal(git(tree.path, "rev-parse", "HEAD"), commit, "nothing merged");
