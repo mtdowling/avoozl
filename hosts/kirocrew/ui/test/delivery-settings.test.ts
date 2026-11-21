@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Settings > Autopilot: who delivers, who merges (the workspace's landing.pr); and how
 // sessions label their crew.
 import assert from 'node:assert/strict'
@@ -7,7 +6,7 @@ import test from 'node:test'
 import { sessionLabel } from '../src/views-api.ts'
 import { attachHref } from '../src/task-api.ts'
 
-const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
+const source = (name: string) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
 
 test('Settings > Autopilot holds the Off/Autopilot picker and the workspace landing.pr; the writer model is in Models', () => {
   const page = source('DeliverySettings.tsx')
@@ -35,7 +34,19 @@ test('no label on Settings > Autopilot says Delivery', () => {
 
 test('sessions show crew, agent, and an unreachable crew; a remote chat attaches only through MC-10', () => {
   assert.equal(
-    sessionLabel({ slot: 's', role: 'worker', attempt: 1, status: 'idle', crew: 'fake-linux', agent: 'alt-worker', model: 'model-a', crewUnreachable: true }),
+    sessionLabel({
+      slot: 's',
+      role: 'worker',
+      attempt: 1,
+      title: null,
+      status: 'idle',
+      statusAt: null,
+      boundAt: null,
+      crew: 'fake-linux',
+      agent: 'alt-worker',
+      model: 'model-a',
+      crewUnreachable: true,
+    }),
     'worker #1 · crew unreachable · on fake-linux · alt-worker · model-a',
   )
   assert.equal(attachHref({ slot: 's1', crew: 'fake-linux', link: null }), null)

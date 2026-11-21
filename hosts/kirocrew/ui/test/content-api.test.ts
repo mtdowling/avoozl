@@ -1,13 +1,13 @@
-// @ts-nocheck: typing debt
 // Settings > Content rules (design §4.9): each set's source and scope in
 // plain words, and the Conflicts view's content items.
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { scopeLabel, SET_FIELDS, sourceLabel } from '../src/content-api.ts'
+import { scopeLabel, SET_FIELDS, sourceLabel, type ContentRuleSet, type TermRow } from '../src/content-api.ts'
+import { fakeApi } from './fake-api.ts'
 import { itemKey, noActionReason, settleActionOf } from '../src/conflicts-api.ts'
 
 test('a set says where its rules come from and what it covers, never a rule', () => {
-  const set = { id: 'company', action: 'block', boundaries: null, repositories: null, plugin: null, source: 'file', available: true }
+  const set: ContentRuleSet = { id: 'company', action: 'block', boundaries: null, repositories: null, plugin: null, source: 'file', available: true }
   assert.equal(sourceLabel({ ...set, termsFrom: 'workspace' }), 'Terms file in .avoozl/local/content-rules')
   assert.equal(sourceLabel({ ...set, termsFrom: 'machine' }), 'Terms file named in this machine’s settings')
   assert.equal(sourceLabel({ ...set, source: 'plugin', plugin: 'rules-x', version: '2' }), 'Rules plugin rules-x, version 2')
@@ -23,7 +23,7 @@ test('content items have their own actions, not a settle', () => {
   const match = { kind: 'content-match', taskId: null, id: 'content:1', title: 't', detail: 'd' }
   assert.equal(settleActionOf(match), null)
   assert.equal(noActionReason(match), null)
-  assert.match(noActionReason({ ...match, kind: 'content-unavailable' }), /terms file or plugin/)
+  assert.match(noActionReason({ ...match, kind: 'content-unavailable' }) ?? '', /terms file or plugin/)
   assert.equal(itemKey(match), 'content-match::::content:1')
 })
 
@@ -67,12 +67,12 @@ test('the set form saves only what differs from the defaults and catches mistake
     repositories: ['example/app'],
     plugin: 'rules-x',
   })
-  assert.match(setEntry({ ...form, id: '' }, []).error, /name/)
-  assert.match(setEntry({ ...form, id: 'Bad Name' }, []).error, /lowercase/)
-  assert.match(setEntry({ ...form, id: 'builtin:x' }, []).error, /reserved/)
-  assert.match(setEntry(form, ['company-terms']).error, /already exists/)
-  assert.match(setEntry({ ...form, boundaries: [] }, []).error, /at least one/)
-  const set = { id: 'a', action: 'block', boundaries: null, repositories: null, plugin: null, source: 'file', available: true }
+  assert.match(setEntry({ ...form, id: '' }, []).error ?? '', /name/)
+  assert.match(setEntry({ ...form, id: 'Bad Name' }, []).error ?? '', /lowercase/)
+  assert.match(setEntry({ ...form, id: 'builtin:x' }, []).error ?? '', /reserved/)
+  assert.match(setEntry(form, ['company-terms']).error ?? '', /already exists/)
+  assert.match(setEntry({ ...form, boundaries: [] }, []).error ?? '', /at least one/)
+  const set: ContentRuleSet = { id: 'a', action: 'block', boundaries: null, repositories: null, plugin: null, source: 'file', available: true }
   assert.deepEqual(entryOf(set), { id: 'a' })
 })
 
@@ -83,7 +83,8 @@ test('the rule builder and the file view read and write the same lines', () => {
     rows.map((r) => r.kind),
     ['note', 'word', 'word', 'pattern', 'blank', 'raw'],
   )
-  assert.equal(rows[2].value, 'staging.example.test', 'an escaped word reads as the word')
+  const host = rows[2]
+  assert.equal('value' in host ? host.value : null, 'staging.example.test', 'an escaped word reads as the word')
   assert.equal(serializeTerms(rows), text)
   assert.deepEqual(kindOf('a.b'), { kind: 'pattern', value: 'a.b' })
   // A word is saved escaped, so its dot means a dot.
@@ -95,13 +96,13 @@ test('the rule builder and the file view read and write the same lines', () => {
     [2, 3],
   )
   for (const e of bad) assert.doesNotMatch(e.message, /quartz/)
-  assert.match(rowError({ kind: 'word', name: 'a', value: ' ' }), /Give a word/)
-  assert.match(rowError({ kind: 'word', name: 'a:b', value: 'x' }), /colon/)
+  assert.match(rowError({ kind: 'word', name: 'a', value: ' ' }) ?? '', /Give a word/)
+  assert.match(rowError({ kind: 'word', name: 'a:b', value: 'x' }) ?? '', /colon/)
   assert.equal(parseTermLines('').length, 0)
 })
 
 test('Try it marks each match, ignoring case, and skips broken rules', () => {
-  const rows = [
+  const rows: TermRow[] = [
     { kind: 'word', name: 'project', value: 'Zebra Falcon' },
     { kind: 'pattern', name: 'ticket', value: '\\bacme-\\d{4}\\b' },
     { kind: 'pattern', name: 'broken', value: '(' },
@@ -119,16 +120,19 @@ test('Try it marks each match, ignoring case, and skips broken rules', () => {
 })
 
 test('the terms and sets calls go to their own operations', async () => {
-  const posts = []
-  const client = contentClient({ post: async (path, body) => (posts.push([body.operation, body.input]), { result: {} }) })
+  const { api, calls } = fakeApi()
+  const client = contentClient(api)
   await client.terms('ws', 'a')
   await client.saveTerms('ws', 'a', 'x: y\n')
   await client.saveSets('ws', [{ id: 'a' }], 'h')
-  assert.deepEqual(posts, [
-    ['content.terms.get', { id: 'a' }],
-    ['content.terms.update', { id: 'a', text: 'x: y\n' }],
-    ['content.sets.update', { sets: [{ id: 'a' }], expectedHash: 'h' }],
-  ])
+  assert.deepEqual(
+    calls.map(({ body }) => [body.operation, body.input]),
+    [
+      ['content.terms.get', { id: 'a' }],
+      ['content.terms.update', { id: 'a', text: 'x: y\n' }],
+      ['content.sets.update', { sets: [{ id: 'a' }], expectedHash: 'h' }],
+    ],
+  )
 })
 
 test('Allow rows round trip between the builder and the file view', () => {
@@ -150,7 +154,7 @@ test('Allow rows round trip between the builder and the file view', () => {
     [2, 3, 4, 6],
   )
   for (const e of bad) assert.doesNotMatch(e.message, /quartz|nosuch/)
-  assert.match(rowError({ kind: 'word', name: 'allow', value: 'x' }), /Allow row/)
+  assert.match(rowError({ kind: 'word', name: 'allow', value: 'x' }) ?? '', /Allow row/)
 })
 
 test('Try it marks allowed matches apart from blocking ones', () => {
