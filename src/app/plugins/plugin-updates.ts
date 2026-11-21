@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Plugin update checks (design §4.8, Requirement 34.17). At most once a day
 // per plugin, and when a person chooses Check now, Avoozl asks whether
 // something newer than what this machine has exists: a git plugin's branch
@@ -17,7 +16,43 @@ import {
   readPluginSettings,
   writePluginSettings,
 } from "./plugins.ts";
-import { fail } from "../store/store.ts";
+import { fail, type Store } from "../store/store.ts";
+
+// The fields of an inspected plugin (inspectPlugins) a check reads.
+interface Inspected {
+  id?: string;
+  state: string;
+  source?: string;
+  entry: { git?: string; ref?: string; package?: string };
+  commit?: string | null;
+  version?: string | null;
+  location?: string | null;
+  hash?: string | null;
+  approval?: { hash?: string } | null;
+}
+// Where the machine's and the workspace's plugins are declared.
+interface PluginPlaces {
+  workspaceRoot?: string | null;
+  settingsFile: string;
+}
+// One plugin's recorded check.
+interface UpdateResult {
+  state: string;
+  kind?: string;
+  current?: unknown;
+  basis?: unknown;
+  latest?: unknown;
+  moved?: string;
+  commit?: string;
+  reason?: string;
+  checkedAt?: string;
+}
+// A parsed release version.
+interface Version {
+  prefix: string | undefined;
+  parts: number[];
+  pre: string | null;
+}
 
 const META = "pluginUpdates";
 const DAY_MS = 24 * 3600 * 1000;
@@ -30,11 +65,11 @@ const SEMVER =
 
 // Whether this machine checks for plugin updates: on unless plugins.json
 // says `updateChecks: false`.
-export const updateChecksOn = (settingsFile) =>
+export const updateChecksOn = (settingsFile: string) =>
   readPluginSettings(settingsFile).updateChecks !== false;
 
 // A person's switch for the check, kept in this machine's plugins.json.
-export function setUpdateChecks(settingsFile, enabled) {
+export function setUpdateChecks(settingsFile: string, enabled: unknown) {
   if (typeof enabled !== "boolean") fail("enabled must be true or false.");
   const settings = readPluginSettings(settingsFile);
   if (enabled) delete settings.updateChecks;
@@ -44,7 +79,7 @@ export function setUpdateChecks(settingsFile, enabled) {
 }
 
 // {prefix, parts, pre} for a version or tag name, or null.
-function parseVersion(text) {
+function parseVersion(text: unknown): Version | null {
   const match = SEMVER.exec(String(text));
   if (!match) return null;
   return {
@@ -56,9 +91,9 @@ function parseVersion(text) {
 
 // Positive when `a` is newer than `b`. A release is newer than its own
 // prerelease; prereleases compare as text.
-function compareVersions(a, b) {
+function compareVersions(a: Version, b: Version) {
   for (let i = 0; i < 3; i++)
-    if (a.parts[i] !== b.parts[i]) return a.parts[i] - b.parts[i];
+    if (a.parts[i] !== b.parts[i]) return (a.parts[i] ?? 0) - (b.parts[i] ?? 0);
   if (a.pre === b.pre) return 0;
   if (a.pre === null) return 1;
   if (b.pre === null) return -1;
@@ -67,10 +102,10 @@ function compareVersions(a, b) {
 
 // The newest release tag above `ref` with the same `v` prefix, or null.
 // Prerelease tags are left out.
-export function newerTag(ref, names) {
+export function newerTag(ref: string, names: string[]) {
   const mine = parseVersion(ref);
   if (!mine) return null;
-  let best = null;
+  let best: { name: string; version: Version } | null = null;
   for (const name of names) {
     const version = parseVersion(name);
     if (!version || version.pre !== null || version.prefix !== mine.prefix)
@@ -83,7 +118,7 @@ export function newerTag(ref, names) {
 }
 
 // The host a git remote reaches, or null for a local path.
-export function remoteHost(remote) {
+export function remoteHost(remote: string) {
   if (/^[a-z][a-z0-9+.-]*:\/\//i.test(remote)) {
     try {
       const url = new URL(remote);
@@ -93,56 +128,62 @@ export function remoteHost(remote) {
     }
   }
   const scp = /^[A-Za-z0-9._-]+@([A-Za-z0-9.-]+):/.exec(remote);
-  return scp ? scp[1].toLowerCase() : null;
+  return scp?.[1] ? scp[1].toLowerCase() : null;
 }
 
 // A git plugin: one ls-remote. A branch reports its newest commit; a
 // version tag reports a newer version tag, or that the tag itself moved.
-async function checkGit(plugin, options, { countGit, scratch }) {
+async function checkGit(
+  plugin: Inspected,
+  options: PluginPlaces,
+  {
+    countGit,
+    scratch,
+  }: { countGit?: ((remote: string) => unknown) | null; scratch: string },
+): Promise<UpdateResult> {
   const { entry } = plugin,
+    ref = entry.ref ?? "",
     current = plugin.commit;
-  if (COMMIT.test(entry.ref))
+  if (COMMIT.test(ref))
     return { state: "current", kind: "commit", current, basis: current };
   const base =
     plugin.source === "repository"
       ? options.workspaceRoot
       : path.dirname(options.settingsFile);
-  const remote = gitRemote(entry.git, base);
+  if (!base) fail("A repository plugin is checked from its workspace.");
+  // checkPluginUpdates calls this only for an entry that names git.
+  const remote = gitRemote(String(entry.git), base);
   fs.mkdirSync(scratch, { recursive: true, mode: 0o700 });
   const refs = await remoteRefs(remote, { scratch, timeout: TIMEOUT_MS });
   countGit?.(remote);
-  const at = (name) => refs.get(`${name}^{}`) ?? refs.get(name);
+  const at = (name: string) => refs.get(`${name}^{}`) ?? refs.get(name);
   const result = { kind: "commit", current, basis: current };
-  const named = entry.ref.startsWith("refs/")
-    ? entry.ref
-    : entry.ref === "HEAD"
-      ? "HEAD"
-      : null;
-  const tag = named ? null : at(`refs/tags/${entry.ref}`);
-  const branch = named ? at(named) : at(`refs/heads/${entry.ref}`);
+  const named = ref.startsWith("refs/") ? ref : ref === "HEAD" ? "HEAD" : null;
+  const tag = named ? null : at(`refs/tags/${ref}`);
+  const branch = named ? at(named) : at(`refs/heads/${ref}`);
   if (tag) {
     const tags = [...refs.keys()]
       .filter((name) => name.startsWith("refs/tags/") && !name.endsWith("^{}"))
       .map((name) => name.slice("refs/tags/".length));
-    const newer = newerTag(entry.ref, tags);
+    const newer = newerTag(ref, tags);
     if (newer)
       return {
         ...result,
         state: "newer",
         kind: "tag",
-        current: entry.ref,
+        current: ref,
         latest: newer,
         commit: at(`refs/tags/${newer}`),
       };
     if (tag !== current)
-      return { ...result, state: "newer", latest: tag, moved: entry.ref };
+      return { ...result, state: "newer", latest: tag, moved: ref };
     return { ...result, state: "current" };
   }
   if (!branch)
     return {
       ...result,
       state: "failed",
-      reason: `No branch or tag named ${entry.ref} on the remote.`,
+      reason: `No branch or tag named ${ref} on the remote.`,
     };
   return branch === current
     ? { ...result, state: "current" }
@@ -151,7 +192,7 @@ async function checkGit(plugin, options, { countGit, scratch }) {
 
 // The registry Avoozl asks: npm's setting, or the public registry. A URL
 // with a user name or password in it is refused, never sent.
-function registryUrl(env) {
+function registryUrl(env: NodeJS.ProcessEnv) {
   const text = env.npm_config_registry || "https://registry.npmjs.org/";
   const url = new URL(text);
   if (!["https:", "http:"].includes(url.protocol))
@@ -167,16 +208,22 @@ function registryUrl(env) {
 // dist-tag. One small request, with no credential; the package itself is
 // never downloaded. shortcut: a private registry that needs a sign-in
 // answers "couldn't check"; upgrade by reading npm's own auth when asked.
-async function checkPackage(plugin, { fetchImpl, env }) {
-  let installed;
+async function checkPackage(
+  plugin: Inspected,
+  { fetchImpl, env }: { fetchImpl: typeof fetch; env: NodeJS.ProcessEnv },
+): Promise<UpdateResult> {
+  let installed: unknown;
   try {
     installed = JSON.parse(
-      fs.readFileSync(path.join(plugin.location, "package.json"), "utf8"),
+      fs.readFileSync(
+        path.join(String(plugin.location), "package.json"),
+        "utf8",
+      ),
     ).version;
   } catch {
     installed = plugin.version;
   }
-  const name = plugin.entry.package.replace("/", "%2f");
+  const name = String(plugin.entry.package).replace("/", "%2f");
   const reply = await fetchImpl(
     `${registryUrl(env)}/-/package/${name}/dist-tags`,
     {
@@ -186,7 +233,7 @@ async function checkPackage(plugin, { fetchImpl, env }) {
     },
   );
   if (!reply.ok) throw Error(`The registry answered ${reply.status}.`);
-  const latest = (await reply.json())?.latest;
+  const latest = ((await reply.json()) as { latest?: unknown } | null)?.latest;
   const result = { kind: "version", current: installed, basis: installed };
   const a = parseVersion(latest),
     b = parseVersion(installed);
@@ -202,7 +249,7 @@ async function checkPackage(plugin, { fetchImpl, env }) {
 }
 
 // A local folder: its content hash now against the approved one. No network.
-function checkFolder(plugin) {
+function checkFolder(plugin: Inspected): UpdateResult {
   const approved = plugin.approval?.hash;
   const result = { kind: "files", current: approved, basis: approved };
   return plugin.hash === approved
@@ -212,7 +259,7 @@ function checkFolder(plugin) {
 
 // Which plugins a check covers: declared, readable and enabled, and, for a
 // folder, approved (there is nothing to compare before).
-const checkable = (plugin) =>
+const checkable = (plugin: Inspected) =>
   !["invalid", "missing", "disabled"].includes(plugin.state) &&
   (plugin.entry.git !== undefined
     ? Boolean(plugin.commit)
@@ -220,16 +267,16 @@ const checkable = (plugin) =>
 
 // What a plugin's check compares against now: a new pin, install or
 // approval makes an older result stale.
-const basisOf = (plugin) =>
+const basisOf = (plugin: Inspected) =>
   plugin.entry.git !== undefined
     ? plugin.commit
     : plugin.entry.package !== undefined
       ? plugin.version
       : plugin.approval?.hash;
 
-const readUpdates = (store) => {
+const readUpdates = (store: Store): Record<string, UpdateResult> => {
   try {
-    return store.getMeta(META) || {};
+    return store.getMeta<Record<string, UpdateResult>>(META) || {};
   } catch {
     return {};
   }
@@ -238,8 +285,8 @@ const readUpdates = (store) => {
 // Check every plugin that is due (or those `ids` names, now), record each
 // result, and return them. A failure is recorded quietly per plugin.
 export async function checkPluginUpdates(
-  store,
-  options,
+  store: Store,
+  options: PluginPlaces,
   {
     ids = null,
     force = false,
@@ -247,9 +294,16 @@ export async function checkPluginUpdates(
     countGit = null,
     fetchImpl = globalThis.fetch,
     env = process.env,
+  }: {
+    ids?: string[] | null;
+    force?: boolean;
+    now?: () => number;
+    countGit?: ((remote: string) => unknown) | null;
+    fetchImpl?: typeof fetch;
+    env?: NodeJS.ProcessEnv;
   } = {},
 ) {
-  const done = {};
+  const done: Record<string, UpdateResult> = {};
   for (const plugin of inspectPlugins(options)) {
     if (!plugin.id || !checkable(plugin)) continue;
     if (ids && !ids.includes(plugin.id)) continue;
@@ -258,10 +312,10 @@ export async function checkPluginUpdates(
       !force &&
       before &&
       before.basis === basisOf(plugin) &&
-      now() - Date.parse(before.checkedAt) < DAY_MS
+      now() - Date.parse(String(before.checkedAt)) < DAY_MS
     )
       continue;
-    let result;
+    let result: UpdateResult;
     try {
       result =
         plugin.entry.git !== undefined
@@ -281,7 +335,7 @@ export async function checkPluginUpdates(
       result = {
         state: "failed",
         basis: basisOf(plugin),
-        reason: String(error.message || error).slice(0, 300),
+        reason: String((error as Error).message || error).slice(0, 300),
       };
     }
     done[plugin.id] = {
@@ -302,14 +356,14 @@ export async function checkPluginUpdates(
 
 // The result Settings shows for one plugin, or null when there is none or
 // it was made against an older pin, install or approval.
-export function updateFor(store, plugin) {
-  const found = readUpdates(store)[plugin.id];
+export function updateFor(store: Store, plugin: Inspected) {
+  const found = readUpdates(store)[plugin.id ?? ""];
   if (!found || found.basis !== basisOf(plugin)) return null;
   return found;
 }
 
 // "v1.2.0 (was v1.0.0)", "new commit abc1234" or "files changed".
-export function updateText(update) {
+export function updateText(update: UpdateResult) {
   if (update.kind === "tag" || update.kind === "version")
     return `${update.latest} (was ${update.current})`;
   if (update.kind === "files") return "files changed on disk";
@@ -317,9 +371,12 @@ export function updateText(update) {
 }
 
 // One Needs you row per plugin with something newer.
-export function updateNeedsYou(store, options) {
+export function updateNeedsYou(
+  store: Store,
+  options: PluginPlaces | null | undefined,
+) {
   if (!options?.settingsFile) return [];
-  let plugins;
+  let plugins: Inspected[];
   try {
     if (!updateChecksOn(options.settingsFile)) return [];
     plugins = inspectPlugins(options);
@@ -354,8 +411,15 @@ export function updateNeedsYou(store, options) {
 // The daily check's timer, one per store: a first pass a minute after the
 // first tick, then a pass every hour that checks only plugins due. Never
 // awaited by the tick, and never throws.
-const handles = new WeakMap();
-export function startPluginUpdateChecks(store, options, extra = {}) {
+const handles = new WeakMap<
+  Store,
+  { pass: () => Promise<void>; stop(): void }
+>();
+export function startPluginUpdateChecks(
+  store: Store,
+  options: PluginPlaces | null | undefined,
+  extra: Parameters<typeof checkPluginUpdates>[2] = {},
+) {
   if (!options?.workspaceRoot || !options.settingsFile) return null;
   const known = handles.get(store);
   if (known) return known;
