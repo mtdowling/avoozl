@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The Kiro Crew app's stdio MCP server (`avoozl mcp --kirocrew`). Kiro Crew's
 // gateway may share one process between many sessions, so nothing here comes
 // from the process: every request resolves its own workspace from the caller
@@ -16,7 +15,10 @@
 // the cron's key from KIROCREW_SESSION_KEY (withCronCaller); with neither, it
 // has no caller, so tools that need an identity, such as plans_session report, refuse it.
 import fs from "node:fs";
-import { workspaceConfig } from "../../settings/config.ts";
+import {
+  type WorkspaceConfig,
+  workspaceConfig,
+} from "../../settings/config.ts";
 import {
   loadHostConfig,
   machineAvoozlPaths,
@@ -25,7 +27,7 @@ import { complete, handleMcp, kiroCrewCaller } from "../../mcp/mcp.ts";
 import { Operations } from "../../api/operations.ts";
 import { Store } from "../../store/store.ts";
 import { callerSlot } from "../../delivery/delivery.ts";
-import { dispatchMcp } from "../../../mcp.ts";
+import { dispatchMcp, type McpMessage } from "../../../mcp.ts";
 import { cronIntents } from "./cron-intents.ts";
 import { passReply, tickCall, toolReply } from "../../mcp/mcp-tick.ts";
 import { runPass } from "../../tick/tick-pass.ts";
@@ -41,21 +43,35 @@ const STATIC = new Set([
   "resources/templates/list",
 ]);
 
-const rpcError = (id, message, code = -32603) => ({
+// A workspace this server may open, and its configuration error if any.
+type Launch = Partial<WorkspaceConfig> & {
+  workspaceRoot: string;
+  configError?: string;
+};
+// A workspace whose database is on disk.
+type Ready = Launch & { dbPath: string };
+// One opened workspace.
+interface Opened {
+  config: Ready;
+  store: Store;
+  ops: Operations;
+}
+
+const rpcError = (id: unknown, message: string, code = -32603) => ({
   jsonrpc: "2.0",
   id: id ?? null,
   error: { code, message },
 });
 
 // The avoozl-tick cron's call: plans_maintain tick marked cron.
-const cronTick = (message) => tickCall(message)?.cron === true;
+const cronTick = (message: McpMessage) => tickCall(message)?.cron === true;
 
 // A script cron spawns its own copy of this server and sends no caller block;
 // Kiro Crew names the job only in KIROCREW_SESSION_KEY ("cron:<job id>",
 // kiro_crew/cron_script_mcp.py), as Kiro Crew's own servers read it. Only a
 // cron key is taken, and only when no block came, so a pooled process never
 // lends one session's identity to another.
-function withCronCaller(message, env) {
+function withCronCaller(message: McpMessage, env: NodeJS.ProcessEnv) {
   const key = env.KIROCREW_SESSION_KEY;
   if (
     message.method !== "tools/call" ||
@@ -77,7 +93,7 @@ function withCronCaller(message, env) {
   };
 }
 
-function withoutCaller(message) {
+function withoutCaller(message: McpMessage): McpMessage {
   if (!message.params?._meta?.["kirocrew.caller"]) return message;
   const { "kirocrew.caller": _dropped, ...meta } = message.params._meta;
   return { ...message, params: { ...message.params, _meta: meta } };
@@ -91,14 +107,14 @@ export function createAppMcp({
   // any client (MS10.2).
   attested = true,
 }: {
-  fallback?: object | null;
+  fallback?: Launch | null;
   env?: NodeJS.ProcessEnv;
   attested?: boolean;
 } = {}) {
   // One Store and Operations per database, opened on first use and kept, so
   // tick memory and caches stay per workspace.
-  const opened = new Map();
-  const open = (config) => {
+  const opened = new Map<string, Opened>();
+  const open = (config: Ready) => {
     const key = fs.realpathSync.native(config.dbPath);
     let entry = opened.get(key);
     if (!entry) {
@@ -111,20 +127,23 @@ export function createAppMcp({
           workspaceRoot: config.workspaceRoot,
           plansRoot: config.plansRoot,
           configDirectory: machineAvoozlPaths().configDirectory,
-          workspaceName: config.name,
         }),
       };
       opened.set(key, entry);
     }
     return entry;
   };
-  const existing = (config) =>
-    config && fs.existsSync(config.dbPath) ? config : null;
+  const existing = (config: Launch | null | undefined): Ready | null => {
+    const dbPath = config?.dbPath;
+    return config && dbPath && fs.existsSync(dbPath)
+      ? { ...config, dbPath }
+      : null;
+  };
   // Every initialized workspace this process may serve: the catalog's enabled
   // workspaces and the launch workspace. Read again on each call.
   const candidates = () => {
-    const configs = [];
-    let workspaces = {};
+    const configs: Ready[] = [];
+    let workspaces: Record<string, { root?: string; enabled?: boolean }> = {};
     try {
       workspaces = loadHostConfig({ env }).config.workspaces || {};
     } catch {
@@ -140,8 +159,9 @@ export function createAppMcp({
         } catch {
           // An unreadable catalog entry is not a workspace this call can use.
         }
-    if (existing(fallback)) configs.push(fallback);
-    const seen = new Set();
+    const launched = existing(fallback);
+    if (launched) configs.push(launched);
+    const seen = new Set<string>();
     return configs.filter((config) => {
       const key = fs.realpathSync.native(config.dbPath);
       if (seen.has(key)) return false;
@@ -149,7 +169,7 @@ export function createAppMcp({
       return true;
     });
   };
-  const boundIn = (slot) =>
+  const boundIn = (slot: string) =>
     candidates()
       .map(open)
       .filter(({ store }) =>
@@ -159,7 +179,11 @@ export function createAppMcp({
       );
 
   // Which workspace serves this request, or an error message.
-  function resolve(message) {
+  function resolve(message: McpMessage): {
+    entry?: Opened;
+    error?: string;
+    noWorkspace?: boolean;
+  } {
     const caller = kiroCrewCaller(message),
       slot = callerSlot(caller);
     if (slot) {
@@ -181,7 +205,7 @@ export function createAppMcp({
     return { entry: open(launch) };
   }
 
-  async function handle(message) {
+  async function handle(message: McpMessage | null) {
     if (!message || typeof message !== "object" || Array.isArray(message))
       return rpcError(null, "Send one JSON-RPC request object.", -32600);
     // Notifications get no reply.
@@ -193,10 +217,12 @@ export function createAppMcp({
     // forwards every call without a caller block.
     if (message.method === "server/discover")
       return rpcError(message.id, "Method not found", -32601);
-    if (STATIC.has(message.method)) {
+    if (typeof message.method === "string" && STATIC.has(message.method)) {
       if (message.method === "tools/list")
         return (await handleMcp(message, null)).body;
-      const reply = dispatchMcp(message).body;
+      const reply = dispatchMcp(message).body as {
+        result?: { capabilities?: { experimental?: object } };
+      } | null;
       // Pooled operation: the gateway injects the caller block only into a
       // backend that advertises this (kiro_crew/mcp_gateway/backend_handshake.py
       // _parse_initialize_response).
@@ -216,17 +242,17 @@ export function createAppMcp({
     // row), and a paused tick stays off after the person adds a workspace.
     if (target.noWorkspace && cronTick(message))
       return toolReply(message, { skipped: true, reason: target.error });
-    if (target.error) {
+    if (!target.entry) {
       if (message.method === "tools/call")
         return {
           jsonrpc: "2.0",
           id: message.id,
           result: complete(message, {
             isError: true,
-            content: [{ type: "text", text: target.error }],
+            content: [{ type: "text", text: String(target.error) }],
           }),
         };
-      return rpcError(message.id, target.error);
+      return rpcError(message.id, String(target.error));
     }
     // The cron runs this machine's tick pass, then hands back the chat
     // intents the pass released; only this cron can carry them out (MS12.1).
@@ -247,7 +273,14 @@ export function createAppMcp({
       return tick.cron
         ? toolReply(
             message,
-            cronIntents(target.entry.store, message.params.arguments.input),
+            cronIntents(
+              target.entry.store,
+              (
+                message.params?.arguments as
+                  | { input?: { sessions?: unknown } }
+                  | undefined
+              )?.input,
+            ),
           )
         : passReply(message, results);
     }
