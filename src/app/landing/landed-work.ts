@@ -9,9 +9,10 @@ import { landingAction } from "./landing-action.ts";
 import { closeLanded, landingSpecOf } from "../specs/labeled-issues.ts";
 import type { Store } from "../store/store.ts";
 import type { Repository } from "../git/git.ts";
+import { type QueuedTask, taskIds } from "./landing-queue.ts";
 
 // One landed entry: its spec and its tasks.
-type Entry = { spec: unknown; tasks: { task: string }[] };
+type Entry = { spec: unknown; tasks: QueuedTask[] };
 // Where the landing runs.
 type Where = { workspaceRoot?: string; env?: NodeJS.ProcessEnv };
 type GitHub = Parameters<typeof closeLanded>[0];
@@ -20,7 +21,7 @@ type GitHub = Parameters<typeof closeLanded>[0];
 // Returns whether its tick is on the done branch.
 export async function finishLanded(
   store: Store,
-  github: GitHub,
+  github: GitHub | null | undefined,
   {
     repository,
     entry,
@@ -30,8 +31,8 @@ export async function finishLanded(
   }: Where & { repository: Repository; entry: Entry; candidate: string },
 ) {
   const tasks = new Map(store.read().tasks.map((task) => [task.id, task])),
-    issues = entry.tasks
-      .map(({ task }) => tasks.get(task))
+    issues = taskIds(entry)
+      .map((id) => tasks.get(id))
       .filter((task) => task?.labeledIssue);
   // A labeled issue's landing record is the issue closing (rule 11.3): its
   // pull request's `Closes #<n>` closes it in `pr` mode, and in `direct`
@@ -39,7 +40,12 @@ export async function finishLanded(
   if (issues.length) {
     if (repository.landing === "direct")
       for (const task of issues)
-        if (!(await closeLanded(github, task, candidate).catch(() => false)))
+        if (
+          !(await (github
+            ? closeLanded(github, task, candidate)
+            : Promise.resolve(false)
+          ).catch(() => false))
+        )
           return false;
   } else {
     const ticked = await tickPlansRepo(store, {
@@ -56,7 +62,7 @@ export async function finishLanded(
     landingAction({ landed: true, base: repository.baseBranch })
       .deleteClaimBranch
   )
-    for (const { task } of entry.tasks)
+    for (const task of taskIds(entry))
       await deleteOwnClaim(store, github, repository.github, task).catch(
         () => false,
       );

@@ -5,7 +5,7 @@
 import { callerSlot, integrateVerified } from "../delivery/delivery.ts";
 import { landingSettings } from "./landing-config.ts";
 import { landingQueue } from "./landing-queue.ts";
-import { landDirect } from "./direct-landing.ts";
+import { type LandOptions, landDirect } from "./direct-landing.ts";
 import { landPullRequests } from "./pr-landing.ts";
 import { listSessionBindings } from "../sessions/session-bindings.ts";
 import { taskRepository } from "../../work-model.ts";
@@ -53,9 +53,9 @@ export async function landTask(
   }: {
     caller?: unknown;
     local?: boolean;
-    github?: unknown;
+    github?: LandOptions["github"];
     workspaceRoot?: string;
-    config?: Parameters<typeof landingSettings>[0];
+    config?: LandOptions["config"];
   },
 ) {
   const task = store.read().tasks.find((t) => t.id === taskId);
