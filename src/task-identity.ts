@@ -152,7 +152,9 @@ export function randomUUID(
   source:
     | {
         randomUUID?: () => string;
-        getRandomValues?: (array: Uint8Array) => Uint8Array;
+        getRandomValues?: (
+          array: Uint8Array<ArrayBuffer>,
+        ) => Uint8Array<ArrayBuffer>;
       }
     | undefined = globalThis.crypto,
 ): string {

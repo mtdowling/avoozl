@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Builds the modal harness page (harness.tsx) into one classic script, so
 // Chrome can load it from a file:// URL with no server. React and react-dom
 // are bundled; the host SDK and lucide-react are small stand-ins.
@@ -29,7 +28,10 @@ export const realLucide = process.env.AVOOZL_LUCIDE ? path.resolve(process.env.A
 // harness's; screenshots use it to look like the real page.
 // `scripts` maps file names to classic scripts that load before the page,
 // such as the sample workspace's replies (demo-replies.mjs).
-export async function buildHarness({ hostCss, scripts = {}, entry = path.join(here, 'harness.tsx') } = {}) {
+export type HarnessOptions = { hostCss?: string; scripts?: Record<string, string>; entry?: string }
+export type Harness = Awaited<ReturnType<typeof buildHarness>>
+
+export async function buildHarness({ hostCss, scripts = {}, entry = path.join(here, 'harness.tsx') }: HarnessOptions = {}) {
   const out = fs.mkdtempSync(path.join(os.tmpdir(), 'avoozl-harness-'))
   await build({
     configFile: false,
@@ -40,7 +42,7 @@ export async function buildHarness({ hostCss, scripts = {}, entry = path.join(he
       {
         name: 'avoozl-harness-stubs',
         enforce: 'pre',
-        resolveId(id) {
+        resolveId(id: string) {
           if (id === 'lucide-react')
             return realLucide
               ? ['dist/esm/lucide-react.js', 'dist/esm/lucide-react.mjs'].map((file) => path.join(realLucide, file)).find((file) => fs.existsSync(file))
@@ -48,7 +50,7 @@ export async function buildHarness({ hostCss, scripts = {}, entry = path.join(he
           if (id === '@kirocrew/app-sdk' || id === '@kirocrew/app-sdk/ui') return path.join(here, 'stubs.tsx')
           return null
         },
-        load(id) {
+        load(id: string) {
           return id === '\0lucide-react' ? lucide() : null
         },
       },
@@ -73,13 +75,17 @@ export async function buildHarness({ hostCss, scripts = {}, entry = path.join(he
     path.join(out, 'index.html'),
     `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">${links.join('')}</head><body><div id="root"></div><script src="harness.js"></script></body></html>`,
   )
-  return { dir: out, url: (query) => `file://${path.join(out, 'index.html')}?${new URLSearchParams(query)}`, remove: () => fs.rmSync(out, { recursive: true, force: true }) }
+  return {
+    dir: out,
+    url: (query: Record<string, string>) => `file://${path.join(out, 'index.html')}?${new URLSearchParams(query)}`,
+    remove: () => fs.rmSync(out, { recursive: true, force: true }),
+  }
 }
 
 // A screenshot script's start: the out folder from argv, Chrome, the
 // harness (with the host's stylesheet when AVOOZL_HOST_CSS names one) and a
 // browser. Exits with the usage line when no folder is named.
-export async function startShots(script) {
+export async function startShots(script: string) {
   const { findChrome, launch } = await import('./chrome.ts')
   const [out] = process.argv.slice(2)
   if (!out) {
