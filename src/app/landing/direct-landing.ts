@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The tick lands `direct` repositories' verified work on the registered remote
 // in merge batches (Requirements 87.1, 87.2, 88.6, MB1 to MB6, design §4.26
 // Land; task 41.9).
@@ -18,10 +17,15 @@
 // - A queued task whose base moved is withdrawn by integrateVerified
 //   (`stillQueued`, pr-landing.mjs), merged with the base and verified again.
 import os from "node:os";
-import { git, removeLandedTaskWorktree } from "../git/git.ts";
-import { enqueueLanding, landNext, queueHeads } from "./landing-queue.ts";
+import { git, type Repository, removeLandedTaskWorktree } from "../git/git.ts";
+import {
+  enqueueLanding,
+  landNext,
+  type QueueEntry,
+  queueHeads,
+} from "./landing-queue.ts";
 import { directSteps, dropMember } from "./merge-batch.ts";
-import { landingSettings } from "./landing-config.ts";
+import { type LandingConfig, landingSettings } from "./landing-config.ts";
 import {
   recordBatch,
   setTesting,
@@ -33,26 +37,42 @@ import { tickEntry } from "../specs/spec-ticks.ts";
 import { sendConflictBack } from "./landing-conflicts.ts";
 import { markLanded, sendFailureBack, syncBase } from "./pr-landing.ts";
 import { finishLanded } from "./landed-work.ts";
-import { fail } from "../store/store.ts";
+import { fail, type Store } from "../store/store.ts";
+import type { Notice } from "../tick/notifications.ts";
 import { landingSpecOf } from "../specs/labeled-issues.ts";
 import { repositoryChecks } from "../workspace/repository-checks.ts";
 import { pluginChecksOf } from "../plugins/plugin-checks.ts";
 
 // The checks a merge batch candidate runs: the repository's and its
 // task-stage plugin checks (plugin-checks PK4.1).
-const landingChecks = (store, repository) =>
+const landingChecks = (store: Store, repository: Repository) =>
   repositoryChecks(repository, pluginChecksOf(store)).filter(
     (check) => check.stage === "task",
   );
 import { requireDiskSpace } from "../workspace/disk-space.ts";
 
 const ERRORS = "directLandingErrors";
-export const isDirectLanding = (repository) => repository?.landing === "direct";
+export const isDirectLanding = (repository: { landing?: string } | null) =>
+  repository?.landing === "direct";
 
 // Queues one verified task. Returns the delivery with the queued commit.
-export function queueDirect(store, { delivery, repository, task, at }) {
+export function queueDirect(
+  store: Store,
+  {
+    delivery,
+    repository,
+    task,
+    at,
+  }: {
+    delivery: { taskId: string; commit: string; [key: string]: unknown };
+    repository: Repository;
+    task: Parameters<typeof landingSpecOf>[0];
+    at: string;
+  },
+) {
   const planId = landingSpecOf(task);
-  if (!planId) fail("Only a spec's task lands.", 409);
+  if (!planId) return fail("Only a spec's task lands.", 409);
+  const spec = String(planId);
   if (!landingChecks(store, repository).length)
     fail(
       `Repository ${repository.id} has no checks to land directly with.`,
@@ -63,7 +83,7 @@ export function queueDirect(store, { delivery, repository, task, at }) {
     base: repository.baseBranch || "main",
     key: delivery.taskId,
     commit: delivery.commit,
-    spec: planId,
+    spec,
     tasks: [{ task: delivery.taskId }],
   });
   return { ...delivery, landing: { commit: delivery.commit, queuedAt: at } };
@@ -73,20 +93,20 @@ export function queueDirect(store, { delivery, repository, task, at }) {
 // What a landing pass is given: the GitHub client, where it runs, and
 // `only`, one repository to land.
 export interface LandOptions {
-  github?: unknown;
+  github?: Parameters<typeof finishLanded>[1];
   workspaceRoot?: string;
-  rounds?: unknown;
+  rounds?: number | ((repository: Repository) => number);
   now?: number;
   env?: NodeJS.ProcessEnv;
-  machine?: unknown;
+  machine?: Parameters<typeof directSteps>[0]["machine"];
   configFile?: string;
-  run?: unknown;
-  config?: unknown;
+  run?: Parameters<typeof directSteps>[0]["run"];
+  config?: (LandingConfig & { landing?: { unionPaths?: string[] } }) | null;
   only?: string | null;
 }
 
 export async function landDirect(
-  store,
+  store: Store,
   {
     github,
     workspaceRoot,
@@ -100,8 +120,8 @@ export async function landDirect(
     only = null,
   }: LandOptions = {},
 ) {
-  const notify = [],
-    messages = [],
+  const notify: Notice[] = [],
+    messages: unknown[] = [],
     at = new Date(now).toISOString();
   for (const { repository, base, head, tries } of queueHeads(
     store,
@@ -112,11 +132,15 @@ export async function landDirect(
     try {
       requireDiskSpace(store, os.tmpdir(), `Landing on ${repository.id}`);
     } catch (error) {
-      if (error.lowDisk) continue;
+      if ((error as { lowDisk?: boolean }).lowDisk) continue;
       throw error;
     }
     try {
-      const setting = landingSettings(config, repository.github, repository),
+      const setting = landingSettings(
+          config,
+          String(repository.github),
+          repository,
+        ),
         record = sizeRecord(store, { repositoryId: repository.id, base }),
         limit = sizeLimit(record, setting.mergeBatch);
       const url = await git(repository.root, ["remote", "get-url", "origin"]),
@@ -132,7 +156,10 @@ export async function landDirect(
           isolation: repository.isolation,
           unionPaths: config?.landing?.unionPaths ?? [],
           tickOf: (dir, entry) => tickEntry(store, dir, entry),
-          commitPrefix: repository.commitPrefix,
+          commitPrefix:
+            typeof repository.commitPrefix === "string"
+              ? repository.commitPrefix
+              : undefined,
           env,
           machine,
           configFile,
@@ -146,7 +173,7 @@ export async function landDirect(
           {
             limit,
             bisect: true,
-            onStep: (step, members) =>
+            onStep: (step: string, members: QueueEntry[]) =>
               setTesting(
                 store,
                 { repositoryId: repository.id, base },
@@ -162,7 +189,7 @@ export async function landDirect(
                         })?.since ?? at),
                 },
               ),
-            isAlone: (entry) => record.alone.includes(entry.key),
+            isAlone: (entry: QueueEntry) => record.alone.includes(entry.key),
           },
         );
       setTesting(store, { repositoryId: repository.id, base }, null);
@@ -201,10 +228,14 @@ export async function landDirect(
         await dropMember(repository.root, sent.entry);
       }
       if (result.state === "landed") {
-        for (const entry of result.entries) {
+        const landed = result.entries ?? [];
+        for (const entry of landed) {
           markLanded(store, entry, {
             mergeCommit: result.candidate,
-            branch: store.get("task_worktrees", entry.key)?.branch,
+            branch: store.get<{ id: string; branch?: string }>(
+              "task_worktrees",
+              entry.key,
+            )?.branch,
             at,
           });
           await dropMember(repository.root, entry);
@@ -213,23 +244,27 @@ export async function landDirect(
         // A spec in a separate plans repository is ticked there, as its own
         // guarded commit (spec-ticks.mjs); then the claim branches this
         // runner created go (rule 16.1).
-        for (const entry of result.entries)
+        for (const entry of landed)
           await finishLanded(store, github, {
             repository,
             entry,
-            candidate: result.candidate,
+            candidate: String(result.candidate),
             workspaceRoot,
             env,
           });
-        for (const entry of result.entries) {
-          const worktree = store.get("task_worktrees", entry.key);
+        for (const entry of landed) {
+          const worktree = store.get<{
+            id: string;
+            path?: string;
+            branch?: string;
+          }>("task_worktrees", entry.key);
           if (worktree?.path)
             await removeLandedTaskWorktree(
               store,
               repository,
-              { worktree: worktree.path, branch: worktree.branch },
+              { worktree: worktree.path, branch: String(worktree.branch) },
               base,
-              result.candidate,
+              String(result.candidate),
             );
         }
       } else if (result.state === "failed") {
@@ -240,18 +275,19 @@ export async function landDirect(
         });
         messages.push(...sent.messages);
         notify.push(...sent.notify);
-        await dropMember(repository.root, result.entry);
+        if (result.entry) await dropMember(repository.root, result.entry);
       } else if (result.state === "conflict") {
         const sent = sendConflictBack(store, result, { rounds: tries, now });
         messages.push(...sent.messages);
         notify.push(...sent.notify);
-        await dropMember(repository.root, result.entry);
+        if (result.entry) await dropMember(repository.root, result.entry);
       }
-    } catch (error) {
+    } catch (thrown) {
+      const error = thrown as Error & { contention?: boolean };
       setTesting(store, { repositoryId: repository.id, base }, null);
       if (error.contention) continue;
       // One notice per head and cause, not one per tick.
-      const seen = store.getMeta(ERRORS) ?? {},
+      const seen = store.getMeta<Record<string, string>>(ERRORS) ?? {},
         cause = `${head.commit}:${error.message}`;
       if (seen[head.id] === cause) continue;
       store.setMeta(ERRORS, { ...seen, [head.id]: cause });
