@@ -37,6 +37,7 @@ import { harnessAllow, sandboxAllowCommands } from "./harness-allow.mjs";
 import { tryLock } from "./pass-lock.mjs";
 import { readMachineEnv, withKeptValues } from "./machine-env.mjs";
 import { findProgram } from "./harness-ready.mjs";
+import { harnessNetwork } from "./harness-network.ts";
 import { ensurePassTable, recordPasses } from "./tick-passes.mjs";
 
 const CHILD_WRAPPER = fileURLToPath(
@@ -677,6 +678,8 @@ function killGroup(pid) {
 
 // The broker process serving a session's MCP aliases, recorded in its folder.
 const brokerRecord = (folder) => path.join(folder, "broker.json");
+// And its egress proxy process.
+const egressRecord = (folder) => path.join(folder, "egress.json");
 
 // One supervisor for one tick: `pass()` records the state of running
 // children, reaps those that ended, starts requested ones and resumes those
@@ -767,19 +770,24 @@ export function openSupervisor({
     );
     return { file, socket };
   };
-  const endBroker = (sessionId) => {
-    const record = brokerRecord(path.join(paths.children, sessionId)),
-      found = readJson(record);
+  // Stop the helper process a session's record names, if it is still that
+  // process: its MCP broker or its egress proxy.
+  const endRecorded = (record) => (sessionId) => {
+    const file = record(path.join(paths.children, sessionId)),
+      found = readJson(file);
     if (found && sameProcess(found.pid, found.started, startTime))
       try {
         process.kill(found.pid, "SIGTERM");
       } catch {}
-    fs.rmSync(record, { force: true });
+    fs.rmSync(file, { force: true });
   };
+  const endBroker = endRecorded(brokerRecord);
+  const endEgress = endRecorded(egressRecord);
   // A finished session's epic context: its broker, and the folders made for
-  // it (the skills copy).
+  // it (the skills copy); and its egress proxy.
   const endContext = (row) => {
     endBroker(row.session_id);
+    endEgress(row.session_id);
     try {
       for (const folder of JSON.parse(row.settings || "{}").context?.cleanup ??
         [])
@@ -914,6 +922,28 @@ export function openSupervisor({
         if (definition.sessions && lane.keepSince && !lane.resume)
           pruneLaneSessions(lane.home, definition.sessions, lane.keepSince);
       }
+      // Model access by the definition (MS5.5): exported keys, fixed
+      // variables and the session's egress proxy, ended with its run.
+      endEgress(row.session_id);
+      const reach = harnessNetwork(definition, {
+        env,
+        machineEnv,
+        folder,
+        exitFile,
+      });
+      if (reach.proxy)
+        fs.writeFileSync(
+          egressRecord(folder),
+          JSON.stringify({
+            pid: reach.proxy.pid,
+            started: startTime(reach.proxy.pid),
+          }),
+          { mode: 0o600 },
+        );
+      const allowed = [
+        ...(Array.isArray(settings.network) ? settings.network : []),
+        ...reach.ports,
+      ];
       const confined = confineChild(argv, {
         definition,
         configDirectory,
@@ -956,12 +986,8 @@ export function openSupervisor({
           ...(contextMcp ? [CONTEXT_RELAY, process.execPath] : []),
         ],
         sockets: contextMcp ? [contextMcp.socket] : [],
-        network: sandboxNetwork(
-          !settings.network || settings.network === "off"
-            ? undefined
-            : settings.network,
-        ),
-        keepEnv: definition.keepEnv ?? [],
+        network: sandboxNetwork(allowed.length ? allowed : undefined),
+        keepEnv: [...(definition.keepEnv ?? []), ...reach.keep],
         // Avoozl pushes; an agent gets no push credentials (R102.4). The
         // sandbox then sets git's own empty credential helper.
         // The child marker makes the CLI refuse person-only commands, even
@@ -985,9 +1011,15 @@ export function openSupervisor({
               ? { [definition.home]: lane.home }
               : {}),
             AVOOZL_CHILD: "1",
+            ...reach.env,
             AVOOZL_CHILD_SESSION: row.session_id,
           }),
-          Object.values(context?.mcp ?? {}).flatMap((server) => server.env),
+          [
+            ...Object.values(context?.mcp ?? {}).flatMap(
+              (server) => server.env,
+            ),
+            ...reach.unset,
+          ],
         ),
       });
       const out = fs.openSync(log, "a", 0o600);

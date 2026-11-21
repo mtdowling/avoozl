@@ -237,12 +237,39 @@ and none is required. A sign-in that Claude Code keeps only in the macOS
 keychain is out of a sandboxed child's reach: use an API key, a cloud
 provider's credentials, or the repository's model proxy instead.
 
-For a cloud provider such as Amazon Bedrock, the example definitions copy
-`~/.claude/settings.json` or `~/.codex/config.toml` into the child's own
-home (`homeFiles`) and let it read `~/.aws` (`reads`). If the credential
-helper your settings name lives under your home folder, add its folder to
-`reads` too. The child's network is off, so it reaches the provider only
-through the repository's `sandbox.modelProxy`.
+The example definitions copy `~/.claude/settings.json` or
+`~/.codex/config.toml` into the child's own home (`homeFiles`), so your
+provider settings reach it. If the program your definition runs lives under
+your home folder, add its folder to `reads`.
+
+A child's network is off. For Amazon Bedrock, use the definitions in
+`examples/harnesses/bedrock/`. Each names two more keys:
+
+```json
+{
+  "egress": [
+    "bedrock-runtime.*.amazonaws.com"
+  ],
+  "credentialExport": [
+    "aws",
+    "configure",
+    "export-credentials",
+    "--format",
+    "process"
+  ]
+}
+```
+
+Before each start, Avoozl runs `credentialExport` outside the sandbox, as
+you, and gives the child only the short-lived AWS keys it prints. The
+harness's own credential helper is left out of the copied settings. Avoozl
+also starts an egress proxy for the session on `127.0.0.1`. The child gets
+it as `HTTPS_PROXY`, and its sandbox opens only that port. The proxy
+tunnels only to the hosts in `egress`, where `*` stands for one label, and
+refuses the rest. Its log, `egress.log` in the session's folder, holds host
+names only. Swap in your own export command if your AWS sign-in uses
+another tool. On Linux the sandbox turns the network off whole, so `egress`
+works on macOS only.
 
 Each example definition names a `probe`, a one-line prompt such as
 `claude -p ok`. **Check again** in **Settings › Models**, or
