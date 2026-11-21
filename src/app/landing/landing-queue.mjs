@@ -24,6 +24,7 @@
 // (merge-batch.mjs) and pull request landing reuse the same queue.
 import { withWorkLock } from "../git/git.mjs";
 import { openStops } from "../flow/flow.mjs";
+import { stoppedSpecIds } from "../specs/label-filters.mjs";
 import { outputExcerpt } from "../delivery/verify.mjs";
 import { fail } from "../store/store.mjs";
 import { checkKey } from "../workspace/repository-checks.mjs";
@@ -135,7 +136,12 @@ export function pausedBy(store, entry) {
         return Boolean(entry.spec) && entry.spec === (stop.spec ?? stop.planId);
       if (stop.repositoryId) return stop.repositoryId === entry.repositoryId;
       return true;
-    }) ?? null
+    }) ??
+    // Rule 10.2: a stopped spec's portion does not land until the stop
+    // clears.
+    (entry.spec && stoppedSpecIds(store).has(entry.spec)
+      ? { id: `label-stop:${entry.spec}`, label: true }
+      : null)
   );
 }
 

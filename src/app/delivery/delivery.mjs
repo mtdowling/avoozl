@@ -59,7 +59,7 @@ import {
 import { isDirectLanding, queueDirect } from "../landing/direct-landing.mjs";
 import { integrationBranchOf } from "../epics/integration-branch.mjs";
 import { specBase } from "../specs/spec-base.mjs";
-import { labelHolds } from "../specs/label-filters.mjs";
+import { labelHolds, stoppedSpecIds } from "../specs/label-filters.mjs";
 import { assigneeHolds } from "../specs/spec-assignee.mjs";
 import { revisionFiles } from "../specs/spec-plans.mjs";
 import { specFolderPath } from "../specs/specs-path.mjs";
@@ -2662,13 +2662,17 @@ export async function integrateVerified(
   { now = Date.now(), skip = new Set() } = {},
 ) {
   const notify = [],
-    messages = [];
+    messages = [],
+    // Rule 10.2: a stopped spec's verified task is not pushed or queued; it
+    // waits as verified until the stop clears.
+    stopped = stoppedSpecIds(store);
   for (const delivery of store.list("task_deliveries")) {
     if (delivery.state !== "verified" || skip.has(delivery.taskId)) continue;
     const at = new Date(now).toISOString(),
       worktree = store.get("task_worktrees", delivery.taskId),
       task = store.read().tasks.find((t) => t.id === delivery.taskId),
       id = `avoozl:${delivery.taskId}:${delivery.commit}`;
+    if (task?.planId && stopped.has(task.planId)) continue;
     let next;
     try {
       if (!worktree?.path)

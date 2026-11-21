@@ -5,8 +5,9 @@
 // `avoozl:stopped`) stops a spec while a writer's stop label is on its spec
 // issue or on a parent spec's. The spec issues are read once per pass and the
 // result is cached per spec; the ready rule reads the cache. A task already
-// claimed keeps running whatever its labels say later: the filter only holds
-// new claims.
+// claimed keeps running whatever its filter labels say later: the filters
+// only hold new claims. A stop also holds a claimed task's push and landing
+// (rule 10.2).
 import { PERMISSIONS } from "../github/github-policy.mjs";
 import { linkedReader } from "./order.mjs";
 import { specTasks } from "./spec-tasks.mjs";
@@ -150,6 +151,34 @@ export async function readLabelFilters(store, github) {
   return errors;
 }
 
+// The spec IDs a stop holds (rule 10): each spec whose spec issue carries a
+// writer's stop label, by the cache, and every spec one of them links. A
+// task of one is not ready, and nothing of it is pushed or landed (10.2).
+export function stoppedSpecIds(store) {
+  const direct = new Set(
+    Object.entries(store.getMeta(META) ?? {})
+      .filter(([, result]) => result.stopped)
+      .map(([id]) => id),
+  );
+  if (!direct.size) return direct;
+  const plans = store
+      .list("plans")
+      .filter((plan) => plan.spec && !plan.deletedAt && plan.files),
+    linked = linkedReader(
+      plans.map((plan) => ({
+        name: plan.spec,
+        text: specTasks(plan.files)?.text ?? "",
+      })),
+    ),
+    ids = new Map(plans.map((plan) => [plan.spec, plan.id])),
+    names = new Set(
+      plans.filter((plan) => direct.has(plan.id)).map((plan) => plan.spec),
+    );
+  for (const name of stoppedSpecs(ids.keys(), names, linked))
+    direct.add(ids.get(name));
+  return direct;
+}
+
 // Spec ID -> why its spec issue holds it, for each spec the filters hold. A
 // spec in a repository that filters, with no spec issue, is held too.
 export function labelHolds(store) {
@@ -160,36 +189,11 @@ export function labelHolds(store) {
         .map(([id, result]) => [id, `label filter: ${result.reason}`]),
     );
   // A stopped spec, and every spec it links (rule 10).
-  const direct = new Set(
-    Object.entries(results)
-      .filter(([, result]) => result.stopped)
-      .map(([id]) => id),
-  );
-  if (direct.size) {
-    const plans = store
-        .list("plans")
-        .filter((plan) => plan.spec && !plan.deletedAt && plan.files),
-      linked = linkedReader(
-        plans.map((plan) => ({
-          name: plan.spec,
-          text: specTasks(plan.files)?.text ?? "",
-        })),
-      ),
-      ids = new Map(plans.map((plan) => [plan.spec, plan.id])),
-      names = new Set(
-        plans.filter((plan) => direct.has(plan.id)).map((plan) => plan.spec),
-      );
-    for (const id of direct)
-      holds.set(
-        id,
-        "stopped: a writer's stop label is on its spec issue or a parent's",
-      );
-    for (const name of stoppedSpecs(ids.keys(), names, linked))
-      holds.set(
-        ids.get(name),
-        "stopped: a writer's stop label is on its spec issue or a parent's",
-      );
-  }
+  for (const id of stoppedSpecIds(store))
+    holds.set(
+      id,
+      "stopped: a writer's stop label is on its spec issue or a parent's",
+    );
   const filtered = new Set(
     store
       .list("repositories")

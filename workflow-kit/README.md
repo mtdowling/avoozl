@@ -74,7 +74,7 @@ workflow-kit/cases/serial-list-next/
 | `approvalTrust` | `github` (unset) or `branch-protection`, the repository's setting for rule 7.2 |
 | `history` | The specs branch's commits, oldest first, each `{commit, author}` and, when GitHub says so, `mergedBy` (who merged its pull request) and `signer` (who signed it with a verified signature). `author` is the login the commit's author email names, which proves nothing under `github`. The files a commit changes are under `commits/<commit>/` |
 | `land` | Present on landing cases: the task, the landing `mode`, `pr`, whether `checks` pass, whether the base moved, and the `claim` as `{start, head, pull}`, where `pull` is `{merged, head}` for a merged pull request of the claim branch |
-| `push` | Present on takeover cases: the claim `branch` and each runner's push, `{runner, head}` |
+| `push` | Present on takeover and stop cases: the claim `branch` and each runner's push, `{runner, head}` |
 | `revision` | Present on revision cases: the `task` and the `lease` text it recorded, `{title, acceptance}` |
 | `manual` | Present on manual task cases: the `task` |
 | `actions` | Present on section 20 cases: the actions a runner is asked to take |
@@ -106,11 +106,11 @@ them. A spec is approved as rule 7.3 says, with the authors in `approvers`.
 | `claim` | The claim branch for the first ready task, the branch it starts from, and whether the default branch is merged in first |
 | `resume` | For the `resume` task, the `holder` runner that gets the lease or `null`, the `lease` ref it creates or `null`, and the runners that `stopped` |
 | `landed` | Whether the `land` claim holds landed work, from its graph |
-| `push` | For each runner of `push`, `accepted` or `rejected` |
+| `push` | For each runner of `push`, `accepted` or `rejected`, or `held` when the task's spec is stopped |
 | `revision` | `land` when the lease's text is the task's current approved text, else `redo-or-stop` |
 | `manualTick` | The `branch` a person ticks the `manual` task on |
 | `limits` | For each of `actions`, the section 20 rule it breaks, or `null` |
-| `landing` | The `action`, `base`, `tick`, `mergeBase` and `deleteClaimBranch` for the `land` task, and `mergeGuard` `head-sha` when the runner merges a pull request, or only `{"action": "none"}` when checks fail |
+| `landing` | The `action`, `base`, `tick`, `mergeBase` and `deleteClaimBranch` for the `land` task, and `mergeGuard` `head-sha` when the runner merges a pull request, or only `{"action": "none"}` when checks fail, or only `{"action": "hold"}` while its spec is stopped |
 | `specIssues` | For each spec name, the number of the issue that is its spec issue, or `null` |
 | `duplicates` | The numbers of the issues the runner closes as duplicates, in order |
 

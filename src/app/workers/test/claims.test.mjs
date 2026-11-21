@@ -464,6 +464,47 @@ test("a writer's stop label on the spec issue, or on a parent spec's, stops the 
   assert.deepEqual(await readyIds(s), []);
 });
 
+test("a stopped spec's verified task is neither pushed nor landed until the stop clears", async (t) => {
+  // Nearby input: the same delivery with no stop moves on (here it fails,
+  // having no worktree), so the hold is the stop's.
+  const s = setup(t, { tasks: [leaf("a")] }),
+    { readLabelFilters } = await import("../../specs/label-filters.mjs"),
+    { integrateVerified } = await import("../../delivery/delivery.mjs"),
+    { pausedBy } = await import("../../landing/landing-queue.mjs");
+  s.store.put("task_deliveries", {
+    id: "a",
+    taskId: "a",
+    state: "verified",
+    commit: s.head,
+    attempts: [],
+  });
+  labeled(s, ["avoozl:stopped"]);
+  await readLabelFilters(s.store, s.github);
+  await integrateVerified(s.store);
+  assert.equal(s.store.get("task_deliveries", "a").state, "verified");
+  assert.deepEqual(pausedBy(s.store, { spec: "parser", tasks: [] }), {
+    id: "label-stop:parser",
+    label: true,
+  });
+  labeled(s, []);
+  s.github.issueEvents = async () => [
+    {
+      event: "labeled",
+      label: { name: "avoozl:stopped" },
+      actor: { login: "mona" },
+    },
+    {
+      event: "unlabeled",
+      label: { name: "avoozl:stopped" },
+      actor: { login: "mona" },
+    },
+  ];
+  await readLabelFilters(s.store, s.github);
+  assert.equal(pausedBy(s.store, { spec: "parser", tasks: [] }), null);
+  await integrateVerified(s.store);
+  assert.notEqual(s.store.get("task_deliveries", "a").state, "verified");
+});
+
 test("an exclude label added after the claim does not unclaim the task", async (t) => {
   const s = setup(t, { tasks: [leaf("a"), leaf("b")] });
   filtered(s, { require: [], exclude: ["needs-design"] });

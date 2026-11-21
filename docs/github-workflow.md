@@ -794,7 +794,7 @@ The kit checks these rules in part:
 | 6.3 | That a runner's tick of a linked spec and its spec group keeps both approvals | When the runner ticks the spec group |
 | 7.2 | Whether each kind of evidence approves | That the runner says which kind it used |
 | 7.5 | That a runner's tick approves nothing and keeps the approval | That the runner's commit changes only checkboxes |
-| 10.2 | That a stopped spec's task is not ready | That a holder makes no push while the stop lasts |
+| 10.2 | That a stopped spec's task is not ready, and that its holder holds its push and its landing | Whether the holder keeps or releases its lease |
 | 15.1 | The start commit decides landed work | The lease commit's message |
 | 15.9 | The old holder's push is rejected | That the runner lands only the head it pushed, and the remaining window |
 | 15.10 | That a changed text is not landed | That the runner redoes the work or stops |

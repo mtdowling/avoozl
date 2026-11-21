@@ -1,0 +1,47 @@
+{
+  "title": "A holder of a stopped spec's task makes no push and does not land it",
+  "rules": ["10.2"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": ["main", "avoozl/parser/p-2"],
+    "behind": [],
+    "graph": {
+      "c1": [],
+      "c2": ["c1"]
+    },
+    "heads": {
+      "avoozl/parser/p-2": "c1"
+    }
+  },
+  "issues": {
+    "parser": ["acme-alice"]
+  },
+  "stops": ["parser"],
+  "push": {
+    "branch": "avoozl/parser/p-2",
+    "by": [
+      {
+        "runner": "holder",
+        "head": "c2"
+      }
+    ]
+  },
+  "land": {
+    "task": "parser/p-2",
+    "checks": "pass",
+    "baseMoved": false,
+    "mode": "direct"
+  },
+  "expect": {
+    "ready": [],
+    "push": {
+      "holder": "held"
+    },
+    "landing": {
+      "action": "hold"
+    }
+  }
+}

@@ -10,11 +10,14 @@
 //             default branch
 //   done      the branch that gets the tick when it is not the base (the
 //             specs branch of another repository), else null
+//   stopped   the task's spec is stopped (rule 10.1)
 //
 // Returns {action, base, tick, mergeBase, deleteClaimBranch} and
-// `mergeGuard: "head-sha"` when the runner merges, or {action: "none"} when
-// the checks failed. The landing code acts on it: direct-landing.mjs,
-// pr-landing.mjs, and finishLanded below for landed work.
+// `mergeGuard: "head-sha"` when the runner merges, {action: "none"} when
+// the checks failed, or {action: "hold"} while the spec is stopped: no
+// push and no landing until the stop clears (10.2). The landing code acts
+// on it: direct-landing.mjs, pr-landing.mjs, and finishLanded below for
+// landed work.
 export function landingAction({
   mode,
   pr = "draft",
@@ -23,7 +26,9 @@ export function landingAction({
   landed = false,
   base,
   done = null,
+  stopped = false,
 }) {
+  if (stopped) return { action: "hold" };
   // Landed work whose tick is missing is ticked on its done branch in its
   // own commit, then its claim branch goes (16.5).
   if (landed)

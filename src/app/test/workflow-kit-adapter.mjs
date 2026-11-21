@@ -166,12 +166,7 @@ export async function ready(testCase, specs) {
     }
   }
   const counts = unblockCounts(edges, (id) => !ticked.has(id)),
-    // Rule 10.1: the specs the case's stop labels stop.
-    stopped = stoppedSpecs(
-      Object.keys(specs),
-      new Set(testCase.stops ?? []),
-      linked,
-    ),
+    stopped = stoppedOf(testCase, specs),
     isApproved = await approved(testCase, specs),
     merged = new Set(testCase.origin.mergedPullHeads ?? []),
     // Rule 8.3: the spec's issue and every parent spec's that links it.
@@ -321,8 +316,17 @@ async function landing(testCase, specs) {
       specs: runner.specsBranch,
       holds: holds(testCase, base, land.task),
     }),
+    stopped: stoppedOf(testCase, specs).has(land.task.split("/")[0]),
   });
 }
+
+// Rule 10.1: the specs the case's stop labels stop.
+const stoppedOf = (testCase, specs) =>
+  stoppedSpecs(
+    Object.keys(specs),
+    new Set(testCase.stops ?? []),
+    linkedOf(specs),
+  );
 
 // Rule 14.6: whether an integration branch holds the task file of the
 // task's own spec. A branch missing from `origin.taskFiles` holds them all.
@@ -342,16 +346,20 @@ const landed = (testCase, base) =>
   });
 
 // Rule 15.8: each runner's push to the claim branch is accepted only when it
-// moves the branch forward.
-function push(testCase) {
+// moves the branch forward. Rule 10.2: a holder makes no push while the
+// task's spec is stopped.
+function push(testCase, specs) {
   const { branch, by } = testCase.push,
-    head = testCase.origin.heads[branch];
+    head = testCase.origin.heads?.[branch],
+    held = stoppedOf(testCase, specs).has(branch.split("/")[1]);
   return Object.fromEntries(
     by.map((item) => [
       item.runner,
-      pushAccepted(testCase.origin.graph, head, item.head)
-        ? "accepted"
-        : "rejected",
+      held
+        ? "held"
+        : pushAccepted(testCase.origin.graph, head, item.head)
+          ? "accepted"
+          : "rejected",
     ]),
   );
 }
@@ -422,7 +430,7 @@ export async function avoozl(testCase) {
         fallback: testCase.runner.defaultBranch,
       }),
     );
-  if (testCase.expect.push) got.push = push(testCase);
+  if (testCase.expect.push) got.push = push(testCase, specs);
   if (testCase.expect.revision) got.revision = revision(testCase, specs);
   if (testCase.expect.manualTick)
     got.manualTick = await manualTick(testCase, specs);

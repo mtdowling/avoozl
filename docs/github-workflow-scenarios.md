@@ -2485,6 +2485,40 @@ Then
 - Probe `specIssues` is `{"lexer":3,"parser":1,"widget":null}`.
 - Probe `duplicates` is `[4]`.
 
+### A holder of a stopped spec's task makes no push and does not land it
+
+Rules: [10.2](github-workflow.md#10-stopping-a-spec). Case: `stop-holder`.
+
+Given
+
+- The runner acts as `acme-alice`.
+- The default branch is `main`.
+- Origin holds the branches `main`, `avoozl/parser/p-2`.
+- The issue of spec `parser` is assigned to `acme-alice`.
+- The issue of spec `parser` has a stop label.
+- `graph` is `{"c1":[],"c2":["c1"]}`.
+- `heads` is `{"avoozl/parser/p-2":"c1"}`.
+- `land` is `{"task":"parser/p-2","checks":"pass","baseMoved":false,"mode":"direct"}`.
+- `push` is `{"branch":"avoozl/parser/p-2","by":[{"runner":"holder","head":"c2"}]}`.
+
+The tasks of `parser`:
+
+```markdown
+- [x] `p-1` Read the token table
+- [ ] `p-2` Report unknown tokens
+- [ ] `p-3` Recover after an unknown token
+```
+
+When
+
+- The runner answers `ready`, `push`, `landing`.
+
+Then
+
+- No task is ready.
+- Probe `push` is `{"holder":"held"}`.
+- Probe `landing` is `{"action":"hold"}`.
+
 ### A stop on a parent spec's issue makes the linked tasks not ready
 
 Rules: [10.1](github-workflow.md#10-stopping-a-spec), [10.2](github-workflow.md#10-stopping-a-spec), [12.1](github-workflow.md#12-ready-tasks). Case: `stop-parent`.
@@ -2821,6 +2855,7 @@ Then
 
 ### Rule 10.2
 
+- [A holder of a stopped spec's task makes no push and does not land it](#a-holder-of-a-stopped-specs-task-makes-no-push-and-does-not-land-it)
 - [A stop on a parent spec's issue makes the linked tasks not ready](#a-stop-on-a-parent-specs-issue-makes-the-linked-tasks-not-ready)
 
 ### Rule 12.1

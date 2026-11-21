@@ -16,6 +16,7 @@ const prHref = (repository, pr) =>
 // lands on the next tick, and the rest wait behind the portions before them.
 function heldReason(store, entry, position) {
   const stop = pausedBy(store, entry);
+  if (stop?.label) return "Paused: a stop label is on its spec issue.";
   if (stop)
     return `Paused by a line stop${typeof stop.reason === "string" && stop.reason ? `: ${stop.reason}` : ""}.`;
   if (position === 0) return "Next to land; checks run on the next tick.";
