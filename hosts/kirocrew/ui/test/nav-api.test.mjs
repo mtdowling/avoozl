@@ -3,10 +3,10 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { TABS, WAITING_SECTIONS, tabLabel } from '../src/nav-api.ts'
 
-test('the nav row is Specs, Graph, In flight, Needs you, Activity, Settings', () => {
+test('the nav row is Insights, Specs, Graph, In flight, Needs you, Activity, Settings', () => {
   assert.deepEqual(
     TABS.map((t) => t.label),
-    ['Specs', 'Graph', 'In flight', 'Needs you', 'Activity', 'Settings'],
+    ['Insights', 'Specs', 'Graph', 'In flight', 'Needs you', 'Activity', 'Settings'],
   )
   assert.equal(tabLabel('delivery'), 'In flight')
 })

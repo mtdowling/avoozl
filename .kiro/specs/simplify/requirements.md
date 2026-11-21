@@ -281,8 +281,9 @@ me, and hand everything else to a chat.
 
 #### Acceptance criteria
 
-1. The page SHALL have six views: Specs, Graph, In flight, Needs you,
-   Activity and Settings, as §D13 describes.
+1. The page SHALL have seven views: Insights, Specs, Graph, In flight,
+   Needs you, Activity and Settings, as §D13 describes, and SHALL open on
+   Insights.
 2. Each view SHALL read operations the CLI and MCP also reach, and SHALL write
    only through them.
 3. A "Run in a chat" action SHALL open a chat seeded with the matching skill

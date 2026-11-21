@@ -14,6 +14,7 @@ import { entries as context } from "../ops/context.ts";
 import { entries as delivery } from "../ops/delivery.ts";
 import { entries as flow } from "../ops/flow.ts";
 import { entries as github } from "../ops/github.ts";
+import { entries as insights } from "../ops/insights.ts";
 import { entries as intake } from "../ops/intake.ts";
 import { entries as plans } from "../ops/plans.ts";
 import { entries as plugins } from "../ops/plugins.ts";
@@ -29,6 +30,7 @@ export const TABLES = {
   delivery,
   flow,
   github,
+  insights,
   intake,
   plans,
   plugins,

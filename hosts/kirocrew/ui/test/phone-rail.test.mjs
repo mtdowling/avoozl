@@ -41,7 +41,7 @@ for (const dark of [false, true]) {
     assert.ok((await box('[data-phone-header]')).width >= 340, 'the header row spans the screen')
     assert.ok(bar.top < 250, 'the bar is near the top')
     assert.equal(await page.evaluate(`document.querySelectorAll('[data-top-row] [data-nav-head]').length`), 0, 'no tab row')
-    assert.match(await page.evaluate(`document.querySelector('[data-top-rail-bar]').textContent`), /Specs/)
+    assert.match(await page.evaluate(`document.querySelector('[data-top-rail-bar]').textContent`), /Insights/)
     assert.equal(await sideways(), false)
 
     await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
@@ -50,7 +50,7 @@ for (const dark of [false, true]) {
     const pane = await box('[data-avoozl-pane]')
     assert.ok(list.height > 300, `the list takes the page (${list.height})`)
     assert.ok(pane.hidden || pane.height === 0, 'the page content is out of the way')
-    assert.equal(await page.evaluate(`document.querySelectorAll('[data-top-rail-list] [data-nav-head]').length`), 6, 'six sections')
+    assert.equal(await page.evaluate(`document.querySelectorAll('[data-top-rail-list] [data-nav-head]').length`), 7, 'seven sections')
 
     // A section opens in the menu; picking one of its pages closes the menu.
     await page.evaluate(`[...document.querySelectorAll('[data-top-rail-list] [data-nav-head]')].find((t) => t.textContent.includes('Needs you')).click()`)
@@ -67,7 +67,7 @@ for (const dark of [false, true]) {
     await page.open(harness.url({ page: 'app', theme }), { width: 1280, height: 800, dark })
     await page.until(`Boolean(document.querySelector('[data-top-row] [data-nav-head]'))`)
     await settle()
-    assert.equal(await page.evaluate(`document.querySelectorAll('[data-top-row] [data-nav-head]').length`), 6)
+    assert.equal(await page.evaluate(`document.querySelectorAll('[data-top-row] [data-nav-head]').length`), 7)
     assert.equal(await box('[data-top-rail-bar]'), null, 'no top bar')
     assert.equal(await sideways(), false)
   })

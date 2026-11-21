@@ -77,8 +77,13 @@ No label is an order. The labels Avoozl reads are per-repository settings:
 
 ## Screens
 
-The nav has six entries, defined in `hosts/kirocrew/ui/src/nav-api.ts`:
+The nav has seven entries, defined in `hosts/kirocrew/ui/src/nav-api.ts`. The
+page opens on Insights.
 
+- **Insights:** a read-only home. A strip of what waits (Needs you, in
+  flight, ready, main's checks, Autopilot), each spec's burndown, tasks
+  finished per day, lead time, time per stage, review rounds, rework and the
+  saved retros. See [Flow](flow.md#insights).
 - **Specs:** one list with status chips, and spec details with tabs.
 - **Graph:** the dependency graph of a spec, an epic or every spec.
 - **In flight:** live sessions, claim branches, this machine's lanes,
@@ -88,7 +93,7 @@ The nav has six entries, defined in `hosts/kirocrew/ui/src/nav-api.ts`:
 - **Settings:** Workspaces, Repository setup, GitHub, Plugins, Epic context,
   Content rules, Flow, Models, Autopilot.
 
-**Run in a chat** on a spec, a task or a Needs you item opens a chat seeded
+**Run in a chat** on a spec, a task, a Needs you item or Run a retro opens a chat seeded
 with the matching skill and the item's IDs: a Kiro Crew chat inside Kiro Crew,
 and a process session on the standalone page.
 

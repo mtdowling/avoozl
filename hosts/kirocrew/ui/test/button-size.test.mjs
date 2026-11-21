@@ -6,6 +6,7 @@ import assert from 'node:assert/strict'
 import { after, before, test } from 'node:test'
 import { buildHarness } from './browser/build.mjs'
 import { findChrome, launch } from './browser/chrome.mjs'
+import { openView } from './browser/in-flight-nav.mjs'
 
 const chrome = findChrome()
 const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the button size test'
@@ -38,20 +39,24 @@ const SIZES = [
   { width: 390, height: 800, theme: 'dark', dark: true },
   { width: 1280, height: 900, theme: 'light', dark: false },
 ]
-const SCREENS = [{ name: 'Specs', query: { page: 'app', basic: '1' }, ready: `Boolean(document.querySelector('[data-plans-list]'))` }]
+const SCREENS = [
+  { name: 'Insights', query: { page: 'app', basic: '1', insights: 'full' }, ready: `Boolean(document.querySelector('[data-retro]'))` },
+  { name: 'Specs', query: { page: 'app', basic: '1' }, view: 'plans', ready: `Boolean(document.querySelector('[data-plans-list]'))` },
+]
 const TABS = ['Graph', 'In flight', 'Needs you', 'Activity', 'Settings']
 
 for (const size of SIZES) {
   for (const screen of SCREENS)
     test(`no button on ${screen.name} is taller than ${MAX} px at ${size.width} px ${size.theme}`, { skip }, async () => {
       await page.open(harness.url({ ...screen.query, theme: size.theme }), { width: size.width, height: size.height, dark: size.dark })
+      if (screen.view) await openView(page, screen.view)
       await page.until(screen.ready)
       assert.deepEqual(await page.evaluate(tall), [])
     })
 
   test(`no button on the other tabs and Settings sections is taller than ${MAX} px at ${size.width} px ${size.theme}`, { skip }, async () => {
     await page.open(harness.url({ page: 'app', basic: '1', theme: size.theme }), { width: size.width, height: size.height, dark: size.dark })
-    await page.until(`Boolean(document.querySelector('[data-plans-list]'))`)
+    await page.until(`Boolean(document.querySelector('[data-insights]'))`)
     const found = []
     const settle = () => new Promise((resolve) => setTimeout(resolve, 300))
     // On a phone the nav is behind the rail button; open it when it is shut.

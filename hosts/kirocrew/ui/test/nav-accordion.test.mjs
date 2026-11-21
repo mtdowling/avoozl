@@ -30,10 +30,10 @@ const has = (selector) => page.evaluate(`Boolean(document.querySelector(${JSON.s
 test('Settings opens in the nav; the page shows one section; Needs you does the same and shuts Settings', { skip }, async () => {
   await page.open(harness.url({ app: '1', basic: '1' }), { width: 1280, height: 800 })
   await page.until(`Boolean(document.querySelector('[data-nav-group="settings"]'))`)
-  // The page opens on Plans, so Plans is the one open section.
+  // The page opens on Insights, so Insights is the one open section.
   assert.deepEqual(
     await page.evaluate(`[...document.querySelectorAll('[data-nav-children]')].map((x) => x.dataset.navChildren)`),
-    ['plans'],
+    ['insights'],
     'every section starts shut except the page you are on',
   )
   await click('[data-nav-group="settings"]')
@@ -93,7 +93,7 @@ for (const [width, height, scope] of [
   [1280, 800, '[data-left-nav]'],
   [390, 844, '[data-top-rail-list]'],
 ])
-  test(`at ${width} px one pill is open: Plans, then In flight, then Needs you, then a pill opened by hand`, { skip }, async () => {
+  test(`at ${width} px one pill is open: Insights, then In flight, then Needs you, then a pill opened by hand`, { skip }, async () => {
     await page.open(harness.url({ app: '1', basic: '1', specs: '1' }), { width, height })
     await page.until(`Boolean(document.querySelector('[data-shell-main]'))`)
     const menu = async () => {
@@ -108,7 +108,7 @@ for (const [width, height, scope] of [
       await settle()
     }
     await menu()
-    assert.deepEqual(await openPills(scope), ['plans'], 'Plans alone')
+    assert.deepEqual(await openPills(scope), ['insights'], 'Insights alone')
     for (const key of ['delivery', 'activity', 'waiting', 'plans']) {
       await go(key)
       assert.deepEqual(await openPills(scope), [key], `after going to ${key}, only its pill is open`)
