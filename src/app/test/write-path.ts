@@ -149,7 +149,9 @@ export const mcpLine = (id: number, name: string, input: unknown) =>
     },
   });
 
-function sign(body: string) {
+// The X-KiroCrew-Principal header Kiro Crew's proxy sets for an owner's
+// POST /api/command with this body, signed with `secret`.
+export function sign(body: string, secret = SECRET) {
   const claim = {
       issuedAt: Math.floor(Date.now() / 1000),
       kind: "owner-session",
@@ -158,7 +160,7 @@ function sign(body: string) {
       version: 1,
     },
     encoded = Buffer.from(JSON.stringify(claim)).toString("base64url"),
-    signature = createHmac("sha256", SECRET)
+    signature = createHmac("sha256", secret)
       .update(
         [
           "kirocrew-proxy-principal-v1",
