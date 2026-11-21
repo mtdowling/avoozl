@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Manual tasks (design §4.16, Requirement 61.9–61.15): a leaf only a person
 // does. It is never dispatched; a person marks it done (Done, Skipped or
 // Refused) or reopens it, from the page or the CLI. Done and Skipped
@@ -7,11 +6,19 @@
 import { statusComplete } from "../../model.ts";
 import { isManual } from "../../work-model.ts";
 import { recordSpan } from "../flow/flow.ts";
-import { fail } from "../store/store.ts";
+import { fail, type Store } from "../store/store.ts";
+import type { Snapshot, Task } from "../../types.ts";
+
+interface ManualInput {
+  taskId?: unknown;
+  choice?: unknown;
+  note?: unknown;
+  links?: unknown;
+}
 
 const CHOICES = Object.freeze(["done", "skipped", "refused"]);
 
-function manualTask(data, taskId) {
+function manualTask(data: Snapshot, taskId: unknown): Task {
   const task = data.tasks.find((t) => t.id === taskId);
   if (!task) fail(`No task ${taskId}.`, 404);
   if (!isManual(task))
@@ -25,7 +32,7 @@ function manualTask(data, taskId) {
 // When the leaf started waiting for a person: its last blocker's finish,
 // else when it was approved. Flow counts the time from then to Mark done
 // as waiting on a person (R61.15).
-function waitingSince(data, task) {
+function waitingSince(data: Snapshot, task: Task) {
   const byId = new Map(data.tasks.map((t) => [t.id, t]));
   const times = data.edges
     .filter(
@@ -33,17 +40,22 @@ function waitingSince(data, task) {
     )
     .map((e) => byId.get(e.from))
     .map((t) => t?.manualDone?.at || t?.integration?.at || t?.updatedAt || null)
-    .filter(Boolean)
+    .filter((at): at is string => Boolean(at))
     .sort();
   return times.at(-1) || task.createdAt || null;
 }
 
 // task.manual.complete: {taskId, choice}. A `note` or `links` is refused
 // rather than dropped. `by` is the person's name for the record.
-export function completeManual(store, input = {}, { by = "person" } = {}) {
+export function completeManual(
+  store: Store,
+  input: ManualInput = {},
+  { by = "person" } = {},
+) {
   const data = store.read(),
     task = manualTask(data, input.taskId);
-  if (!CHOICES.includes(input.choice))
+  const choice = input.choice;
+  if (typeof choice !== "string" || !CHOICES.includes(choice))
     fail('choice must be "done", "skipped" or "refused".');
   if (task.manualDone || statusComplete(data, task.status))
     fail(
@@ -53,7 +65,7 @@ export function completeManual(store, input = {}, { by = "person" } = {}) {
   if (input.note != null && input.note !== "") fail("Tasks keep no notes.");
   if (input.links !== undefined) fail("Tasks keep no links.");
   const at = new Date().toISOString(),
-    refused = input.choice === "refused",
+    refused = choice === "refused",
     // A refusal is not complete: it sits as Blocked, which holds its
     // dependents and shows in Needs you, until a person reopens it.
     status = refused
@@ -63,21 +75,21 @@ export function completeManual(store, input = {}, { by = "person" } = {}) {
       : data.statuses.find((s) => s.complete)?.id || "done",
     since = waitingSince(data, task),
     record = {
-      choice: input.choice,
+      choice,
       by,
       at,
       via: "avoozl",
     };
   store.transaction(() => {
     const draft = structuredClone(store.read()),
-      row = draft.tasks.find((t) => t.id === task.id);
+      row = draft.tasks.find((t) => t.id === task.id)!;
     row.manualDone = record;
     row.status = status;
     row.updatedAt = at;
-    store.commit(draft, `Mark ${task.id} ${input.choice}`);
+    store.commit(draft, `Mark ${task.id} ${choice}`);
     store.event(null, "task.manual.completed", {
       taskId: task.id,
-      choice: input.choice,
+      choice,
       by,
     });
     if (since && since < at)
@@ -98,7 +110,11 @@ export function completeManual(store, input = {}, { by = "person" } = {}) {
 // task.manual.reopen: {taskId}. The leaf is open again: new dispatch of its
 // dependents waits, running sessions are left alone. Reopening a refusal
 // undoes it the same way.
-export function reopenManual(store, input = {}, { by = "person" } = {}) {
+export function reopenManual(
+  store: Store,
+  input: ManualInput = {},
+  { by = "person" } = {},
+) {
   const data = store.read(),
     task = manualTask(data, input.taskId);
   if (!task.manualDone && !statusComplete(data, task.status))
@@ -106,7 +122,7 @@ export function reopenManual(store, input = {}, { by = "person" } = {}) {
   const at = new Date().toISOString();
   store.transaction(() => {
     const draft = structuredClone(store.read()),
-      row = draft.tasks.find((t) => t.id === task.id);
+      row = draft.tasks.find((t) => t.id === task.id)!;
     delete row.manualDone;
     row.status = "planned";
     row.updatedAt = at;
