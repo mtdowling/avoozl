@@ -22,16 +22,18 @@ function label(title) {
   return plain;
 }
 
-// The graph of `specs` ([{name, text}]): `stateOf(id, leaf)` gives a leaf's
-// state (landed, claimed, ready, waiting or manual); `linked` (a
-// linkedReader) reaches into linked specs.
+// The graph of `specs` ([{name, text, draft}]): `stateOf(id, leaf)` gives a
+// leaf's state (landed, claimed, ready, waiting or manual), and every item of
+// a `draft` spec (one not approved) is "draft"; `linked` (a linkedReader)
+// reaches into linked specs. `issues` ([{id, title}]) are the tasks no spec
+// lists, such as labeled issues: one spec each, after the specs.
 export function graphOf(
   specs,
-  { stateOf = () => "waiting", linked = null, scope = null } = {},
+  { stateOf = () => "waiting", linked = null, scope = null, issues = [] } = {},
 ) {
   const out = [],
     edges = [];
-  for (const { name, text } of specs) {
+  for (const { name, text, draft = false } of specs) {
     const { phases } = taskTree(name, text, linked),
       headings = headingPhases(text),
       titleOf = (node) => headings.get(node.item?.line)?.title ?? null,
@@ -51,12 +53,15 @@ export function graphOf(
         return {
           id: node.id,
           title,
-          state: stateOf(node.id, { manual, mark: node.item?.mark }),
+          state: draft
+            ? "draft"
+            : stateOf(node.id, { manual, mark: node.item?.mark }),
           manual,
         };
       };
     out.push({
       name,
+      ...(draft ? { draft: true } : {}),
       phases: phases.map((items) => ({
         title: titleOf(items[0]),
         items: items.map(itemOf),
@@ -64,6 +69,24 @@ export function graphOf(
     });
     edges.push(...waitsOf(name, text, linked));
   }
+  for (const issue of issues)
+    out.push({
+      name: issue.id,
+      issue: true,
+      phases: [
+        {
+          title: null,
+          items: [
+            {
+              id: issue.id,
+              title: label(issue.title ?? issue.id),
+              state: stateOf(issue.id, { manual: false, mark: null }),
+              manual: false,
+            },
+          ],
+        },
+      ],
+    });
   // Edges in file order of the task they lead to, then the one they leave.
   const order = new Map();
   const visit = (items) => {
@@ -80,6 +103,16 @@ export function graphOf(
 
 const leavesOf = (items) =>
   items.flatMap((item) => (item.items ? leavesOf(item.items) : [item]));
+
+// Every item of a graph, groups and leaves, in list order: the order the
+// page draws its nodes in.
+export function graphItems(graph) {
+  const visit = (items) =>
+    items.flatMap((item) => [item, ...(item.items ? visit(item.items) : [])]);
+  return graph.specs.flatMap((spec) =>
+    spec.phases.flatMap((phase) => visit(phase.items)),
+  );
+}
 
 const cut = (text, width) =>
   text.length <= width ? text : `${text.slice(0, Math.max(0, width - 3))}...`;

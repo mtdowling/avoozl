@@ -9,6 +9,7 @@ import {
   GRAPH_START,
   graphMermaid,
   graphOf,
+  graphItems,
   graphText,
   withGraphBlock,
 } from "../graph.mjs";
@@ -157,6 +158,68 @@ test("graph.view and plans_graph give the CLI's text and Mermaid for one scope",
     tool = reply.body.result.structuredContent;
   assert.equal(tool.text, view.text);
   assert.equal(tool.mermaid, view.mermaid);
+  fs.rmSync(path.join(root, ".kiro"), { recursive: true, force: true });
+});
+
+test("a draft spec's items are drafts, and a task no spec lists is its own spec after the specs", () => {
+  const graph = graphOf(
+    [
+      { name: "parser", text: PARSER },
+      {
+        name: "lexer",
+        text: "- [ ] `l-1` Split words\n  - Done\n",
+        draft: true,
+      },
+    ],
+    {
+      stateOf: (id) => STATES[id] ?? "ready",
+      issues: [{ id: "issue-7", title: "Fix the crash" }],
+    },
+  );
+  assert.deepEqual(
+    graphItems(graph).map((item) => [item.id, item.state]),
+    [
+      ["p-1", "landed"],
+      ["p-2", "group"],
+      ["p-2.1", "claimed"],
+      ["p-2.2", "ready"],
+      ["p-3", "waiting"],
+      ["p-4", "manual"],
+      ["l-1", "draft"],
+      ["issue-7", "ready"],
+    ],
+  );
+  assert.equal(graph.specs.at(-2).draft, true);
+  assert.equal(graph.specs.at(-1).issue, true);
+});
+
+test("graph.view draws its nodes in graphOf's order: spec items in list order, then labeled issues", async (t) => {
+  const { root, store } = fixture(t),
+    ops = new Operations(store, { workspaceRoot: root });
+  writeSpec(root, "parser", { "tasks.md": PARSER });
+  createSpecPlan(store, { id: "parser" }, readSpecFolder(root, "parser"));
+  const task = (id, extra = {}) => ({
+    id,
+    title: id,
+    status: "planned",
+    scope: "catalog",
+    track: "catalog",
+    acceptance: ["Done."],
+    ...extra,
+  });
+  store.mutate("Tasks out of list order", (data) => {
+    data.tasks.push(
+      task("issue-7", { title: "Fix the crash" }),
+      task("p-3", { planId: "parser" }),
+      task("p-1", { planId: "parser" }),
+    );
+  });
+  const view = await ops.execute("graph.view", {});
+  // The fixture's own task is listed by no spec, like issue-7.
+  assert.deepEqual(
+    view.tasks.map((t) => t.id),
+    ["p-1", "p-3", "sample-task", "issue-7"],
+  );
   fs.rmSync(path.join(root, ".kiro"), { recursive: true, force: true });
 });
 

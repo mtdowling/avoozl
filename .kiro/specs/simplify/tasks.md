@@ -74,7 +74,7 @@ merge, shown in chat and never committed.
   - Tests: lint reports every `$` bullet as `facts.removed-key`, `kind`, `epic`, `integrationBranch` and `integrationSync` as `frontmatter.removed-key`, and `frontmatter.repo`, `done.missing`, `group.bullets`, `manual.tag` and `manual.group` as §D19.3 says; a `(**MANUAL**)` leaf is never given to an agent
   - Every `$` read is gone, and spec lint shows 0 errors
   - `docs/github-workflow.md` ("Task facts", "Front matter", "Epics", "Ready tasks", "Next task", "Investigating first", "Labeled issues", "Manual tasks and gates", "Integration branches") describe tasks with no facts, plain done bullets, list order, the `(**PARALLEL**)` and `(**MANUAL**)` tags, one repository per spec, linked specs and integration branches named for their spec, list only the keys of SM17.4, and name no `$` fact
-- [ ] `sim-2.3` One graph builder with text and Mermaid output [SM8] (§D8)
+- [x] `sim-2.3` One graph builder with text and Mermaid output [SM8] (§D8)
   - `graphOf` in `src/app/specs/graph.mjs` feeds `graph.view`, `avoozl graph` and `plans_graph`, reads waits from `waitsOf`, and no other module reads tasks and edges for a graph
   - Tests: `avoozl graph` prints by phase in list order with state and indentation, a parallel group's title ending `(PARALLEL)` and a person's task ending `(MANUAL)`, in at most 80 columns and no escape codes; `--format mermaid` prints a `flowchart` with one subgraph per phase and per group and one edge per derived wait; IDs with `.` or `-` map to node IDs as §D8 says, and two colliding IDs get distinct node IDs; an epic or no name prints every member
   - `plans_graph` returns the same text and Mermaid as the CLI for the same scope

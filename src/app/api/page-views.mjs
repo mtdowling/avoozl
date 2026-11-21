@@ -15,6 +15,8 @@ import {
 } from "../../work-model.mjs";
 import { workspaceRepositories } from "../workspace/workspace-repositories.mjs";
 import { draftGraph } from "../specs/graph-drafts.mjs";
+import { graphItems, graphOf } from "../specs/graph.mjs";
+import { specTasks } from "../specs/spec-tasks.mjs";
 import { FINAL_STATUSES } from "../sessions/session-bindings.mjs";
 import {
   busyTaskIds,
@@ -319,7 +321,45 @@ export function graphView(store, data, input = {}, folders = []) {
     input.plan || input.spec
       ? { plan: input.plan || null, spec: input.spec || null }
       : null;
-  const shown = data.tasks.filter(
+  // The one graph model (simplify §D8): each stored spec's task list, the
+  // draft spec folders, then every task no spec lists, such as a labeled
+  // issue. The page draws its nodes in its order.
+  const draft = draftGraph(data, folders, optionalList(store, "plans")),
+    drafted = new Set(draft.specs.map((spec) => spec.name)),
+    stateOf = (id) => (byId.has(id) ? state(byId.get(id)) : "waiting"),
+    graph = graphOf(
+      [
+        ...optionalList(store, "plans")
+          .filter((plan) => plan.spec && !plan.deletedAt && plan.files)
+          .map((plan) => ({
+            name: plan.spec,
+            text: specTasks(plan.files)?.text ?? "",
+          })),
+        ...folders
+          .filter((folder) => drafted.has(folder.name))
+          .map((folder) => ({
+            name: folder.name,
+            text: specTasks(folder.spec.files)?.text ?? "",
+            draft: true,
+          })),
+      ],
+      { stateOf },
+    ),
+    listed = new Set(graphItems(graph).map((item) => item.id)),
+    issues = graphOf([], {
+      stateOf,
+      issues: data.tasks.filter((task) => !listed.has(task.id)),
+    }),
+    place = new Map(
+      graphItems({ specs: [...graph.specs, ...issues.specs] }).map(
+        (item, i) => [item.id, i],
+      ),
+    ),
+    inOrder = (tasks) =>
+      tasks
+        .filter((task) => place.has(task.id))
+        .sort((a, b) => place.get(a.id) - place.get(b.id));
+  const shown = inOrder(data.tasks).filter(
     (task) =>
       (!scope || inPlan(task, scope)) &&
       (!epics || epics.has(String(epicOf.get(task.id) ?? NO_EPIC))) &&
@@ -357,8 +397,7 @@ export function graphView(store, data, input = {}, folders = []) {
   );
   // Draft spec tasks, through the same filters (a draft has no epic and the
   // status "draft"). An edge from an approved task is judged as above.
-  const draft = draftGraph(data, folders, optionalList(store, "plans")),
-    draftShown = draft.tasks.filter(
+  const draftShown = inOrder(draft.tasks).filter(
       (task) =>
         (!scope || [scope.plan, scope.spec].includes(task.spec)) &&
         (!epics || epics.has(NO_EPIC)) &&
