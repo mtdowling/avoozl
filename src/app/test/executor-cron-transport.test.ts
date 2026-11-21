@@ -188,7 +188,7 @@ test("the production cron consumes only native starts/messages and stale replay 
   assert.deepEqual(store.get("session_requests", processSend.id), processSend);
 });
 
-test("a definitive pre-open refusal releases a start; an uncertain open recovers from its claim", async (t) => {
+test("only a definitive pre-open refusal releases a start; an uncertain open stays claimed", async (t) => {
   const before = setup(t, true),
     queued = enqueueSessionRequests(before.store, { starts: [before.request] })
       .starts[0];
@@ -223,15 +223,8 @@ test("a definitive pre-open refusal releases a start; an uncertain open recovers
     messages: [],
     notify: [],
   });
-  assert.ok(replay.events.some((event) => event.event === "open"));
-  assert.equal(after.store.get("session_requests", request.id)?.state, "bound");
-  const boundReplay = await cron(after.ops, {
-    dispatch: [request],
-    messages: [],
-    notify: [],
-  });
   assert.equal(
-    boundReplay.events.some((event) => event.event === "open"),
+    replay.events.some((event) => event.event === "open"),
     false,
   );
 });

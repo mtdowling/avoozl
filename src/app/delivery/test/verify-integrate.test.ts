@@ -205,7 +205,11 @@ test("a verified commit integrates with integrateRun and records the integrated 
   assert.deepEqual((await tick(dirty.ops)).notify, [], "decided once");
   const attempts = dirty.store.get("task_deliveries", "b").attempts.length;
   git(dirty.checkout, "checkout", "--", "README.md");
-  const retried = retryDelivery(dirty.store, { taskId: "b" }, { local: true });
+  const retried = await retryDelivery(
+    dirty.store,
+    { taskId: "b" },
+    { local: true },
+  );
   assert.equal(
     retried.delivery.state,
     "verified",
@@ -218,6 +222,33 @@ test("a verified commit integrates with integrateRun and records the integrated 
     attempts,
     "integration retry does not spend another writer attempt",
   );
+
+  // An integration retry goes back to a writer when the worktree is gone,
+  // or when a person sends it back with a reason.
+  for (const [taskId, lose, input] of [
+    ["g", true, {}],
+    ["r", false, { reason: "Use the new client." }],
+  ] as const) {
+    const held = setup(t, { tasks: [leaf(taskId)] });
+    await verified(held.ops, taskId);
+    fs.writeFileSync(path.join(held.checkout, "README.md"), "edited\n");
+    await tick(held.ops);
+    assert.equal(held.store.get("task_deliveries", taskId).state, "decision");
+    git(held.checkout, "checkout", "--", "README.md");
+    if (lose)
+      fs.rmSync(held.store.get("task_worktrees", taskId).path, {
+        recursive: true,
+        force: true,
+      });
+    const attempts = held.store.get("task_deliveries", taskId).attempts.length,
+      sent = await retryDelivery(
+        held.store,
+        { taskId, ...input },
+        { local: true },
+      );
+    assert.equal(sent.delivery.state, "failed", taskId);
+    assert.equal(sent.delivery.retryFrom, attempts, taskId);
+  }
 
   // A repository with no checks is judged by its reviewers only, and
   // integration still needs checks to run on the rebased work.

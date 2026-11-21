@@ -8,6 +8,7 @@ import path from "node:path";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { runPass } from "./tick-pass.ts";
+import { openRunnerLog } from "./runner-log.ts";
 
 const RUNNER = fileURLToPath(import.meta.url);
 
@@ -16,10 +17,7 @@ function launch(
   configDirectory: string,
   env: NodeJS.ProcessEnv,
 ) {
-  fs.mkdirSync(stateDirectory, { recursive: true, mode: 0o700 });
-  const log = path.join(stateDirectory, "tick-runner.log"),
-    output = fs.openSync(log, "a", 0o600);
-  fs.chmodSync(log, 0o600);
+  const output = openRunnerLog(path.join(stateDirectory, "tick-runner.log"));
   let child;
   try {
     child = spawn(process.execPath, [RUNNER, stateDirectory, configDirectory], {

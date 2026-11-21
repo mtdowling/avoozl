@@ -43,9 +43,11 @@ def _not_creator(error):
     return "not_creator" in str(error).lower()
 
 
-def _recovery_title(title, claim):
-    """A stable, non-secret title for a claim colliding with an old cron."""
-    suffix = " retry-" + hashlib.sha256(claim.encode()).hexdigest()[:8]
+def _recovery_title(title, key):
+    """A stable title for a chat whose title an old cron owns. The key names
+    the lane, or the task and role, so each new start of the same work opens
+    under the same title, and so the same chat, not a new one."""
+    suffix = " retry-" + hashlib.sha256(key.encode()).hexdigest()[:8]
     return title[: 200 - len(suffix)].rstrip() + suffix
 
 
@@ -250,10 +252,14 @@ class KiroCrewExecutor:
         try:
             return self._ctx.open_session(title, **arguments), title
         except Exception as error:
-            claim = d.get("_claim")
-            if not claim or not _not_creator(error):
+            if not _not_creator(error):
                 raise
-            recovered = _recovery_title(title, claim)
+            lane = d.get("lane") if isinstance(d.get("lane"), dict) else None
+            if lane and lane.get("id"):
+                key = "lane:%s" % lane["id"]
+            else:
+                key = "task:%s:%s" % (d.get("task", ""), d.get("role", "worker"))
+            recovered = _recovery_title(title, key)
             return self._ctx.open_session(recovered, **arguments), recovered
 
     def keep_trust(self, observed):

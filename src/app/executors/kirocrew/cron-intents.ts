@@ -9,7 +9,6 @@
 // trust mode. That is the only reason this call exists.
 import {
   pendingSessionRequests,
-  recoverableSessionStarts,
   type SessionRequest,
 } from "../../sessions/session-requests.ts";
 import {
@@ -32,13 +31,11 @@ export function cronIntents(
   store: Store,
   input: { sessions?: unknown } = {},
   workspaceId: string | null = null,
-  consumer: string | null = null,
 ) {
   const roster = sessionList(input.sessions);
   if (roster) recordRoster(store, roster);
   const released = readReleased(store);
-  const pending = pendingSessionRequests(store, "kirocrew"),
-    recovering = recoverableSessionStarts(store, "kirocrew", consumer);
+  const pending = pendingSessionRequests(store, "kirocrew");
   return {
     observe: listSessionBindings(store)
       .filter((b) => !FINAL_STATUSES.has(String(b.status)))
@@ -55,7 +52,6 @@ export function cronIntents(
         (request) =>
           request.operation === "start" && released.starts.has(request.id),
       )
-      .concat(recovering)
       .map((request) => fromWorkspace(request, workspaceId)),
     messages: pending
       .filter(

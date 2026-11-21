@@ -411,6 +411,8 @@ try:
     returned = tick.run(Ctx()); outcome = "ok"
 except tick.Skip:
     outcome = "skip"
+except Exception as error:
+    outcome = "error"; returned = str(error)
 out = {"outcome": outcome, "calls": calls}
 if returned is not None: out["returned"] = returned
 print(json.dumps(out))
@@ -586,7 +588,7 @@ test("tick cron sends every other message when the gateway refuses one", () => {
   );
 });
 
-test("tick cron continues past one refused dispatch", () => {
+test("tick cron starts the rest past one failed start, then fails the run", () => {
   const result = tick(
     {
       observe: [],
@@ -599,7 +601,7 @@ test("tick cron continues past one refused dispatch", () => {
     },
     { results: { bind_refuse: ["bad"] } },
   );
-  assert.equal(result.outcome, "ok");
+  assert.equal(result.outcome, "error");
   assert.deepEqual(
     result.calls
       .filter((call) => call[0] === "send_to_session")
@@ -608,7 +610,7 @@ test("tick cron continues past one refused dispatch", () => {
   );
   assert.match(
     result.returned ?? "",
-    /^1 dispatch\(es\) refused: bad: bad session binding$/,
+    /^1 start\(s\) failed: bad: bad session binding$/,
   );
 });
 

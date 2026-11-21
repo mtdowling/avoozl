@@ -258,7 +258,6 @@ export function createAppMcp({
   const machineCronIntents = (
     entries: Opened[],
     input: { sessions?: unknown } | undefined,
-    consumer?: string,
   ) => {
     const combined: Record<string, unknown[]> = {
       observe: [],
@@ -267,12 +266,7 @@ export function createAppMcp({
       notify: [],
     };
     for (const entry of entries) {
-      const intents = cronIntents(
-        entry.store,
-        input,
-        entry.workspaceId,
-        consumer,
-      );
+      const intents = cronIntents(entry.store, input, entry.workspaceId);
       for (const key of Object.keys(combined))
         combined[key]?.push(...(intents[key as keyof typeof intents] ?? []));
     }
@@ -311,7 +305,12 @@ export function createAppMcp({
       return reply;
     }
     const tick = tickCall(message);
-    if (tick?.cron) {
+    // Only a cron caller reaches every workspace; any other caller's tick
+    // stays on its own workspace below.
+    if (
+      tick?.cron &&
+      kiroCrewCaller(message)?.sessionKey?.startsWith("cron:")
+    ) {
       const entries = candidates().map(open);
       // Before any workspace exists the cron's tick has nothing to do. An
       // error here would count toward Kiro Crew's cron auto-pause (five in a
@@ -330,12 +329,17 @@ export function createAppMcp({
           | { input?: { sessions?: unknown } }
           | undefined
       )?.input;
-      const intents = machineCronIntents(
+      const intents: Record<string, unknown> = machineCronIntents(
         entries,
         input,
-        kiroCrewCaller(message)?.sessionKey,
       );
-      startPass(passOptions(undefined));
+      // A pass that cannot start is named in the cron's summary; throwing
+      // here would count toward the cron's auto-pause.
+      try {
+        startPass(passOptions(undefined));
+      } catch (error) {
+        intents.passError = String((error as Error)?.message ?? error);
+      }
       return toolReply(message, intents);
     }
     const target = resolve(message);

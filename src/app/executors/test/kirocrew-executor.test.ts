@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
@@ -37,6 +38,10 @@ type Call =
 const isBind = (row: Call): row is Bind => row[0] === "bind";
 const isOpen = (row: Call): row is Open => row[0] === "open";
 const isTool = (row: Call): row is Tool => row[0] === "tool";
+
+// The suffix a title owned by an old cron gets (_recovery_title).
+const retryKey = (key: string) =>
+  createHash("sha256").update(key).digest("hex").slice(0, 8);
 
 // Run `body` against the adapter and parse what it prints as T.
 const run = <T>(body: string): T =>
@@ -182,7 +187,11 @@ print(json.dumps({"slot": slot, "calls": calls}))`);
   const opens = result.calls.filter(isOpen);
   assert.equal(opens.length, 2);
   assert.equal(opens[0][1], "avoozl:task-one work");
-  assert.match(opens[1][1], /^avoozl:task-one work retry-[0-9a-f]{8}$/);
+  // Keyed on the task and role, so every new claim reuses this title.
+  assert.equal(
+    opens[1][1],
+    `avoozl:task-one work retry-${retryKey("task:task-one:worker")}`,
+  );
   const binding = result.calls.find(isBind);
   assert.ok(binding);
   assert.equal(binding[1].title, opens[1][1]);
@@ -218,9 +227,9 @@ print(json.dumps({"slot": slot, "calls": calls}))`);
   const opens = result.calls.filter(isOpen);
   assert.equal(opens.length, 2);
   assert.equal(opens[0][1], "Avoozl · workspace · worker 1");
-  assert.match(
+  assert.equal(
     opens[1][1],
-    /^Avoozl · workspace · worker 1 retry-[0-9a-f]{8}$/,
+    `Avoozl · workspace · worker 1 retry-${retryKey("lane:worker-1")}`,
   );
   const binding = result.calls.find(isBind);
   assert.ok(binding);
