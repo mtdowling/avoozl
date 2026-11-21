@@ -120,6 +120,20 @@ function openAndPass(options) {
   return supervisor;
 }
 
+// Request one child and pass until it is no longer working.
+async function runToEnd({ stateDirectory, configDirectory, worktree, defer }) {
+  const db = openSupervisorDatabase(stateDirectory);
+  defer(() => db.close());
+  const id = requestChild(db, request(worktree));
+  const supervisor = openAndPass({ stateDirectory, configDirectory });
+  defer(() => supervisor.close());
+  await until(() => {
+    supervisor.pass();
+    return childStatus(db, id) !== "working";
+  });
+  return { db, id };
+}
+
 async function until(check, timeoutMs = 30_000) {
   const end = Date.now() + timeoutMs;
   for (;;) {
@@ -315,14 +329,11 @@ const done = (answer) => { fs.writeFileSync("seen.json", JSON.stringify([url.hos
 socket.on("close", () => done(text.split("\\r\\n")[0]));
 socket.on("error", (error) => done(error.code));`,
   );
-  const db = openSupervisorDatabase(stateDirectory);
-  defer(() => db.close());
-  const id = requestChild(db, request(worktree));
-  const supervisor = openAndPass({ stateDirectory, configDirectory });
-  defer(() => supervisor.close());
-  await until(() => {
-    supervisor.pass();
-    return childStatus(db, id) !== "working";
+  const { db, id } = await runToEnd({
+    stateDirectory,
+    configDirectory,
+    worktree,
+    defer,
   });
   assert.deepEqual(
     JSON.parse(fs.readFileSync(path.join(worktree, "seen.json"), "utf8")),
@@ -350,14 +361,11 @@ test("the child is the program the readiness check finds, on machine.env's PATH 
     `PATH=${bin}:/usr/bin:/bin\n`,
     { mode: 0o600 },
   );
-  const db = openSupervisorDatabase(stateDirectory);
-  defer(() => db.close());
-  const id = requestChild(db, request(worktree));
-  const supervisor = openAndPass({ stateDirectory, configDirectory });
-  defer(() => supervisor.close());
-  await until(() => {
-    supervisor.pass();
-    return childStatus(db, id) !== "working";
+  const { db, id } = await runToEnd({
+    stateDirectory,
+    configDirectory,
+    worktree,
+    defer,
   });
   assert.deepEqual(
     fs.readFileSync(path.join(worktree, "ran.txt"), "utf8").split("\n"),
