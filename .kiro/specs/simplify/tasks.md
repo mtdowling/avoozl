@@ -127,7 +127,7 @@ merge, shown in chat and never committed.
 
 ## Phase 6: Docs and proof
 
-- [x] `sim-6.1` Docs match the runner [SM1] (§D1)
+- [ ] `sim-6.1` Docs match the runner [SM1] (§D1)
   - `docs/github-workflow.md`'s "Avoozl status" section lists nothing; `README.md` and `docs/` describe only kept parts, in the landing spec's terms; docs for cut features are gone
 - [ ] `sim-6.2` Live proof: two machines, one spec [SM1.1, SM2, SM4] (§D16)
   - A receipt in `docs/evidence/` shows two Avoozl workspaces with `loop` on a scratch repository and one spec of four tasks with one parallel group of two: the two parallel tasks claimed by different workspaces, each task claimed once, each landed with its tick in the same commit, one in `pr` mode as a draft a person merged, and the graph block linting clean before and after
