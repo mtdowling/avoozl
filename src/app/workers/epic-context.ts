@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Epic context (epic-context D1 to D9): the extra skills, read folders and MCP
 // servers one worker session gets on the owner's own approved spec work.
 // `epicContextGate` decides with three tests that read only Avoozl's records
@@ -18,7 +17,14 @@ import { enforce } from "../content/content-rules.ts";
 import { queueNotifications } from "../tick/notifications.ts";
 import { repositoryMatches } from "../context/context-shape.ts";
 import { readEpicContext } from "../context/epic-context-config.ts";
-import { contextSources, missingFor } from "../context/plugin-context.ts";
+import {
+  contextSources,
+  missingFor,
+  type PluginOptions,
+  type Skill,
+} from "../context/plugin-context.ts";
+import type { Store } from "../store/store.ts";
+import type { Task } from "../../types.ts";
 import { inspectPlugins, readPluginSettings } from "../plugins/plugins.ts";
 import { pluginOptionsOf } from "../plugins/plugin-checks.ts";
 import { EPIC_CONTEXT_META as META } from "../context/context-record.ts";
@@ -36,7 +42,50 @@ const RECENT = 10;
 
 // Approval commits are read once per spec and approved hash: a hit costs no
 // git log on a resume.
-const approvedRevisions = new Map();
+// The approved revision of a task's spec as git holds it, or why not.
+interface Approved {
+  problem?: string;
+  plan?: SpecPlan;
+  commit?: string;
+  email?: string;
+  taskIds?: string[];
+  root?: string;
+}
+type SpecPlan = {
+  id: string;
+  spec?: string;
+  state?: string;
+  approvalId?: string;
+};
+// The Operations parts epic context reads; tests pass their own.
+interface ContextOps {
+  workspaceRoot?: string | null;
+  configDirectory?: string | null;
+  stateDirectory?: string | null;
+  // Plugin places: a settings file and the workspace root (PluginOptions).
+  pluginOptions?: unknown;
+  // A GitHub client whose permission(repository, login) names a role.
+  github?: unknown;
+  approvalCheckout(plan: { spec?: string }): Promise<string | null | undefined>;
+  approverOf(root: string): Promise<(email: string, commit: string) => unknown>;
+}
+// What the gate's git side needs.
+interface GateDeps {
+  workspaceRoot?: string | null;
+  checkout(plan: SpecPlan): Promise<string | null | undefined>;
+  approverOf(root: string): Promise<(email: string, commit: string) => unknown>;
+}
+const isPluginOptions = (value: unknown): value is PluginOptions =>
+  value !== null &&
+  typeof value === "object" &&
+  "settingsFile" in value &&
+  typeof value.settingsFile === "string";
+const messageOf = (error: unknown) =>
+  error instanceof Error ? error.message : String(error);
+const approvedRevisions = new Map<
+  string,
+  { commit: string; email: string; taskIds: string[]; root: string }
+>();
 
 // One of the gate's tests and, when it failed, why.
 interface GateTest {
@@ -53,7 +102,7 @@ const passes = (name: string): GateTest => ({ name, passed: true });
 
 // What the git side needs, from the Operations that own it: where a plan's
 // spec checkout is, and who approves in it. Tests pass their own.
-const gateDeps = (ops) => ({
+const gateDeps = (ops: ContextOps): GateDeps => ({
   workspaceRoot: ops.workspaceRoot,
   checkout: (plan) => ops.approvalCheckout(plan),
   approverOf: (root) => ops.approverOf(root),
@@ -61,13 +110,17 @@ const gateDeps = (ops) => ({
 
 // The task's approved revision as git holds it: {commit, email, taskIds},
 // or {problem}. Any git failure is a failed test (EC1.3).
-async function approvedRevision(store, task, deps) {
+async function approvedRevision(
+  store: Store,
+  task: Task,
+  deps: GateDeps,
+): Promise<Approved> {
   if (/^intake-/.test(task.id))
     return { problem: "An intake task is not part of an approved spec." };
-  const plan = task.planId ? store.get("plans", task.planId) : null;
+  const plan = task.planId ? store.get<SpecPlan>("plans", task.planId) : null;
   if (!plan?.spec) return { problem: "The task is not in an approved spec." };
   const receipt = plan.approvalId
-    ? store.get("approvals", plan.approvalId)
+    ? store.get<{ id: string; hash?: string }>("approvals", plan.approvalId)
     : null;
   if (plan.state !== "approved" || !receipt?.hash)
     return { problem: `Spec ${plan.spec} has no approved revision.` };
@@ -93,9 +146,9 @@ async function approvedRevision(store, task, deps) {
     found = {
       commit: match.commit,
       email: match.email,
-      taskIds: specItems(plan.spec, specTasks(match.files)?.text ?? "")
-        .map((item) => item.id)
-        .filter(Boolean),
+      taskIds: specItems(plan.spec, specTasks(match.files)?.text ?? "").flatMap(
+        (item) => (item.id ? [item.id] : []),
+      ),
       root,
     };
     approvedRevisions.set(key, found);
@@ -109,28 +162,32 @@ async function approvedRevision(store, task, deps) {
 
 // {given, tests: [{name, passed, why?}]}. Every test is computed even after
 // one fails, so Activity names them all (D2).
-export async function epicContextGate(store, { taskId }, deps) {
+export async function epicContextGate(
+  store: Store,
+  { taskId }: { taskId: string },
+  deps: GateDeps,
+) {
   const task = store.read().tasks.find((entry) => entry.id === taskId);
   if (!task)
     return {
       given: false,
       tests: TESTS.map((name) => fails(name, "The task is not known.")),
     };
-  let revision;
+  let revision: Approved;
   try {
     revision = await approvedRevision(store, task, deps);
   } catch (error) {
-    revision = { problem: `git could not be read: ${error.message}` };
+    revision = { problem: `git could not be read: ${messageOf(error)}` };
   }
   const approved = revision.problem
     ? fails("approved", revision.problem)
     : passes("approved");
-  let approver;
+  let approver: GateTest;
   if (revision.problem) approver = fails("approver", "No approved revision.");
   else
     try {
-      const allowed = await deps.approverOf(revision.root);
-      approver = (await allowed(revision.email, revision.commit))
+      const allowed = await deps.approverOf(revision.root ?? "");
+      approver = (await allowed(revision.email ?? "", revision.commit ?? ""))
         ? passes("approver")
         : fails(
             "approver",
@@ -139,7 +196,7 @@ export async function epicContextGate(store, { taskId }, deps) {
     } catch (error) {
       approver = fails(
         "approver",
-        `The approver could not be read: ${error.message}`,
+        `The approver could not be read: ${messageOf(error)}`,
       );
     }
   const tests = [approved, approver];
@@ -148,7 +205,7 @@ export async function epicContextGate(store, { taskId }, deps) {
 
 // ---- What a session gets (EC5, D6) --------------------------------------
 
-const expandHome = (text, home) =>
+const expandHome = (text: string, home: string) =>
   text === "~" || text.startsWith("~/") ? path.join(home, text.slice(1)) : text;
 
 // This machine's sources: its `epicContext` block and each approved machine
@@ -175,7 +232,7 @@ export interface ContextSource {
   folder?: string;
   repos: string[];
   reads: ContextRead[];
-  skills: { name: string; [key: string]: unknown }[];
+  skills: Skill[];
   servers: Record<string, ContextServer>;
   contentSets: string[];
 }
@@ -183,7 +240,14 @@ export interface ContextSource {
 export interface SessionContext {
   sources: string[];
   reads: ContextRead[];
-  skills: { name: string; source: string; [key: string]: unknown }[];
+  skills: {
+    name: string;
+    description?: string;
+    path?: string;
+    folder?: string;
+    files?: { rel: string; hash: string }[];
+    source?: string;
+  }[];
   servers: Record<
     string,
     ContextServer & { source: string; plugin: string | null }
@@ -198,9 +262,9 @@ export function loadSources({
   pluginOptions,
 }: {
   configDirectory?: string | null;
-  pluginOptions?: { workspaceRoot?: string; [key: string]: unknown } | null;
+  pluginOptions?: unknown;
 }): ContextSource[] {
-  const sources = [];
+  const sources: ContextSource[] = [];
   const block = configDirectory ? readEpicContext(configDirectory) : null;
   if (block)
     sources.push({
@@ -226,7 +290,7 @@ export function loadSources({
       ),
       contentSets: block.contentSets ?? [],
     });
-  if (pluginOptions?.workspaceRoot)
+  if (isPluginOptions(pluginOptions) && pluginOptions.workspaceRoot)
     try {
       sources.push(...contextSources(pluginOptions));
     } catch {
@@ -237,7 +301,7 @@ export function loadSources({
 
 // A command item that names a file inside the plugin becomes absolute, so
 // the server runs from a scratch folder.
-function resolveCommand(command, folder) {
+function resolveCommand(command: string[], folder?: string) {
   if (!folder) return command;
   return command.map((item, i) => {
     if (path.isAbsolute(item) || item.startsWith("-")) return item;
@@ -254,7 +318,10 @@ function resolveCommand(command, folder) {
 
 // A read the sandbox must never reach: it is, holds or sits inside a secret
 // path, Avoozl's config or state folder, or it is the home folder itself.
-function readProblem(real, { home, secrets }) {
+function readProblem(
+  real: string,
+  { home, secrets }: { home: string; secrets: string[] },
+) {
   if (real === realPath(home)) return "it is the home folder itself";
   for (const secret of secrets)
     if (
@@ -272,7 +339,7 @@ function readProblem(real, { home, secrets }) {
 // sources}]}. Only sources whose `repos` name the repository give.
 export function sessionContext(
   sources: ContextSource[],
-  repository: { id?: string | null; github?: string | null } | null,
+  repository: { id?: string | null; github?: string | null } | null | undefined,
   places: {
     home?: string;
     env?: Record<string, string | undefined>;
@@ -297,7 +364,7 @@ export function sessionContext(
         workspaceRoots: places.workspaceRoots ?? [],
       }),
     ],
-    out = {
+    out: SessionContext = {
       sources: mine.map((source) => source.name),
       reads: [],
       skills: [],
@@ -306,13 +373,16 @@ export function sessionContext(
       left: [],
       conflicts: [],
     };
-  const seen = new Map();
+  const seen = new Map<
+    string,
+    { source: ContextSource; server: ContextServer }[]
+  >();
   for (const source of mine)
     for (const [alias, server] of Object.entries(source.servers)) {
       if (!seen.has(alias)) seen.set(alias, []);
-      seen.get(alias).push({ source, server });
+      seen.get(alias)?.push({ source, server });
     }
-  const dropped = new Set();
+  const dropped = new Set<string>();
   for (const [alias, owners] of seen)
     if (owners.length > 1) {
       dropped.add(alias);
@@ -322,8 +392,8 @@ export function sessionContext(
         why: `two sources give it: ${owners.map((o) => o.source.name).join(", ")}`,
       });
     }
-  const readPaths = new Set(),
-    skillNames = new Set();
+  const readPaths = new Set<string>(),
+    skillNames = new Set<string>();
   for (const source of mine) {
     for (const read of source.reads) {
       const wanted = path.resolve(expandHome(read.path, home)),
@@ -356,7 +426,7 @@ export function sessionContext(
         command: resolveCommand(server.command, source.folder),
         env: server.env,
         source: source.name,
-        plugin: source.kind === "plugin" ? source.id : null,
+        plugin: source.kind === "plugin" ? (source.id ?? null) : null,
       };
     }
     for (const set of source.contentSets)
@@ -368,7 +438,7 @@ export function sessionContext(
 // Copy each skill folder into `folder`, after checking each file's hash
 // against the approval. A skill with a changed file is left out. Returns
 // {skills: [{name, description, path}], left}.
-export function copySkills(skills, folder) {
+export function copySkills(skills: SessionContext["skills"], folder: string) {
   return approvedSkills(skills, (skill, files) => {
     const target = path.join(folder, skill.name);
     try {
@@ -388,13 +458,21 @@ export function copySkills(skills, folder) {
 // Each skill whose files all still match the approval, as {name,
 // description, path}; `place(skill, files)` makes the skill's folder and
 // returns its SKILL.md path. A skill with a changed file is left out.
-function approvedSkills(skills, place) {
-  const given = [],
-    left = [];
+function approvedSkills(
+  skills: SessionContext["skills"],
+  place: (
+    skill: SessionContext["skills"][number],
+    files: { rel: string; bytes: Buffer }[],
+  ) => string,
+) {
+  const given: { name: string; description?: string; path: string }[] = [],
+    left: { item: string; why: string }[] = [];
   for (const skill of skills)
     try {
+      const folder = skill.folder;
+      if (!folder || !skill.files) throw Error("the skill names no files");
       const files = skill.files.map((file) => {
-        const bytes = fs.readFileSync(path.join(skill.folder, file.rel));
+        const bytes = fs.readFileSync(path.join(folder, file.rel));
         if (createHash("sha256").update(bytes).digest("hex") !== file.hash)
           throw Error(`${file.rel} changed after it was approved`);
         return { rel: file.rel, bytes };
@@ -405,19 +483,27 @@ function approvedSkills(skills, place) {
         path: place(skill, files),
       });
     } catch (error) {
-      left.push({ item: `skill ${skill.name}`, why: error.message });
+      left.push({ item: `skill ${skill.name}`, why: messageOf(error) });
     }
   return { skills: given, left };
 }
 
 // A chat names the approved plugin files where they are: it runs as the
 // person and reads what it likes (EC8).
-const checkedSkills = (skills) =>
-  approvedSkills(skills, (skill) => path.join(skill.folder, "SKILL.md"));
+const checkedSkills = (skills: SessionContext["skills"]) =>
+  approvedSkills(skills, (skill) => path.join(skill.folder ?? "", "SKILL.md"));
 
 // The brief section (EC6.3): skills and reads, and the MCP aliases a
 // harness that loads them offers. Empty when nothing is given.
-export function contextBrief({ skills, reads, servers }) {
+export function contextBrief({
+  skills,
+  reads,
+  servers,
+}: {
+  skills: { name: string; description?: string; path?: string }[];
+  reads: { id?: string; about: string; path: string }[];
+  servers: Record<string, { about: string }>;
+}) {
   if (!skills.length && !reads.length && !Object.keys(servers).length)
     return "";
   return [
@@ -454,7 +540,7 @@ export function contextBrief({ skills, reads, servers }) {
 
 // ---- The record (EC9) ----------------------------------------------------
 
-const outcome = (tests) =>
+const outcome = (tests: GateTest[]) =>
   tests
     .map(
       (test) =>
@@ -462,7 +548,7 @@ const outcome = (tests) =>
     )
     .join("; ");
 
-const namesOf = (given) =>
+const namesOf = (given: SessionContext) =>
   [
     ...given.skills.map((skill) => `skill ${skill.name}`),
     ...given.reads.map((read) => `read ${read.id}`),
@@ -473,7 +559,7 @@ const namesOf = (given) =>
 // source names, and the task's record for the chip, the content sets and
 // Settings (EC9). No path's contents, MCP argument or environment value.
 export function recordContext(
-  store,
+  store: Store,
   {
     taskId,
     slot = null,
@@ -488,7 +574,7 @@ export function recordContext(
     taskId: string;
     slot?: string | null;
     resumed?: boolean;
-    gate: { given: boolean; tests: unknown[] };
+    gate: { given: boolean; tests: GateTest[] };
     given?: SessionContext | null;
     hasSources?: boolean;
     note?: string | null;
@@ -510,7 +596,7 @@ export function recordContext(
     left: given?.left ?? [],
     contentSets: gate.given && given ? given.contentSets : [],
   };
-  const state = store.getMeta(META) ?? { tasks: {}, recent: [] };
+  const state = store.getMeta<ContextMeta>(META) ?? { tasks: {}, recent: [] };
   state.tasks[taskId] = record;
   // The aliases two sources gave this repository, until a session sees none.
   if (repository?.id && given) {
@@ -535,22 +621,44 @@ export function recordContext(
   return record;
 }
 
-export const repositoryOf = (store, taskId) => {
+// The record epic context keeps in the store's meta.
+interface ContextMeta {
+  tasks: Record<string, unknown>;
+  recent: unknown[];
+  conflicts?: Record<string, { alias: string; sources: string[] }[]>;
+}
+
+export const repositoryOf = (store: Store, taskId: string) => {
   const task = store.read().tasks.find((entry) => entry.id === taskId);
   const id = taskRepository(task);
-  return id ? store.get("repositories", id) : null;
+  return id
+    ? store.get<{ id: string; github?: string }>("repositories", id)
+    : null;
 };
 
 // The Needs you rows epic context raises (EC4.2, EC5.2): a plugin with
 // questions this machine has not answered, and an alias two sources give.
-export function contextNeedsYou(store) {
-  const items = [],
+export function contextNeedsYou(store: Store) {
+  const items: {
+      kind: string;
+      reason: string;
+      id: string;
+      taskId: null;
+      authority: string;
+      title: string;
+      detail: string;
+    }[] = [],
     options = pluginOptionsOf(store);
   if (options)
     try {
       const settings = readPluginSettings(options.settingsFile);
       for (const plugin of inspectPlugins(options)) {
-        if (!plugin.context || plugin.source !== "machine") continue;
+        if (
+          !("context" in plugin) ||
+          !plugin.context ||
+          plugin.source !== "machine"
+        )
+          continue;
         if (["invalid", "disabled", "missing"].includes(plugin.state)) continue;
         const { questions } = missingFor(plugin.context, settings, plugin.id);
         if (questions.length)
@@ -568,7 +676,7 @@ export function contextNeedsYou(store) {
       // A plugin setup that cannot be read raises nothing here.
     }
   for (const [repository, list] of Object.entries(
-    store.getMeta(META)?.conflicts ?? {},
+    store.getMeta<ContextMeta>(META)?.conflicts ?? {},
   ))
     for (const conflict of list)
       items.push({
@@ -593,7 +701,7 @@ export function contextNeedsYou(store) {
 // repository (EC9.2). Only the `worker` role gets context (EC5.5).
 //   {readable, cleanup, mcp, brief, binding}
 export async function processContext(
-  store,
+  store: Store,
   {
     taskId,
     role,
@@ -602,8 +710,28 @@ export async function processContext(
     slot = null,
     withheld = false,
     attempt = 1,
+  }: {
+    taskId: string;
+    role: string;
+    repository?: { id?: string | null; github?: string | null } | null;
+    resumed?: boolean;
+    slot?: string | null;
+    withheld?: boolean;
+    attempt?: number;
   },
-  { ops, places, definition, folder = os.tmpdir(), chat = false },
+  {
+    ops,
+    places,
+    definition,
+    folder = os.tmpdir(),
+    chat = false,
+  }: {
+    ops: ContextOps | null | undefined;
+    places: Parameters<typeof sessionContext>[2];
+    definition?: { context?: { mcp?: unknown } | null } | null;
+    folder?: string;
+    chat?: boolean;
+  },
 ) {
   if (role !== "worker" || !ops?.configDirectory) return null;
   const sources = loadSources({
@@ -618,11 +746,15 @@ export async function processContext(
     );
   if (!named) return null;
   // A follow-up that must not hold context (EC1.7) runs no gate.
-  const gate = withheld
+  const gate: { given: boolean; tests: GateTest[] } = withheld
     ? { given: false, tests: [] }
     : await epicContextGate(store, { taskId }, gateDeps(ops));
-  let given = null,
-    request = null,
+  let given: SessionContext | null = null,
+    request: {
+      readable: string[];
+      cleanup: string[];
+      mcp: Record<string, unknown>;
+    } | null = null,
     brief = "",
     note = withheld
       ? "context withheld: text from a login that does not count reached the session"
@@ -723,8 +855,8 @@ export async function processContext(
 // D7): the skills and reads, no MCP server, and nothing the chat is held to.
 // Run by the tick before the start request is stored.
 export async function chatBrief(
-  store,
-  ops,
+  store: Store,
+  ops: ContextOps | null,
   {
     task: taskId,
     role,
@@ -741,8 +873,8 @@ export async function chatBrief(
       places: {
         home: os.homedir(),
         env: process.env,
-        configDirectory: ops.configDirectory,
-        stateDirectory: ops.stateDirectory ?? null,
+        configDirectory: ops.configDirectory ?? undefined,
+        stateDirectory: ops.stateDirectory ?? undefined,
         workspaceRoots: [],
       },
     },
@@ -753,16 +885,32 @@ export async function chatBrief(
 // Whether `login` counts under the repository's `allowedActors` and
 // `minimumPermission` (EC1.7), as the review gate reads them: a repository the
 // policy does not name needs write permission.
-export async function authorCounts(ops, repository, login) {
+export async function authorCounts(
+  ops: ContextOps,
+  repository: { github?: string | null } | null,
+  login: string,
+) {
   const name = repository?.github ?? null,
     policy = readGitHubPolicyOrNull(ops.workspaceRoot),
     entry = Object.entries(policy?.repositories ?? {}).find(
       ([id]) => name && id.toLowerCase() === name.toLowerCase(),
     )?.[1] ?? { allowedActors: [], minimumPermission: "write" };
-  let held = null;
+  let held: string | null = null;
   if (entry.minimumPermission && name)
     try {
-      held = (await ops.github?.permission(name, login))?.permission ?? null;
+      const github = ops.github,
+        read =
+          github && typeof github === "object" && "permission" in github
+            ? github.permission
+            : null;
+      if (typeof read === "function") {
+        const answer: { permission?: string } | null = await read.call(
+          github,
+          name,
+          login,
+        );
+        held = answer?.permission ?? null;
+      }
     } catch {
       held = null;
     }
