@@ -9,7 +9,7 @@
     "build:kirocrew-app": "node scripts/bundle/build-kirocrew-app.ts",
     "build:hosts": "node scripts/bundle/build-hosts.ts",
     "check:hosts": "node scripts/bundle/build-hosts.ts --check",
-    "postinstall": "node src/app/cli/link-global.ts",
+    "postinstall": "node src/app/cli/postinstall.mjs",
     "prepack": "npm run build",
     "pretest": "node scripts/check/check-no-images.ts && npm run check:hosts && npm run build",
     "workspace": "node cli.ts",
@@ -19,6 +19,7 @@
     "pretest:ci": "npm run check:hosts && npm run build",
     "test:ci": "node scripts/test/run-tests.ts --ui",
     "test:changed": "node scripts/test/run-tests.ts --changed",
+    "pack:smoke": "node scripts/check/pack-smoke.ts",
     "test:ui": "node --test --test-timeout=60000 hosts/kirocrew/ui/test/*.test.ts",
     "kit:docs": "node scripts/kit/scenarios-doc.ts",
     "dup": "node scripts/check/dup.ts",
@@ -35,9 +36,10 @@
   "description": "Approve a spec; Avoozl runs it with coding agents, checks each commit itself, and lands it.",
   "license": "MIT",
   "bin": {
-    "avoozl": "./cli.ts"
+    "avoozl": "cli.mjs"
   },
   "files": [
+    "cli.mjs",
     "cli.ts",
     "src/",
     "examples/",

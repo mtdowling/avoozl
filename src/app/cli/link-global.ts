@@ -46,7 +46,8 @@ export function linkCommand(
     : ["npm", args];
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+// Run by postinstall.mjs, which npm starts.
+export function main() {
   const reason = skipReason(process.env, root);
   if (reason) {
     console.log(`Not linking the global avoozl command: ${reason}.`);

@@ -100,6 +100,28 @@ jobs:
       - run: npm run typecheck
       - run: npm run nocheck
 
+  # Packs the npm package, installs it into an empty project and runs the
+  # installed command (scripts/check/pack-smoke.ts), on every change.
+  pack:
+    if: github.event_name != 'workflow_dispatch' || inputs.platforms == '' || contains(inputs.platforms, 'linux-x64')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        id: node
+        with:
+          node-version: 26
+          cache: npm
+      - uses: actions/cache@v4
+        id: modules
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-node${{ steps.node.outputs.node-version }}-${{ hashFiles('package-lock.json') }}
+      - run: npm ci --ignore-scripts
+        if: steps.modules.outputs.cache-hit != 'true'
+      - run: npm run pack:smoke
+
   # Copy/paste check (scripts/check/dup.ts): fails when duplicated lines grow past
   # scripts/dup-baseline.json. Main and the nightly run only; a pull request
   # runs `npm run dup:changed` before it opens (AGENTS.md).
@@ -153,7 +175,7 @@ jobs:
   # needs: the plan must pass, and every other job must pass or be skipped.
   test-ubuntu:
     name: test (ubuntu-latest)
-    needs: [plan, lint, linux]
+    needs: [plan, lint, pack, linux]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
