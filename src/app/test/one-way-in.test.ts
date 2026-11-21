@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Label commands, the Issue Radar
 // integration, public crews and review drafts are gone, with no backward
 // compatibility. Their operations and commands answer as unknown ones, their
@@ -51,12 +50,13 @@ const REMOVED_MODULES = [
   "flow-github",
 ];
 
-const cli = (workspace, ...args) =>
+const cli = (workspace: string, ...args: string[]) =>
   spawnSync(process.execPath, [CLI, ...args, "--workspace", workspace], {
     encoding: "utf8",
     env: { ...process.env, AVOOZL_SERVER: "" },
   });
-const said = (run) => `${run.stdout}${run.stderr}`.trim().split("\n").at(-1);
+const said = (run: { stdout: string; stderr: string }) =>
+  `${run.stdout}${run.stderr}`.trim().split("\n").at(-1) ?? "";
 
 test("a removed operation is not in the table", () => {
   for (const name of REMOVED_OPERATIONS)
@@ -88,7 +88,7 @@ test("no removed module is left, and no source names one", () => {
   for (const name of REMOVED_MODULES)
     assert.equal(fs.existsSync(path.join(app, `${name}.mjs`)), false, name);
   const pattern = new RegExp(`["'/](${REMOVED_MODULES.join("|")})\\.mjs["']`);
-  const walk = (dir) =>
+  const walk = (dir: string): string[] =>
     fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
       const full = path.join(dir, entry.name);
       if (entry.isDirectory())
