@@ -1,20 +1,48 @@
-// @ts-nocheck: typing debt
 import assert from "node:assert/strict";
 import test from "node:test";
 import { Operations } from "../../api/operations.ts";
 import { fixture } from "../../test/fixtures.ts";
 import { writeSpec } from "../../test/spec-fixture.ts";
+import {
+  found,
+  type GraphView,
+  type PlanDraft,
+  type PlanPreview,
+} from "../../test/view-shapes.ts";
+
+// One draft task on graph.view.
+interface DraftNode {
+  id: string;
+  state: string;
+  ready: boolean;
+  complete: boolean;
+  spec?: string;
+  draft: { spec?: string; status: string };
+}
+// graph.view with its drafts.
+interface DraftGraph extends GraphView {
+  drafts: {
+    tasks: DraftNode[];
+    specs: { name: string; count: number }[];
+    edges: {
+      from: string;
+      to: string;
+      blocking?: boolean;
+      satisfied?: boolean;
+    }[];
+  };
+}
 
 // Any GitHub call counts and fails: the Graph's drafts are read from disk.
 function noGitHub() {
-  const calls = [];
+  const calls: string[] = [];
   const client = new Proxy(
     {},
     {
       get: (_, key) =>
         key === "then"
           ? undefined
-          : (...args) => {
+          : () => {
               calls.push(String(key));
               throw Error(`GitHub call ${String(key)} in a test`);
             },
@@ -30,8 +58,10 @@ test("graph.view shows draft spec tasks as drafts that never become ready", asyn
   // One approved spec, one draft spec, one stored but not approved, and an
   // old folder with no task list.
   writeSpec(root, "live");
-  const live = await ops.execute("plan.create", { spec: "live" });
-  const preview = await ops.execute("plan.preview", { id: "live" });
+  const live = await ops.execute<PlanDraft>("plan.create", { spec: "live" });
+  const preview = await ops.execute<PlanPreview>("plan.preview", {
+    id: "live",
+  });
   await ops.execute("plan.approve", {
     id: "live",
     expectedHash: live.hash,
@@ -43,7 +73,7 @@ test("graph.view shows draft spec tasks as drafts that never become ready", asyn
   writeSpec(root, "old", { "tasks.md": null, "avoozl/manifest.json": null });
   const before = github.calls.length;
 
-  const graph = await ops.execute("graph.view", {});
+  const graph = await ops.execute<DraftGraph>("graph.view", {});
   assert.deepEqual(github.calls.slice(before), [], "no GitHub calls");
   assert.ok(graph.tasks.some((task) => task.id === "live.1.1"));
   assert.ok(
@@ -64,11 +94,11 @@ test("graph.view shows draft spec tasks as drafts that never become ready", asyn
     assert.equal(task.ready, false);
     assert.equal(task.complete, false);
   }
-  assert.deepEqual(drafts.get("config.1.1").draft, {
+  assert.deepEqual(found(drafts.get("config.1.1")).draft, {
     spec: "config",
     status: "not stored",
   });
-  assert.equal(drafts.get("stored.1.1").draft.status, "draft");
+  assert.equal(found(drafts.get("stored.1.1")).draft.status, "draft");
   assert.deepEqual(
     graph.drafts.specs.map((spec) => [spec.name, spec.count]).sort(),
     [
@@ -98,6 +128,8 @@ test("graph.view shows draft spec tasks as drafts that never become ready", asyn
   assert.deepEqual(github.calls.slice(before), [], "no GitHub calls");
 
   // A scope narrows drafts too.
-  const scoped = await ops.execute("graph.view", { spec: "config" });
+  const scoped = await ops.execute<DraftGraph>("graph.view", {
+    spec: "config",
+  });
   assert.ok(scoped.drafts.tasks.every((task) => task.spec === "config"));
 });

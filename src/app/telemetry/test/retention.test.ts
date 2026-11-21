@@ -1,8 +1,8 @@
-// @ts-nocheck: typing debt
 // ot-2.4: retention and size cap (OT2.3, OT2.4, OT2.5, OT2.7).
 import assert from "node:assert/strict";
 import path from "node:path";
 import test from "node:test";
+import type { TestContext } from "node:test";
 import { Store } from "../../store/store.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
 import { finishTask, openTelemetry, point, span } from "../record.ts";
@@ -10,24 +10,29 @@ import { LIMITS, pruneTelemetry } from "../sqlite-exporter.ts";
 
 const NOW = Date.parse("2026-01-01T00:00:00.000Z");
 const DAY = 86_400_000;
-const ago = (days) => new Date(NOW - days * DAY).toISOString();
+const ago = (days: number) => new Date(NOW - days * DAY).toISOString();
 
-function open(t, options) {
+function open(t: TestContext, options?: Parameters<typeof openTelemetry>[1]) {
   const store = new Store(":memory:");
   t.after(() => store.close());
   if (options) openTelemetry(store, options);
   return store;
 }
-const count = (store, table) =>
-  store.db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get().n;
-const tasks = (store) =>
+const count = (store: Store, table: string) =>
+  Number(store.db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get()?.n);
+const tasks = (store: Store) =>
   store.db
     .prepare("SELECT DISTINCT task_id FROM telemetry_spans ORDER BY task_id")
     .all()
     .map((row) => row.task_id);
 
 // One trace: a stage span a day long ending `days` ago, finished or open.
-function trace(store, id, days, { finished = true, open = false } = {}) {
+function trace(
+  store: Store,
+  id: string,
+  days: number,
+  { finished = true, open = false } = {},
+) {
   span(store, {
     key: `${id}:1:coding`,
     taskId: id,
@@ -87,7 +92,7 @@ test("a trace with no root yet is not finished and stays", (t) => {
 
 test("points go by age and then oldest first", (t) => {
   const store = open(t);
-  const add = (id, days) =>
+  const add = (id: string, days: number) =>
     point(store, {
       id,
       name: "avoozl.tokens",
@@ -113,7 +118,7 @@ test("pruning runs after the write count and gap, and never inside a transaction
     limits: { ...LIMITS, everyWrites: 2, everyMs: 1000 },
     clock: () => clock,
   });
-  const add = (id, days) =>
+  const add = (id: string, days: number) =>
     point(store, {
       id,
       name: "avoozl.tokens",
