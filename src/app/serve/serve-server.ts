@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The standalone page on 127.0.0.1 (spec standalone-web, SW3), which each tick
 // keeps up when `serve.enabled` (page-child.mjs, serve-main.mjs).
 // The listener binds the loopback address and nothing else; there is no host
@@ -18,6 +17,16 @@ import {
   ServeAuth,
   SIGN_IN_PAGE,
 } from "./serve-auth.ts";
+import type { WorkspaceConfig } from "../settings/config.ts";
+
+type Headers = Record<string, string | string[]>;
+// The listening server, with where it is and the first owner link.
+export type ServeServer = http.Server & {
+  origin: string;
+  stateFile: string;
+  port: number;
+  ownerLink: string | null;
+};
 
 export const HOST = "127.0.0.1";
 // The placeholder the built page carries for the CSRF token (either tag form).
@@ -25,19 +34,19 @@ const CSRF_META = /<meta name="avoozl-csrf" content=""\s*\/?>/;
 const MAX_BODY_BYTES = 1024 * 1024;
 const APP_PATH = "/apps/avoozl";
 const COMMAND_PATH = `${APP_PATH}/api/command`;
-const TYPES = {
+const TYPES: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
   ".css": "text/css; charset=utf-8",
   ".woff2": "font/woff2",
 };
 
-const styleHash = (text) =>
+const styleHash = (text: string) =>
   `'sha256-${createHash("sha256").update(text, "utf8").digest("base64")}'`;
 
 // The policy of SW4.8: one hash for each style text the build lists, and
 // nothing wider ('unsafe-inline' never appears).
-export function contentSecurityPolicy(styles) {
+export function contentSecurityPolicy(styles: string[]) {
   return [
     "default-src 'none'",
     "script-src 'self'",
@@ -53,9 +62,9 @@ export function contentSecurityPolicy(styles) {
 
 // The built files by URL, listed once at start. A request path is looked up in
 // this table; it is never joined to a folder (SW3.4).
-function builtFiles(folder) {
-  const files = new Map();
-  const walk = (relative) => {
+function builtFiles(folder: string) {
+  const files = new Map<string, { file: string; type: string }>();
+  const walk = (relative: string) => {
     for (const entry of fs.readdirSync(path.join(folder, relative), {
       withFileTypes: true,
     })) {
@@ -68,14 +77,14 @@ function builtFiles(folder) {
       )
         files.set(name === "index.html" ? "" : name, {
           file: path.join(folder, name),
-          type: TYPES[path.extname(name)],
+          type: TYPES[path.extname(name)]!,
         });
     }
   };
   walk("");
   if (!files.has(""))
     throw Error("The standalone page is not built. Run npm run build.");
-  if (!CSRF_META.test(fs.readFileSync(files.get("").file, "utf8")))
+  if (!CSRF_META.test(fs.readFileSync(files.get("")!.file, "utf8")))
     throw Error(
       "The standalone page has no CSRF placeholder. Run npm run build.",
     );
@@ -85,8 +94,9 @@ function builtFiles(folder) {
 // The routes of Kiro Crew's own gateway that the page also calls (D2, D9). With
 // no Kiro Crew, each answers in the shape the page reads, empty or refused with
 // "Needs Kiro Crew", never as a failure of the server.
-const NEEDS = (what) => `Needs Kiro Crew: ${what} works only inside Kiro Crew.`;
-const KIROCREW_ROUTES = new Map([
+const NEEDS = (what: string) =>
+  `Needs Kiro Crew: ${what} works only inside Kiro Crew.`;
+const KIROCREW_ROUTES = new Map<string, [number, unknown]>([
   ["GET /api/models", [200, { models: [], needsKiroCrew: true }]],
   ["GET /api/chat/slots", [200, []]],
   ["GET /api/usage/turns", [200, []]],
@@ -99,12 +109,17 @@ const KIROCREW_ROUTES = new Map([
   ],
 ]);
 
-function writeFileSync0600(file, text) {
+function writeFileSync0600(file: string, text: string) {
   fs.writeFileSync(file, text, { mode: 0o600 });
   if (process.platform !== "win32") fs.chmodSync(file, 0o600);
 }
 
-function reply(res, status, headers, body = "") {
+function reply(
+  res: http.ServerResponse,
+  status: number,
+  headers: Headers,
+  body: string | Buffer = "",
+) {
   res.writeHead(status, headers);
   res.end(body);
 }
@@ -119,10 +134,20 @@ export async function startServe({
   home = os.homedir(),
   registryOptions = {},
   now = () => Date.now(),
-  log = (line) => console.error(line),
+  log = (line: string) => console.error(line),
   // Print the first owner link; the page a tick keeps up prints none.
   link = true,
-}) {
+}: {
+  config: WorkspaceConfig;
+  port?: number;
+  uiDir: string;
+  stateDirectory?: string;
+  home?: string;
+  registryOptions?: Record<string, unknown>;
+  now?: () => number;
+  log?: (line: string) => void;
+  link?: boolean;
+}): Promise<ServeServer> {
   if (!Number.isInteger(port) || (port !== 0 && (port < 1024 || port > 65535)))
     throw Error("--port takes 0, or a number from 1024 to 65535.");
   const folder = path.join(uiDir, "dist", "standalone"),
@@ -141,15 +166,16 @@ export async function startServe({
       home,
       registryOptions,
     });
-  let auth = null;
+  // Made once the port is known; no request is handled before then.
+  let auth: ServeAuth;
 
-  const headers = (extra = {}) => ({
+  const headers = (extra: Headers = {}): Headers => ({
     "Content-Security-Policy": csp,
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "no-referrer",
     ...extra,
   });
-  const json = (res, status, value) =>
+  const json = (res: http.ServerResponse, status: number, value: unknown) =>
     reply(
       res,
       status,
@@ -160,7 +186,10 @@ export async function startServe({
       JSON.stringify(value),
     );
 
-  const handle = async (req, res) => {
+  const handle = async (
+    req: http.IncomingMessage,
+    res: http.ServerResponse,
+  ) => {
     const url = new URL(req.url ?? "/", `http://${HOST}`);
     const early = auth.refuse(req, url);
     if (early) return json(res, early.status, { error: early.message });
@@ -192,7 +221,7 @@ export async function startServe({
     }
 
     const who = auth.authenticate(req, url);
-    if (who.status) {
+    if ("status" in who) {
       const page =
         req.method === "GET" && !url.pathname.startsWith(`${APP_PATH}/api/`);
       // A decision link opened before sign-in is kept for /login to return to.
@@ -234,7 +263,7 @@ export async function startServe({
       if (crew) return json(res, ...crew);
       if (url.pathname !== COMMAND_PATH)
         return json(res, 404, { error: "Not found." });
-      const chunks = [];
+      const chunks: Buffer[] = [];
       let size = 0;
       for await (const chunk of req) {
         size += chunk.length;
@@ -273,8 +302,8 @@ export async function startServe({
     const name = url.pathname.slice(APP_PATH.length).replace(/^\//, ""),
       found = files.get(name);
     if (!found) return json(res, 404, { error: "Not found." });
-    let body = fs.readFileSync(found.file);
-    const extra = { "Content-Type": found.type };
+    let body: string | Buffer = fs.readFileSync(found.file);
+    const extra: Headers = { "Content-Type": found.type };
     if (name === "") {
       // The CSRF token reaches the page only here, in the HTML of a request
       // that carried the session cookie (SW4.6).
@@ -289,28 +318,32 @@ export async function startServe({
     return reply(res, 200, headers(extra), req.method === "HEAD" ? "" : body);
   };
 
-  const server = http.createServer(async (req, res) => {
-    const started = Date.now();
-    res.once("finish", () =>
-      // Method, path without its query, status and time. Never a header,
-      // a query or a body (SW4.10).
-      log(
-        `${req.method} ${(req.url ?? "").split("?")[0]} ${res.statusCode} ${Date.now() - started}ms`,
-      ),
-    );
-    try {
-      await handle(req, res);
-    } catch (error) {
-      if (!res.headersSent) json(res, 500, { error: "Avoozl serve error." });
-      else res.end();
-      log(`error ${error?.code ?? error?.name ?? "unknown"}`);
-    }
-  });
+  const server: ServeServer = Object.assign(
+    http.createServer(async (req, res) => {
+      const started = Date.now();
+      res.once("finish", () =>
+        // Method, path without its query, status and time. Never a header,
+        // a query or a body (SW4.10).
+        log(
+          `${req.method} ${(req.url ?? "").split("?")[0]} ${res.statusCode} ${Date.now() - started}ms`,
+        ),
+      );
+      try {
+        await handle(req, res);
+      } catch (thrown) {
+        const error = thrown as NodeJS.ErrnoException | undefined;
+        if (!res.headersSent) json(res, 500, { error: "Avoozl serve error." });
+        else res.end();
+        log(`error ${error?.code ?? error?.name ?? "unknown"}`);
+      }
+    }),
+    { origin: "", stateFile: "", port: 0, ownerLink: null },
+  );
   // Stopping the server ends every open connection too (SW4.4: a session ends
   // when the server stops). http.Server.close alone leaves a keep-alive
   // connection serving the old process's sessions until the browser drops it.
   const stop = server.close.bind(server);
-  server.close = (callback) => {
+  server.close = (callback?: (error?: Error) => void) => {
     const closed = stop(callback);
     server.closeAllConnections();
     return closed;
@@ -326,14 +359,14 @@ export async function startServe({
     context.close();
   });
   return new Promise((resolve, reject) => {
-    server.once("error", (error) =>
+    server.once("error", (error: NodeJS.ErrnoException) =>
       reject(
         error.code === "EADDRINUSE" ? Error(`port ${port} is in use`) : error,
       ),
     );
     // The only listen call: the loopback address, with no way to change it.
     server.listen(port, HOST, () => {
-      const actual = server.address().port;
+      const actual = (server.address() as { port: number }).port;
       auth = new ServeAuth({ port: actual, links, now });
       server.origin = `http://${HOST}:${actual}`;
       // Origin, port and pid only: never the link or any token (SW3.5).

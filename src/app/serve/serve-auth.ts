@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Sign-in and request checks for the standalone page (spec standalone-web, SW4, D5).
 // The server listens on 127.0.0.1 only, but any local program and any web page
 // the owner visits can reach that socket, so every request is checked here
@@ -11,6 +10,7 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import type { IncomingMessage } from "node:http";
 import { DatabaseSync } from "node:sqlite";
 import { pageTarget } from "../api/direct-links.ts";
 
@@ -22,17 +22,18 @@ export const LINK_REFUSAL = "This link is not valid. Run avoozl link.";
 export const SIGN_IN_PAGE =
   "Sign in needed. Run `avoozl link` in a terminal on this computer and open the link it prints.";
 
-const sha256 = (value) => createHash("sha256").update(value).digest();
+const sha256 = (value: string) => createHash("sha256").update(value).digest();
 const token = () => randomBytes(32).toString("base64url");
-const same = (a, b) => a.length === b.length && timingSafeEqual(a, b);
+const same = (a: Buffer, b: Buffer) =>
+  a.length === b.length && timingSafeEqual(a, b);
 
-function privateDirectory(directory) {
+function privateDirectory(directory: string) {
   fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
   // A folder made earlier keeps its mode; tighten it. Windows has no modes.
   if (process.platform !== "win32") fs.chmodSync(directory, 0o700);
 }
 
-function writePrivate(file, text) {
+function writePrivate(file: string, text: string) {
   const temporary = `${file}.${process.pid}.tmp`;
   fs.writeFileSync(temporary, text, { mode: 0o600 });
   if (process.platform !== "win32") fs.chmodSync(temporary, 0o600);
@@ -43,7 +44,9 @@ function writePrivate(file, text) {
 // machine state folder. `avoozl link` writes here and the running server
 // reads it, so the two need no channel between them.
 export class LinkStore {
-  constructor(stateDirectory) {
+  file: string;
+  db: DatabaseSync;
+  constructor(stateDirectory: string) {
     privateDirectory(stateDirectory);
     this.file = path.join(stateDirectory, "serve.sqlite");
     this.db = new DatabaseSync(this.file);
@@ -65,7 +68,7 @@ export class LinkStore {
   }
 
   // True once for a token that is unused and under ten minutes old.
-  consume(value, now = Date.now()) {
+  consume(value: unknown, now = Date.now()) {
     this.db
       .prepare("DELETE FROM serve_links WHERE used IS NOT NULL OR created < ?")
       .run(now - LINK_TTL_MS);
@@ -73,10 +76,11 @@ export class LinkStore {
     for (const row of this.db
       .prepare("SELECT hash FROM serve_links WHERE used IS NULL")
       .all()) {
-      if (!same(Buffer.from(row.hash), wanted)) continue;
+      const hash = row.hash as Uint8Array;
+      if (!same(Buffer.from(hash), wanted)) continue;
       this.db
         .prepare("UPDATE serve_links SET used = ? WHERE hash = ?")
-        .run(now, row.hash);
+        .run(now, hash);
       return true;
     }
     return false;
@@ -87,8 +91,8 @@ export class LinkStore {
   }
 }
 
-function cookies(header) {
-  const found = new Map();
+function cookies(header: unknown) {
+  const found = new Map<string, string>();
   for (const part of String(header ?? "").split(";")) {
     const at = part.indexOf("=");
     if (at > 0) found.set(part.slice(0, at).trim(), part.slice(at + 1).trim());
@@ -96,8 +100,35 @@ function cookies(header) {
   return found;
 }
 
+interface Session {
+  csrf: string;
+  started: number;
+  last: number;
+}
+export type Refusal = { status: number; message: string };
+export type Authenticated = {
+  kind: "session";
+  session: Session & { id: string };
+};
+
 export class ServeAuth {
-  constructor({ port, links, now = () => Date.now() }) {
+  port: number;
+  links: LinkStore;
+  now: () => number;
+  sessions: Map<string, Session>;
+  cookieName: string;
+  nextName: string;
+  origins: Set<string>;
+  hosts: Set<string>;
+  constructor({
+    port,
+    links,
+    now = () => Date.now(),
+  }: {
+    port: number;
+    links: LinkStore;
+    now?: () => number;
+  }) {
     this.port = port;
     this.links = links;
     this.now = now;
@@ -113,12 +144,12 @@ export class ServeAuth {
     this.hosts = new Set([`127.0.0.1:${port}`, `localhost:${port}`]);
   }
 
-  hostOk(req) {
+  hostOk(req: IncomingMessage) {
     return this.hosts.has(String(req.headers.host ?? ""));
   }
 
   // A browser session from the cookie, or null.
-  session(req) {
+  session(req: IncomingMessage) {
     const value = cookies(req.headers.cookie).get(this.cookieName);
     if (!value) return null;
     const id = sha256(value).toString("hex"),
@@ -134,7 +165,7 @@ export class ServeAuth {
   }
 
   // Signs in with a link's token: a cookie header value, or null.
-  signIn(value) {
+  signIn(value: unknown) {
     if (!this.links.consume(value, this.now())) return null;
     const cookie = token(),
       now = this.now();
@@ -146,7 +177,7 @@ export class ServeAuth {
     return `${this.cookieName}=${cookie}; HttpOnly; SameSite=Strict; Path=/`;
   }
 
-  signOut(session) {
+  signOut(session: { id: string }) {
     this.sessions.delete(session.id);
     return `${this.cookieName}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0`;
   }
@@ -155,7 +186,7 @@ export class ServeAuth {
   // reads it, for as long as a sign-in link lives. Lax, so the top-level
   // open of the sign-in link carries it. It holds a page path, never a
   // credential, and is checked again when read.
-  rememberNext(target) {
+  rememberNext(target: string) {
     return `${this.nextName}=${encodeURIComponent(target)}; HttpOnly; SameSite=Lax; Path=/login; Max-Age=${LINK_TTL_MS / 1000}`;
   }
 
@@ -163,7 +194,7 @@ export class ServeAuth {
     return `${this.nextName}=; HttpOnly; SameSite=Lax; Path=/login; Max-Age=0`;
   }
 
-  nextTarget(req) {
+  nextTarget(req: IncomingMessage) {
     const value = cookies(req.headers.cookie).get(this.nextName);
     if (!value) return null;
     try {
@@ -179,7 +210,7 @@ export class ServeAuth {
 
   // The checks that run before any other work, in order. Returns null to go
   // on, else `{ status, message }`. `url` is the parsed request URL.
-  refuse(req, url) {
+  refuse(req: IncomingMessage, url: URL): Refusal | null {
     if (!this.hostOk(req)) return { status: 403, message: "Not allowed." };
     if (req.method === "OPTIONS")
       return { status: 403, message: "Not allowed." };
@@ -189,7 +220,7 @@ export class ServeAuth {
   // Who may do what for a request that is not /login. Returns
   // `{ kind: "session", session }` or `{ status, message }`. Only a valid
   // session cookie counts: there is no other way in.
-  authenticate(req, url) {
+  authenticate(req: IncomingMessage, url: URL): Authenticated | Refusal {
     const authorization = req.headers.authorization;
     if (authorization !== undefined)
       return { status: 401, message: "Bearer tokens are not accepted." };
@@ -201,7 +232,7 @@ export class ServeAuth {
   // The extra checks for a write (SW4.6, SW4.7): a same-origin Origin, a
   // same-origin Sec-Fetch-Site when sent, a JSON content type, and the CSRF
   // header the page read from its own HTML.
-  writeProblem(req, auth) {
+  writeProblem(req: IncomingMessage, auth: Authenticated) {
     const origin = req.headers.origin,
       site = req.headers["sec-fetch-site"],
       type = String(req.headers["content-type"] ?? "")
