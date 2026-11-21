@@ -1,12 +1,14 @@
-// @ts-nocheck: typing debt
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import readline from "node:readline";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { fileURLToPath } from "node:url";
 import { Operations } from "../api/operations.ts";
 import { groupedCall } from "../mcp/mcp-tools.ts";
-import { enqueueSessionRequests } from "../sessions/session-requests.ts";
+import {
+  enqueueSessionRequests,
+  type SessionRequest,
+} from "../sessions/session-requests.ts";
 import {
   kirocrewRequest,
   persistKirocrewConfiguration,
@@ -16,7 +18,26 @@ import { fixture } from "./fixtures.ts";
 const cronPath = fileURLToPath(
   new URL("../../../hosts/kirocrew/crons/tick.py", import.meta.url),
 );
-async function cron(ops, intents, { mode = "normal" } = {}) {
+// The intents plans_maintain hands the cron.
+interface Intents {
+  dispatch: SessionRequest[];
+  messages: SessionRequest[];
+  notify: unknown[];
+}
+// One line the cron prints: a tool call it waits on, or an event.
+interface CronLine {
+  rpc?: string;
+  args: { action?: unknown; input?: Record<string, unknown>; agent?: string };
+  event?: string;
+  slot?: string;
+  text?: string;
+  name?: string;
+}
+async function cron(
+  ops: Operations,
+  intents: Intents,
+  { mode = "normal" } = {},
+) {
   const child = spawn(
     "python3",
     [
@@ -50,13 +71,13 @@ except Exception as error: emit({"event":"error","text":str(error)})
     },
   );
   const lines = readline.createInterface({ input: child.stdout }),
-    events = [],
-    calls = [];
+    events: CronLine[] = [],
+    calls: CronLine[] = [];
   let stderr = "";
-  child.stderr.on("data", (chunk) => {
+  child.stderr.on("data", (chunk: Buffer) => {
     stderr += chunk;
   });
-  const done = new Promise((resolve, reject) => {
+  const done = new Promise<void>((resolve, reject) => {
     child.once("error", reject);
     child.once("close", (code) =>
       code === 0 ? resolve() : reject(Error(stderr || `Python exited ${code}`)),
@@ -64,7 +85,7 @@ except Exception as error: emit({"event":"error","text":str(error)})
   });
   try {
     for await (const line of lines) {
-      const value = JSON.parse(line);
+      const value: CronLine = JSON.parse(line);
       if (!value.rpc) {
         if (value.event === "send")
           assert.ok(
@@ -75,7 +96,7 @@ except Exception as error: emit({"event":"error","text":str(error)})
         continue;
       }
       calls.push(value);
-      let result;
+      let result: unknown;
       if (value.rpc === "plans_maintain") result = intents;
       else if (value.rpc === "plans_session")
         result = await ops.execute(
@@ -103,7 +124,7 @@ except Exception as error: emit({"event":"error","text":str(error)})
   return { events, calls };
 }
 
-function setup(t, project = false) {
+function setup(t: TestContext, project = false) {
   const { root, store } = fixture(t),
     ops = new Operations(store, { workspaceRoot: root });
   const request = kirocrewRequest(store, {
@@ -137,7 +158,7 @@ test("the production cron consumes only native starts/messages and stale replay 
     });
   const processStart = store.get("session_requests", transport.starts[1].id),
     processSend = store.get("session_requests", transport.sends[1].id),
-    intents = {
+    intents: Intents = {
       dispatch: transport.starts,
       messages: transport.sends,
       notify: [],
@@ -150,13 +171,16 @@ test("the production cron consumes only native starts/messages and stale replay 
     ["Synthetic brief", "Synthetic feedback"],
   );
   assert.equal(
-    first.events.find((event) => event.event === "open").args.agent,
+    first.events.find((event) => event.event === "open")?.args.agent,
     "synthetic-agent",
   );
   const replay = await cron(ops, intents);
   assert.ok(
-    replay.events.every((event) => !["open", "send"].includes(event.event)),
+    replay.events.every(
+      (event) => event.event !== "open" && event.event !== "send",
+    ),
   );
+  assert.ok(processStart && processSend);
   assert.deepEqual(
     store.get("session_requests", processStart.id),
     processStart,
@@ -178,7 +202,7 @@ test("only a definitive pre-open refusal releases a start; an uncertain open sta
     false,
   );
   assert.equal(
-    before.store.get("session_requests", queued.id).state,
+    before.store.get("session_requests", queued.id)?.state,
     "pending",
   );
   const after = setup(t),
@@ -191,7 +215,7 @@ test("only a definitive pre-open refusal releases a start; an uncertain open sta
   );
   assert.ok(uncertain.events.some((event) => event.event === "error"));
   assert.equal(
-    after.store.get("session_requests", request.id).state,
+    after.store.get("session_requests", request.id)?.state,
     "claimed",
   );
   const replay = await cron(after.ops, {

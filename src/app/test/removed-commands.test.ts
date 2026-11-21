@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Removed commands and operations are deleted: a call to one is refused as
 // unknown and changes nothing (worker-paths WP7.1, WP7.2; owner decision
 // 2026-11-18, no backward compatibility).
@@ -15,17 +14,24 @@ import { temporaryDirectory } from "./temporary.ts";
 
 const cli = fileURLToPath(new URL("../../../cli.ts", import.meta.url));
 
-function env(home) {
-  const out = { ...process.env, XDG_CONFIG_HOME: home, HOME: home };
+function env(home: string) {
+  const out: NodeJS.ProcessEnv = {
+    ...process.env,
+    XDG_CONFIG_HOME: home,
+    HOME: home,
+  };
   for (const name of Object.keys(out))
     if (/^(AVOOZL|KIROCREW)(_|$)/.test(name)) delete out[name];
   return out;
 }
 
 // Every file under the workspace with its bytes, so a changed byte shows.
-function files(root) {
-  const out = {};
-  for (const name of fs.readdirSync(root, { recursive: true })) {
+function files(root: string) {
+  const out: Record<string, string> = {};
+  for (const name of fs.readdirSync(root, {
+    recursive: true,
+    encoding: "utf8",
+  })) {
     const file = path.join(root, name);
     if (fs.statSync(file).isFile())
       out[name] = fs.readFileSync(file).toString("base64");
@@ -34,7 +40,7 @@ function files(root) {
 }
 
 const host = "--" + "host";
-const REMOVED = [
+const REMOVED: [string[], RegExp][] = [
   [
     ["report", "a", "--slot", "s", "--kind", "done"],
     /Unknown command or operation report\./,

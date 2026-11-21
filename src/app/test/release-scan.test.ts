@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The release gate (R24.2): neither package ships an excluded file or an
 // unallowed secret, private name, or machine path. Private names come from
 // a local terms file; without one only the public rules run.
@@ -52,7 +51,8 @@ test("a terms file's allow lines cancel only that file's matches (R40.15)", () =
       "codename: \\bzorblat\\b\nhost: \\bbuild\\d+\\.corp\\.example\\b\nallow: \\bzorblat-public\\b\nallow host: \\bbuild0\\.corp\\.example\\b\nallow: AKIA\n",
     ),
   ];
-  const rulesOf = (text) => scanText(text, rules).map((hit) => hit.rule);
+  const rulesOf = (text: string) =>
+    scanText(text, rules).map((hit) => hit.rule);
   assert.deepEqual(rulesOf("ship zorblat-public today"), []);
   assert.deepEqual(rulesOf("zorblat ships today"), ["codename"]);
   assert.deepEqual(rulesOf("build0.corp.example and zorblat"), ["codename"]);
@@ -62,12 +62,13 @@ test("a terms file's allow lines cancel only that file's matches (R40.15)", () =
   // Problems name the line, never its text.
   assert.throws(
     () => parseTerms("codename: zorblat\nallow nope: quartz"),
-    (error) =>
+    (error: Error) =>
       /line 2/.test(error.message) && !/quartz|nope/.test(error.message),
   );
   assert.throws(
     () => parseTerms("allow: quartz("),
-    (error) => /line 1/.test(error.message) && !/quartz/.test(error.message),
+    (error: Error) =>
+      /line 1/.test(error.message) && !/quartz/.test(error.message),
   );
 });
 
