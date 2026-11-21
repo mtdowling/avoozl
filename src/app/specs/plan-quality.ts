@@ -19,6 +19,12 @@ export interface Proposal {
   manual?: boolean;
   lineStart?: number;
   lineEnd?: number;
+  // The task ID a revision maps the item to, its description, its tasks.md
+  // phase heading and the item it nests under.
+  taskId?: string;
+  summary?: string;
+  phase?: { id: string; [key: string]: unknown } | null;
+  parent?: string | null;
   [key: string]: unknown;
 }
 // One lint finding.
