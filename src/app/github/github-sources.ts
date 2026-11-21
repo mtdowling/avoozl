@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // GitHub sources (design §4.39, Requirement 110): a GitHub repository whose
 // issues may start work is one `intake.sources` entry with `via: "github"`,
 // beside plugin and MCP sources.
@@ -15,33 +14,47 @@ export const GITHUB_SOURCE_KEYS = Object.freeze([
   "provider",
   "model",
 ]);
-const REPOSITORY = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
-const record = (value) =>
-  Boolean(value) && typeof value === "object" && !Array.isArray(value);
-const lower = (value) => String(value).toLowerCase();
+// The settings a GitHub source stands for.
+export interface SourceSettings {
+  repositoryId: string;
+  workspaceRepositoryId?: string;
+  assignee: string;
+  enabled: boolean;
+  autoStart: boolean;
+  provider: string | null;
+  model: string | null;
+}
+type Json = Record<string, unknown>;
 
-function text(value, label, { nullable = false } = {}) {
+const REPOSITORY = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
+const record = (value: unknown): value is Json =>
+  Boolean(value) && typeof value === "object" && !Array.isArray(value);
+const lower = (value: unknown) => String(value).toLowerCase();
+
+function text(value: unknown, label: string, { nullable = false } = {}) {
   if (nullable && (value === null || value === undefined || value === ""))
     return null;
-  if (typeof value !== "string" || !value.trim()) fail(`${label} is required.`);
+  if (typeof value !== "string" || !value.trim())
+    return fail(`${label} is required.`);
   return value.trim();
 }
 
 // The `github_repositories` settings a GitHub source stands for, in the
 // shape the settings diff compares (appliedActions in repository-settings).
-function settings(fields, where) {
+function settings(fields: Json, where: string): SourceSettings {
   return {
-    repositoryId: text(fields.repositoryId, `${where} execution repository`),
+    repositoryId: String(
+      text(fields.repositoryId, `${where} execution repository`),
+    ),
     ...(fields.workspaceRepositoryId &&
     fields.workspaceRepositoryId !== fields.repositoryId
       ? {
-          workspaceRepositoryId: text(
-            fields.workspaceRepositoryId,
-            `${where} workspace repository`,
+          workspaceRepositoryId: String(
+            text(fields.workspaceRepositoryId, `${where} workspace repository`),
           ),
         }
       : {}),
-    assignee: text(fields.assignee, `${where} assignee`),
+    assignee: String(text(fields.assignee, `${where} assignee`)),
     enabled: true,
     autoStart: Boolean(fields.autoStart),
     provider: text(fields.provider, `${where} provider`, { nullable: true }),
@@ -50,8 +63,8 @@ function settings(fields, where) {
 }
 
 // One `via: "github"` entry, checked. Returns its repository and settings.
-export function validateGitHubSource(value, where) {
-  if (!record(value)) fail(`${where} must be an object.`);
+export function validateGitHubSource(value: unknown, where: string) {
+  if (!record(value)) return fail(`${where} must be an object.`);
   for (const key of Object.keys(value))
     if (!GITHUB_SOURCE_KEYS.includes(key))
       fail(`${where}.${key} is not a GitHub source setting.`);
@@ -59,7 +72,7 @@ export function validateGitHubSource(value, where) {
     typeof value.repository !== "string" ||
     !REPOSITORY.test(value.repository)
   )
-    fail(`${where}.repository must be an owner/name GitHub repository.`);
+    return fail(`${where}.repository must be an owner/name GitHub repository.`);
   return {
     repository: value.repository,
     settings: settings(
@@ -74,7 +87,7 @@ export function validateGitHubSource(value, where) {
 }
 
 // The source entry `settings` are written as.
-function sourceEntry(repository, value) {
+function sourceEntry(repository: string, value: SourceSettings) {
   return {
     via: GITHUB_VIA,
     repository,
@@ -91,7 +104,7 @@ function sourceEntry(repository, value) {
 }
 
 // `github-<owner>-<name>` in a source id's letters, unique among `taken`.
-export function githubSourceId(repository, taken = new Set()) {
+export function githubSourceId(repository: string, taken = new Set<string>()) {
   const base = `github-${lower(repository).replace(/[^a-z0-9-]+/g, "-")}`
     .replace(/-+/g, "-")
     .replace(/-$/, "")
@@ -101,19 +114,22 @@ export function githubSourceId(repository, taken = new Set()) {
   return id;
 }
 
-const sourcesOf = (value) =>
-  record(value?.intake) && record(value.intake.sources)
-    ? value.intake.sources
-    : {};
+const sourcesOf = (value: Json | null | undefined): Json => {
+  const intake = value?.intake;
+  return record(intake) && record(intake.sources) ? intake.sources : {};
+};
 
 // Every GitHub source of a `.avoozl.json` value by GitHub
 // repository: [{id, repository, entry, settings}]. A second source
 // for one repository is left out (intake.mjs lists it with its error).
-export function githubSources(value) {
-  const found = new Map(),
+export function githubSources(value: Json | null | undefined) {
+  const found = new Map<
+      string,
+      { id: string; entry: Json; repository: string; settings: SourceSettings }
+    >(),
     taken = new Set(Object.keys(sourcesOf(value)));
   for (const [id, entry] of Object.entries(sourcesOf(value))) {
-    if (entry?.via !== GITHUB_VIA) continue;
+    if (!record(entry) || entry.via !== GITHUB_VIA) continue;
     const checked = validateGitHubSource(entry, `intake.sources.${id}`),
       key = lower(checked.repository);
     if (!found.has(key)) found.set(key, { id, entry, ...checked });
@@ -123,14 +139,27 @@ export function githubSources(value) {
 
 // `upsert` (repository and settings) added or replaced and every source of `remove` (GitHub
 // repositories) dropped. Changes `value` in place and returns it.
-export function writeGitHubSources(value, { upsert = null, remove = [] } = {}) {
+export function writeGitHubSources(
+  value: Json,
+  {
+    upsert = null,
+    remove = [],
+  }: {
+    upsert?: { repository: string; settings: SourceSettings } | null;
+    remove?: string[];
+  } = {},
+) {
   const sources = { ...sourcesOf(value) };
   const drop = new Set(
     [...remove, upsert?.repository].filter(Boolean).map(lower),
   );
-  let keep = null;
+  let keep: string | null = null;
   for (const [id, entry] of Object.entries(sources))
-    if (entry?.via === GITHUB_VIA && drop.has(lower(entry.repository))) {
+    if (
+      record(entry) &&
+      entry.via === GITHUB_VIA &&
+      drop.has(lower(entry.repository))
+    ) {
       if (upsert && lower(entry.repository) === lower(upsert.repository))
         keep ??= id;
       delete sources[id];
