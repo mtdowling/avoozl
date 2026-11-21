@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The Insights home (simplify §D13): its strip, chart shapes and empty words,
 // then the real view in Chrome (harness ?page=app): the page opens on it,
 // with data and empty, and a saved retro opens in the reader.
@@ -84,7 +83,7 @@ test('an empty workspace says what each chart is missing', { skip: shell.skip },
   const { page, harness } = shell
   await page.open(harness.url({ page: 'app' }), { width: 320, height: 800 })
   await page.until(`document.querySelectorAll('[data-insights-empty]').length === 7`, 30000)
-  const words = await page.evaluate(`[...document.querySelectorAll('[data-insights-empty]')].map((e) => e.textContent)`)
+  const words = await page.evaluate<string[]>(`[...document.querySelectorAll('[data-insights-empty]')].map((e) => e.textContent)`)
   assert.ok(words.includes('No finished tasks in this range yet.'))
   assert.ok(words.some((w) => w.startsWith('No saved retros yet.')))
   // Nothing is wider than the phone.

@@ -1,7 +1,9 @@
-// @ts-nocheck: typing debt
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { rateLines, usageRows } from '../src/settings-api.ts'
+import { rateLines, usageRows, type RateView } from '../src/settings-api.ts'
+
+// A whole RateView: no limit and no calls unless the test says otherwise.
+const rateView = (over: Partial<RateView>): RateView => ({ resources: {}, limitedUntil: null, limitedResource: null, calls: 0, notModified: 0, notModifiedShare: null, ...over })
 
 test('Settings > GitHub shows the last numbers, the limit and the 304 share', () => {
   assert.deepEqual(rateLines(undefined), [])
@@ -38,16 +40,16 @@ test('the Refresh button keeps one width, takes its period from github.cacheSeco
   assert.ok(countdownText(3599, true).length <= countdownWidth(true, 60))
   assert.ok(countdownText(3600, false).length <= countdownWidth(false, 3600))
   assert.equal(refreshPeriod(undefined), 60)
-  assert.equal(refreshPeriod({ cacheSeconds: 90 }), 90)
-  assert.equal(refreshPeriod({ cacheSeconds: 0 }), FALLBACK_SECONDS)
+  assert.equal(refreshPeriod(rateView({ cacheSeconds: 90 })), 90)
+  assert.equal(refreshPeriod(rateView({ cacheSeconds: 0 })), FALLBACK_SECONDS)
   const now = Date.parse('2026-11-14T19:00:00Z')
-  assert.equal(limitedFor({ limitedUntil: '2026-11-14T19:18:51Z' }, now), 18 * 60 + 51)
-  assert.equal(limitedFor({ limitedUntil: '2026-11-14T18:00:00Z' }, now), 0)
+  assert.equal(limitedFor(rateView({ limitedUntil: '2026-11-14T19:18:51Z' }), now), 18 * 60 + 51)
+  assert.equal(limitedFor(rateView({ limitedUntil: '2026-11-14T18:00:00Z' }), now), 0)
   assert.equal(limitedFor(null, now), 0)
 })
 
 test('the details are in the tooltip, not on the button', () => {
-  const rate = { cacheSeconds: 60, resources: { core: { limit: 5000, remaining: 4000, resetAt: '' } } }
+  const rate = rateView({ cacheSeconds: 60, resources: { core: { limit: 5000, remaining: 4000, resetAt: '' } } })
   assert.match(refreshTip(rate, 32, 0), /Reads again in 32s.*kept 60s.*4000 of 5000/)
   assert.match(refreshTip(rate, 32, 600), /rate limit is reached/)
 })
@@ -93,16 +95,12 @@ test('paced writes waiting on the write limits shows its progress and the pace',
 
 test('the calls table sorts by any column, calls descending first', async () => {
   const { sortUsage, nextUsageSort, USAGE_SORT } = await import('../src/settings-api.ts')
-  const rows = usageRows({
-    resources: {},
-    limitedUntil: null,
-    limitedResource: null,
-    calls: 0,
-    notModified: 0,
-    notModifiedShare: null,
-    bySource: { tick: { calls: 5, notModified: 1, cached: 9 }, radar: { calls: 20, notModified: 7, cached: 0 }, intake: { calls: 5, notModified: 3, cached: 2 } },
-  })
-  const names = (sort) => sortUsage(rows, sort).map((r) => r.source)
+  const rows = usageRows(
+    rateView({
+      bySource: { tick: { calls: 5, notModified: 1, cached: 9 }, radar: { calls: 20, notModified: 7, cached: 0 }, intake: { calls: 5, notModified: 3, cached: 2 } },
+    }),
+  )
+  const names = (sort: Parameters<typeof sortUsage>[1]) => sortUsage(rows, sort).map((r) => r.source)
   assert.deepEqual(USAGE_SORT, { key: 'calls', dir: 'desc' })
   assert.deepEqual(names(USAGE_SORT), ['radar', 'intake', 'tick'])
   assert.deepEqual(names({ key: 'calls', dir: 'asc' }), ['intake', 'tick', 'radar'])

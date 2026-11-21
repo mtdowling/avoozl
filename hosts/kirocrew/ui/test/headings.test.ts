@@ -1,13 +1,13 @@
-// @ts-nocheck: typing debt
 // The shared section heading, the Plans heading buttons, the one usage card
 // on Flow, and the Needs you title links.
 import assert from 'node:assert/strict'
 import { readFileSync, readdirSync } from 'node:fs'
 import test from 'node:test'
 import { attentionTarget, attentionTip } from '../src/in-flight-api.ts'
+import type { ConflictItem } from '../src/views-api.ts'
 
 const src = new URL('../src/', import.meta.url)
-const source = (name) => readFileSync(new URL(name, src), 'utf8')
+const source = (name: string) => readFileSync(new URL(name, src), 'utf8')
 const views = readdirSync(src).filter((name) => name.endsWith('.tsx'))
 
 test('one section heading: title and buttons on one centered row, buttons right and wrapping', () => {
@@ -53,12 +53,13 @@ test('Specs heading: an icon-only Refresh, and no New spec or New task anywhere'
 })
 
 test('a Needs you title opens what it is about', () => {
-  const base = { key: 'k', kind: 'decision', title: 'T', detail: 'd', tab: 'conflicts', href: null }
+  const base = { key: 'k', kind: 'decision', title: 'T', detail: 'd', tab: 'waiting' as const, href: null }
+  const group: ConflictItem = { kind: 'review', taskId: null, title: 'Review', detail: '' }
   assert.deepEqual(attentionTarget({ ...base, taskId: 'W1' }), { kind: 'task', id: 'W1' })
-  assert.deepEqual(attentionTarget({ ...base, kind: 'review', taskId: null, group: { kind: 'review' } }), { kind: 'review' })
+  assert.deepEqual(attentionTarget({ ...base, kind: 'review', taskId: null, group }), { kind: 'review' })
   assert.deepEqual(attentionTarget({ ...base, kind: 'content-match', taskId: null }), { kind: 'tab', tab: 'waiting' })
   assert.equal(attentionTip({ ...base, taskId: 'W1' }), 'Open W1 in the drawer')
-  assert.equal(attentionTip({ ...base, kind: 'review', taskId: null, group: {} }), 'Open the list of tasks to review')
+  assert.equal(attentionTip({ ...base, kind: 'review', taskId: null, group }), 'Open the list of tasks to review')
 })
 
 test('Settings > Flow puts each sub-section in its own titled box', () => {
@@ -66,5 +67,5 @@ test('Settings > Flow puts each sub-section in its own titled box', () => {
   assert.match(flow, /function FlowBox\(\{ children \}[\s\S]*?<Card flex flexCol gap="4" data-flow-box>/)
   const titles = [...flow.matchAll(/<FlowBox>\s*<Section title="([^"]+)" blurb="[^"]+"/g)].map((m) => m[1])
   assert.deepEqual(titles, ['Timing', 'Pause on a broken check', 'Local checks first'])
-  assert.equal(flow.match(/<FlowBox>/g).length, titles.length)
+  assert.equal(flow.match(/<FlowBox>/g)?.length, titles.length)
 })

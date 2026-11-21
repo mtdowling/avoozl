@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Folds that share a group are exclusive: opening one closes the others.
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
@@ -7,7 +6,7 @@ import test from 'node:test'
 const controls = readFileSync(new URL('../src/ui/controls.tsx', import.meta.url), 'utf8')
 
 // closeOthers is plain logic; load it without the JSX around it.
-const body = controls.match(/export function closeOthers[\s\S]*?\n}\n/)[0]
+const body = controls.match(/export function closeOthers[\s\S]*?\n}\n/)?.[0] ?? ''
 const closeOthers = new Function(`${body.replace(/^export /, '').replace(/: \{ open: boolean \}|: Iterable<\{ open: boolean \}>/g, '')}; return closeOthers`)()
 
 test('opening one fold closes the others in its group', () => {
