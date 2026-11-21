@@ -1,14 +1,20 @@
-// @ts-nocheck: typing debt
 import test from "node:test";
 import assert from "node:assert/strict";
 import { fixture } from "./fixtures.ts";
 import { Operations } from "../api/operations.ts";
 
+// A saved report, as report.save returns it.
+interface Report {
+  id: string;
+  view: string;
+  filters: { statuses?: string[] };
+}
+
 test("saved reports retain named task filters without changing task state", async (t) => {
   const { store } = fixture(t),
     ops = new Operations(store),
     before = structuredClone(store.read().tasks);
-  const report = await ops.execute(
+  const report = await ops.execute<Report>(
     "report.save",
     {
       title: "Blocked runtime work",
@@ -27,7 +33,7 @@ test("saved reports retain named task filters without changing task state", asyn
   assert.deepEqual(report.filters.statuses, ["blocked"]);
   assert.deepEqual(store.read().tasks, before);
 
-  const updated = await ops.execute(
+  const updated = await ops.execute<Report>(
     "report.save",
     {
       id: report.id,
@@ -38,7 +44,7 @@ test("saved reports retain named task filters without changing task state", asyn
     store.read().revision,
   );
   assert.equal(updated.id, report.id);
-  assert.equal(store.read().savedSearches.length, 1);
+  assert.equal(store.read().savedSearches?.length, 1);
 
   await ops.execute("report.delete", { id: report.id }, store.read().revision);
   assert.deepEqual(store.read().savedSearches, []);

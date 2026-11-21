@@ -145,5 +145,7 @@ export interface Snapshot {
   taskAliases?: Record<string, string>;
   tracks?: { id: string; [key: string]: unknown }[];
   presentation?: Record<string, unknown>;
+  // Saved reports (report.save).
+  savedSearches?: { id: string; [key: string]: unknown }[];
   [key: string]: unknown;
 }

@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // A workspace whose .avoozl.json has a key the schema does not list: the app
 // backend and the MCP server still start, and every caller gets the
 // configuration's own refusal instead of a page with no backend.
@@ -47,8 +46,8 @@ test("the app backend starts on a bad .avoozl.json and the page reads its error"
   );
   t.after(() => child.kill());
   let output = "";
-  const port = await new Promise((resolve, reject) => {
-    const read = (chunk) => {
+  const port = await new Promise<number>((resolve, reject) => {
+    const read = (chunk: Buffer) => {
       output += chunk;
       const found = /listening on 127\.0\.0\.1:(\d+)/.exec(output);
       if (found) resolve(Number(found[1]));
@@ -64,7 +63,12 @@ test("the app backend starts on a bad .avoozl.json and the page reads its error"
   assert.equal(health.status, 200);
   assert.deepEqual(await health.json(), { ok: true, app: "avoozl" });
 
-  const call = async (value) => {
+  // What the backend answers: a workspace list, or why it refused.
+  interface Reply {
+    result: { items: { id: string; served: boolean; configError: string }[] };
+    error: string;
+  }
+  const call = async (value: unknown) => {
     const body = JSON.stringify(value),
       response = await fetch(base + "/api/command", {
         method: "POST",
@@ -74,7 +78,10 @@ test("the app backend starts on a bad .avoozl.json and the page reads its error"
         },
         body,
       });
-    return { status: response.status, body: await response.json() };
+    return {
+      status: response.status,
+      body: (await response.json()) as Reply,
+    };
   };
   const listed = await call({ operation: "workspaces.list" });
   assert.equal(listed.status, 200, JSON.stringify(listed.body));
