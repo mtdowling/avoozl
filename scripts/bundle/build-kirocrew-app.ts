@@ -58,6 +58,7 @@ const bundle = await rolldown({
     "src/app/executors/supervisor-child.ts",
     "src/app/executors/context-broker-main.ts",
     "src/app/executors/context-relay.ts",
+    "src/app/executors/egress-proxy-main.ts",
     "src/app/serve/serve-main.ts",
     // Started as its own process by plugins.ts, so nothing imports it.
     "src/app/plugins/plugin-child.ts",
