@@ -1,13 +1,14 @@
 // The page's top-level views (simplify §D13). Kept free of JSX so node can
 // test it directly.
 
-// The nav row: Specs, Graph, In flight, Needs you, Settings. In flight's key
+// The nav row: Specs, Graph, In flight, Needs you, Activity, Settings. In flight's key
 // is 'delivery' and Specs' is 'plans'.
 export const TABS = [
   { key: 'plans', label: 'Specs' },
   { key: 'graph', label: 'Graph' },
   { key: 'delivery', label: 'In flight' },
   { key: 'waiting', label: 'Needs you' },
+  { key: 'activity', label: 'Activity' },
   { key: 'settings', label: 'Settings' },
 ] as const
 

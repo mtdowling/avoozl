@@ -93,6 +93,90 @@ for (const [width, height] of [
       assert.deepEqual(count, { inside: true, text: '12' })
     })
 
+// The app page with Activity open in the nav (the phone's menu at 390 px).
+const openActivity = async (width, height, dark) => {
+  await page.open(harness.url({ page: 'app', theme: dark ? 'dark' : 'light', needs: '3', activity: '1' }), { width, height, dark })
+  await page.until(`Boolean(document.querySelector('[data-shell-main]'))`)
+  if (width < 768) {
+    await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
+    await page.until(`Boolean(document.querySelector('[data-top-rail-list]'))`)
+  }
+  await open(width, 'Activity')
+}
+
+// Activity's filters in the open nav, as rows and chips like the Specs rail:
+// no dropdowns; the source rows share one left and right edge, the headers
+// and chips share one left edge with the Keep activity field, and nothing
+// passes the pill. The nav's pills are 2px taller above and below than a
+// 28px button.
+for (const [width, height] of [
+  [390, 844],
+  [1280, 800],
+])
+  for (const dark of [false, true])
+    test(`at ${width} px ${dark ? 'dark' : 'light'}: Activity filters are rows and chips that line up, pills are 32 px`, { skip }, async () => {
+      await openActivity(width, height, dark)
+      await page.until(`document.querySelectorAll('${scope(width)} [data-nav-filters] [data-rail-chip]').length >= 3`)
+      const got = await page.evaluate(`(() => {
+        const rail = document.querySelector('${scope(width)} [data-nav-filters="avoozl-activity"]')
+        const box = (el) => el.getBoundingClientRect()
+        const rows = [...rail.querySelectorAll('[data-rail-source]')].map(box)
+        return {
+          selects: rail.querySelectorAll('select').length,
+          rowLefts: [...new Set(rows.map((r) => Math.round(r.left)))],
+          rowRights: [...new Set(rows.map((r) => Math.round(r.right)))],
+          heads: [...new Set([...rail.querySelectorAll('[data-rail-head]')].map((h) => Math.round(box(h).left)))],
+          chips: [...new Set([...rail.querySelectorAll('[data-rail-chip]')].map((c) => Math.round(box(c).left)))],
+          keep: Math.round(box(rail.querySelector('#avoozl-activity-keep')).left),
+          pressed: rail.querySelector('[data-rail-source=""]').getAttribute('aria-pressed'),
+        }
+      })()`)
+      assert.equal(got.selects, 0, 'no dropdowns')
+      assert.equal(got.pressed, 'true', 'All is filled while no source is picked')
+      assert.equal(got.rowLefts.length, 1, `rows share a left edge: ${JSON.stringify(got)}`)
+      assert.equal(got.rowRights.length, 1, `rows share a right edge: ${JSON.stringify(got)}`)
+      assert.equal(got.heads.length, 1, `headers share a left edge: ${JSON.stringify(got)}`)
+      assert.deepEqual(got.chips, got.heads, `chips line up with the headers: ${JSON.stringify(got)}`)
+      assert.equal(got.keep, got.heads[0], `Keep activity lines up with the headers: ${JSON.stringify(got)}`)
+      assert.deepEqual(await page.evaluate(OVERFLOWS(width)), [], 'nothing passes the pill')
+      const heights = await page.evaluate(
+        `(() => { const nav = document.querySelector('${scope(width)}'); return { heads: [...new Set([...nav.querySelectorAll('[data-nav-head]')].map((h) => Math.round(h.getBoundingClientRect().height)))], rows: [...new Set([...nav.querySelectorAll('[data-nav-children] > [data-nav-item]')].map((h) => Math.round(h.getBoundingClientRect().height)))], workspace: Math.round(nav.querySelector('[data-workspace-pill]').getBoundingClientRect().height) } })()`,
+      )
+      assert.deepEqual(heights, { heads: [32], rows: heights.rows.length ? [32] : [], workspace: 32 })
+    })
+
+// Activity's Refresh sits on the top line, not on a row of its own under it;
+// no pause icon is there (it is on In flight). A phone has it in the menu.
+for (const [width, height] of [
+  [390, 844],
+  [1280, 800],
+])
+  for (const dark of [false, true])
+    test(`at ${width} px ${dark ? 'dark' : 'light'}: Activity's Refresh is on the top line`, { skip }, async () => {
+      await openActivity(width, height, dark)
+      if (width < 768 && (await page.evaluate(`Boolean(document.querySelector('[data-top-rail-list]'))`)))
+        await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
+      await page.until(`Boolean(document.querySelector('#avoozl-activity-title'))`)
+      // No Refresh in the page's own heading row.
+      assert.equal(
+        await page.evaluate(`document.querySelector('#avoozl-activity-title').closest('div, header')?.querySelectorAll('[data-refresh]').length ?? 0`),
+        0,
+        'no Refresh in the heading',
+      )
+      if (width < 768) {
+        await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
+        await page.until(`Boolean(document.querySelector('[data-top-rail-list] [data-refresh]'))`)
+        return
+      }
+      const got = await page.evaluate(`(() => {
+        const refresh = document.querySelectorAll('[data-refresh]')
+        return { count: refresh.length, inLine: Boolean(refresh[0].closest('[data-main-actions]')), pause: document.querySelectorAll('[data-main-top] [data-stop-line]').length }
+      })()`)
+      assert.equal(got.count, 1, JSON.stringify(got))
+      assert.ok(got.inLine, `on the top line: ${JSON.stringify(got)}`)
+      assert.equal(got.pause, 0, 'no pause on the top line')
+    })
+
 // Every icon on the page draws a glyph: the host's lucide-react icon, never
 // the harness's stand-in circle, and never an empty <svg>. Needs the
 // lucide-react dev dependency (the host's version).
