@@ -6,7 +6,7 @@ import { approvedSpecDependency } from "../../spec-dependencies.mjs";
 import { resolveTaskId } from "../../task-identity.mjs";
 import { randomUUID } from "node:crypto";
 import { digest } from "../../model.mjs";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 import { frontMatterCategory } from "../../front-matter.mjs";
 import {
   checkedItems,

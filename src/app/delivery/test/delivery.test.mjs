@@ -9,7 +9,7 @@ import path from "node:path";
 import test from "node:test";
 import { handleMcp } from "../../mcp/mcp.mjs";
 import { Operations } from "../../api/operations.mjs";
-import { Store } from "../../store/store.mjs";
+import { Store } from "../../store/store.ts";
 import { snapshot } from "../../test/fixtures.mjs";
 import { temporaryDirectory } from "../../test/temporary.mjs";
 import { loopOn } from "../../test/fixtures.mjs";

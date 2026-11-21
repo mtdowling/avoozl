@@ -1,6 +1,6 @@
 // CLI commands of one kind: command, help lines and run.
 import { validate } from "../../model.mjs";
-import { Store } from "../store/store.mjs";
+import { Store } from "../store/store.ts";
 import fs from "node:fs";
 import { help } from "../cli/command-help.mjs";
 import { runWorkspace } from "./setup.mjs";

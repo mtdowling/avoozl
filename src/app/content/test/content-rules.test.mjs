@@ -22,7 +22,7 @@ import {
   validateContentRules,
 } from "../content-rules.mjs";
 import { checkReply } from "../../plugins/plugin-contract.mjs";
-import { Store } from "../../store/store.mjs";
+import { Store } from "../../store/store.ts";
 import { temporaryDirectory } from "../../test/temporary.mjs";
 
 process.env.XDG_CONFIG_HOME = temporaryDirectory("avoozl-xdg-");

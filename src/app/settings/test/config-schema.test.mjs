@@ -21,7 +21,7 @@ import {
   loadLayeredConfig,
 } from "../layered-config.mjs";
 import { RepositorySettings } from "../repository-settings.mjs";
-import { Store } from "../../store/store.mjs";
+import { Store } from "../../store/store.ts";
 import { initializeWorkspace } from "../../workspace/workspace.mjs";
 import { temporaryDirectory } from "../../test/temporary.mjs";
 

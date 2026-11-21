@@ -4,7 +4,7 @@ import path from "node:path";
 import { execFile, spawn } from "node:child_process";
 import { promisify } from "node:util";
 import { digest } from "../../model.mjs";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 import { secretReason } from "../content/content-rules.mjs";
 import { requirePrivateRepository } from "../github/github.mjs";
 import { synchronizeAgentInstructions } from "../agents/agent-instructions.mjs";

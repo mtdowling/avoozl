@@ -6,7 +6,7 @@ import { person, routed } from "../api/operation-policy.mjs";
 import { setMapping } from "../plugins/plugin-checks.mjs";
 import { flipDecide, submitDecide } from "../plugins/check-decide.mjs";
 import { stageResults } from "../plugins/check-stages.mjs";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 
 async function pluginHandler({ name, input, context }) {
   const result = await this.pluginOperation(name, input, context);

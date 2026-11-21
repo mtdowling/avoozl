@@ -10,7 +10,7 @@ import { workspaceConfig } from "../settings/config.mjs";
 import { localSteps, worktreePath } from "../delivery/delivery.mjs";
 import { Operations } from "../api/operations.mjs";
 import { issueReportToken } from "../workers/report-match.mjs";
-import { Store } from "../store/store.mjs";
+import { Store } from "../store/store.ts";
 import { snapshot } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 import { loopOn } from "./fixtures.mjs";

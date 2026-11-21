@@ -19,7 +19,7 @@ import {
 import { callerSlot } from "../delivery/delivery.mjs";
 import { actorAllowed, readGitHubPolicy } from "./github-policy.mjs";
 import { workspaceRepositories } from "../workspace/workspace-repositories.mjs";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 import { baseRef, git } from "../git/git.mjs";
 import {
   enforce as enforceContent,

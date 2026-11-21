@@ -18,7 +18,7 @@ import {
 } from "../executors/kirocrew/session-observer.mjs";
 import { slotServed } from "../executors/kirocrew.mjs";
 import { GONE_GRACE_MS, servedModel } from "../delivery/delivery.mjs";
-import { Store } from "../store/store.mjs";
+import { Store } from "../store/store.ts";
 import { tickHealth } from "../tick/tick.mjs";
 import { snapshot } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";

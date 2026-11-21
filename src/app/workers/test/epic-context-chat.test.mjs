@@ -8,7 +8,7 @@ import test from "node:test";
 import { chatBrief } from "../epic-context.mjs";
 import { approverCheck } from "../../git/git-approvals.mjs";
 import { bindSession } from "../../sessions/session-bindings.mjs";
-import { listActivity } from "../../store/activity-log.mjs";
+import { listActivity } from "../../store/activity-log.ts";
 import { contextMachine } from "../../context/test/context-fixture.mjs";
 import { seedApproval, unapprove } from "../../test/epic-context-seed.mjs";
 import { keepKiroCrewHome } from "../../executors/test/epic-context-world.mjs";

@@ -10,7 +10,7 @@
 // no Kiro Crew seen lately, it opens one Needs you item per role (NK8.2).
 import fs from "node:fs";
 import path from "node:path";
-import { Store } from "../store/store.mjs";
+import { Store } from "../store/store.ts";
 import { Operations } from "../api/operations.mjs";
 import { workspaceConfig } from "../settings/config.mjs";
 import { WorkspaceRegistry } from "../settings/host-config.mjs";

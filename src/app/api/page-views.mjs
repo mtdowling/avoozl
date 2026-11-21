@@ -33,7 +33,7 @@ import { taskSourceRefs } from "../../task-identity.mjs";
 import { taskFlow } from "../flow/flow.mjs";
 import { NODE_STATES } from "../../delivery-lanes.mjs";
 import { crossPlanEpics, epicOfPlan, taskEpic } from "../epics/epics.mjs";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 import { linkSets } from "../tasks/scm-links.mjs";
 import { epicRows } from "../epics/epic-rows.mjs";
 import { taskLinks } from "../tasks/scm-links.mjs";

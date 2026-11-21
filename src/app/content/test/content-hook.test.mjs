@@ -8,7 +8,7 @@ import path from "node:path";
 import test from "node:test";
 import { bindContentRules } from "../content-rules.mjs";
 import { contentHook, parseShell, scanCall } from "../content-hook.mjs";
-import { Store } from "../../store/store.mjs";
+import { Store } from "../../store/store.ts";
 import { temporaryDirectory } from "../../test/temporary.mjs";
 
 process.env.XDG_CONFIG_HOME = temporaryDirectory("avoozl-xdg-");

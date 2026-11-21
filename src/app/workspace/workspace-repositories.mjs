@@ -1,4 +1,4 @@
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 
 export function workspaceRepositories(store) {
   const repositories = store.list("repositories");

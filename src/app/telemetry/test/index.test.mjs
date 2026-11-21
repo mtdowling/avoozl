@@ -6,7 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { sandboxEnv } from "../../executors/sandbox.mjs";
-import { Store } from "../../store/store.mjs";
+import { Store } from "../../store/store.ts";
 import { temporaryDirectory } from "../../test/temporary.mjs";
 import { exporters, finishTask, point, span } from "../record.mjs";
 import { startTelemetry, telemetryStatus } from "../index.mjs";

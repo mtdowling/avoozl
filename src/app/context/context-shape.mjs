@@ -4,7 +4,7 @@
 // fails, and none accepts a credential value.
 import path from "node:path";
 import { credentialValue } from "../plugins/plugins.mjs";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 
 export const ALIAS = /^[a-z][a-z0-9-]{0,39}$/;
 const OWNER_NAME =

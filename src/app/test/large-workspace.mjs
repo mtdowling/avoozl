@@ -12,7 +12,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { span } from "../telemetry/record.mjs";
 import { fileURLToPath } from "node:url";
-import { Store } from "../store/store.mjs";
+import { Store } from "../store/store.ts";
 import { Operations } from "../api/operations.mjs";
 import { withFacts } from "./spec-fixture.mjs";
 

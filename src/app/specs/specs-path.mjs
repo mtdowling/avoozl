@@ -4,7 +4,7 @@
 // `..`, and the folder it names may not be a symlink out of the checkout.
 import fs from "node:fs";
 import path from "node:path";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 
 export const DEFAULT_SPECS_PATH = ".kiro/specs";
 const SEGMENT = /^[A-Za-z0-9._-]+$/;

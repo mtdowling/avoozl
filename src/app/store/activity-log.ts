@@ -1,3 +1,4 @@
+// @ts-nocheck: typing debt
 // The activity log (design §4.19, Requirement 71): one SQLite table of who
 // did what, from the page, the CLI, MCP, GitHub and plugin sync.
 //

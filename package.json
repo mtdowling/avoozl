@@ -51,6 +51,7 @@
     "hosts/kirocrew/",
     "!src/**/test/",
     "!src/**/*.test.mjs",
+    "!src/**/*.test.ts",
     "!hosts/kirocrew/ui/test/"
   ],
   "devDependencies": {

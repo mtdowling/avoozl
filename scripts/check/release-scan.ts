@@ -64,7 +64,7 @@ export const EXCLUDED = [
   /^\.kiro\//,
   /^scripts\//,
   /(^|\/)test\//,
-  /\.test\.mjs$/,
+  /\.test\.(mjs|ts)$/,
   /^\.avoozl\.json$/,
   /(^|\/)node_modules\//,
 ];

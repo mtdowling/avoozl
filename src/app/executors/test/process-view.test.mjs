@@ -28,7 +28,7 @@ import {
   takeSessionRequest,
 } from "../../sessions/session-requests.mjs";
 import { snapshot } from "../../test/fixtures.mjs";
-import { Store } from "../../store/store.mjs";
+import { Store } from "../../store/store.ts";
 
 const definition = (extra = {}) => ({
   name: "fake-cli",

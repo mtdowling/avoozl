@@ -5,7 +5,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { Operations } from "../api/operations.mjs";
-import { Store } from "../store/store.mjs";
+import { Store } from "../store/store.ts";
 import { snapshot } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 

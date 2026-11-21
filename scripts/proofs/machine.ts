@@ -280,7 +280,7 @@ export async function runBackend(
   machine,
   { seconds, env, between = () => {} },
 ) {
-  const { Store } = await import("../../src/app/store/store.mjs");
+  const { Store } = await import("../../src/app/store/store.ts");
   const { Operations } = await import("../../src/app/api/operations.mjs");
   const { prepareWorktree } = await import(
     "../../src/app/delivery/delivery.mjs"
@@ -413,7 +413,7 @@ export async function preflightModel(
   machine,
   { role, repository, record = null, env },
 ) {
-  const { Store } = await import("../../src/app/store/store.mjs");
+  const { Store } = await import("../../src/app/store/store.ts");
   const { kirocrewRequest } = await import(
     "../../src/app/executors/kirocrew.mjs"
   );

@@ -7,7 +7,7 @@ import crypto from "node:crypto";
 import { execFile } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 import { listSessionBindings } from "../sessions/session-bindings.mjs";
 
 const slotKey = (slot) =>

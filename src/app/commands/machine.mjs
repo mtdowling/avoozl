@@ -6,7 +6,7 @@ import { machineAvoozlPaths } from "../settings/host-config.mjs";
 import { machineStatus, serveStatus } from "../workspace/machine-status.mjs";
 import { reportByToken } from "../workers/report-match.mjs";
 import { LinkStore } from "../serve/serve-auth.mjs";
-import { Store } from "../store/store.mjs";
+import { Store } from "../store/store.ts";
 import { help } from "../cli/command-help.mjs";
 import {
   approveHarnessByName,

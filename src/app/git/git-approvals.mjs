@@ -23,7 +23,7 @@ import {
   specName,
 } from "../specs/spec-plans.mjs";
 import { specsPath } from "../specs/specs-path.mjs";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 
 const lower = (value) => String(value ?? "").toLowerCase();
 const specPath = (root, spec) => `${specsPath(root)}/${specName(spec)}`;

@@ -10,7 +10,7 @@ import { execFile } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 
 const COMMIT = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/;
 const URL_FORM = /^[a-z][a-z0-9+.-]*:\/\//i;

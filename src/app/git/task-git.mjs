@@ -20,7 +20,7 @@ import os from "node:os";
 import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 
 const exec = promisify(execFile);
 const real = (file) => fs.realpathSync.native(file);

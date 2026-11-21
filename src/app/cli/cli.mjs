@@ -12,7 +12,7 @@ import {
   cliRefusal,
 } from "../mcp/mcp-policy.mjs";
 import { Operations } from "../api/operations.mjs";
-import { Store } from "../store/store.mjs";
+import { Store } from "../store/store.ts";
 import { initializeFirst } from "../workspace/workspace.mjs";
 import fs from "node:fs";
 import path from "node:path";

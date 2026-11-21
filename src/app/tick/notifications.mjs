@@ -9,7 +9,7 @@
 // writes its health receipt.
 import { createHash } from "node:crypto";
 import { gatewayClient } from "../executors/kirocrew/gateway-client.mjs";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 import { decisionPath, decisionReference } from "../api/direct-links.mjs";
 
 // app.json notifications.channels ids. The Intake tab's channel keeps its

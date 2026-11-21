@@ -17,7 +17,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { DatabaseSync } from "node:sqlite";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 import {
   HARNESS_UNCONFINED,
   INNER_SANDBOX_OFF,

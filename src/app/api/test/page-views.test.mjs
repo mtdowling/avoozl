@@ -5,7 +5,7 @@ import test from "node:test";
 import { Operations } from "../operations.mjs";
 import { principalAllows } from "../../executors/kirocrew/app-backend.mjs";
 import { classifyOperation } from "../operation-table.mjs";
-import { Store } from "../../store/store.mjs";
+import { Store } from "../../store/store.ts";
 import { fixture, snapshot } from "../../test/fixtures.mjs";
 import { temporaryDirectory } from "../../test/temporary.mjs";
 

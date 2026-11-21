@@ -4,8 +4,8 @@
 // use. The point of the layer is a named, versioned surface with one place to
 // document conflict handling and idempotency rules, not a second state model.
 // It deliberately exposes no way to write run records directly.
-import { workspaceIdentity } from "../store/identity.mjs";
-import { fail } from "../store/store.mjs";
+import { workspaceIdentity } from "../store/identity.ts";
+import { fail } from "../store/store.ts";
 
 const CLIENT_API_VERSION = "1.0.0";
 

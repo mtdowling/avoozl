@@ -25,7 +25,7 @@ const HOP = Number(process.env.HOP_MS ?? 50),
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..')
 const load = (file) => import(pathToFileURL(path.join(repo, file)).href)
 const { workspaceConfig } = await load('src/app/settings/config.mjs')
-const { Store } = await load('src/app/store/store.mjs')
+const { Store } = await load('src/app/store/store.ts')
 const { Operations } = await load('src/app/api/operations.mjs')
 
 let fetches = 0

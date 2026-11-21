@@ -12,7 +12,7 @@ import {
 } from "../context/epic-context-config.mjs";
 import { recentContextSessions } from "../context/context-record.mjs";
 import { inspectPlugins, readPluginSettings } from "../plugins/plugins.mjs";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 
 const refuseAgent = (context, what) => {
   if (context.caller || context.mcp)

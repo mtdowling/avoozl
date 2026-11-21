@@ -17,7 +17,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 import { HARNESS_UNCONFINED } from "../executors/harness-definitions.mjs";
 import { machineAvoozlPaths } from "../settings/host-config.mjs";
 import {

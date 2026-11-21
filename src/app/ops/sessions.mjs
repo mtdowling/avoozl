@@ -22,7 +22,7 @@ import {
 import { openSession, viewOpened } from "../sessions/session-open.mjs";
 import { sessionStartHold } from "../sessions/session-request-eligibility.mjs";
 import { queueSessionSend } from "../sessions/session-send.mjs";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 import { readDeliveryPolicy } from "../tick/tick.mjs";
 import { workspaceRepositories } from "../workspace/workspace-repositories.mjs";
 import path from "node:path";

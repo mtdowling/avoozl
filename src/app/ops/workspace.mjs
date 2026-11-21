@@ -24,7 +24,7 @@ import {
 } from "../workspace/local-ignore.mjs";
 import { loadLayeredConfig } from "../settings/layered-config.mjs";
 import { chatBrief } from "../workers/epic-context.mjs";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 import { recordReleased, tick, tickHealth, tickLog } from "../tick/tick.mjs";
 import { planPage, recentIntegrations } from "../api/views.mjs";
 import {

@@ -10,7 +10,7 @@ import { landPullRequests } from "./pr-landing.mjs";
 import { listSessionBindings } from "../sessions/session-bindings.mjs";
 import { taskRepository } from "../../work-model.mjs";
 import { cachedOwnClaims } from "../workers/claims.mjs";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 
 const slotOf = (slot) =>
   slot.startsWith("dashboard:") ? slot.slice("dashboard:".length) : slot;

@@ -6,7 +6,7 @@ import path from "node:path";
 import test from "node:test";
 import { startAppBackend } from "../kirocrew/app-backend.mjs";
 import { workspaceConfig } from "../../settings/config.mjs";
-import { Store } from "../../store/store.mjs";
+import { Store } from "../../store/store.ts";
 import { initializeWorkspace } from "../../workspace/workspace.mjs";
 import { temporaryDirectory } from "../../test/temporary.mjs";
 import { SECRET, sign, isolatedEnv } from "../../test/signed-principal.mjs";

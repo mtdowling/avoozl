@@ -5,7 +5,7 @@ import { queryTasks } from "../../query.mjs";
 // Kiro Crew session bindings: which visible session (slot key) works on which
 // task. Kiro Crew owns the sessions; Avoozl keeps only this pointer, and a lost
 // pointer is recovered from the session title `avoozl:<task-id> <short title>`.
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 import { resolveTaskId } from "../../task-identity.mjs";
 
 const ROLES = new Set([

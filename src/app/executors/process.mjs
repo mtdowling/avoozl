@@ -7,7 +7,7 @@ import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { createExecutor } from "./executors.mjs";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 import { rolePrompt } from "../agents/prompts.mjs";
 import { execFile } from "node:child_process";
 import { cliReportCaller } from "../workers/report-match.mjs";
@@ -24,7 +24,7 @@ import {
   supervisorPaths,
 } from "./supervisor.mjs";
 import { authorCounts, processContext } from "../workers/epic-context.mjs";
-import { recordActivity } from "../store/activity-log.mjs";
+import { recordActivity } from "../store/activity-log.ts";
 import { catalogWorkspaceRoots } from "./sandbox.mjs";
 import {
   completeSessionRequest,

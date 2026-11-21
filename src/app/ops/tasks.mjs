@@ -11,7 +11,7 @@ import {
   DEFAULT_RETENTION_DAYS,
   listActivity,
   withGithubRepositories,
-} from "../store/activity-log.mjs";
+} from "../store/activity-log.ts";
 import {
   matchingAgentInstructions,
   toggleAgentInstruction,
@@ -70,7 +70,7 @@ import {
   withGraphState,
 } from "../api/page-views.mjs";
 import { conversationSettings } from "../settings/repository-settings.mjs";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 import { WORKSPACE_LOCK, readDeliveryPolicy } from "../tick/tick.mjs";
 import { workspaceRepositories } from "../workspace/workspace-repositories.mjs";
 import { randomUUID } from "node:crypto";

@@ -12,7 +12,7 @@ import {
 import { sandboxKind } from "../sandbox.mjs";
 import { openSupervisor } from "../supervisor.mjs";
 import { snapshot } from "../../test/fixtures.mjs";
-import { Store } from "../../store/store.mjs";
+import { Store } from "../../store/store.ts";
 
 // A fake CLI that reads its prompt from stdin, the way Claude Code's `-p` does.
 export const AGENT = `

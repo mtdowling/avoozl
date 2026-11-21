@@ -19,7 +19,7 @@ import {
   queueNotifications,
 } from "../tick/notifications.mjs";
 import { bindContentRules } from "../content/content-rules.mjs";
-import { Store } from "../store/store.mjs";
+import { Store } from "../store/store.ts";
 import { fixture } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 

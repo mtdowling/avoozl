@@ -31,7 +31,7 @@ if (!receipt) {
 
 const World = await imp("executors/test/epic-context-world.mjs");
 const { seedApproval, setDriver } = await imp("test/epic-context-seed.mjs");
-const { listActivity } = await imp("store/activity-log.mjs");
+const { listActivity } = await imp("store/activity-log.ts");
 const { contextView, contextSources } = await imp("context/plugin-context.mjs");
 const { contextChip } = await imp("context/context-record.mjs");
 const { enforce } = await imp("content/content-rules.mjs");

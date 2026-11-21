@@ -9,7 +9,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { initializeWorkspace } from "../../workspace/workspace.mjs";
 import { Operations } from "../../api/operations.mjs";
-import { Store } from "../../store/store.mjs";
+import { Store } from "../../store/store.ts";
 import { workspaceConfig } from "../../settings/config.mjs";
 import { temporaryDirectory } from "../../test/temporary.mjs";
 import { contextMachine } from "./context-fixture.mjs";

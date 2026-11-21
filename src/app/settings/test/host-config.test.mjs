@@ -14,7 +14,7 @@ import { initializeWorkspace } from "../../workspace/workspace.mjs";
 import { HOST_CONFIG_SCHEMA_URL } from "../config-schema.mjs";
 import { globalAvoozlConfigPath } from "../layered-config.mjs";
 import { workspaceConfig } from "../config.mjs";
-import { Store } from "../../store/store.mjs";
+import { Store } from "../../store/store.ts";
 import { temporaryDirectory } from "../../test/temporary.mjs";
 
 function machineEnvironment() {

@@ -25,7 +25,7 @@ import {
 import { globalAvoozlConfigPath } from "../settings/layered-config.mjs";
 import { queueNotifications } from "../tick/notifications.mjs";
 import { PRIVACY_SET, privacyHits, privacyRules } from "./privacy.mjs";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 import { personPosting, postedText } from "../github/github-posted.mjs";
 import { branchRefs } from "../git/git.mjs";
 

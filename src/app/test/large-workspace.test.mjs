@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { StatementSync } from "node:sqlite";
 import test from "node:test";
-import { Store } from "../store/store.mjs";
+import { Store } from "../store/store.ts";
 import { deliveryView } from "../api/page-views.mjs";
 import { readyAt } from "../flow/flow.mjs";
 import { duplicateCandidates, titleIndex } from "../../task-identity.mjs";

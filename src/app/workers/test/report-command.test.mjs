@@ -11,7 +11,7 @@ import { workspaceConfig } from "../../settings/config.mjs";
 import { Operations } from "../../api/operations.mjs";
 import { cliCommand, shellQuote } from "../report-command.mjs";
 import { issueReportToken } from "../report-match.mjs";
-import { Store } from "../../store/store.mjs";
+import { Store } from "../../store/store.ts";
 import { briefCell, EXECUTORS, KINDS } from "../worker-briefs.mjs";
 import { snapshot } from "../../test/fixtures.mjs";
 import { temporaryDirectory } from "../../test/temporary.mjs";

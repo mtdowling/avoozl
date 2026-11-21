@@ -14,7 +14,7 @@ import {
   submitItems,
   viewItem,
 } from "../intake/intake.mjs";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 import { WORKSPACE_LOCK } from "../tick/tick.mjs";
 import { person, routed } from "../api/operation-policy.mjs";
 

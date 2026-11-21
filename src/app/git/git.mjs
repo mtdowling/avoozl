@@ -4,7 +4,7 @@ import path from "node:path";
 import { execFile, execFileSync } from "node:child_process";
 import { promisify } from "node:util";
 import { createHash } from "node:crypto";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 import { expandHome } from "../workspace/folder-browse.mjs";
 import {
   checksSetting,

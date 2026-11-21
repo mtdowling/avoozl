@@ -30,7 +30,7 @@ if (!receipt) {
 }
 
 const { digest } = await import(path.join(repo, "src", "model.mjs"));
-const { Store } = await imp("store/store.mjs");
+const { Store } = await imp("store/store.ts");
 const { Operations } = await imp("api/operations.mjs");
 const { integrateVerified } = await imp("delivery/delivery.mjs");
 const { landDirect } = await imp("landing/direct-landing.mjs");
