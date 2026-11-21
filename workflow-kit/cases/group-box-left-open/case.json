@@ -1,5 +1,5 @@
 {
-  "title": "A group two landings left open with every child ticked is ticked in its own commit",
+  "title": "Two siblings land at the same time and leave their group open, so the runner ticks it in its own commit",
   "rules": ["3.2"],
   "runner": {
     "login": "acme-alice",
