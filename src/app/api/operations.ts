@@ -204,6 +204,7 @@ export class Operations {
   workspaceRoot: string | null;
   plansRoot: string | null;
   configDirectory: string | null;
+  github: GitHubClient;
   pluginOptions: { workspaceRoot: string | null; settingsFile: string };
   constructor(
     store: Store,
@@ -1182,7 +1183,9 @@ export class Operations {
   }
   // The stored specs, with `current` read as given, so a spec group reaches
   // into the spec it links (§D19.2).
-  linkedSpecs(current = null) {
+  linkedSpecs(
+    current: { name?: string; files?: Record<string, string> } | null = null,
+  ) {
     return storedLinks(this.store, current);
   }
   lintSpecPlan(plan, retitled = [], { content = true } = {}) {

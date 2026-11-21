@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Operations of one feature: name, class, MCP policy and handler.
 import { planningIdentity } from "../github/github-marker.ts";
 import { publishSpec } from "../specs/spec-publication.ts";
@@ -11,6 +10,7 @@ import { withGraphBlock } from "../specs/graph.ts";
 import { lintSpec } from "../specs/spec-plans.ts";
 import { specTasks } from "../specs/spec-tasks.ts";
 import { specsDirectory } from "../specs/specs-path.ts";
+import type { OperationCall, Operations } from "../api/operations.ts";
 
 export const entries = [
   // Spec lint on the folders on disk (simplify §D9): one spec, or every
@@ -20,9 +20,9 @@ export const entries = [
     class: "observe",
     github: "check-in",
     policy: routed,
-    handler({ input }) {
+    handler(this: Operations, { input }: OperationCall) {
       const names = input?.spec
-        ? [input.spec]
+        ? [String(input.spec)]
         : this.specList().items.map((item) => item.name);
       return {
         specs: names.map((name) => {
@@ -51,7 +51,7 @@ export const entries = [
     policy: notOnMcp(
       "A skill writes the graph block with the CLI: avoozl graph SPEC --write.",
     ),
-    handler({ input }) {
+    handler(this: Operations, { input }: OperationCall) {
       if (!input?.spec) fail("Name the spec: avoozl graph SPEC --write.");
       const spec = this.readSpec(input.spec);
       if (!spec.exists) fail(`No spec folder ${input.spec}.`, 404);
@@ -70,7 +70,7 @@ export const entries = [
     class: "execute",
     github: "spec-issues",
     policy: person("Only a person publishes a spec issue."),
-    async handler({ input, context }) {
+    async handler(this: Operations, { input, context }: OperationCall) {
       const store = this.store;
 
       if (context.caller || context.mcp)
@@ -88,7 +88,7 @@ export const entries = [
     class: "protect",
     github: "check-in",
     policy: routed,
-    handler({ input }) {
+    handler(this: Operations, { input }: OperationCall) {
       const store = this.store;
       return publishPlanningPullRequest(store, this.github, input);
     },
@@ -99,7 +99,7 @@ export const entries = [
     class: "protect",
     github: "check-in",
     policy: routed,
-    handler({}) {
+    handler(this: Operations, {}: OperationCall) {
       return this.reconcilePlanningPullRequests();
     },
   },

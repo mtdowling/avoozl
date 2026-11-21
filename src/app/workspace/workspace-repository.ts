@@ -718,7 +718,11 @@ export function workspaceRepositoryStatus(store) {
   };
 }
 
-export async function publishPlanningPullRequest(store, github, { planId }) {
+export async function publishPlanningPullRequest(
+  store,
+  github,
+  { planId }: { planId?: unknown },
+) {
   const plan = store.get("plans", planId),
     config = store.getMeta("workspaceRepository");
   if (!plan || plan.state !== "approved")
