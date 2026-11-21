@@ -16,6 +16,7 @@ import {
 } from "../role-table.ts";
 import { processBrief } from "../../executors/process.ts";
 import { kirocrewRequest } from "../../executors/kirocrew.ts";
+import { Store } from "../../store/store.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const app = path.join(here, "..", "..");
@@ -77,7 +78,12 @@ test("no module outside the Kiro Crew executor defaults a request to kirocrew", 
     );
   }
   assert.throws(
-    () => kirocrewRequest(null, { task: "t", role: "x", brief: "b" }),
+    () =>
+      kirocrewRequest(new Store(":memory:"), {
+        task: "t",
+        role: "x",
+        brief: "b",
+      }),
     /names no executor/,
   );
 });
