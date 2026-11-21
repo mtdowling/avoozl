@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The landing step one claimed task takes (workflow v1 rules 16 and 17,
 // simplify §D4), from what the runner read:
 //
@@ -28,6 +27,15 @@ export function landingAction({
   base,
   done = null,
   stopped = false,
+}: {
+  mode: "direct" | "pr" | "off" | string;
+  pr?: string;
+  checks: boolean;
+  baseMoved?: boolean;
+  landed?: boolean;
+  base: string;
+  done?: string | null;
+  stopped?: boolean;
 }) {
   if (stopped) return { action: "hold" };
   // Landed work whose tick is missing is ticked on its done branch in its

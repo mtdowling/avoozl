@@ -1,7 +1,7 @@
-// @ts-nocheck: typing debt
 import assert from "node:assert/strict";
 
 import fs from "node:fs";
+import type { AddressInfo } from "node:net";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -28,7 +28,7 @@ function uiFolder() {
 
 test("a page built from the ui/src beside it passes; a stale or missing one names the fix", () => {
   const ui = uiFolder();
-  assert.match(uiBundleProblem(ui), /no built page/);
+  assert.match(String(uiBundleProblem(ui)), /no built page/);
   writeUiStamp(ui);
   assert.equal(uiBundleProblem(ui), null);
   // The install does not copy Finder's files, so they do not count.
@@ -36,13 +36,13 @@ test("a page built from the ui/src beside it passes; a stale or missing one name
   assert.equal(uiBundleProblem(ui), null);
   // A pull changed the source after the last build.
   fs.writeFileSync(path.join(ui, "src", "views", "Lanes.tsx"), "export {}\n");
-  const stale = uiBundleProblem(ui);
+  const stale = String(uiBundleProblem(ui));
   assert.match(stale, /out of date/);
   assert.ok(stale.endsWith(UPDATE_COMMAND));
   writeUiStamp(ui);
   assert.equal(uiBundleProblem(ui), null);
   fs.rmSync(path.join(ui, "dist", "index.mjs"));
-  assert.match(uiBundleProblem(ui), /no built page/);
+  assert.match(String(uiBundleProblem(ui)), /no built page/);
 });
 
 test("the build stamps the page it wrote", () => {
@@ -73,7 +73,7 @@ test("the backend answers a stale page's requests with the update command", asyn
   });
   t.after(() => server.close());
   await new Promise((resolve) => server.once("listening", resolve));
-  const base = `http://127.0.0.1:${server.address().port}`,
+  const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`,
     body = JSON.stringify({ operation: "workspaces.list", input: {} }),
     response = await fetch(base + "/api/command", {
       method: "POST",
@@ -85,7 +85,7 @@ test("the backend answers a stale page's requests with the update command", asyn
     });
   assert.equal(response.status, 409);
   assert.match(
-    (await response.json()).error,
+    ((await response.json()) as { error: string }).error,
     /out of date.*npm run build && kirocrew app update avoozl/,
   );
   // Health stays up, so Kiro Crew keeps the backend running to say so.

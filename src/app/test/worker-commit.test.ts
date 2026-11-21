@@ -1,7 +1,6 @@
-// @ts-nocheck: typing debt
 // Avoozl never commits or lands its own `.avoozl/` files from a task
 // worktree, even in a repository whose .gitignore does not name them (§4.28).
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -9,7 +8,7 @@ import { fixture, recordedRun, validateRun } from "./fixtures.ts";
 import { Operations } from "../api/operations.ts";
 import { git, commitWorkerChanges, integrateRun } from "../git/git.ts";
 
-async function repository(t) {
+async function repository(t: TestContext) {
   const { store, root } = fixture(t),
     repo = path.join(root, "repo");
   fs.mkdirSync(repo);
@@ -30,7 +29,7 @@ async function repository(t) {
     taskId: "sample-task",
     id: "run-worker",
   });
-  const write = (file, text) => {
+  const write = (file: string, text: string) => {
     fs.mkdirSync(path.dirname(path.join(run.worktree, file)), {
       recursive: true,
     });
@@ -108,12 +107,12 @@ test("landing refuses a worker commit that holds .avoozl/result.json", async (t)
   const validation = await finish();
   await assert.rejects(
     integrateRun(store, { id: run.id, expectedCommit: validation.commit }),
-    (error) =>
+    (error: { status?: number; message: string }) =>
       error.status === 409 &&
       /Worker commits hold Avoozl's own files \(\.avoozl\/result\.json\); Avoozl never lands a path under \.avoozl\//.test(
         error.message,
       ),
   );
   assert.equal(await git(repo, ["rev-parse", "main"]), base);
-  assert.equal(store.get("integration", run.id).state, "ready");
+  assert.equal(store.get("integration", run.id)?.state, "ready");
 });

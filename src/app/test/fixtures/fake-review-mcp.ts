@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // A fake stdio MCP review server for plugin check tests and proof pk-p1.
 // create_review returns an id at once; get_review reports `running` for
 // --running polls (or --running-ms milliseconds), then a verdict: `differs`
@@ -8,7 +7,7 @@
 import fs from "node:fs";
 import net from "node:net";
 
-const arg = (name, fallback) =>
+const arg = (name: string, fallback: string | null) =>
   process.argv.includes(name)
     ? process.argv[process.argv.indexOf(name) + 1]
     : fallback;
@@ -20,9 +19,9 @@ if (mode === "nostart") process.exit(3);
 const reviews = new Map();
 let polls = 0;
 
-const write = (message) =>
+const write = (message: Record<string, unknown>) =>
   process.stdout.write(JSON.stringify({ jsonrpc: "2.0", ...message }) + "\n");
-const record = (entry) => {
+const record = (entry: Record<string, unknown>) => {
   if (log)
     fs.appendFileSync(
       log,
@@ -40,11 +39,11 @@ const record = (entry) => {
       }) + "\n",
     );
 };
-const reply = (value) => ({
+const reply = (value: unknown) => ({
   content: [{ type: "text", text: JSON.stringify(value) }],
 });
 
-function call(name, args) {
+function call(name: string, args: Record<string, unknown>) {
   if (name === "create_review") {
     if (mode === "error")
       return { isError: true, content: [{ type: "text", text: "refused" }] };
@@ -52,7 +51,7 @@ function call(name, args) {
       return { content: [{ type: "text", text: "not json" }] };
     if (mode === "listen") net.createServer().listen(0, "127.0.0.1");
     const id = `r-${reviews.size + 1}`,
-      diff = args.diff ? fs.readFileSync(args.diff, "utf8") : "";
+      diff = args.diff ? fs.readFileSync(String(args.diff), "utf8") : "";
     reviews.set(id, { diff, started: Date.now() });
     return reply(mode === "noid" ? { review: {} } : { review: { id } });
   }
