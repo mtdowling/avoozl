@@ -11,6 +11,7 @@ import {
   needsJudgment,
   outputTail,
 } from "../check-runs.mjs";
+import { startCheckRunners } from "../check-runner.mjs";
 import { listSpans } from "../../flow/flow.mjs";
 import {
   deliveryWorkspace,
@@ -108,6 +109,36 @@ test("a command-only bar opens no verifier chat: Avoozl runs the checks at the e
   );
   assert.match(opened.dispatch.at(-1).brief, /verdict/);
   assert.equal(checkRuns(judged.store).length, 0);
+});
+
+test("the detached runner finishes checks after the tick path returns", async (t) => {
+  const { root, store, ops } = setup(t, {
+    checks: [
+      [
+        node,
+        "-e",
+        "setTimeout(() => { console.log('detached check done') }, 500)",
+      ],
+    ],
+  });
+  await workerDone(ops, "a", "w-1");
+  await tick(ops, ["w-1"]);
+  const dbPath = path.join(root, "workspace.sqlite"),
+    startedAt = Date.now(),
+    runners = startCheckRunners(store, { dbPath });
+  assert.equal(runners.length, 1);
+  assert.ok(Date.now() - startedAt < 1000, "the caller does not await checks");
+
+  const deadline = Date.now() + 15_000;
+  while (
+    checkRuns(store).some((run) => run.state !== "finished") &&
+    Date.now() < deadline
+  )
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+  const [run] = checkRuns(store);
+  assert.equal(run.state, "finished");
+  assert.match(run.checks[0].tail, /detached check done/);
 });
 
 test("a failing check fails the writer's attempt, with a short redacted tail", async (t) => {

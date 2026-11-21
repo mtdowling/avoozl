@@ -1,7 +1,7 @@
 // Checks in code (design §5.2 Checks, R7.1, R38): a reported commit's
 // repository checks are run by Avoozl itself, not by a verifier chat. The tick
-// only queues a run (a `check-run` flow record); the app backend runs the
-// queue off the tick's path, one run at a time per repository. A run first
+// queues a `check-run` flow record and starts a detached runner off its path,
+// one runner at a time per repository. A run first
 // checks the diff's paths (verify.mjs, R86.6); then its checks run warm in
 // the task worktree when it is at the exact commit, else in a clean detached
 // worktree there, every check as argv with its own timeout (R86.7). The next
@@ -166,6 +166,30 @@ function requeueOrphans(store) {
 
 const inFlight = new WeakMap();
 
+// Requeue a run whose worker vanished, then name each repository that has
+// queued work and no live worker of its own. The tick uses this to start one
+// detached check runner per repository without waiting for its commands.
+export function runnableCheckRepositories(store) {
+  requeueOrphans(store);
+  if (openStops(store).some((stop) => stop.full)) return [];
+  const records = checkRuns(store),
+    running = new Set(
+      records
+        .filter((record) => record.state === "running" && alive(record.pid))
+        .map((record) => record.repositoryId),
+    );
+  return [
+    ...new Set(
+      records
+        .filter(
+          (record) =>
+            record.state === "queued" && !running.has(record.repositoryId),
+        )
+        .map((record) => record.repositoryId),
+    ),
+  ];
+}
+
 // Run the queue: per repository, queued runs oldest first, one at a time,
 // under a work lock so another process never runs the same repository at
 // once. Nothing starts while all agents are stopped (R64.12). Never throws;
@@ -176,9 +200,16 @@ export function drainCheckRuns(store, options = {}) {
   const pass = (async () => {
     try {
       requeueOrphans(store);
+      const selected = options.repositoryIds
+        ? new Set(options.repositoryIds)
+        : null;
       const repositories = new Set(
         checkRuns(store)
-          .filter((r) => r.state === "queued")
+          .filter(
+            (record) =>
+              record.state === "queued" &&
+              (!selected || selected.has(record.repositoryId)),
+          )
           .map((r) => r.repositoryId),
       );
       await Promise.all(

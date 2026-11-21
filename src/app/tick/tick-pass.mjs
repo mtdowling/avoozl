@@ -5,7 +5,8 @@
 // session requests, the queued checks, then the queued notifications to this
 // machine's sinks (NK7.1). Around them, the supervisor pass reaps and resumes
 // `process` children and starts the requested ones, and the standalone page
-// is kept up when `serve.enabled`. Nothing here stays running.
+// is kept up when `serve.enabled`. Check runners, process children and the
+// page may outlive this pass.
 // A start for the `kirocrew` executor is not left queued with no word: with
 // no Kiro Crew seen lately, it opens one Needs you item per role (NK8.2).
 import fs from "node:fs";
@@ -16,7 +17,7 @@ import { workspaceConfig } from "../settings/config.mjs";
 import { WorkspaceRegistry } from "../settings/host-config.mjs";
 import { prepareWorktree } from "../delivery/delivery.mjs";
 import { drainProcessRequests } from "../executors/process.mjs";
-import { drainCheckRuns } from "../delivery/check-runs.mjs";
+import { startCheckRunners } from "../delivery/check-runner.mjs";
 import { machineFile } from "./crews.mjs";
 import { sinkPushers, validateNotifications } from "./notification-sinks.mjs";
 import { loopLockPaths, takeLock } from "../executors/pass-lock.mjs";
@@ -47,11 +48,11 @@ function catalogTickRoots({ stateDirectory, configDirectory }) {
 // notifications wait and `avoozl status` counts them.
 export async function tickWorkspace(
   root,
-  { stateDirectory, configDirectory, sinks = [] },
+  { stateDirectory, configDirectory, sinks = [], env = process.env },
 ) {
   const target = workspaceConfig({
     workspace: root,
-    env: { ...process.env, AVOOZL_WORKSPACE: root },
+    env: { ...env, AVOOZL_WORKSPACE: root },
   });
   if (!fs.existsSync(target.dbPath))
     return { root, skipped: "The workspace is not initialized." };
@@ -90,8 +91,13 @@ export async function tickWorkspace(
       ops,
       blocked,
     });
-    // Awaited, unlike the app backend's, since the store closes after.
-    await drainCheckRuns(store);
+    // A repository check may outlive this pass. Its detached runner owns a
+    // separate Store and records the result for a later tick to judge.
+    try {
+      startCheckRunners(store, { dbPath: target.dbPath, env });
+    } catch (error) {
+      errors.push({ id: "checks", error: error.message });
+    }
     needsKirocrewStep(store);
     // The same delivery the app backend runs. A sink's failure is recorded
     // on the sink and never fails the tick.
@@ -169,7 +175,7 @@ export async function runPass({
   try {
     supervisor.pass();
     const results = (
-      await tickCatalog({ stateDirectory, configDirectory, roots })
+      await tickCatalog({ stateDirectory, configDirectory, roots, env })
     ).map((result) => ({ at: new Date().toISOString(), ...result }));
     const ran = supervisor.pass();
     supervisor.record(results.filter((result) => result.root));
