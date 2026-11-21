@@ -1028,7 +1028,13 @@ export async function validateUnlocked(
   {
     phase = "validation",
     source,
-  }: { phase?: string; source?: IntegrationEntry | null } = {},
+  }: {
+    phase?: string;
+    source?: Pick<
+      IntegrationEntry,
+      "taskId" | "repositoryId" | "branch" | "worktree" | "baseCommit"
+    > | null;
+  } = {},
 ) {
   const run = source;
   if (!run?.worktree) return fail("Run has no worktree.");
@@ -1270,7 +1276,7 @@ async function integrateUnlocked(
   });
   const revalidated = await validateUnlocked(store, id, {
     phase: "integration",
-    source: { ...entry, state: "integrating" },
+    source: entry,
   });
   if (!revalidated.passed)
     fail("Rebased work did not pass acceptance checks.", 409);
