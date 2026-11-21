@@ -955,7 +955,25 @@ const reviewRoundsSince = (delivery, attempts) =>
 // The next attempt resumes on the same worktree with a fresh retry budget.
 // `dismiss: [{finding, reason}]` closes open review findings by reference;
 // only a person may (R37.6), so a session caller is refused.
-export function retryDelivery(
+// Whether the task's worktree still exists and is at `commit`.
+async function worktreeAt(store, task, commit) {
+  const worktree = store.get("task_worktrees", task.id),
+    repository = store.get(
+      "repositories",
+      worktree?.repository || taskRepository(task),
+    );
+  if (!worktree?.path || !repository?.root || !commit) return false;
+  try {
+    const head = await taskGit(worktree.path, ["rev-parse", "HEAD"], {
+      checkout: repository.root,
+    });
+    return head === commit;
+  } catch {
+    return false;
+  }
+}
+
+export async function retryDelivery(
   store,
   input = {},
   {
@@ -985,6 +1003,17 @@ export function retryDelivery(
       fail(
         'Dismiss a finding as {finding: "<attempt>:<role>:<id>", reason} with a reason of at most 500 characters.',
       );
+  // An integration refusal leaves the verified commit good, so a plain retry
+  // integrates it again, but only while its worktree is still at that commit.
+  // A reason or a dismissal goes back to a writer, as does a lost worktree.
+  const before = store.get("task_deliveries", task.id),
+    sameCommit =
+      before?.decisionStage === "integration" &&
+      !input.reason &&
+      !dismiss.length &&
+      (await worktreeAt(store, task, before.commit))
+        ? before.commit
+        : null;
   const result = store.transaction(() => {
     const delivery = store.get("task_deliveries", task.id);
     if (delivery?.state !== "decision")
@@ -995,9 +1024,9 @@ export function retryDelivery(
       if (!open.has(entry.finding))
         fail(`${entry.finding} is not an open finding on ${task.id}.`, 409);
     const integrationRetry =
-        delivery.decisionStage === "integration" ||
-        (typeof delivery.cause === "string" &&
-          delivery.cause.startsWith("integration refused:")),
+        sameCommit !== null &&
+        delivery.decisionStage === "integration" &&
+        delivery.commit === sameCommit,
       { decisionNotifiedAt, decisionStage, cause, nudge, ...rest } = delivery,
       next = {
         ...rest,
@@ -1014,10 +1043,8 @@ export function retryDelivery(
               ],
             }
           : {}),
-        // An integration refusal did not invalidate the worker's commit,
-        // checks, or reviews. Retry that exact verified commit after the
-        // person resolves the checkout/worktree condition instead of
-        // spending another writer attempt and repeating every gate.
+        // The worker's commit, checks and reviews still hold, so it skips
+        // another writer attempt and every gate.
         state: integrationRetry ? "verified" : "failed",
         ...(integrationRetry ? {} : { retryFrom: delivery.attempts.length }),
         retriedAt: new Date().toISOString(),

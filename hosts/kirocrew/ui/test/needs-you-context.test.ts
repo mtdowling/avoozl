@@ -98,7 +98,7 @@ test('each kind draws its spec link, evidence and context before Resolve', { ski
     if (key.includes(':search.review-ranking:'))
       assert.deepEqual(
         await page.evaluate(
-          `({ material: Boolean(document.querySelector('[data-reference-material] [data-reference-material-body] h2')), resolve: document.querySelector('[data-manual-ready-resolve]')?.textContent.trim() ?? '' })`,
+          `({ material: Boolean(document.querySelector('[data-reference-material] [data-reference-material-body] [role="heading"]')), resolve: [...document.querySelectorAll('[data-conflict-detail] button')].map((b) => b.textContent.trim()).find((t) => t === 'Open task to mark done') ?? '' })`,
         ),
         { material: true, resolve: 'Open task to mark done' },
       )

@@ -8,13 +8,14 @@ import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { Store } from "../store/store.ts";
 import { drainCheckRuns, runnableCheckRepositories } from "./check-runs.ts";
+import { openRunnerLog } from "../tick/runner-log.ts";
 
 const RUNNER = fileURLToPath(import.meta.url);
 
 function launch(dbPath: string, repositoryId: string, env: NodeJS.ProcessEnv) {
-  const log = path.join(path.dirname(dbPath), "check-runner.log");
-  fs.mkdirSync(path.dirname(log), { recursive: true, mode: 0o700 });
-  const output = fs.openSync(log, "a", 0o600);
+  const output = openRunnerLog(
+    path.join(path.dirname(dbPath), "check-runner.log"),
+  );
   let child;
   try {
     child = spawn(process.execPath, [RUNNER, dbPath, repositoryId], {

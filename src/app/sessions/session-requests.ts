@@ -135,28 +135,6 @@ export function pendingSessionRequests(
     .map(view);
 }
 
-// A durable start claimed by this same executor consumer can be offered back
-// after its process restarts. Another consumer can never recover it, and age
-// alone never makes it available. Sends are excluded: retrying one after an
-// unknown outcome could deliver its text twice.
-export function recoverableSessionStarts(
-  store: Store,
-  executor: string,
-  consumer?: string | null,
-) {
-  if (typeof consumer !== "string" || !consumer.trim()) return [];
-  return queued(store)
-    .filter(
-      (row) =>
-        row.kind === "start" &&
-        row.executor === executor &&
-        row.state === "claimed" &&
-        row.claim?.consumer === consumer,
-    )
-    .filter((row) => !hasStartBinding(store, row.request))
-    .map(view);
-}
-
 export function enqueueSessionRequests(
   store: Store,
   {
@@ -258,21 +236,13 @@ export function takeSessionRequest(
 ) {
   return store.transaction(() => {
     const row = store.get<RequestRow>("session_requests", input.id);
-    if (!row || row.executor !== executor || row.version !== input.version)
+    if (
+      !row ||
+      row.executor !== executor ||
+      row.state !== "pending" ||
+      row.version !== input.version
+    )
       return null;
-    if (row.state === "claimed") {
-      if (
-        row.kind !== "start" ||
-        row.claim?.consumer !== text(consumer, "consumer")
-      )
-        return null;
-      return {
-        request: view(row),
-        claimToken: row.claim.token,
-        recovered: true,
-      };
-    }
-    if (row.state !== "pending") return null;
     if (row.kind === "start") {
       const request = row.request;
       if (hasStartBinding(store, request)) {

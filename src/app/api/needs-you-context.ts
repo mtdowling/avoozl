@@ -21,7 +21,6 @@ type Plan = {
   id: string;
   spec?: string;
   title?: string;
-  files?: Record<string, string>;
   deletedAt?: string;
 };
 type Approval = {
@@ -120,8 +119,8 @@ function sourceOf(task: Task) {
 // The referenced Markdown block from the exact approved spec revision. A
 // heading ref includes its section, stopping before the next heading at the
 // same or a higher level. Other refs include their source line.
-function referencedBlock(text: string, line: number) {
-  const lines = text.split("\n"),
+function referencedBlock(source: string, line: number) {
+  const lines = source.split("\n"),
     start = line - 1;
   if (start < 0 || start >= lines.length) return null;
   const heading = /^(#{1,6})\s+/.exec(lines[start]);
@@ -135,12 +134,21 @@ function referencedBlock(text: string, line: number) {
     }
   }
   while (end > start + 1 && !lines[end - 1].trim()) end--;
-  return {
-    lineStart: line,
-    lineEnd: end,
-    text: lines.slice(start, end).join("\n"),
-  };
+  // A level-1 heading would carry its whole file into every Needs you
+  // payload, so a block stops at a size cap and says so.
+  let text = lines.slice(start, Math.min(end, start + BLOCK_LINES)).join("\n");
+  const cut = end > start + BLOCK_LINES || text.length > BLOCK_CHARS;
+  if (cut) {
+    if (text.length > BLOCK_CHARS)
+      text = text.slice(0, BLOCK_CHARS).replace(/\n[^\n]*$/, "");
+    end = start + text.split("\n").length;
+    text += "\n\n_Cut here; the rest is in the spec._";
+  }
+  return { lineStart: line, lineEnd: end, text };
 }
+const BLOCK_LINES = 60,
+  BLOCK_CHARS = 6000,
+  MAX_BLOCKS = 8;
 
 function referenceMaterialOf(
   task: Task,
@@ -159,7 +167,9 @@ function referenceMaterialOf(
               entry.files,
           )
         : null,
-    files = planHash ? receipt?.files : plan?.files;
+    // Only the approved revision is shown; a task with no plan hash shows
+    // none, never the live files.
+    files = receipt?.files;
   if (!files) return [];
   const seen = new Set<string>(),
     material = [];
@@ -176,6 +186,7 @@ function referenceMaterialOf(
     const block = referencedBlock(text, line),
       key = `${kind}\u0000${ref}\u0000${file}\u0000${line}`;
     if (!block || seen.has(key)) continue;
+    if (material.length >= MAX_BLOCKS) break;
     seen.add(key);
     material.push({
       kind,

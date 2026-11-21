@@ -34,10 +34,14 @@ type RoutedRequest = RequestRow & { _avoozlWorkspaceId: string };
 type ClaimedStart = {
   request: SessionRequest;
   claimToken: string;
-  recovered?: boolean;
 };
 
-const tickCall = (input: Record<string, unknown>, cron = true) => ({
+// The cron's tick names its cron caller; `caller: null` sends none.
+const tickCall = (
+  input: Record<string, unknown>,
+  cron = true,
+  caller: string | null = cron ? "cron:test-job" : null,
+) => ({
   jsonrpc: "2.0",
   id: 1,
   method: "tools/call",
@@ -47,6 +51,13 @@ const tickCall = (input: Record<string, unknown>, cron = true) => ({
       action: "tick",
       input: { ...(cron ? { cron } : {}), ...input },
     },
+    ...(caller
+      ? {
+          _meta: {
+            "kirocrew.caller": { schemaVersion: 1, sessionKey: caller },
+          },
+        }
+      : {}),
   },
 });
 
@@ -170,7 +181,7 @@ test("the cron starts a machine pass, returns released work, and records observa
   }
 });
 
-test("the same cron recovers its claimed start after a process restart", async () => {
+test("a claimed start is never offered again, even to the cron that took it", async () => {
   const w = await scratch();
   let mcp: ReturnType<typeof createAppMcp> | undefined;
   try {
@@ -194,36 +205,86 @@ test("the same cron recovers its claimed start after a process restart", async (
         version: request.version,
       }),
     );
-    const original = JSON.parse(
-      found((claimed as ToolReply | null)?.result.content[0]).text,
-    ) as ClaimedStart;
+    assert.ok(
+      JSON.parse(found((claimed as ToolReply | null)?.result.content[0]).text)
+        .claimToken,
+    );
 
-    // A completed pass no longer releases this already-claimed row. The next
-    // invocation by its owning cron still receives it and its original token.
+    // The open's outcome is unknown once a start is claimed: a chat may
+    // exist. So a restarted cron is not handed it again, and a second take
+    // gets nothing.
     recordReleased(w.store, { dispatch: [], messages: [] });
     const again = await mcp.handle(
       cronCall(3, "plans_maintain", "tick", { cron: true }),
     );
-    const [recoveredRequest] = (
-      JSON.parse(
-        found((again as ToolReply | null)?.result.content[0]).text,
-      ) as { dispatch: RoutedRequest[] }
-    ).dispatch;
-    assert.ok(recoveredRequest);
-    assert.equal(recoveredRequest.id, request.id);
-    const recovered = await mcp.handle(
+    assert.deepEqual(
+      JSON.parse(found((again as ToolReply | null)?.result.content[0]).text)
+        .dispatch,
+      [],
+    );
+    const retaken = await mcp.handle(
       cronCall(4, "plans_executor", "take", {
-        id: recoveredRequest.id,
-        version: recoveredRequest.version,
+        id: request.id,
+        version: request.version,
       }),
     );
-    const body = JSON.parse(
-      found((recovered as ToolReply | null)?.result.content[0]).text,
-    ) as ClaimedStart;
-    assert.equal(body.claimToken, original.claimToken);
-    assert.equal(body.recovered, true);
+    assert.equal(
+      JSON.parse(found((retaken as ToolReply | null)?.result.content[0]).text),
+      null,
+    );
+    assert.equal(
+      w.store.get<RequestRow>("session_requests", request.id)?.state,
+      "claimed",
+    );
   } finally {
     mcp?.close();
+    w.store.close();
+  }
+});
+
+test("only a cron caller's tick reaches every workspace", async () => {
+  const w = await scratch();
+  const started: StartPassOptions[] = [];
+  try {
+    recordReleased(w.store, { dispatch: [w.request], messages: [] });
+    for (const caller of [null, "chat-1"]) {
+      const mcp = createAppMcp({
+        fallback: w.config,
+        env: w.env,
+        startPass(options) {
+          started.push(options);
+          return 123;
+        },
+      });
+      try {
+        const reply = (await mcp.handle(
+          tickCall({}, true, caller),
+        )) as ToolReply | null;
+        const body = JSON.parse(found(reply).result.content[0].text);
+        assert.equal(body.dispatch, undefined, `caller ${caller}`);
+      } finally {
+        mcp.close();
+      }
+    }
+    assert.equal(started.length, 0, "no machine pass for a non-cron caller");
+  } finally {
+    w.store.close();
+  }
+});
+
+test("a machine pass that cannot start is reported, not thrown", async () => {
+  const w = await scratch();
+  try {
+    recordReleased(w.store, { dispatch: [w.request], messages: [] });
+    const intents = await answer(w, {}, true, () => {
+      throw Error("state directory is read-only");
+    });
+    assert.deepEqual(
+      intents.dispatch.map((d: { id: string }) => d.id),
+      [w.request.id],
+    );
+    assert.equal(intents.passError, "state directory is read-only");
+  } finally {
     w.store.close();
   }
 });

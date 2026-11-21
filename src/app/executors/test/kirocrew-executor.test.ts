@@ -1,6 +1,7 @@
 // @ts-nocheck: typing debt
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
@@ -11,6 +12,9 @@ import { temporaryDirectory } from "../../test/temporary.ts";
 const adapter = fileURLToPath(
   new URL("../../../../hosts/kirocrew/executors/kirocrew.py", import.meta.url),
 );
+// The suffix a title owned by an old cron gets (_recovery_title).
+const retryKey = (key) =>
+  createHash("sha256").update(key).digest("hex").slice(0, 8);
 const run = (body) =>
   JSON.parse(
     execFileSync(
@@ -147,7 +151,11 @@ print(json.dumps({"slot": slot, "calls": calls}))`);
   const opens = result.calls.filter((row) => row[0] === "open");
   assert.equal(opens.length, 2);
   assert.equal(opens[0][1], "avoozl:task-one work");
-  assert.match(opens[1][1], /^avoozl:task-one work retry-[0-9a-f]{8}$/);
+  // Keyed on the task and role, so every new claim reuses this title.
+  assert.equal(
+    opens[1][1],
+    `avoozl:task-one work retry-${retryKey("task:task-one:worker")}`,
+  );
   assert.equal(
     result.calls.find((row) => row[0] === "bind")[1].title,
     opens[1][1],
@@ -184,9 +192,9 @@ print(json.dumps({"slot": slot, "calls": calls}))`);
   const opens = result.calls.filter((row) => row[0] === "open");
   assert.equal(opens.length, 2);
   assert.equal(opens[0][1], "Avoozl · workspace · worker 1");
-  assert.match(
+  assert.equal(
     opens[1][1],
-    /^Avoozl · workspace · worker 1 retry-[0-9a-f]{8}$/,
+    `Avoozl · workspace · worker 1 retry-${retryKey("lane:worker-1")}`,
   );
   const binding = result.calls.find((row) => row[0] === "bind")[1];
   assert.equal(binding.title, "Avoozl · workspace · worker 1");

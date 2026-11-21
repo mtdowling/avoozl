@@ -62,7 +62,7 @@ def run(ctx):
     executor.keep_trust(intents.get("observe"))
 
     opened = 0
-    dispatch_refused = []
+    dispatch_failed = []
     for d in intents.get("dispatch") or []:
         if not executor.owns(d):
             continue
@@ -75,10 +75,11 @@ def run(ctx):
             executor.release(d, refusal)
             continue
         except Exception as error:
-            # One malformed or stale request belongs to its workspace. Keep it
-            # claimed for inspection, but do not let it starve valid requests
-            # from every other workspace served by this machine-wide cron.
-            dispatch_refused.append(
+            # The open's outcome is unknown, so the start stays claimed and is
+            # never opened again. One failure must not starve the other
+            # workspaces this cron serves: the rest still go, and the run
+            # fails at the end with every error named.
+            dispatch_failed.append(
                 "%s: %s" % (d.get("task", "unknown"), str(error)[:200])
             )
             continue
@@ -107,15 +108,20 @@ def run(ctx):
         else:
             executor.complete_message(m, "sent")
 
-    if not (opened or messages or dispatch_refused):
+    # An uncertain open fails the run, as it did before this cron served
+    # every workspace, so the cron history shows it as an error.
+    if dispatch_failed:
+        raise RuntimeError(
+            "%d start(s) failed: %s"
+            % (len(dispatch_failed), "; ".join(dispatch_failed))
+        )
+    pass_error = intents.get("passError")
+    if not (opened or messages or pass_error):
         raise Skip()
     # The run's summary (cron history) names what did not get through.
     failures = []
-    if dispatch_refused:
-        failures.append(
-            "%d dispatch(es) refused: %s"
-            % (len(dispatch_refused), "; ".join(dispatch_refused))
-        )
+    if pass_error:
+        failures.append("the machine tick did not start: %s" % str(pass_error)[:200])
     if refused:
         failures.append(
             "%d message(s) refused: %s" % (len(refused), "; ".join(refused))

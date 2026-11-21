@@ -37,7 +37,6 @@ const env = (t: TestContext) => {
 // A claim the native cron took.
 interface Claim {
   claimToken: string;
-  recovered?: boolean;
 }
 const call = (
   ops: Operations,
@@ -92,7 +91,7 @@ test("native consumers cannot take process requests or complete another consumer
   );
   const claim = found(await call(ops, "take", input(native)));
   assert.ok(claim.claimToken);
-  assert.equal(await call(ops, "take", input(native), "two"), null);
+  assert.equal(await call(ops, "take", input(native)), null);
   await assert.rejects(
     ops.execute(
       "session.bind",
@@ -152,7 +151,7 @@ test("native consumers cannot take process requests or complete another consumer
   );
 });
 
-test("a version change fences stale starts, and only its consumer recovers a claim", async (t) => {
+test("a version change fences stale starts, and a claim never expires from age", async (t) => {
   const { store, ops } = env(t),
     first = enqueueSessionRequests(store, { starts: [start()] }).starts[0],
     latest = enqueueSessionRequests(store, {
@@ -168,9 +167,6 @@ test("a version change fences stale starts, and only its consumer recovers a cla
     claim: { ...found(claimed.claim), claimedAt: "1970-01-01T00:00:00Z" },
   });
   assert.equal(await call(ops, "take", input(latest), "two"), null);
-  const recovered = found(await call(ops, "take", input(latest)));
-  assert.equal(recovered.claimToken, taken.claimToken);
-  assert.equal(recovered.recovered, true);
   await assert.rejects(
     call(ops, "release", {
       id: latest.id,
