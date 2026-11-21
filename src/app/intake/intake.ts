@@ -76,6 +76,8 @@ export type ItemRow = {
 type RepositoryPolicy = {
   waitingLabels?: string[];
   priorityLabels?: string[];
+  allowedActors?: string[];
+  minimumPermission?: string | null;
   [key: string]: unknown;
 };
 export type Source = {
