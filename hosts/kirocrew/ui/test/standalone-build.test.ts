@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The built standalone page (SW2, SW6, SW12): its files, its stylesheet, its
 // size, and what it must not hold. `npm run build` makes dist/standalone/.
 import assert from 'node:assert/strict'
@@ -11,29 +10,31 @@ import { parseSync } from 'rolldown/utils'
 import { STANDALONE_NOTICES, missingNotices } from '../../../../scripts/check/release-scan.ts'
 import { missingClasses } from './class-tokens.ts'
 import { listStyleTexts } from '../../../../scripts/bundle/standalone-styles.ts'
+import { walkAst } from './ast.ts'
 
 const root = path.resolve(fileURLToPath(new URL('../../../../', import.meta.url)))
 const ui = path.join(root, 'hosts', 'kirocrew', 'ui')
 const dist = path.join(ui, 'dist')
 const out = path.join(dist, 'standalone')
 const src = path.join(ui, 'src')
-const text = (file) => fs.readFileSync(file, 'utf8')
-const built = () => JSON.parse(text(path.join(dist, 'standalone-build.json')))
-const walk = (dir) =>
+const text = (file: string) => fs.readFileSync(file, 'utf8')
+// What the standalone build wrote about itself.
+const built = (): { kirocrewModules: string[]; styles: string[]; packages: Record<string, unknown> } => JSON.parse(text(path.join(dist, 'standalone-build.json')))
+const walk = (dir: string) =>
   fs
-    .readdirSync(dir, { recursive: true })
+    .readdirSync(dir, { recursive: true, encoding: 'utf8' })
     .map((name) => path.join(dir, name))
     .filter((file) => fs.statSync(file).isFile())
-const stylesheet = (dir) => {
+const stylesheet = (dir: string) => {
   const found = fs.readdirSync(path.join(dir, 'assets')).filter((n) => n.endsWith('.css'))
   assert.equal(found.length, 1, 'one stylesheet')
   return text(path.join(dir, 'assets', found[0]))
 }
 const pageSources = () =>
   fs
-    .readdirSync(src, { recursive: true })
+    .readdirSync(src, { recursive: true, encoding: 'utf8' })
     .filter((name) => /\.tsx$/.test(name))
-    .map((name) => [name.split(path.sep).join('/'), text(path.join(src, name))])
+    .map((name): [string, string] => [name.split(path.sep).join('/'), text(path.join(src, name))])
 
 test('the standalone folder is one page, one script, one stylesheet and fonts (SW2.1)', () => {
   const files = walk(out).map((file) => path.relative(out, file).split(path.sep).join('/'))
@@ -50,10 +51,11 @@ test('the standalone folder is one page, one script, one stylesheet and fonts (S
 test('the script is within its budget and holds no dashboard module (SW2.6)', () => {
   const budget = Number(
     text(path.join(ui, 'standalone.config.ts'))
-      .match(/SCRIPT_BUDGET_BYTES = ([\d_]+)/)[1]
+      .match(/SCRIPT_BUDGET_BYTES = ([\d_]+)/)?.[1]
       .replaceAll('_', ''),
   )
   const script = walk(out).find((f) => f.endsWith('.js'))
+  assert.ok(script, 'the bundle has a script')
   assert.ok(fs.statSync(script).size <= budget, `script is over ${budget} bytes`)
   const body = text(script)
   // The build lists the Kiro Crew modules it holds; none is the dashboard.
@@ -64,7 +66,7 @@ test('the script is within its budget and holds no dashboard module (SW2.6)', ()
 })
 
 test('the files hold no machine path (SW2.4)', () => {
-  const needles = [os.homedir(), root, os.tmpdir() + path.sep + 'kc-', process.env.XDG_CACHE_HOME].filter(Boolean)
+  const needles = [os.homedir(), root, os.tmpdir() + path.sep + 'kc-', process.env.XDG_CACHE_HOME].filter((needle): needle is string => Boolean(needle))
   for (const file of walk(out)) {
     if (!/\.(js|css|html|md|txt)$/.test(file) && !/(LICENSE|NOTICE)/.test(file)) continue
     const body = text(file)
@@ -85,8 +87,8 @@ test('every font the stylesheet names is in the bundle (SW6.4)', () => {
 
 // SW6.3: every var(--name) the page reads without a fallback is defined for the default palette,
 // in both modes. Names the page sets itself are its own.
-export function declared(css, mode) {
-  const names = new Set()
+export function declared(css: string, mode: string) {
+  const names = new Set<string>()
   for (const block of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
     const selectors = block[1].split(',').map((s) => s.trim())
     if (!selectors.some((s) => s === ':root' || s === `[data-theme=kiro-${mode}]` || s === `[data-theme="kiro-${mode}"]`)) continue
@@ -94,9 +96,10 @@ export function declared(css, mode) {
   }
   return names
 }
-export function usedVariables(sources) {
-  const used = new Map(),
-    own = new Set()
+// `sources` is [file, text] pairs.
+export function usedVariables(sources: [string, string][]) {
+  const used = new Map<string, string[]>(),
+    own = new Set<string>()
   for (const [file, body] of sources) {
     // A name inside another var()'s fallback is optional, like a name with one.
     for (const m of body.matchAll(/(?<!,)var\((--[a-zA-Z0-9-]*[a-zA-Z0-9])\)/g)) used.set(m[1], [...(used.get(m[1]) ?? []), file])
@@ -172,17 +175,13 @@ test('THIRD_PARTY_NOTICES.md names every package the bundle holds (SW12.6)', () 
 
 // SW2.2: the Kiro Crew bundle keeps its externals and takes nothing from the
 // standalone entry.
-export function importSpecifiers(file) {
+export function importSpecifiers(file: string) {
   const { program } = parseSync(file, text(file), { lang: 'js' })
-  const found = new Set()
-  const visit = (node) => {
-    if (Array.isArray(node)) return node.forEach(visit)
-    if (!node || typeof node !== 'object') return
-    if (/^(Import|ExportAll|ExportNamed)Declaration$/.test(node.type) && node.source) found.add(node.source.value)
+  const found = new Set<string>()
+  walkAst(program, (node) => {
+    if (/^(Import|ExportAll|ExportNamed)Declaration$/.test(node.type ?? '') && node.source) found.add(node.source.value)
     if (node.type === 'ImportExpression' && node.source?.type === 'Literal') found.add(node.source.value)
-    for (const key of Object.keys(node)) if (key !== 'type') visit(node[key])
-  }
-  visit(program)
+  })
   return [...found].sort()
 }
 

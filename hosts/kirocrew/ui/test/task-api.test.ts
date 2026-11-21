@@ -1,10 +1,11 @@
-// @ts-nocheck: typing debt
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { COMMAND_PATH } from '../src/workspace-api.ts'
+import { fakeApi } from './fake-api.ts'
+import { taskDetail } from './task-detail-fixture.ts'
 import { duration, emptyForm, findCycle, formFrom, newTaskId, relativeTime, saveError, sessionHref, taskClient, taskInput } from '../src/task-api.ts'
 
-const edge = (from, to, kind = 'requires') => ({ from, to, kind })
+const edge = (from: string, to: string, kind = 'requires') => ({ from, to, kind })
 
 test('a prerequisite that closes a loop is found with its path before saving', () => {
   const edges = [edge('a', 'b'), edge('b', 'c'), edge('x', 'y', 'supports')]
@@ -52,7 +53,7 @@ test('a new task is created as a draft with its prerequisites and kinds', () => 
   })
 })
 
-const detail = {
+const detail = taskDetail({
   revision: 4,
   task: {
     id: 't',
@@ -65,7 +66,7 @@ const detail = {
   },
   waitsOn: [{ id: 'a', title: 'A', kind: 'requires', condition: null, satisfied: true }],
   blocks: [],
-}
+})
 
 test('an edit sends only what changed, and a text change marks only this task for review', () => {
   const original = formFrom(detail)
@@ -96,13 +97,8 @@ test('Session opens the chat the backend links, else its Kiro Crew chat key', ()
 })
 
 test('the task client calls detail, preview, update and settle with the revision', async () => {
-  const calls = []
-  const client = taskClient({
-    post: async (path, body) => {
-      calls.push({ path, body })
-      return { result: {} }
-    },
-  })
+  const { api, calls } = fakeApi()
+  const client = taskClient(api)
   await client.detail('w', 't')
   await client.preview('w', 't', { title: 'X' })
   await client.save('w', { id: 't', title: 'X' }, 7)

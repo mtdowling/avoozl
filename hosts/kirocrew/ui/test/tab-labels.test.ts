@@ -1,25 +1,24 @@
-// @ts-nocheck: typing debt
 // Every tab in every tab bar shows its label while inactive, with readable
 // contrast, light and dark, narrow and wide. The host's SegmentedControl hides
 // every unselected label (and below 44 px a segment turns the bar into one
 // dropdown) unless collapse={false}; the harness stub models that. Skipped
 // when no Chrome is found.
 import assert from 'node:assert/strict'
-import { after, before, test } from 'node:test'
-import { findChrome, startChrome, stopChrome } from './browser/chrome.ts'
+import { test } from 'node:test'
+import { findChrome, type Harness, type Page } from './browser/chrome.ts'
+import { withChrome } from './browser/harness-page.ts'
 
 const chrome = findChrome()
 const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the tab label tests'
-let harness, browser, page
-before(async () => {
-  if (!skip) ({ harness, browser, page } = await startChrome(chrome))
-})
-after(() => stopChrome(browser, harness))
+let harness: Harness, page: Page
+withChrome(chrome, (got) => ({ harness, page } = got))
 
 const settle = () => page.evaluate('new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))')
 
 // Every tab bar now showing: each tab's text, its size and its text contrast
 // against the first opaque background behind it.
+// Each tab bar on the page, with its tabs as drawn.
+type Bar = { bar: string; tabs: { text: string; visible: boolean; contrast: number }[] }
 const READ = `(() => {
   const rgb = (c) => { const m = c.match(/[\\d.]+/g).map(Number); return { r: m[0], g: m[1], b: m[2], a: m[3] ?? 1 } }
   const lum = ({ r, g, b }) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4 }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b) }
@@ -49,8 +48,8 @@ for (const [width, height] of [
       await page.until(`Boolean(document.querySelector('[data-top-row] [data-nav-head], [data-top-rail-bar]'))`)
       await openRail()
       await settle()
-      const seen = new Set()
-      const names = await page.evaluate(`[...document.querySelectorAll('[data-top-row] [data-nav-head]')].map((t, i) => i)`)
+      const seen = new Set<string>()
+      const names = await page.evaluate<number[]>(`[...document.querySelectorAll('[data-top-row] [data-nav-head]')].map((t, i) => i)`)
       for (const index of names) {
         await openRail()
         await settle()
@@ -58,15 +57,15 @@ for (const [width, height] of [
         await settle()
         // A phone's rail list is checked open; the page's own bars, closed.
         const rail = await page.evaluate(`Boolean(document.querySelector('[data-top-rail-bar]'))`)
-        let bars = []
+        let bars: Bar[] = []
         if (rail) {
           await openRail()
           await settle()
-          bars = (await page.evaluate(READ)).filter((bar) => bar.bar === 'Avoozl pages')
+          bars = (await page.evaluate<Bar[]>(READ)).filter((bar) => bar.bar === 'Avoozl pages')
           await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
           await settle()
-          bars = bars.concat((await page.evaluate(READ)).filter((bar) => bar.bar !== 'Avoozl pages'))
-        } else bars = await page.evaluate(READ)
+          bars = bars.concat((await page.evaluate<Bar[]>(READ)).filter((bar) => bar.bar !== 'Avoozl pages'))
+        } else bars = await page.evaluate<Bar[]>(READ)
         assert.ok(bars.length >= 1, 'a tab bar is showing')
         assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-collapsed]'))`), false, 'no tab bar collapses into a dropdown')
         for (const bar of bars) {

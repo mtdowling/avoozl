@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The standalone page in a real Chrome, served by the real page server
 // code on a scratch machine: Open chat as a process session (SW7), the
 // Needs Kiro Crew states (SW10) and browser notices (SW8). Skipped when no
@@ -9,18 +8,28 @@ import os from 'node:os'
 import path from 'node:path'
 import { after, before, test } from 'node:test'
 import { fileURLToPath } from 'node:url'
-import { findChrome, launch } from './browser/chrome.ts'
+import { findChrome, launch, type Browser, type Page } from './browser/chrome.ts'
+import type { startServe } from '../../../../src/app/serve/serve-server.ts'
+import type { machineAvoozlPaths } from '../../../../src/app/settings/host-config.ts'
+import type { Store } from '../../../../src/app/store/store.ts'
 
 const chrome = findChrome()
 const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the standalone page tests'
 const ui = fileURLToPath(new URL('..', import.meta.url))
-const src = (file) => import(new URL(`../../../../src/app/${file}`, import.meta.url).href)
+const src = (file: string) => import(new URL(`../../../../src/app/${file}`, import.meta.url).href)
 
-let server, browser, page, machine, store, root, close
+// Set in `before`; the modules load once the scratch machine's variables are set.
+let server: Awaited<ReturnType<typeof startServe>>,
+  browser: Browser,
+  page: Page,
+  machine: ReturnType<typeof machineAvoozlPaths>,
+  store: Store,
+  root: string,
+  close: (() => Promise<void>) | undefined
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'avoozl-standalone-page-'))
 
 before(async () => {
-  if (skip) return
+  if (!chrome) return
   // Chrome starts first, in the real environment; the scratch machine is set after.
   browser = await launch(chrome)
   page = await browser.page()
@@ -65,6 +74,7 @@ before(async () => {
     await browser.close()
     await new Promise((resolve) => server.close(resolve))
   }
+  assert.ok(server.ownerLink, 'the server has an owner link')
   await page.open(server.ownerLink, { width: 1280, height: 900, dark: false })
   await page.until(`document.body.innerText.includes('Scratch')`, 20000)
 })
@@ -73,10 +83,11 @@ after(async () => {
   fs.rmSync(scratch, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })
 })
 
-const click = (find) => page.evaluate(`(() => { const e = ${find}; if (!e) return false; e.click(); return true })()`)
-const button = (text) => `[...document.querySelectorAll('button,[role=tab],a')].find((b) => b.textContent.trim().startsWith(${JSON.stringify(text)}))`
-const dialog = (expression) => `(() => { const d = document.querySelector('dialog[data-start-session]'); return d && d.open ? (${expression}) : null })()`
-const requests = () => store.list('session_requests')
+const click = (find: string) => page.evaluate(`(() => { const e = ${find}; if (!e) return false; e.click(); return true })()`)
+const button = (text: string) => `[...document.querySelectorAll('button,[role=tab],a')].find((b) => b.textContent.trim().startsWith(${JSON.stringify(text)}))`
+const dialog = (expression: string) => `(() => { const d = document.querySelector('dialog[data-start-session]'); return d && d.open ? (${expression}) : null })()`
+// The stored session requests: rows, read as the fields the tests check.
+const requests = () => store.list('session_requests') as { kind: string; executor: string; request: { role: string; permissionClass: string; worktree: string } }[]
 
 test('Settings › Content rules › Design a rule set opens Start a session, and Start records one read-only process request (SW7.1, SW7.2)', { skip }, async () => {
   await click(button('Settings'))
@@ -87,9 +98,9 @@ test('Settings › Content rules › Design a rule set opens Start a session, an
   await click(button('Design a rule set'))
   await page.until(dialog('true'), 5000)
   // The message is in an editable box, with the role and harness it maps to.
-  assert.ok((await page.evaluate(dialog(`document.querySelector('[data-session-message]').value.length`))) > 20)
+  assert.ok(((await page.evaluate<number | null>(dialog(`document.querySelector('[data-session-message]').value.length`))) ?? 0) > 20)
   await page.until(dialog(`document.querySelector('[data-session-plan]')?.textContent.includes('fake-cli')`), 5000)
-  const plan = await page.evaluate(dialog(`document.querySelector('[data-session-plan]').textContent`))
+  const plan = await page.evaluate<string>(dialog(`document.querySelector('[data-session-plan]').textContent`))
   assert.match(plan, /Role assist/)
   assert.match(plan, /read-only/)
   // autoSend is false here and true elsewhere: neither starts anything.
@@ -128,10 +139,10 @@ test('with no approved harness the dialog says so, links to Settings › Models,
   const before = requests().length
   await click(button('Design a rule set'))
   await page.until(dialog(`!!document.querySelector('[data-no-harness]')`), 8000)
-  const text = await page.evaluate(dialog(`document.querySelector('[data-no-harness]').textContent`))
+  const text = await page.evaluate<string>(dialog(`document.querySelector('[data-no-harness]').textContent`))
   assert.match(text, /No harness definition is approved/)
   assert.ok(await page.evaluate(dialog(`!!document.querySelector('[data-no-harness] a[href="/apps/avoozl?settings=models"]')`)))
-  const buttons = await page.evaluate(dialog(`[...document.querySelectorAll('footer button')].map((b) => b.textContent.trim())`))
+  const buttons = await page.evaluate<string[]>(dialog(`[...document.querySelectorAll('footer button')].map((b) => b.textContent.trim())`))
   assert.ok(buttons.includes('Copy message'))
   assert.ok(!buttons.includes('Start'))
   assert.equal(requests().length, before, 'nothing started')
@@ -162,7 +173,7 @@ test('a new Needs you item gives one notice, two give two, and a reload gives no
   const { workspaceConfig } = await src('settings/config.ts')
   const { Store } = await src('store/store.ts')
   const { WorkspaceRegistry } = await src('settings/host-config.ts')
-  const blocked = (id) => ({
+  const blocked = (id: string) => ({
     id,
     title: `Blocked ${id}`,
     kind: 'leaf',
@@ -186,8 +197,8 @@ test('a new Needs you item gives one notice, two give two, and a reload gives no
   second.close()
   await page.evaluate(`window.dispatchEvent(new Event('avoozl:notices-changed')); true`)
   await page.until(`window.__shown.length >= 2`, 8000)
-  assert.equal((await page.evaluate('window.__shown')).length, 2)
-  assert.ok((await page.evaluate('window.__shown')).every((title) => /^Blocked p[12]$/.test(title)))
+  assert.equal((await page.evaluate<string[]>('window.__shown')).length, 2)
+  assert.ok((await page.evaluate<string[]>('window.__shown')).every((title: string) => /^Blocked p[12]$/.test(title)))
   // A reload with the same items gives none.
   await page.open(`${server.origin}/apps/avoozl`, { width: 1280, height: 900, dark: false })
   await page.until(`document.body.innerText.includes('Other')`, 20000)

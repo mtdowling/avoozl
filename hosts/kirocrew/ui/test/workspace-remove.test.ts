@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Settings > Workspaces: each workspace's edit dialog has a red Remove at its
 // footer's left. Its confirm says the folder, database and repositories stay,
 // names the folder, and offers Stop it first while the workspace runs.
@@ -7,8 +6,9 @@
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
-import { after, before, test } from 'node:test'
-import { findChrome, startChrome, stopChrome } from './browser/chrome.ts'
+import { test } from 'node:test'
+import { findChrome, type Harness, type Page } from './browser/chrome.ts'
+import { withChrome } from './browser/harness-page.ts'
 
 const { isRunning, removeLines } = await import('../src/workspace-api.ts')
 
@@ -22,7 +22,7 @@ test('the confirm names the folder, says nothing is deleted, and asks to stop a 
   )
   assert.match(lines.join(' '), /Its folder stays, with its database and repositories/)
   assert.match(lines.join(' '), /Nothing is deleted/)
-  assert.match(lines.at(-1), /Stop it first/)
+  assert.match(lines.at(-1) ?? '', /Stop it first/)
   assert.equal(isRunning(on), true)
   const off = { ...on, enabled: false, state: 'stopped' }
   assert.equal(isRunning(off), false)
@@ -33,15 +33,12 @@ const chrome = findChrome()
 const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the workspace remove tests'
 // AVOOZL_SHOTS=<dir> keeps a shot of the dialog and its confirm.
 const shots = process.env.AVOOZL_SHOTS || null
-let harness, browser, page
-before(async () => {
-  if (!skip) ({ harness, browser, page } = await startChrome(chrome))
-})
-after(() => stopChrome(browser, harness))
+let harness: Harness, page: Page
+withChrome(chrome, (got) => ({ harness, page } = got))
 const wait = (ms = 250) => page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
-const click = (selector) => page.evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`)
+const click = (selector: string) => page.evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`)
 
-async function openRemove(width, dark, query = {}) {
+async function openRemove(width: number, dark: boolean, query = {}) {
   await page.open(harness.url({ page: 'workspaces', theme: dark ? 'dark' : 'light', ...query }), { width, height: 800, dark })
   await page.until(`Boolean(document.querySelector('[data-edit-workspace="launch"]'))`)
   await click('[data-edit-workspace="launch"]')
@@ -54,10 +51,10 @@ for (const [width, dark] of [
   [1280, true],
   [390, false],
   [390, true],
-])
+] as [number, boolean][])
   test(`Remove is red at the left of the edit dialog's footer and asks first at ${width} px ${dark ? 'dark' : 'light'}`, { skip }, async () => {
     await openRemove(width, dark)
-    const footer = await page.evaluate(`(() => {
+    const footer = await page.evaluate<{ first: boolean; left: number; color: string; text: string }>(`(() => {
       const foot = document.querySelector('[data-edit-workspace-modal] [data-modal-footer]')
       const remove = foot.querySelector('[data-remove-workspace]'), buttons = [...foot.querySelectorAll('button')].filter((b) => b.getBoundingClientRect().width > 0)
       return { first: buttons.every((b) => b === remove || b.getBoundingClientRect().left >= remove.getBoundingClientRect().right - 1), left: Math.round(remove.getBoundingClientRect().left - foot.getBoundingClientRect().left), color: getComputedStyle(remove).color, danger: getComputedStyle(document.documentElement).getPropertyValue('--danger').trim(), text: remove.textContent.trim() }
@@ -74,7 +71,7 @@ for (const [width, dark] of [
     await click('[data-remove-workspace]')
     await page.until(`Boolean(document.querySelector('[data-remove-workspace-confirm]'))`)
     await wait()
-    const confirm = await page.evaluate(`(() => {
+    const confirm = await page.evaluate<{ title: string; lines: string; buttons: string[] }>(`(() => {
       const box = document.querySelector('[data-remove-workspace-confirm]')
       return { title: box.querySelector('h2').textContent, lines: box.querySelector('[data-remove-lines]').textContent, buttons: [...box.querySelectorAll('[data-modal-footer] button')].map((b) => b.textContent.trim()) }
     })()`)

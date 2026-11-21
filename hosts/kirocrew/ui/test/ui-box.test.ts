@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Box writes the page's layout and text classes from src/ui/box.json. The
 // class check reads className strings, so it can't see these: this test holds
 // every class in the table to Kiro Crew's stylesheet, and checks Box turns
@@ -9,12 +8,12 @@ import path from 'node:path'
 import { after, before, test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { buildHarness } from './browser/build.ts'
-import { findChrome, launch } from './browser/chrome.ts'
+import { findChrome, launch, type Browser, type Harness, type Page } from './browser/chrome.ts'
 import { kirocrewStylesheet } from './kirocrew-css.ts'
 
-const table = JSON.parse(readFileSync(new URL('../src/ui/box.json', import.meta.url), 'utf8'))
+const table: { flags: Record<string, string>; scales: Record<string, Record<string, string>> } = JSON.parse(readFileSync(new URL('../src/ui/box.json', import.meta.url), 'utf8'))
 const classes = [...Object.values(table.flags), ...Object.values(table.scales).flatMap((scale) => Object.values(scale))]
-const escape = (token) => token.replace(/[^a-zA-Z0-9_-]/g, (c) => `\\${c}`)
+const escape = (token: string) => token.replace(/[^a-zA-Z0-9_-]/g, (c) => `\\${c}`)
 
 test("every class Box writes is in Kiro Crew's stylesheet", async () => {
   const css = await kirocrewStylesheet()
@@ -31,9 +30,9 @@ test('no class is in the table twice', () => {
 const chrome = findChrome()
 const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the Box render test'
 const entry = path.join(path.dirname(fileURLToPath(import.meta.url)), 'browser', 'ui-parts.tsx')
-let harness, browser, page
+let harness: Harness, browser: Browser | undefined, page: Page
 before(async () => {
-  if (skip) return
+  if (!chrome) return
   harness = await buildHarness({ entry })
   browser = await launch(chrome)
   page = await browser.page()
@@ -72,7 +71,8 @@ for (const theme of ['light', 'dark'])
       dark: theme === 'dark',
     })
     await page.until(`Boolean(document.querySelector('[data-part="plain-button"]'))`)
-    const read = (part) => page.evaluate(`(() => { const el = document.querySelector('[data-part="${part}"]'); return [el.tagName, el.className, el.getAttribute('style')] })()`)
+    const read = (part: string) =>
+      page.evaluate<string[]>(`(() => { const el = document.querySelector('[data-part="${part}"]'); return [el.tagName, el.className, el.getAttribute('style')] })()`)
     assert.deepEqual(await read('plain-button'), ['BUTTON', 'underline', 'background: none; border: 0px;'])
     assert.deepEqual(await read('plain-link'), ['A', 'underline', null])
     assert.deepEqual(await read('plain-input'), ['INPUT', 'rounded border text-sm', null])
@@ -87,7 +87,7 @@ for (const theme of ['light', 'dark'])
       dark: theme === 'dark',
     })
     await page.until(`Boolean(document.querySelector('[data-part="glyph"] svg'))`)
-    const glyph = await page.evaluate(
+    const glyph = await page.evaluate<{ width: string; color: string; danger: string }>(
       `(() => { const svg = document.querySelector('[data-part="glyph"] svg'); return { width: svg.getAttribute('width'), color: getComputedStyle(svg).color, danger: getComputedStyle(document.documentElement).getPropertyValue('--danger').trim() } })()`,
     )
     assert.equal(glyph.width, '14')
@@ -103,7 +103,8 @@ for (const theme of ['light', 'dark'])
       dark: theme === 'dark',
     })
     await page.until(`Boolean(document.querySelector('[data-part="svg-rect"]'))`)
-    const read = (part) => page.evaluate(`(() => { const el = document.querySelector('[data-part="${part}"]'); return [el.tagName.toLowerCase(), el.getAttribute('style')] })()`)
+    const read = (part: string) =>
+      page.evaluate<(string | null)[]>(`(() => { const el = document.querySelector('[data-part="${part}"]'); return [el.tagName.toLowerCase(), el.getAttribute('style')] })()`)
     assert.deepEqual(await read('svg'), ['svg', 'display: block;'])
     assert.deepEqual(await read('svg-g'), ['g', 'opacity: 0.5;'])
     assert.deepEqual(await read('svg-rect'), ['rect', 'fill: var(--danger);'])

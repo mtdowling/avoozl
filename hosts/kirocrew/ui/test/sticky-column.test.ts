@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Runs under node's type stripping: `node --test hosts/kirocrew/ui/test`.
 // The Plans left column in the real app page: Kiro Crew scrolls the app's
 // own content pane, which is shorter than the window and, when the plan
@@ -25,7 +24,9 @@ function hostFrame({ windowHeight = 900, paneTop = 160, loaded = false } = {}) {
   const aside = { name: 'aside', parentElement: grid, clientHeight: 0, overflowY: 'auto' }
   return { aside, pane, windowHeight }
 }
-const styleOf = (node) => ({ overflowY: node.overflowY })
+// The frames stand in for DOM nodes, with only the fields the lookups read.
+type Frame = { parentElement: Frame | null; clientHeight: number; overflowY: string; scrollHeight?: number }
+const styleOf = (node: object) => ({ overflowY: (node as Frame).overflowY })
 
 test('the column finds the app pane that scrolls, before the plan has loaded', () => {
   const { aside, pane } = hostFrame({ loaded: false })
@@ -44,8 +45,9 @@ test('the column is no taller than the visible part of the pane, so its end is r
 
 // The function this replaced: it skipped a pane that did not overflow yet,
 // so a column mounted before its plan loaded was sized to the window.
-function previousScrollParent(el) {
-  for (let node = el?.parentElement ?? null; node; node = node.parentElement) if (/(auto|scroll|overlay)/.test(node.overflowY) && node.scrollHeight > node.clientHeight) return node
+function previousScrollParent(el: Frame | null): Frame | null {
+  for (let node = el?.parentElement ?? null; node; node = node.parentElement)
+    if (/(auto|scroll|overlay)/.test(node.overflowY) && (node.scrollHeight ?? 0) > node.clientHeight) return node
   return null
 }
 

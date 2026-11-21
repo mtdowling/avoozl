@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // No view renders a raw <select> or checkbox: the page's own SelectField and
 // Checkbox in src/ui/ draw them (UC1.1, UC1.3). Each keeps its label, its
 // aria-describedby and its keyboard behavior. The render checks skip when no
@@ -9,10 +8,10 @@ import path from 'node:path'
 import { after, before, test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { buildHarness } from './browser/build.ts'
-import { findChrome, launch } from './browser/chrome.ts'
+import { findChrome, launch, type Browser, type Harness, type Page } from './browser/chrome.ts'
 
 const src = fileURLToPath(new URL('../src/', import.meta.url))
-const views = readdirSync(src, { recursive: true })
+const views = readdirSync(src, { recursive: true, encoding: 'utf8' })
   .map((name) => name.split(path.sep).join('/'))
   .filter((name) => /\.tsx$/.test(name) && !name.startsWith('ui/'))
 
@@ -24,9 +23,9 @@ test('no view renders a raw <select> or checkbox', () => {
 const chrome = findChrome()
 const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the controls test'
 const entry = path.join(path.dirname(fileURLToPath(import.meta.url)), 'browser', 'ui-parts.tsx')
-let harness, browser, page
+let harness: Harness, browser: Browser | undefined, page: Page
 before(async () => {
-  if (skip) return
+  if (!chrome) return
   harness = await buildHarness({ entry })
   browser = await launch(chrome)
   page = await browser.page()
@@ -44,7 +43,15 @@ for (const theme of ['light', 'dark'])
       dark: theme === 'dark',
     })
     await page.until(`Boolean(document.querySelector('[data-part="select"]'))`)
-    const state = await page.evaluate(`(() => {
+    const state = await page.evaluate<{
+      name: string
+      described: string | null
+      value: string
+      focused: boolean
+      checked: boolean
+      boxLabel: string
+      boxDescribed: string | null
+    }>(`(() => {
       const select = document.querySelector('[data-part="select"]')
       const box = document.querySelector('[data-part="checkbox"]')
       select.focus()
@@ -66,7 +73,7 @@ for (const theme of ['light', 'dark'])
     })
     await page.until(`Boolean(document.querySelector('[data-part="switch"]'))`)
     const read = `(() => { const s = document.querySelector('[data-part="switch"] [role="switch"]'); return { checked: s.getAttribute('aria-checked'), name: s.getAttribute('aria-label'), described: s.getAttribute('aria-describedby'), text: document.querySelector('[data-part="switch"]').textContent.trim() } })()`
-    const first = await page.evaluate(read)
+    const first = await page.evaluate<Record<string, string | null>>(read)
     assert.deepEqual(first, {
       checked: 'false',
       name: 'Send feedback',
@@ -75,7 +82,7 @@ for (const theme of ['light', 'dark'])
     })
     // A click on the text flips it, as a checkbox's label does.
     await page.evaluate(`document.querySelector('[data-part="switch"] > span, [data-part="switch"]').click()`)
-    assert.equal((await page.evaluate(read)).checked, 'true')
+    assert.equal((await page.evaluate<Record<string, string | null>>(read)).checked, 'true')
     // Space on the focused switch flips it back.
     await page.evaluate(`document.querySelector('[data-part="switch"] [role="switch"]').focus()`)
     await page.key(' ', 'Space', 32)

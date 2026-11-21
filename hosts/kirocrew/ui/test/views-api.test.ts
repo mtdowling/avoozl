@@ -1,42 +1,16 @@
-// @ts-nocheck: typing debt
 // Runs under node's type stripping: `node --test hosts/kirocrew/ui/test`.
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import test from 'node:test'
 import { COMMAND_PATH } from '../src/workspace-api.ts'
 import { graphSummary, linkHref, safeHref, scalarFields, sessionLabel, verdictLabel, viewsClient } from '../src/views-api.ts'
+import { fakeApi } from './fake-api.ts'
+import { graphOf, graphTask } from './graph-fixture.ts'
+import type { GraphTask } from '../src/views-api.ts'
 
-function fakeApi(reply) {
-  const calls = []
-  return {
-    calls,
-    api: {
-      post: async (path, body) => {
-        calls.push({ path, body })
-        return { result: reply(body) }
-      },
-    },
-  }
-}
+const task = (id: string, extra: Partial<GraphTask> = {}) => graphTask(id, { epic: 'e1', ...extra })
 
-const task = (id, extra = {}) => ({
-  id,
-  title: 'Task ' + id,
-  epic: 'e1',
-  kind: 'leaf',
-  authority: 'local',
-  route: 'local',
-  completion: 'integrated',
-  repository: null,
-  status: 'planned',
-  complete: false,
-  ready: false,
-  decision: null,
-  issue: null,
-  ...extra,
-})
-
-const graph = {
+const graph = graphOf({
   revision: 3,
   epics: [
     { id: 'e1', title: 'First', count: 3 },
@@ -45,13 +19,13 @@ const graph = {
   statuses: [],
   repositories: [],
   total: 5,
-  tasks: [task('loose', { epic: null }), task('x', { epic: 'e2', ready: true }), task('b', { ready: true }), task('c'), task('top', { kind: 'epic' })],
+  tasks: [task('loose', { epic: null }), task('x', { epic: 'e2', ready: true }), task('b', { ready: true }), task('c'), task('top', { kind: 'package' })],
   edges: [
     { from: 'a', to: 'b', kind: 'requires', condition: null, blocking: true, satisfied: true },
     { from: 'b', to: 'c', kind: 'requires', condition: 'integrated', blocking: true, satisfied: false },
     { from: 'b', to: 'x', kind: 'supports', condition: null, blocking: false, satisfied: true },
   ],
-}
+})
 
 test('views client reads each view for the chosen workspace', async () => {
   const { api, calls } = fakeApi((body) => (body.operation === 'graph.view' ? graph : { items: [] }))
@@ -112,22 +86,33 @@ test('session labels show requested vs served model', () => {
   assert.equal(sessionLabel({ ...session, served: null }), 'review:a #1 · idle · requested m-b, served model not reported')
   assert.equal(sessionLabel({ ...session, served: { model: 'auto', withheld: true, changed: false } }), 'review:a #1 · idle · requested m-b, served auto (withheld)')
   assert.equal(sessionLabel({ ...session, served: { model: 'm-b', withheld: false, changed: false } }), 'review:a #1 · idle · requested m-b, served m-b')
-  const verdict = { role: 'a', attempt: 1, outcome: 'refused', verdict: 'approved', model: 'm-b', served: 'auto', commit: null, stale: false, cause: null }
+  const verdict = {
+    role: 'a',
+    attempt: 1,
+    outcome: 'refused',
+    verdict: 'approved',
+    model: 'm-b',
+    served: 'auto',
+    commit: null,
+    stale: false,
+    cause: null,
+    slot: null,
+    link: null,
+    findings: [],
+  }
   assert.equal(verdictLabel(verdict), 'a · approved refused · m-b → served auto')
 })
 
 test('resolution actions call the shared operations, with the revision where they take one', async () => {
-  const calls = []
-  const client = viewsClient({
-    post: async (path, body) => {
-      calls.push(body)
-      return { result: {} }
-    },
-  })
+  const { api, calls } = fakeApi()
+  const client = viewsClient(api)
   await client.updateTask('w1', 'a.2', { needsReview: false }, 41)
   await client.retry('w1', 'a.3')
-  assert.deepEqual(calls, [
-    { operation: 'task.update', input: { id: 'a.2', needsReview: false }, workspaceId: 'w1', expectedRevision: 41 },
-    { operation: 'delivery.retry', input: { taskId: 'a.3', dismiss: [] }, workspaceId: 'w1' },
-  ])
+  assert.deepEqual(
+    calls.map((call) => call.body),
+    [
+      { operation: 'task.update', input: { id: 'a.2', needsReview: false }, workspaceId: 'w1', expectedRevision: 41 },
+      { operation: 'delivery.retry', input: { taskId: 'a.3', dismiss: [] }, workspaceId: 'w1' },
+    ],
+  )
 })

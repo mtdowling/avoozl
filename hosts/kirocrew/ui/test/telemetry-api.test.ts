@@ -1,8 +1,8 @@
-// @ts-nocheck: typing debt
 // The Telemetry box's words, checks and operations (spec otel-export, OT11).
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { ENVIRONMENT_NOTE, endpointProblem, formOf, headerNames, lastSuccess, localWords, statusWords, telemetryClient } from '../src/telemetry-api.ts'
+import { fakeApi } from './fake-api.ts'
+import { ENVIRONMENT_NOTE, endpointProblem, formOf, headerNames, lastSuccess, localWords, statusWords, telemetryClient, type TelemetryStatus } from '../src/telemetry-api.ts'
 
 test('each status leads with local recording and shows its own words', () => {
   const words = Object.fromEntries(
@@ -48,20 +48,37 @@ test('header names refuse a value, and the endpoint check matches the server', (
 })
 
 test('the form starts from what is saved', () => {
-  const view = { status: 'sending', saved: { endpoint: 'https://c.example', protocol: 'http/json', headers: ['authorization'] } }
+  const view: TelemetryStatus = {
+    status: 'sending',
+    failure: null,
+    endpoint: 'https://c.example',
+    endpointFrom: 'machine',
+    protocol: 'http/json',
+    headerNames: ['authorization'],
+    missingHeaders: [],
+    saved: { endpoint: 'https://c.example', protocol: 'http/json', headers: ['authorization'] },
+    sent: 0,
+    queued: 0,
+    dropped: 0,
+    rejected: 0,
+    lastSuccessAt: null,
+    local: { spans: 0, points: 0, days: 90, spanCap: 0, pointCap: 0 },
+  }
   assert.deepEqual(formOf(view), { enabled: true, endpoint: 'https://c.example', protocol: 'http/json', headers: ['authorization'] })
   assert.equal(formOf({ ...view, status: 'off', saved: { endpoint: null, protocol: 'http/json', headers: [] } }).endpoint, '')
 })
 
 test('save calls telemetry.configure with the form and the box reads telemetry.status', async () => {
-  const calls = []
-  const api = { post: async (path, body) => (calls.push([body.operation, body.input]), { result: {} }) }
+  const { api, calls } = fakeApi()
   const client = telemetryClient(api)
   await client.status('w')
   const input = { enabled: true, endpoint: 'https://c.example', protocol: 'http/json', headers: ['authorization'] }
   await client.configure('w', input)
-  assert.deepEqual(calls, [
-    ['telemetry.status', {}],
-    ['telemetry.configure', input],
-  ])
+  assert.deepEqual(
+    calls.map(({ body }) => [body.operation, body.input]),
+    [
+      ['telemetry.status', {}],
+      ['telemetry.configure', input],
+    ],
+  )
 })
