@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt
 // Screenshots of Settings > Repository setup in the full app shell on fake
 // data (harness ?page=app&roles=plans): the list with its setup action, the
 // offer right after Add repository, the set-up dialog (no folder step) and
@@ -16,7 +15,7 @@ const { out, harness, browser } = await startShots('add-repository-setup-shots.m
 try {
   const page = await browser.page()
   const settle = () => page.evaluate('new Promise((r) => setTimeout(r, 400))')
-  const click = (selector, text) =>
+  const click = (selector: string, text: string) =>
     `(() => { const b = [...document.querySelectorAll(${JSON.stringify(selector)})].find((x) => (x.getAttribute('aria-label') || x.textContent).trim().startsWith(${JSON.stringify(text)})); if (b) b.click(); return Boolean(b) })()`
   const type = `(() => { const i = document.getElementById('avoozl-repo-folder'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, '/src/new-service'); i.dispatchEvent(new Event('input', { bubbles: true })); return true })()`
   const added = [type, click('[data-add-repository] button', 'Check folder'), click('[data-step="confirm"] button', 'Add repository')]

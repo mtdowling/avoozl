@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt
 // Screenshots of Settings pages in the full app shell on fake data (harness
 // ?page=app&roles=single&ghfull=1): desktop (1280 px) and phone (390 px),
 // light and dark: <out>/<name>-<width>-<theme>.png. A GitHub page tab can be
@@ -13,7 +12,9 @@ import { buildHarness, shotCss } from './build.ts'
 import { findChrome, launch } from './chrome.ts'
 
 // [name, nav label, inner tab, extra harness query].
-export const SETTINGS_PAGES = [
+// Each page: shot name, Settings item, a tab inside it, and extra harness query.
+export type SettingsShot = [string, string, (string | null)?, Record<string, string>?]
+export const SETTINGS_PAGES: SettingsShot[] = [
   ['github', 'GitHub'],
   ['github-sync', 'GitHub', 'sync'],
   ['github-repository', 'GitHub', 'repository'],
@@ -25,7 +26,7 @@ export const SETTINGS_PAGES = [
 ]
 
 // Shoot `pages` (or only the names asked for) into `out`.
-export async function shootSettings(out, only, pages) {
+export async function shootSettings(out: string, only: string[], pages: SettingsShot[]) {
   const chrome = findChrome()
   if (!chrome) {
     console.error('No Chrome found; set AVOOZL_CHROME.')
@@ -37,15 +38,15 @@ export async function shootSettings(out, only, pages) {
   try {
     const page = await browser.page()
     const settle = () => page.evaluate('new Promise((r) => setTimeout(r, 400))')
-    const scope = (width) => (width < 768 ? '[data-top-rail-list]' : '[data-left-nav]')
-    const menu = (width) =>
+    const scope = (width: number) => (width < 768 ? '[data-top-rail-list]' : '[data-left-nav]')
+    const menu = (width: number) =>
       width >= 768 ? 'true' : `(() => { if (!document.querySelector('[data-top-rail-list]')) document.querySelector('[data-top-rail-bar]').click(); return true })()`
-    const head = (width) =>
+    const head = (width: number) =>
       `(() => { const b = [...document.querySelectorAll('${scope(width)} [data-nav-head]')].find((x) => x.textContent.includes('Settings')); if (b && !b.hasAttribute('data-open')) b.click(); return Boolean(b) })()`
     // The last match, in case another section has a page of the same name.
-    const item = (width, text) =>
+    const item = (width: number, text: string) =>
       `(() => { const b = [...document.querySelectorAll('${scope(width)} [data-nav-item]')].filter((x) => x.textContent.trim() === ${JSON.stringify(text)}).at(-1); if (b) b.click(); return Boolean(b) })()`
-    const tab = (key) => `(() => { const b = document.querySelector('[role=tablist] [data-tab=${JSON.stringify(key)}]'); if (b) b.click(); return true })()`
+    const tab = (key: string) => `(() => { const b = document.querySelector('[role=tablist] [data-tab=${JSON.stringify(key)}]'); if (b) b.click(); return true })()`
     const all = pages
     const shots = only.length ? all.filter(([name]) => only.includes(name)) : all
     for (const theme of ['light', 'dark'])
@@ -61,13 +62,13 @@ export async function shootSettings(out, only, pages) {
           })
           const steps = [menu(width), head(width), item(width, label)]
           if (inner) steps.push(tab(inner))
-          const open = async (height) => {
+          const open = async (height: number) => {
             await page.open(url, { ...size, height })
             await page.until(`Boolean(document.querySelector('[data-shell-main]'))`)
             let found = true
             for (const step of steps) {
               await settle()
-              found = (await page.evaluate(step)) && found
+              found = Boolean(await page.evaluate(step)) && found
             }
             await settle()
             return found

@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt
 // Screenshots of Dashboards › Graph on a scratch workspace with real chains
 // (graph-chains.ts), at 1280 and 390 px wide, light and dark:
 // <out>/<step>-<width>-<theme>.png. The steps: Frontier with a row open,
@@ -11,11 +10,12 @@
 // AVOOZL_CHROME names the browser; AVOOZL_HOST_CSS the host's stylesheet.
 import path from 'node:path'
 import { startShots } from './shots.ts'
+import type { Harness, Page } from './chrome.ts'
 
 const { out, harness, browser } = await startShots('graph-tree-shots.mjs <out dir>')
 
 // Open the Graph from the nav, as a person does.
-async function openGraph(page, harness, { width, height, theme }) {
+async function openGraph(page: Page, harness: Harness, { width, height, theme }: { width: number; height: number; theme: string }) {
   await page.open(harness.url({ page: 'app', graph: 'chains', theme }), { width, height, dark: theme === 'dark' })
   await page.until(`Boolean(document.querySelector('[data-shell]'))`)
   if (width < 768) await page.evaluate(`document.querySelector('[data-top-rail-bar]')?.click()`)
@@ -23,7 +23,7 @@ async function openGraph(page, harness, { width, height, theme }) {
   await page.evaluate(`document.querySelector('[data-nav-group="graph"]').click()`)
   await page.until(`Boolean(document.querySelector('[data-frontier]'))`)
 }
-const settle = (page) => page.evaluate('new Promise((r) => setTimeout(r, 250))')
+const settle = (page: Page) => page.evaluate('new Promise((r) => setTimeout(r, 250))')
 
 try {
   const page = await browser.page()
@@ -32,7 +32,7 @@ try {
     [390, 844],
   ])
     for (const theme of ['light', 'dark']) {
-      const shoot = async (name) => {
+      const shoot = async (name: string) => {
         await settle(page)
         const file = path.join(out, `${name}-${width}-${theme}.png`)
         await page.screenshot(file)

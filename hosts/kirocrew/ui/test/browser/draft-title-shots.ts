@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt
 // Full-app screenshots of the Specs list: draft rows show a grey title with
 // no Draft badge and the legend line sits on top; 1280 and 390 px, light and
 // dark.

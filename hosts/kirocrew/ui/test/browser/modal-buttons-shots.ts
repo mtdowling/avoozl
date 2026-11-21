@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt
 // Full-app screenshots of the modal footer buttons: a view (the Graph node: Close) and a destructive confirm
 // (Stop the line: Cancel, danger button), at 1280 and 390, light and dark:
 // <out>/<modal>-<width>-<theme>.png
@@ -12,18 +11,18 @@ import { startShots } from './shots.ts'
 
 const { out, harness, browser } = await startShots('modal-buttons-shots.mjs <out dir>')
 const TOP = `[...document.querySelectorAll('dialog[data-modal]')].at(-1)`
-const clickText = (selector, text) =>
+const clickText = (selector: string, text: string) =>
   `(() => { const b = [...document.querySelectorAll(${JSON.stringify(selector)})].find((b) => (b.getAttribute('aria-label') || b.textContent).trim().startsWith(${JSON.stringify(text)})); b?.click(); return Boolean(b) })()`
 try {
   const page = await browser.page()
   const settle = (ms = 500) => page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
-  const phone = (width) => width < 768
-  const start = async (query, width, theme) => {
+  const phone = (width: number) => width < 768
+  const start = async (query: Record<string, string>, width: number, theme: string) => {
     await page.open(harness.url({ page: 'app', theme, ...query }), { width, height: phone(width) ? 844 : 900, dark: theme === 'dark' })
     await page.until(`Boolean(document.querySelector('[data-top-row], [data-top-rail-bar]'))`, 30000)
   }
   // Phone: the nav sits behind the bar; open it, press the item, and let it close.
-  const goTo = async (width, label) => {
+  const goTo = async (width: number, label: string) => {
     if (phone(width)) {
       await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
       await settle()
@@ -35,14 +34,14 @@ try {
     } else await page.evaluate(`[...document.querySelectorAll('[data-top-row] [data-nav-head]')].find((t) => t.textContent.includes(${JSON.stringify(label)})).click()`)
     await settle()
   }
-  const shoot = async (name, width, theme) => {
+  const shoot = async (name: string, width: number, theme: string) => {
     await settle(700)
     const file = path.join(out, `${name}-${width}-${theme}.png`)
     await page.screenshot(file)
     console.log(file)
   }
   const flows = {
-    view: async (width, theme) => {
+    view: async (width: number, theme: string) => {
       // A draft spec's task: a task card opens the full task details instead.
       await start({ graph: 'drafts' }, width, theme)
       if (phone(width)) await goTo(width, 'Graph')
@@ -54,7 +53,7 @@ try {
       await page.evaluate(`document.querySelector('[data-tree-open="M2"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true })) ?? true`)
       await page.until(`Boolean(${TOP})`, 30000)
     },
-    stop: async (width, theme) => {
+    stop: async (width: number, theme: string) => {
       await start({ delivery: '1' }, width, theme)
       const scope = phone(width) ? '[data-top-rail-list]' : '[data-left-nav]'
       if (phone(width)) {
@@ -78,7 +77,7 @@ try {
           await flow(width, theme)
           await shoot(name, width, theme)
         } catch (error) {
-          console.error(`${name} ${width} ${theme}: ${error.message}`)
+          console.error(`${name} ${width} ${theme}: ${(error as Error).message}`)
           process.exitCode = 1
         }
       }

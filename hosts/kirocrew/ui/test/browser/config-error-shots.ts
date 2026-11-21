@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt
 // Home with a valid workspace (before) and one whose .avoozl.json does not
 // load (after), at 1280x800 and 390x844, light and dark.
 //
@@ -14,7 +13,7 @@ try {
     [390, 844],
   ])
     for (const theme of ['light', 'dark'])
-      for (const [name, extra] of [
+      for (const [name, extra] of <[string, Record<string, string>][]>[
         ['before', {}],
         ['after', { configError: '1' }],
       ]) {

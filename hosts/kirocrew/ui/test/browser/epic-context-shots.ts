@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt
 // Screenshots of epic context (epic-context ec-2.7), desktop 1280 and phone
 // 390, light and dark, from fixture records only: Settings › Epic context,
 // Settings › Plugins with a context part, and the Graph with a task's chip.
@@ -13,7 +12,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { buildHarness, shotCss } from './build.ts'
-import { findChrome, launch } from './chrome.ts'
+import { needChrome, launch } from './chrome.ts'
 
 const [out, label = 'after'] = process.argv.slice(2)
 if (!out) {
@@ -22,31 +21,33 @@ if (!out) {
 }
 fs.mkdirSync(out, { recursive: true })
 // [view, nav head or null, nav item, what shows once the page is up, extra query]
-const VIEWS = [
+// Each view: name, nav section (null for a top-level page), nav item, the
+// element it shows, and extra harness query.
+const VIEWS: [string, string | null, string, string, Record<string, string>][] = [
   ['context', 'Settings', 'Epic context', '[data-epic-context-settings]', {}],
   ['context-empty', 'Settings', 'Epic context', '[data-epic-context-settings]', { epicmachine: 'none' }],
   ['plugins', 'Settings', 'Plugins', '[data-plugin-context]', {}],
   ['graph', null, 'Graph', '[data-epic-context]', {}],
 ]
 const harness = await buildHarness({ hostCss: await shotCss() })
-const browser = await launch(findChrome())
+const browser = await launch(needChrome())
 try {
   const page = await browser.page()
   const settle = () => page.evaluate('new Promise((r) => setTimeout(r, 400))')
-  const scope = (width) => (width < 768 ? '[data-top-rail-list]' : '[data-left-nav]')
-  const menu = (width) =>
+  const scope = (width: number) => (width < 768 ? '[data-top-rail-list]' : '[data-left-nav]')
+  const menu = (width: number) =>
     width >= 768 ? 'true' : `(() => { if (!document.querySelector('[data-top-rail-list]')) document.querySelector('[data-top-rail-bar]').click(); return true })()`
-  const head = (width, text) =>
+  const head = (width: number, text: string | null) =>
     `(() => { const b = [...document.querySelectorAll('${scope(width)} [data-nav-head]')].find((x) => x.textContent.includes(${JSON.stringify(text)})); if (b && !b.hasAttribute('data-open')) b.click(); return Boolean(b) })()`
-  const item = (width, text) =>
+  const item = (width: number, text: string) =>
     `(() => { const b = [...document.querySelectorAll('${scope(width)} [data-nav-item]')].filter((x) => x.textContent.trim() === ${JSON.stringify(text)}).at(-1); if (b) b.click(); return Boolean(b) })()`
   for (const [view, group, name, shows, extra] of VIEWS)
     for (const theme of ['light', 'dark'])
-      for (const [size, width] of [
+      for (const [size, width] of <[string, number][]>[
         ['desktop', 1280],
         ['phone', 390],
       ]) {
-        const open = async (height) => {
+        const open = async (height: number) => {
           await page.open(harness.url({ page: 'app', theme, roles: 'single', ghfull: '1', epiccontext: '1', ...extra }), { width, height, dark: theme === 'dark' })
           await page.until(`Boolean(document.querySelector('[data-shell-main]'))`)
           for (const step of [menu(width), head(width, group), item(width, name)]) {
@@ -57,7 +58,7 @@ try {
           await page.until(`Boolean(document.querySelector(${JSON.stringify(shows)}))`)
         }
         await open(900)
-        const height = await page.evaluate(
+        const height = await page.evaluate<number>(
           "(() => { const s = [...document.querySelectorAll('*')].reduce((a, e) => (e.scrollHeight - e.clientHeight > a.scrollHeight - a.clientHeight ? e : a), document.documentElement); return document.documentElement.clientHeight + s.scrollHeight - s.clientHeight })()",
         )
         await open(Math.min(Math.max(height, 700), 3600))

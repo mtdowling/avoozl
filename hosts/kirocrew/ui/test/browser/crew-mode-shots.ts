@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt
 // Screenshots of the Crew Mode hold in Needs you (harness ?page=app&crewmode=1)
 // at 390 and 1280 px, light and dark: <out>/crew-mode-<width>-<theme>.png,
 // and the confirm after Let the tick run it: <out>/crew-mode-confirm-...png.
@@ -9,10 +8,11 @@
 // AVOOZL_CHROME names the browser; AVOOZL_HOST_CSS the host's stylesheet.
 import path from 'node:path'
 import { startShots } from './shots.ts'
+import type { Page } from './chrome.ts'
 
 const { out, harness, browser } = await startShots('crew-mode-shots.mjs <out dir>')
-const wait = (page, ms = 400) => page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
-const scope = (width) => (width < 768 ? '[data-top-rail-list]' : '[data-left-nav]')
+const wait = (page: Page, ms = 400) => page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
+const scope = (width: number) => (width < 768 ? '[data-top-rail-list]' : '[data-left-nav]')
 try {
   const page = await browser.page()
   for (const [width, height] of [
@@ -40,7 +40,7 @@ try {
         `[...document.querySelectorAll('[data-shell-main] *')].filter((el) => el.children.length === 0 && el.textContent.includes('The tick does not start this workspace yet')).at(0)?.click()`,
       )
       await wait(page, 600)
-      const shot = async (name) => {
+      const shot = async (name: string) => {
         const file = path.join(out, `${name}-${width}-${theme}.png`)
         await page.screenshot(file)
         console.log(file)

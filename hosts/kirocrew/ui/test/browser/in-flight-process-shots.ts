@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt
 // Full-app screenshots of Home's In flight with a `process` session (task
 // 50.1) on fake data (harness ?page=app&process=1), desktop (1280) and phone
 // (390), light and dark: <out>/in-flight-<width>-<theme>.png.

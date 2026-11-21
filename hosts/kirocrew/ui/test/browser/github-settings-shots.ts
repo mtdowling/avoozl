@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt
 // Screenshots of Settings › GitHub and Settings › Workspaces in the full app
 // shell on fake data (harness ?page=app&roles=...): desktop (1280 px) and
 // phone (390 px), light and dark: <out>/<name>-<width>-<theme>.png.
@@ -14,9 +13,9 @@ const { out, harness, browser } = await startShots('github-settings-shots.mjs <o
 try {
   const page = await browser.page()
   const settle = () => page.evaluate('new Promise((r) => setTimeout(r, 400))')
-  const press = (text) =>
+  const press = (text: string) =>
     `(() => { const b = [...document.querySelectorAll('button, summary')].find((x) => x.textContent.trim().startsWith(${JSON.stringify(text)})); if (b) b.click(); return Boolean(b) })()`
-  const shots = [
+  const shots: [string, string, string, boolean][] = [
     ['github-plans', 'plans', 'GitHub', false],
     ['github-local', 'local', 'GitHub', false],
     ['github-calls', 'plans', 'GitHub', false],

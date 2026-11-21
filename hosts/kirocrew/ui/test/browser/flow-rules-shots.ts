@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt
 // Screenshots of the Flow page and Settings ›
 // Flow in the app shell (harness ?page=app&flow=1), at 390 and 1280 px,
 // light and dark: <out>/<flow|settings>-<width>-<theme>.png.
@@ -9,11 +8,12 @@
 // AVOOZL_CHROME names the browser; AVOOZL_HOST_CSS the host's stylesheet.
 import path from 'node:path'
 import { startShots } from './shots.ts'
+import type { Page } from './chrome.ts'
 
 const { out, harness, browser } = await startShots('flow-rules-shots.mjs <out dir>')
-const wait = (page, ms = 400) => page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
-const scope = (width) => (width < 768 ? '[data-top-rail-list]' : '[data-left-nav]')
-const click = (selector, text) =>
+const wait = (page: Page, ms = 400) => page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
+const scope = (width: number) => (width < 768 ? '[data-top-rail-list]' : '[data-left-nav]')
+const click = (selector: string, text: string) =>
   `(() => { const b = [...document.querySelectorAll(${JSON.stringify(selector)})].find((x) => x.textContent.trim().startsWith(${JSON.stringify(text)})); if (b) b.click(); return Boolean(b) })()`
 try {
   const page = await browser.page()
@@ -27,7 +27,7 @@ try {
         if (!(await page.evaluate(`Boolean(document.querySelector('[data-top-rail-list]'))`))) await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
         await wait(page, 200)
       }
-      const go = async (head, item) => {
+      const go = async (head: string, item: string) => {
         await menu()
         if (!(await page.evaluate(click(`${scope(width)} [data-nav-head]`, head)))) throw Error(`No nav head ${head}`)
         await wait(page, 300)
@@ -39,7 +39,7 @@ try {
           await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
         await wait(page, 800)
       }
-      const shot = async (name) => {
+      const shot = async (name: string) => {
         await wait(page)
         const file = path.join(out, `${name}-${width}-${theme}.png`)
         await page.screenshot(file)

@@ -1,7 +1,7 @@
-// @ts-nocheck: typing debt
+import type { Page } from './chrome.ts'
 // Open a view from the nav: the page opens on Insights. A phone opens its
 // menu first.
-export async function openView(page, key) {
+export async function openView(page: Page, key: string) {
   await page.until(`Boolean(document.querySelector('[data-left-nav], [data-top-rail-bar]'))`)
   if (!(await page.evaluate(`Boolean(document.querySelector('[data-left-nav]'))`))) {
     await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
@@ -14,5 +14,5 @@ export async function openView(page, key) {
   )
 }
 
-export const inFlight = (page) => openView(page, 'delivery')
-export const specs = (page) => openView(page, 'plans')
+export const inFlight = (page: Page) => openView(page, 'delivery')
+export const specs = (page: Page) => openView(page, 'plans')

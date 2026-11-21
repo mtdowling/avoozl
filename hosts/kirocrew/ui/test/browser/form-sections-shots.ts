@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt
 // Screenshots of the dialogs that group fields with FormSection, in the full
 // app shell on fake data (harness ?page=app&roles=plans): repository Edit
 // and View under Settings > Repository setup, and workspace Edit under
@@ -16,9 +15,10 @@ const { out, harness, browser } = await startShots('form-sections-shots.mjs <out
 try {
   const page = await browser.page()
   const settle = () => page.evaluate('new Promise((r) => setTimeout(r, 400))')
-  const click = (selector, text) =>
+  const click = (selector: string, text: string) =>
     `(() => { const b = [...document.querySelectorAll(${JSON.stringify(selector)})].find((x) => !x.disabled && (x.getAttribute('aria-label') || x.textContent).trim().startsWith(${JSON.stringify(text)})); if (b) b.click(); return Boolean(b) })()`
-  const shots = [
+  // Each shot: name, Settings item, steps, and an element to scroll to.
+  const shots: [string, string, string[], string?][] = [
     ['repo-edit', 'Repository setup', [click('[data-repository-list] button', 'Edit ')]],
     ['repo-view', 'Repository setup', [click('[data-repository-list] button', 'View ')]],
     ['workspace-edit', 'Workspaces', [`(() => { document.querySelector('[data-edit-workspace]')?.click(); return true })()`]],

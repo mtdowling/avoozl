@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt
 // Full-app screenshots of the Approve dialog (task 57.6),
 // desktop (1280) and phone (390), light and dark:
 // <out>/<kind>-<width>-<theme>.png. `dialog` is the single Approve dialog as

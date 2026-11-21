@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt
 // Screenshots of Settings › Autopilot and Flow editing in place (harness
 // &inline=1), as settings-tabs-shots.mjs takes them.
 //

@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // What the screenshot scripts share: the start (the out folder from the
 // command line, Chrome, and the harness on Kiro Crew's stylesheet, from
 // shotCss()), and the full app's Specs page opened on a
@@ -6,10 +5,10 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { buildHarness, shotCss } from './build.ts'
-import { findChrome, launch } from './chrome.ts'
+import { findChrome, launch, type Page } from './chrome.ts'
 
 // `usage` is the command line the script takes, for the message without one.
-export async function startShots(usage) {
+export async function startShots(usage: string) {
   const [out] = process.argv.slice(2)
   if (!out) {
     console.error(`Usage: ${usage}`)
@@ -26,11 +25,11 @@ export async function startShots(usage) {
   return { out, harness, browser }
 }
 
-export const click = (selector) => `document.querySelector(${JSON.stringify(selector)}).click()`
+export const click = (selector: string) => `document.querySelector(${JSON.stringify(selector)}).click()`
 
 // Specs from the top row; a phone picks it in the top rail's menu, then
 // closes the menu. Ends with `spec` open, or only the list when it is null.
-export async function openSpecs(page, width, settle, spec = 'byte-types') {
+export async function openSpecs(page: Page, width: number, settle: () => Promise<unknown>, spec: string | null = 'byte-types') {
   await page.until(`Boolean(document.querySelector('[data-top-row], [data-top-rail-bar]'))`, 30000)
   if (width < 768) {
     await page.evaluate(click('[data-top-rail-bar]'))
@@ -45,7 +44,7 @@ export async function openSpecs(page, width, settle, spec = 'byte-types') {
 }
 
 // One screenshot as <out>/<name>-<width>-<theme>.png, its path printed.
-export async function saveShot(page, out, name, width, theme) {
+export async function saveShot(page: Page, out: string, name: string, width: number, theme: string) {
   const file = path.join(out, `${name}-${width}-${theme}.png`)
   await page.screenshot(file)
   console.log(file)
@@ -53,12 +52,12 @@ export async function saveShot(page, out, name, width, theme) {
 
 // Page helpers for the demo (?page=demo) shots: wait, click the element an
 // expression names, and the expression for a button by its leading text.
-export function demoHelpers(page) {
+export function demoHelpers(page: Page) {
   const wait = (ms = 300) => page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
-  const press = (expression) => page.evaluate(`(() => { const b = ${expression}; b.click(); return true })()`)
-  const button = (text, scope = 'document') => `[...${scope}.querySelectorAll('button')].find((b) => b.textContent.trim().startsWith(${JSON.stringify(text)}))`
+  const press = (expression: string) => page.evaluate(`(() => { const b = ${expression}; b.click(); return true })()`)
+  const button = (text: string, scope = 'document') => `[...${scope}.querySelectorAll('button')].find((b) => b.textContent.trim().startsWith(${JSON.stringify(text)}))`
   // A fresh demo at `width`, on its Specs list.
-  const openDemoSpecs = async (url, width, dark) => {
+  const openDemoSpecs = async (url: string, width: number, dark: boolean) => {
     await page.open(url, { width, height: 900, dark })
     await page.evaluate('localStorage.clear()')
     await page.open(url, { width, height: 900, dark })
@@ -76,10 +75,10 @@ export function demoHelpers(page) {
 
 // Steps that open a nav section and one of its items: the top rail's menu on
 // a phone, the left nav on a desktop. Each is a script for page.evaluate().
-const navScope = (width) => (width < 768 ? '[data-top-rail-list]' : '[data-left-nav]')
-export const menu = (width) =>
+const navScope = (width: number) => (width < 768 ? '[data-top-rail-list]' : '[data-left-nav]')
+export const menu = (width: number) =>
   width >= 768 ? 'true' : `(() => { if (!document.querySelector('[data-top-rail-list]')) document.querySelector('[data-top-rail-bar]').click(); return true })()`
-export const head = (width, section = 'Settings') =>
+export const head = (width: number, section = 'Settings') =>
   `(() => { const b = [...document.querySelectorAll('${navScope(width)} [data-nav-head]')].find((x) => x.textContent.includes(${JSON.stringify(section)})); if (b && !b.hasAttribute('data-open')) b.click(); return Boolean(b) })()`
-export const item = (width, text) =>
+export const item = (width: number, text: string) =>
   `(() => { const b = [...document.querySelectorAll('${navScope(width)} [data-nav-item]')].find((x) => x.textContent.trim() === ${JSON.stringify(text)}); if (b) b.click(); return Boolean(b) })()`
