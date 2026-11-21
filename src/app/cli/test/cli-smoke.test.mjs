@@ -196,3 +196,18 @@ test("AVOOZL_WORKSPACE and registered IDs reach the database", async () => {
   assert.equal(missing.code, 1);
   assert.match(missing.stderr, /avoozl init \S*none'?, then avoozl rebuild/);
 });
+
+test("lane resume reads the lane after the subcommand", async () => {
+  const machine = temporaryDirectory("avoozl-cli-smoke-lane-"),
+    env = machineEnvironment(machine),
+    workspace = path.join(machine, "ws");
+  execFileSync(process.execPath, [cli, "init", workspace, "--port", "0"], {
+    env,
+  });
+  const result = await run(
+    ["lane", "resume", "worker-1", "--workspace", workspace],
+    env,
+  );
+  assert.equal(result.code, 1);
+  assert.match(result.stderr, /Lane worker-1 is not paused/);
+});

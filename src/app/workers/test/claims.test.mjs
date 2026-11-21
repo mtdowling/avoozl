@@ -13,6 +13,8 @@ import { specCheckout } from "../../test/spec-checkout.mjs";
 import { temporaryDirectory } from "../../test/temporary.mjs";
 import { integrationNeedsYou } from "../../specs/integration-base.mjs";
 import { RepositorySettings } from "../../settings/repository-settings.mjs";
+import { claimOf } from "../claims.mjs";
+import { claimDispatches } from "../runner.mjs";
 
 const leaf = (id) => ({
   id,
@@ -113,6 +115,35 @@ function setup(t, { tasks, existing = [], lanes = 20 } = {}) {
 }
 
 const claim = (ops) => ops.execute("runner.next", { claim: true });
+
+test("the loop pass claims each worker start, and drops one another runner claimed first", async (t) => {
+  // Nearby inputs: a review start (no claim), and a start this runner
+  // already claimed (kept with no new create call).
+  const s = setup(t, { tasks: [leaf("a"), leaf("b"), leaf("c")] });
+  s.github.refs.set("avoozl/parser/a", s.head);
+  const out = await claimDispatches(s.store, s.github, [
+    { task: "a", role: "worker" },
+    { task: "b", role: "worker" },
+    { task: "c", role: "review:review" },
+  ]);
+  assert.deepEqual(
+    out.dispatches.map((d) => d.task),
+    ["b", "c"],
+  );
+  assert.deepEqual(out.errors, []);
+  assert.equal(claimOf(s.store, "acme/app", "b").own, true);
+  const creates = () =>
+    s.github.calls.filter((call) => call[0] === "create").length;
+  const before = creates();
+  const again = await claimDispatches(s.store, s.github, [
+    { task: "b", role: "worker" },
+  ]);
+  assert.deepEqual(
+    again.dispatches.map((d) => d.task),
+    ["b"],
+  );
+  assert.equal(creates(), before);
+});
 
 test("runner.next with claim creates avoozl/<spec>/<task> at the base head", async (t) => {
   const s = setup(t, { tasks: [leaf("a"), leaf("b")] });

@@ -12,8 +12,9 @@ import {
 import {
   cacheClaim,
   claimBranch,
-  claimedTaskIds,
   claimFirst,
+  claimOf,
+  claimedTaskIds,
   refreshClaims,
   taskSpec,
 } from "./claims.mjs";
@@ -235,6 +236,94 @@ export function nextView(store, { policy, github = null }) {
   return result;
 }
 
+// The base a claim starts from: a branch on origin named for the spec or a
+// spec that links it, caught up with the default branch first (simplify
+// §D21), else the default branch. Each branch is read and merged once per
+// call of the function this returns.
+function claimBase(store, client, linked) {
+  const seen = new Map(),
+    once = (key, read) => {
+      if (!seen.has(key)) seen.set(key, read());
+      return seen.get(key);
+    },
+    exists = (repository) => (name) =>
+      once(`branch:${repository}:${name}`, () =>
+        client.branch(repository, name).then(Boolean, (error) => {
+          if (error.status === 404) return false;
+          throw error;
+        }),
+      );
+  return async ({ task, repository }) => {
+    const fallback = repository.baseBranch || "main",
+      base = await integrationBase(taskSpec(task), {
+        linked,
+        exists: exists(repository.github),
+        fallback,
+      });
+    if (base === fallback) return base;
+    const done = await once(`catch-up:${repository.github}:${base}`, () =>
+      catchUp(store, client, {
+        repository: repository.github,
+        branch: base,
+        base: fallback,
+        prefix: repository.commitPrefix,
+      }),
+    );
+    return done.conflict ? null : base;
+  };
+}
+
+// The loop pass's claims (simplify §D6): a worker start on a repository with
+// a GitHub name first creates its task's claim branch on origin, as
+// `avoozl next --claim` does, and the worktree is made on that branch. A
+// start whose claim another runner made first is dropped, so two machines
+// never start one task, and so is one whose claim GitHub could not make: it
+// is tried again next pass. A task this runner already claimed keeps its
+// start. Returns {dispatches, errors}.
+export async function claimDispatches(
+  store,
+  client,
+  dispatches,
+  { linked = null } = {},
+) {
+  const repositories = new Map(
+      store.list("repositories").map((r) => [r.id, r]),
+    ),
+    tasks = new Map(store.read().tasks.map((task) => [task.id, task])),
+    baseOf = claimBase(store, client, linked),
+    kept = [],
+    errors = [];
+  for (const dispatch of dispatches) {
+    const task = tasks.get(dispatch.task),
+      repository = task && repositories.get(taskRepository(task));
+    if (
+      dispatch.role !== "worker" ||
+      !repository?.github ||
+      claimOf(store, repository.github, task.id)?.own
+    ) {
+      kept.push(dispatch);
+      continue;
+    }
+    let claim = null;
+    try {
+      claim = await claimFirst(client, [{ task, repository }], { baseOf });
+    } catch (error) {
+      if (error.status !== 409)
+        errors.push({ repository: repository.github, error: error.message });
+    }
+    if (!claim) continue;
+    cacheClaim(store, repository.github, {
+      spec: taskSpec(task),
+      task: task.id,
+      branch: claim.branch,
+      sha: claim.head,
+      own: true,
+    });
+    kept.push(dispatch);
+  }
+  return { dispatches: kept, errors };
+}
+
 // `avoozl next --claim` / plans_next with claim (simplify §D3): read the claim
 // branches, then claim the best ready task by creating its branch on origin
 // at the base head, and make its worktree on that branch. A task whose
@@ -259,40 +348,8 @@ export async function claimNext(
         repository: repositories.get(taskRepository(task)),
       }))
       .filter(({ repository }) => repository?.github);
-  // The base: a branch on origin named for the spec or a spec that links
-  // it, caught up with the default branch first (simplify §D21), else the
-  // default branch. Each branch is read and merged once per call.
-  const seen = new Map(),
-    once = (key, read) => {
-      if (!seen.has(key)) seen.set(key, read());
-      return seen.get(key);
-    },
-    exists = (repository) => (name) =>
-      once(`branch:${repository}:${name}`, () =>
-        client.branch(repository, name).then(Boolean, (error) => {
-          if (error.status === 404) return false;
-          throw error;
-        }),
-      );
   const claim = await claimFirst(client, candidates, {
-    baseOf: async ({ task, repository }) => {
-      const fallback = repository.baseBranch || "main",
-        base = await integrationBase(taskSpec(task), {
-          linked,
-          exists: exists(repository.github),
-          fallback,
-        });
-      if (base === fallback) return base;
-      const done = await once(`catch-up:${repository.github}:${base}`, () =>
-        catchUp(store, client, {
-          repository: repository.github,
-          branch: base,
-          base: fallback,
-          prefix: repository.commitPrefix,
-        }),
-      );
-      return done.conflict ? null : base;
-    },
+    baseOf: claimBase(store, client, linked),
   });
   if (!claim) return { ...view, claimed: null, errors };
   // The take binds this caller's session before the claim is cached, so its

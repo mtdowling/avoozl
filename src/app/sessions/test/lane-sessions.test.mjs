@@ -11,7 +11,7 @@ import {
   leaf,
   workerDone,
 } from "../../test/delivery-fixture.mjs";
-import { laneHeader, laneTable } from "../lane-sessions.mjs";
+import { laneHeader, laneTable, observeLanes } from "../lane-sessions.mjs";
 import { loopOn } from "../../test/fixtures.mjs";
 
 // The tick starts work only with the server loop on.
@@ -188,6 +188,28 @@ test("a lane whose chat a person closed pauses, shows in Needs you, and opens ag
     /^LANE\s+ROLE\s+HARNESS\s+STATE\s+TASK\s+OPEN\n/,
   );
   assert.equal(store.getMeta("lanes")["worker-1"].paused, undefined);
+});
+
+test("a process lane whose child exited stays free", (t) => {
+  // Nearby input: the same closed status on a chat binding pauses the lane.
+  const { store } = setup(t, { tasks: [leaf("a")] });
+  const policy = { concurrency: 1, reviewerLanes: 0 },
+    binding = {
+      id: "p-w1",
+      slot: "p-w1",
+      taskId: "a",
+      role: "worker",
+      lane: "worker-1",
+      status: "closed",
+      boundAt: "2026-01-01T00:00:00Z",
+    };
+  store.put("session_bindings", { ...binding, executor: "process" });
+  assert.deepEqual(observeLanes(store, policy, "ws"), []);
+  store.put("session_bindings", binding);
+  assert.deepEqual(
+    observeLanes(store, policy, "ws").map((lane) => lane.id),
+    ["worker-1"],
+  );
 });
 
 test("reviews wait for a free reviewer lane", async (t) => {

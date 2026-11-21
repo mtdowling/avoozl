@@ -71,6 +71,7 @@ import { planningIdentity } from "../github/github-marker.mjs";
 import { respondStep } from "../github/github-respond.mjs";
 import { refreshOpenItems } from "../github/github-open-read.mjs";
 import { claimsDue, refreshClaims } from "../workers/claims.mjs";
+import { claimDispatches } from "../workers/runner.mjs";
 import { readLabelFilters } from "../specs/label-filters.mjs";
 import { readSpecAssignees } from "../specs/spec-assignee.mjs";
 import { readLabeledIssues } from "../specs/labeled-issues.mjs";
@@ -764,7 +765,7 @@ async function runTick(
         }
       // The claim branches and their head times, for stale claims in Needs
       // you (simplify §D3). Reads only: Avoozl deletes no claim branch here.
-      if (script && github && claimsDue(store))
+      if (script && github && (looping || claimsDue(store)))
         for (const failed of await under(
           "tick",
           "check-in",
@@ -867,7 +868,7 @@ async function runTick(
                 github: readGitHubPolicyOrNull(workspaceRoot),
                 skip: readySkip,
               }),
-        ready = !schedule
+        plannedReady = !schedule
           ? []
           : planReadyDispatches(store, delivery, {
               workspace: laneWorkspace(workspaceRoot),
@@ -883,6 +884,23 @@ async function runTick(
                 workspace: laneWorkspace(workspaceRoot),
                 config: memory.value || {},
               });
+      // The loop pass claims each start on origin first (simplify §D6).
+      const claimed =
+          script && github && looping && plannedReady.length
+            ? await under("tick", "worker-grants", claimDispatches)(
+                store,
+                github,
+                plannedReady,
+                { linked: links },
+              )
+            : { dispatches: plannedReady, errors: [] },
+        ready = claimed.dispatches;
+      for (const failed of claimed.errors)
+        planned.notify.push({
+          channel: "failure",
+          title: `Avoozl could not claim a task in ${failed.repository}`,
+          text: failed.error,
+        });
       // Command-only bars are checked by Avoozl itself, off this path: the
       // cron queues each run here and the app backend runs the queue
       // (check-runs.mjs).

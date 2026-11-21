@@ -456,8 +456,12 @@ export async function approvalCommits(
 ) {
   let log;
   try {
+    // Each commit's changes are its diff against its first parent (rule 7):
+    // a merged pull request's merge commit lists the spec files it brought.
     log = await git(root, [
       "log",
+      "--first-parent",
+      "--diff-merges=first-parent",
       "--no-renames",
       "--format=%x1e%H%x1f%ae%x1f%an%x1f%aI",
       "--name-only",
@@ -475,9 +479,6 @@ export async function approvalCommits(
     // Every spec file name each spec's history touched. A file in a commit's
     // tree was added by a commit in this log, so these are all the names a
     // spec folder ever held.
-    // shortcut: a file that reached the folder only through a merge commit
-    // (whose --name-only lists nothing) is missed; list the tree per commit
-    // if specs ever arrive that way.
     names = new Map();
   for (const block of log.split("\x1e").filter((b) => b.trim())) {
     const [head, ...files] = block.split("\n"),

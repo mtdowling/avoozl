@@ -188,8 +188,9 @@ const firstBound = (lane) =>
 const listBindingsOf = (lane) => lane.taskBindings ?? [lane.binding];
 
 // Pause each lane whose session a person closed (SM20.8), once. A close
-// read before the lane's last Resume does not pause it again. Returns the
-// lanes paused now.
+// read before the lane's last Resume does not pause it again. A process
+// child closes its session itself when its run ends, so only a chat's close
+// pauses a lane. Returns the lanes paused now.
 export function observeLanes(store, policy, workspace, now = Date.now()) {
   const states = laneStates(store),
     held = laneBindings(listSessionBindings(store)),
@@ -198,7 +199,13 @@ export function observeLanes(store, policy, workspace, now = Date.now()) {
   for (const lane of laneList(policy, workspace)) {
     const binding = held.get(lane.id),
       saved = states[lane.id] ?? {};
-    if (!binding || !CLOSED.has(binding.status) || saved.paused) continue;
+    if (
+      !binding ||
+      binding.executor === "process" ||
+      !CLOSED.has(binding.status) ||
+      saved.paused
+    )
+      continue;
     if (saved.resumedAt && (binding.statusAt ?? "") <= saved.resumedAt)
       continue;
     next[lane.id] = {

@@ -39,7 +39,12 @@ export async function readClaims(github, repository) {
 
 // Replace the cached claims of the repositories read; others keep theirs.
 export function cacheClaims(store, byRepository) {
-  store.setMeta(META, { ...(store.getMeta(META) || {}), ...byRepository });
+  const current = store.getMeta(META) || {},
+    next = { ...current, ...byRepository };
+  // Written only when a read changed it, so a read that finds the same
+  // branches writes nothing.
+  if (JSON.stringify(next) !== JSON.stringify(current))
+    store.setMeta(META, next);
 }
 
 // The cached claim branch names, across repositories.

@@ -163,7 +163,7 @@ export const commands = [
       console.log(
         JSON.stringify(
           await localOrRequest("lane.resume", {
-            lane: need(positionals[0], "lane resume LANE"),
+            lane: need(positionals[1], "lane resume LANE"),
           }),
           null,
           2,

@@ -69,6 +69,29 @@ test("approvals read and write every spec file under specs.path", async () => {
   assert.deepEqual(first.files, { "notes.md": "Notes\n", "tasks.md": tasks });
 });
 
+test("a merged pull request's merge commit is the approval of the spec it brought", async () => {
+  // Nearby input: the branch's own commit, by someone else, is not walked.
+  const r = repo(),
+    allowed = async (email) => email === OWNER;
+  r.run(["commit", "-q", "--allow-empty", "-m", "Start"]);
+  const main = r.run(["branch", "--show-current"]);
+  r.run(["checkout", "-q", "-b", "spec/merged"]);
+  commitSpec(r, "merged", { author: OTHER, committer: OTHER });
+  r.run(["checkout", "-q", main]);
+  r.run(["merge", "-q", "--no-ff", "-m", "Merge spec/merged", "spec/merged"], {
+    GIT_AUTHOR_NAME: "A",
+    GIT_AUTHOR_EMAIL: OWNER,
+    GIT_COMMITTER_NAME: "A",
+    GIT_COMMITTER_EMAIL: OWNER,
+  });
+  const merge = r.run(["rev-parse", "HEAD"]);
+  const found = await approvalCommits(r.root, { allowed });
+  assert.deepEqual(
+    found.map((entry) => [entry.spec, entry.commit, entry.email]),
+    [["merged", merge, OWNER]],
+  );
+});
+
 test("the author decides an approval; the committer neither grants nor blocks it", async () => {
   const r = repo(),
     own = commitSpec(r, "own", { author: OWNER, committer: OWNER }),

@@ -16,7 +16,7 @@ import { hasPendingSpecDependencies } from "../../spec-dependencies.mjs";
 import { spawn } from "node:child_process";
 import path from "node:path";
 import { issueReportToken } from "../workers/report-match.mjs";
-import { claimBranch, claimedTaskIds } from "../workers/claims.mjs";
+import { claimBranch, claimOf, claimedTaskIds } from "../workers/claims.mjs";
 import { fail } from "../store/store.mjs";
 import { fileURLToPath } from "node:url";
 import {
@@ -338,8 +338,14 @@ export async function prepareWorktree(store, input = {}) {
   )
     fail(`Task ID ${task.id} cannot name a branch.`, 409);
   const repository = taskRepositoryRecord(store, task),
-    // A claimed task works on its claim branch (§D3); others on their own.
-    branch = input.claim === true ? claimBranch(task) : "avoozl/" + task.id;
+    // A claimed task works on its claim branch (§D3), whether `avoozl next
+    // --claim` or the loop pass claimed it; others on their own.
+    claimed =
+      input.claim === true ||
+      Boolean(
+        repository.github && claimOf(store, repository.github, task.id)?.own,
+      ),
+    branch = claimed ? claimBranch(task) : "avoozl/" + task.id;
   // Prepare and the spec's qualified reference resolve the same base
   // (spec-base.mjs): the spec's working branch, else a legacy integration
   // branch, else the repository's base branch.
@@ -356,7 +362,7 @@ export async function prepareWorktree(store, input = {}) {
     branch,
     name: "avoozl-" + task.id,
     // A claim on an integration branch starts from that branch.
-    start: (input.claim === true && input.start) || base?.branch || null,
+    start: (claimed && input.start) || base?.branch || null,
   });
   const record = {
     id: task.id,
