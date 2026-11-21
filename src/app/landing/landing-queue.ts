@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // One landing queue per base branch, with a brief integration lock
 // (Requirement 87.5 and 102.15, design §4.26 Land and §4.32.5, task 41.2).
 //
@@ -23,20 +22,134 @@
 //
 // The git and check steps are passed in, so direct landing
 // (merge-batch.mjs) and pull request landing reuse the same queue.
-import { withWorkLock } from "../git/git.ts";
+import { type Repository, withWorkLock } from "../git/git.ts";
 import { openStops } from "../flow/flow.ts";
 import { stoppedSpecIds } from "../specs/label-filters.ts";
 import { outputExcerpt } from "../delivery/verify.ts";
-import { fail } from "../store/store.ts";
+import { fail, type Store } from "../store/store.ts";
 import { checkKey } from "../workspace/repository-checks.ts";
 
 const SHA = /^[0-9a-f]{40}$/;
 const TABLE = "landing_queue";
-const queueId = (repositoryId, base) => `${repositoryId}\0${base}`;
-const entryId = (repositoryId, base, key) =>
+
+// A task is its ID, or {task, definition} when it lands with an intent.
+export type QueuedTask = string | { task: string; definition?: unknown };
+// One check result a landing verdict carries.
+export interface CheckResult {
+  name?: string;
+  command?: string;
+  conclusion?: string | null;
+  exitCode?: number | null;
+  tail?: string;
+  [key: string]: unknown;
+}
+// Why the head waits, kept on its queued entry.
+interface Waiting {
+  reason: string;
+  candidate: string;
+  checks: { name?: string; command?: string; conclusion: string | null }[];
+  since?: string;
+}
+// One portion in a base's queue: an exact commit and its tasks.
+export interface QueueEntry {
+  id: string;
+  repositoryId: string;
+  base: string;
+  key: string;
+  commit: string;
+  tasks: QueuedTask[];
+  spec: string | null;
+  source?: unknown;
+  pr?: number;
+  seq: number;
+  state: string;
+  queuedAt: string;
+  finishedAt?: string;
+  waiting?: Waiting;
+  [key: string]: unknown;
+}
+// An open stop, or a stop label on the portion's spec.
+interface Stop {
+  id: string;
+  scope?: string;
+  taskId?: string;
+  spec?: string;
+  planId?: string;
+  repositoryId?: string;
+  reason?: string;
+  label?: boolean;
+}
+// A queue's repository and base branch.
+interface QueueRef {
+  repositoryId: string;
+  base: string;
+}
+// What a step's check run says about a candidate.
+export interface Verdict {
+  ok?: boolean;
+  wait?: boolean;
+  reason?: string;
+  checks?: CheckResult[];
+  record?: Record<string, unknown>;
+}
+// What preparing a candidate gives.
+interface Prepared {
+  candidate?: string;
+  conflict?: string[];
+  key?: string;
+  pr?: number;
+}
+// What observing the head finds: landed by someone else, or closed.
+interface Observed {
+  merged?: boolean;
+  closed?: boolean;
+  candidate?: string;
+  pr?: number;
+  [key: string]: unknown;
+}
+// The git and check steps a landing mode passes in (see landNext).
+export interface LandingSteps {
+  observe?: (entry: QueueEntry) => Promise<Observed | null | undefined>;
+  readBase: () => Promise<string>;
+  prepare: (
+    entries: QueueEntry[],
+    baseHead: string,
+  ) => Promise<Prepared | null | undefined>;
+  check: (
+    candidate: string,
+    entries: QueueEntry[],
+    baseHead: string,
+    only?: (string | null)[],
+  ) => Promise<Verdict>;
+  land: (move: {
+    entries: QueueEntry[];
+    entry: QueueEntry;
+    candidate: string;
+    baseHead: string;
+    checks: CheckResult[];
+  }) => Promise<boolean>;
+  afterLand?: (landed: {
+    entries: QueueEntry[];
+    candidate: string;
+  }) => Promise<unknown>;
+}
+// How a batch is formed and reported (see landNext).
+interface BatchOptions {
+  limit?: number;
+  isAlone?: (entry: QueueEntry) => boolean;
+  accept?: (entry: QueueEntry) => boolean;
+}
+interface LandOptions extends BatchOptions {
+  onStep?: (step: string, entries: QueueEntry[]) => unknown;
+  bisect?: boolean;
+}
+
+const queueId = (repositoryId: string, base: string) =>
+  `${repositoryId}\0${base}`;
+const entryId = (repositoryId: string, base: string, key: string) =>
   `${queueId(repositoryId, base)}\0${key}`;
 
-function requireQueue(repositoryId, base) {
+function requireQueue(repositoryId: unknown, base: unknown) {
   if (typeof repositoryId !== "string" || !repositoryId)
     fail("A landing queue names its repository.", 400);
   if (typeof base !== "string" || !base)
@@ -44,10 +157,10 @@ function requireQueue(repositoryId, base) {
 }
 
 // The queued portions for one base, first in line first.
-export function landingQueue(store, { repositoryId, base }) {
+export function landingQueue(store: Store, { repositoryId, base }: QueueRef) {
   requireQueue(repositoryId, base);
   return store
-    .list(TABLE)
+    .list<QueueEntry>(TABLE)
     .filter(
       (e) =>
         e.repositoryId === repositoryId &&
@@ -61,7 +174,7 @@ export function landingQueue(store, { repositoryId, base }) {
 // while it waits changes nothing; a key that already left the queue (landed,
 // failed, conflict) comes back at the end with its new commit.
 export function enqueueLanding(
-  store,
+  store: Store,
   {
     repositoryId,
     base,
@@ -71,6 +184,13 @@ export function enqueueLanding(
     spec = null,
     source = null,
     pr = null,
+  }: QueueRef & {
+    key: string;
+    commit: string;
+    tasks?: QueuedTask[];
+    spec?: string | null;
+    source?: unknown;
+    pr?: number | null;
   },
   { now = Date.now() } = {},
 ) {
@@ -80,10 +200,11 @@ export function enqueueLanding(
     fail("A queued portion names an exact commit.", 400);
   return store.transaction(() => {
     const id = entryId(repositoryId, base, key),
-      existing = store.get(TABLE, id);
+      existing = store.get<QueueEntry>(TABLE, id);
     if (existing?.state === "queued") return existing;
-    const seq = Math.max(0, ...store.list(TABLE).map((e) => e.seq ?? 0)) + 1;
-    return store.put(TABLE, {
+    const seq =
+      Math.max(0, ...store.list<QueueEntry>(TABLE).map((e) => e.seq ?? 0)) + 1;
+    return store.put<QueueEntry>(TABLE, {
       id,
       repositoryId,
       base,
@@ -100,20 +221,20 @@ export function enqueueLanding(
   });
 }
 
-// A task is its ID, or {task, definition} when it lands with an intent.
-export const taskIds = (entry) =>
+// The task IDs of a portion.
+export const taskIds = (entry: Pick<QueueEntry, "tasks">) =>
   entry.tasks.map((t) => (typeof t === "string" ? t : t.task));
 
 // The members that land together from the head: the head, then each next
 // member while the batch stays within `limit` members, none is paused, none
 // must land alone and `accept` agrees. The head lands alone when it must.
 export function batchOf(
-  store,
-  queue,
-  { limit = 1, isAlone = () => false, accept = () => true } = {},
+  store: Store,
+  queue: QueueEntry[],
+  { limit = 1, isAlone = () => false, accept = () => true }: BatchOptions = {},
 ) {
   const [head] = queue,
-    out = [];
+    out: QueueEntry[] = [];
   if (!head) return out;
   for (const entry of queue) {
     if (out.length) {
@@ -129,10 +250,16 @@ export function batchOf(
 // The open stop that pauses this portion, if any: a task stop names one of
 // its tasks, a spec stop its spec, a repository or automatic stop its
 // repository, and an all-scope or full stop everything.
-export function pausedBy(store, entry) {
+export function pausedBy(
+  store: Store,
+  entry: Pick<QueueEntry, "tasks" | "spec" | "repositoryId">,
+): Stop | null {
   return (
-    openStops(store).find((stop) => {
-      if (stop.scope === "task") return taskIds(entry).includes(stop.taskId);
+    openStops(store).find((stop: Stop) => {
+      if (stop.scope === "task")
+        return (
+          Boolean(stop.taskId) && taskIds(entry).includes(String(stop.taskId))
+        );
       if (stop.scope === "spec")
         return Boolean(entry.spec) && entry.spec === (stop.spec ?? stop.planId);
       if (stop.repositoryId) return stop.repositoryId === entry.repositoryId;
@@ -149,11 +276,13 @@ export function pausedBy(store, entry) {
 // The checks of a verdict that failed, and the log excerpt they carry,
 // capped at 8 KB (MB4.3). `tail` is the check's last output lines.
 const EXCERPT_BYTES = 8192;
-const failedOf = (checks = []) => checks.filter((c) => c.exitCode !== 0);
+const failedOf = (checks: CheckResult[] = []) =>
+  checks.filter((c) => c.exitCode !== 0);
 // Reruns and bisect steps name the checks they run again by check name.
-const namesOf = (checks) => failedOf(checks).map(checkKey);
-const bare = (checks = []) => checks.map(({ tail, ...rest }) => rest);
-const excerptOf = (checks) =>
+const namesOf = (checks?: CheckResult[]) => failedOf(checks).map(checkKey);
+const bare = (checks: CheckResult[] = []) =>
+  checks.map(({ tail, ...rest }) => rest);
+const excerptOf = (checks?: CheckResult[]) =>
   outputExcerpt(
     failedOf(checks)
       .map((c) => c.tail)
@@ -161,8 +290,13 @@ const excerptOf = (checks) =>
       .join("\n"),
   ).slice(-EXCERPT_BYTES);
 
-function finish(store, entry, state, extra = {}) {
-  return store.put(TABLE, {
+function finish(
+  store: Store,
+  entry: QueueEntry,
+  state: string,
+  extra: Record<string, unknown> = {},
+) {
+  return store.put<QueueEntry>(TABLE, {
     ...entry,
     ...extra,
     state,
@@ -173,11 +307,17 @@ function finish(store, entry, state, extra = {}) {
 // Keeps why the head waits (checks or review) on its queued entry, so the
 // Landing queue page can say so from the store (task 44.5). Written only
 // when the reason, candidate or check list changes, not on every tick.
-function noteWait(store, entry, candidate, verdict) {
-  const waiting = {
-    reason: ["review", "draft", "merge"].includes(verdict.reason)
-      ? verdict.reason
-      : "checks",
+function noteWait(
+  store: Store,
+  entry: QueueEntry,
+  candidate: string,
+  verdict: Verdict,
+) {
+  const waiting: Waiting = {
+    reason:
+      verdict.reason && ["review", "draft", "merge"].includes(verdict.reason)
+        ? verdict.reason
+        : "checks",
     candidate,
     checks: (verdict.checks ?? []).map(({ name, command, conclusion }) => ({
       ...(name !== undefined ? { name } : {}),
@@ -194,9 +334,9 @@ function noteWait(store, entry, candidate, verdict) {
   // The checks ran outside any lock: write only onto the same entry still
   // queued, so a withdrawal meanwhile is never undone.
   return store.transaction(() => {
-    const now = store.get(TABLE, entry.id);
+    const now = store.get<QueueEntry>(TABLE, entry.id);
     if (now?.state !== "queued" || now.commit !== entry.commit) return entry;
-    return store.put(TABLE, {
+    return store.put<QueueEntry>(TABLE, {
       ...now,
       waiting: { ...waiting, since: new Date().toISOString() },
     });
@@ -206,16 +346,16 @@ function noteWait(store, entry, candidate, verdict) {
 // Keeps the pull request a portion's step opened or found on its queued
 // entry, so a held or failed portion still links to it (Requirement 92.1).
 // Same rule as noteWait: only onto the same entry still queued.
-function notePull(store, entry, pr) {
+function notePull(store: Store, entry: QueueEntry, pr: number) {
   if (!Number.isSafeInteger(pr) || pr < 1 || entry.pr === pr) return entry;
   return store.transaction(() => {
-    const now = store.get(TABLE, entry.id);
+    const now = store.get<QueueEntry>(TABLE, entry.id);
     if (now?.state !== "queued" || now.commit !== entry.commit) return entry;
-    return store.put(TABLE, { ...now, pr });
+    return store.put<QueueEntry>(TABLE, { ...now, pr });
   });
 }
 
-const running = new Map();
+const running = new Map<string, Promise<unknown>>();
 
 // Takes a waiting portion out of its queue, e.g. when its base moved and
 // its commit will be replaced; the key may be queued again later.
@@ -223,23 +363,37 @@ const running = new Map();
 // only `only` (`avoozl land`), whose base has a queued portion, with its
 // base, its head portion and its `tries`. `rounds` is a count or, per
 // repository, a function of the repository.
-export function* queueHeads(store, isMode, { only = null, rounds } = {}) {
-  for (const repository of store.list("repositories")) {
+export function* queueHeads(
+  store: Store,
+  isMode: (repository: Repository) => boolean,
+  {
+    only = null,
+    rounds,
+  }: {
+    only?: string | null;
+    rounds?: number | ((repository: Repository) => number);
+  } = {},
+) {
+  for (const repository of store.list<Repository>("repositories")) {
     if (!isMode(repository) || (only && repository.id !== only)) continue;
     const base = repository.baseBranch || "main",
-      queue = landingQueue(store, { repositoryId: repository.id, base });
-    if (queue.length)
+      [head] = landingQueue(store, { repositoryId: repository.id, base });
+    if (head)
       yield {
         repository,
         base,
-        head: queue[0],
+        head,
         tries: typeof rounds === "function" ? rounds(repository) : rounds,
       };
   }
 }
 
-export function withdrawLanding(store, { repositoryId, base, key }, reason) {
-  const entry = store.get(TABLE, entryId(repositoryId, base, key));
+export function withdrawLanding(
+  store: Store,
+  { repositoryId, base, key }: QueueRef & { key: string },
+  reason: string,
+) {
+  const entry = store.get<QueueEntry>(TABLE, entryId(repositoryId, base, key));
   if (entry?.state !== "queued") return null;
   return store.transaction(() => finish(store, entry, "withdrawn", { reason }));
 }
@@ -282,10 +436,10 @@ export function withdrawLanding(store, { repositoryId, base, key }, reason) {
 // that conflicted or failed alone leaves the queue; landed takes out what
 // landed. Every other state keeps the order.
 export async function landNext(
-  store,
-  { repositoryId, base },
-  steps,
-  options = {},
+  store: Store,
+  { repositoryId, base }: QueueRef,
+  steps: LandingSteps,
+  options: LandOptions = {},
 ) {
   requireQueue(repositoryId, base);
   const key = queueId(repositoryId, base);
@@ -327,10 +481,10 @@ export async function landNext(
       fail(`The base ${base} has no exact head to land on.`, 409);
     // Outside the lock: stack the members on the base and run the checks.
     options.onStep?.("testing", entries);
-    let candidate,
-      verdict,
+    let candidate = "",
+      verdict: Verdict = {},
       flaky = false,
-      culprits = [];
+      culprits: string[] = [];
     for (;;) {
       const prepared = await steps.prepare(entries, baseHead);
       // One pull request is one member (pr landing never makes a batch).
@@ -357,8 +511,8 @@ export async function landNext(
           batch: { ...batch, landed: [], culprits: [] },
         };
       }
-      candidate = prepared?.candidate;
-      if (!SHA.test(candidate ?? ""))
+      candidate = prepared?.candidate ?? "";
+      if (!SHA.test(candidate))
         fail("Preparing a landing gives an exact candidate commit.", 500);
       verdict = await steps.check(candidate, entries, baseHead);
       if (verdict?.ok) break;
@@ -392,8 +546,10 @@ export async function landNext(
         verdict = {
           ...verdict,
           ok: true,
-          checks: verdict.checks.map(
-            (c) => again.checks.find((a) => checkKey(a) === checkKey(c)) ?? c,
+          checks: (verdict.checks ?? []).map(
+            (c) =>
+              (again.checks ?? []).find((a) => checkKey(a) === checkKey(c)) ??
+              c,
           ),
         };
         break;
@@ -403,7 +559,10 @@ export async function landNext(
       options.onStep?.("bisect", entries);
       let lo = 1,
         hi = entries.length,
-        atHi = { candidate, checks: again?.checks ?? verdict.checks };
+        atHi: Verdict & { candidate?: string } = {
+          candidate,
+          checks: again?.checks ?? verdict.checks,
+        };
       while (lo < hi) {
         const mid = Math.floor((lo + hi) / 2),
           part = await steps.prepare(entries.slice(0, mid), baseHead),
@@ -426,7 +585,7 @@ export async function landNext(
       // MB4.3: the culprit alone on the base, with the failing checks.
       let culpritChecks = atHi.checks,
         culpritCandidate = atHi.candidate,
-        together = [];
+        together: string[] = [];
       if (before.length) {
         const alone = await steps.prepare([culprit], baseHead),
           result = alone?.candidate
@@ -458,11 +617,9 @@ export async function landNext(
       }
       // The members ahead of the culprit land, after one full check of
       // exactly that candidate (MB3.3).
-      const part = await steps.prepare(before, baseHead),
-        full = part?.candidate
-          ? await steps.check(part.candidate, before, baseHead)
-          : { ok: false };
-      if (!full.ok)
+      const part = (await steps.prepare(before, baseHead))?.candidate,
+        full = part ? await steps.check(part, before, baseHead) : { ok: false };
+      if (!part || !full.ok)
         return {
           state: "retry",
           entries: before,
@@ -473,7 +630,7 @@ export async function landNext(
       sentBack.push({ state: "failed", entry: gone() });
       culprits = [culprit.key];
       entries = before;
-      candidate = part.candidate;
+      candidate = part;
       verdict = full;
       break;
     }
@@ -504,7 +661,7 @@ export async function landNext(
         },
       );
     } catch (error) {
-      if (error.contention)
+      if ((error as { contention?: boolean }).contention)
         return { state: "busy", entry: entries[0], entries };
       throw error;
     }
@@ -525,7 +682,7 @@ export async function landNext(
     try {
       mergedBack = await steps.afterLand?.({ entries: landed, candidate });
     } catch (error) {
-      mergedBack = { error: error.message };
+      mergedBack = { error: (error as Error).message };
     }
     return {
       state: "landed",
