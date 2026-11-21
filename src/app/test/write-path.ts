@@ -3,18 +3,17 @@
 // SQLite row change and whether an Operations call was on the stack.
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
-import { createHash, createHmac, randomBytes } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import type { TestContext } from "node:test";
 import { fileURLToPath } from "node:url";
 import { Store } from "../store/store.ts";
+import { SECRET, sign } from "./signed-principal.ts";
 import { temporaryDirectory } from "./temporary.ts";
 
 const cli = fileURLToPath(new URL("../../../cli.ts", import.meta.url));
 // --import takes a URL; a bare D:\ path reads as the scheme "d:".
 const hook = new URL("./write-trace.ts", import.meta.url).href;
-const SECRET = "test-proxy-secret";
 // One row change the trace recorded.
 interface TraceWrite {
   sql: string;
@@ -148,32 +147,6 @@ export const mcpLine = (id: number, name: string, input: unknown) =>
         : { input },
     },
   });
-
-// The X-KiroCrew-Principal header Kiro Crew's proxy sets for an owner's
-// POST /api/command with this body, signed with `secret`.
-export function sign(body: string, secret = SECRET) {
-  const claim = {
-      issuedAt: Math.floor(Date.now() / 1000),
-      kind: "owner-session",
-      ownerId: "owner",
-      requestId: randomBytes(16).toString("hex"),
-      version: 1,
-    },
-    encoded = Buffer.from(JSON.stringify(claim)).toString("base64url"),
-    signature = createHmac("sha256", secret)
-      .update(
-        [
-          "kirocrew-proxy-principal-v1",
-          String(claim.issuedAt),
-          "POST",
-          "/api/command",
-          createHash("sha256").update(body).digest("hex"),
-          encoded,
-        ].join("\n"),
-      )
-      .digest("hex");
-  return `${encoded}.${signature}`;
-}
 
 // Starts `cli.ts app-backend` on 127.0.0.1 and returns a signed
 // owner-session command sender.
