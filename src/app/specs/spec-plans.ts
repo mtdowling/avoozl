@@ -1144,7 +1144,7 @@ export function lintSpec({
   namespace = null,
   declaredTasks = [],
 }: {
-  spec: SpecFolder;
+  spec: SpecFolder & { linked?: LinkedReader | null };
   plan?: { id?: string; [key: string]: unknown };
   data?: {
     tasks?: { id: string; planId?: unknown; [key: string]: unknown }[];
