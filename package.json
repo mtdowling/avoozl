@@ -19,7 +19,7 @@
     "pretest:ci": "npm run check:hosts && npm run build",
     "test:ci": "node scripts/test/run-tests.ts --ui",
     "test:changed": "node scripts/test/run-tests.ts --changed",
-    "test:ui": "node --test --test-timeout=60000 hosts/kirocrew/ui/test/*.test.mjs",
+    "test:ui": "node --test --test-timeout=60000 hosts/kirocrew/ui/test/*.test.ts",
     "kit:docs": "node scripts/kit/scenarios-doc.ts",
     "dup": "node scripts/check/dup.ts",
     "dup:changed": "node scripts/check/dup.ts --changed",

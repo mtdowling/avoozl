@@ -8,7 +8,7 @@
             "type": "command",
             "command": "node",
             "args": [
-              "${CLAUDE_PLUGIN_ROOT}/hooks/guard.mjs"
+              "${CLAUDE_PLUGIN_ROOT}/hooks/guard.ts"
             ]
           }
         ]

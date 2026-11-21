@@ -3,7 +3,7 @@
 // it. Skipped when no Chrome is found.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { harnessPage } from './browser/harness-page.mjs'
+import { harnessPage } from './browser/harness-page.ts'
 
 const state = harnessPage('content rules guide')
 const { skip } = state
