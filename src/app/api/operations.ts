@@ -224,7 +224,7 @@ export interface OperationsOptions {
   configuration?: RepositorySettings | null;
   workspaceRoot?: string | null;
   plansRoot?: string | null;
-  repositoryBindingGuard?: unknown;
+  repositoryBindingGuard?: Operations["repositoryBindingGuard"];
   notifier?: Parameters<typeof deliverNotifications>[1];
   sessionStopper?: unknown;
   kirocrewAbsent?: boolean;
@@ -236,14 +236,14 @@ export interface OperationsOptions {
 }
 
 // A stored plan row, with the approval fields the reads here use.
-interface Plan extends PlanRow {
+export interface Plan extends PlanRow {
   context?: { repositoryId?: string };
   approvalId?: string;
   mapping?: Record<string, unknown>;
   archivedAt?: string;
 }
 // An approval receipt.
-interface Approval {
+export interface Approval {
   id: string;
   planId: string;
   hash: string;
@@ -283,7 +283,14 @@ export class Operations {
   // The client before guardGitHub wraps it.
   githubClient: GitHubClient;
   tickPolicy: Record<string, unknown>;
-  repositoryBindingGuard: unknown;
+  // Refuses a repository binding another workspace on this machine holds.
+  repositoryBindingGuard:
+    | ((binding: {
+        repositoryId: string;
+        root: string | null;
+        editable: boolean;
+      }) => { commit?: () => unknown; release?: () => unknown } | null)
+    | null;
   pendingIntents: Map<string, Promise<unknown>>;
   // What the last tick read from each spec's base branch and main.
   ticksSeen?: Map<string, string>;

@@ -60,6 +60,8 @@ export interface Task {
   activityHistory?: Activity[];
   dispatch?: { ready?: boolean; state?: string; reason?: string } | null;
   manual?: boolean;
+  // The tasks.md phase heading a spec task sits under.
+  phase?: { id: string; [key: string]: unknown } | null;
   manualDone?: { choice?: string; at?: string; [key: string]: unknown } | null;
   repository?: string | null;
   repositoryId?: string | null;
