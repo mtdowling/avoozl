@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // integration.foreign (simplify sim-2.6, §D21.1): a branch named for a spec
 // may hold merges of the default branch and landings of the spec's tasks,
 // and nothing else. Real git with a bare origin.
@@ -11,7 +10,7 @@ import { foreignCommits } from "../integration-lint.ts";
 import { specCheckout } from "../../test/spec-checkout.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
 
-const lint = (root, extra = {}) =>
+const lint = (root: string, extra = {}) =>
   foreignCommits(root, {
     spec: "parser",
     taskIds: ["p-1", "p-2"],
@@ -23,7 +22,7 @@ test("lint flags a same-name branch holding work that is not the spec's, and pas
   const origin = temporaryDirectory("avoozl-foreign-origin-");
   execFileSync("git", ["init", "-q", "--bare", "-b", "main", origin]);
   const { root, run } = specCheckout("avoozl-foreign-");
-  const commit = (file, message, text = message) => {
+  const commit = (file: string, message: string, text = message) => {
     fs.writeFileSync(path.join(root, file), text);
     run(["add", file]);
     run(["commit", "-q", "-m", message]);

@@ -1,12 +1,11 @@
-// @ts-nocheck: typing debt
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { githubRepositoryFromRemote, repositoryGitHubRemote } from "../git.ts";
 import { fixture } from "../../test/fixtures.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
 
-function git(root, ...args) {
+function git(root: string, ...args: string[]) {
   return execFileSync("git", args, {
     cwd: root,
     encoding: "utf8",
@@ -14,7 +13,7 @@ function git(root, ...args) {
   }).trim();
 }
 
-function repositoryWithRemote(t, remoteUrl) {
+function repositoryWithRemote(t: TestContext, remoteUrl: string) {
   const root = temporaryDirectory("avoozl-git-");
   git(root, "init");
   git(root, "remote", "add", "origin", remoteUrl);

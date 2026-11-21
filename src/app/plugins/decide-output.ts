@@ -1,8 +1,7 @@
-// @ts-nocheck: typing debt
 // The one answer a plugin check's decide call may give (plugin-checks
 // PK3.2): exactly {needed: boolean, reason: 1 to 300 characters}. Read by
 // the role table (a child's output file) and by plans_submit_decide.
-export function decideOutput(text) {
+export function decideOutput(text: unknown) {
   const value = typeof text === "string" ? JSON.parse(text) : text;
   if (
     !value ||

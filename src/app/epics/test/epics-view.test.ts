@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Epics and Trace's Done work: epic > spec > phase with the release state,
 // specs not on GitHub yet, and the merged work with who did it. Read only.
 import assert from "node:assert/strict";
@@ -12,8 +11,10 @@ import { temporaryDirectory } from "../../test/temporary.ts";
 
 process.env.XDG_CONFIG_HOME = temporaryDirectory("avoozl-xdg-");
 
-let shared = null;
-async function withSample(fn) {
+let shared: string | null = null;
+async function withSample<T>(
+  fn: (demo: ReturnType<typeof demoOperations>) => Promise<T>,
+) {
   shared ||= (await installDemo(path.join(temporaryDirectory(), "demo"))).root;
   const demo = demoOperations(shared);
   try {

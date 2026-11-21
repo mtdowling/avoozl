@@ -53,7 +53,7 @@ import { ISOLATION_KEYS } from "../../workspace/check-isolation.ts";
 const schema = JSON.parse(fs.readFileSync(avoozlConfigSchemaPath, "utf8"));
 
 // The schema object a JSON pointer names, or undefined.
-const at = (pointer) =>
+const at = (pointer: string) =>
   pointer
     .split("/")
     .slice(1)
@@ -62,7 +62,7 @@ const at = (pointer) =>
 const REPOSITORY = "#/$defs/githubRepositoryPolicy/properties";
 
 // The settings below one `flow` group, from the dotted paths.
-const flowGroup = (group) =>
+const flowGroup = (group: string) =>
   FLOW_PATHS.filter((path) => path.startsWith(`${group}.`)).map((path) =>
     path.slice(group.length + 1),
   );

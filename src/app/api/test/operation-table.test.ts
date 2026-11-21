@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The operation tables (operation-table.mjs) are the one list of operations:
 // each has a class, an MCP policy and a handler, and no name is registered twice.
 import assert from "node:assert/strict";

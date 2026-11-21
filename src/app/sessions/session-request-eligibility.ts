@@ -1,9 +1,14 @@
-// @ts-nocheck: typing debt
 // Recheck execution authority at consumption; unrelated writes do not fence work.
 import { sessionRequestHold } from "./session-bindings.ts";
 import { linePausedTaskIds } from "../flow/flow.ts";
 
-export function sessionStartHold(store, request, queued = {}) {
+import type { Store } from "../store/store.ts";
+
+export function sessionStartHold(
+  store: Store,
+  request: { task: string; role: string },
+  queued: { approval?: { planId: string; hash: string } | null } = {},
+) {
   const data = store.read();
   const hold = sessionRequestHold(data, request.task, request.role);
   if (hold) return hold;
@@ -12,7 +17,12 @@ export function sessionStartHold(store, request, queued = {}) {
       return "Stop the line holds this task.";
     const approval = queued.approval;
     if (approval) {
-      const plan = store.get("plans", approval.planId);
+      const plan = store.get<{
+        id: string;
+        archivedAt?: string;
+        state?: string;
+        hash?: string;
+      }>("plans", approval.planId);
       if (
         !plan ||
         plan.archivedAt ||

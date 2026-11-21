@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The `Facts:` block layout (Requirement 111 until 2026-11-19): a folder
 // that still has one is refused, and nothing reads it.
 import assert from "node:assert/strict";
@@ -64,7 +63,7 @@ test("a Facts: bullet is a block, and a fenced one is text", () => {
 });
 
 test("a folder on disk with a Facts: block is refused at tasks.md:1", () => {
-  const write = (name, tasks) => {
+  const write = (name: string, tasks: string) => {
     const directory = path.join(root, ".kiro", "specs", name);
     fs.mkdirSync(directory, { recursive: true });
     for (const [file, text] of Object.entries({ ...prose, "tasks.md": tasks }))
@@ -81,7 +80,7 @@ test("a folder on disk with a Facts: block is refused at tasks.md:1", () => {
     ["tasks.md:1"],
   );
   assert.match(
-    old.diagnostics.find((d) => d.code === "facts.block").message,
+    old.diagnostics.find((d) => d.code === "facts.block")?.message,
     /\$key: value/,
   );
   assert.equal(

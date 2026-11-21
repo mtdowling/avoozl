@@ -39,7 +39,7 @@ test("it reads the workspace's tick-health.json", () => {
     path.join(root, ".avoozl", "local", "tick-health.json"),
     JSON.stringify({ at: at(1), outcome: "ok" }),
   );
-  assert.equal(readHealth(root).outcome, "ok");
+  assert.equal(readHealth(root)?.outcome, "ok");
 });
 
 test("avoozl tick watchdog reports a stale tick and exits 1", () => {

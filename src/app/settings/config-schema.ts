@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The `$schema` value Avoozl writes into the configuration files it saves.
 // Each names the schema file in the public repository, so an editor can
 // fetch it. The older avoozl.dev addresses never resolved; a file that still
@@ -14,7 +13,7 @@ export const RETIRED_SCHEMA_URLS = Object.freeze([
 
 // The `$schema` to save: a person's own value stays, a retired or missing
 // one becomes `current`.
-export const savedSchemaUrl = (value, current) =>
+export const savedSchemaUrl = (value: unknown, current: string) =>
   typeof value === "string" && value && !RETIRED_SCHEMA_URLS.includes(value)
     ? value
     : current;

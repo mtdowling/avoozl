@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Every operation, from one table per feature. An entry is
 // {name, class, policy, handler}:
 //   class    how much authority it needs (the app backend's action-level
@@ -50,4 +49,5 @@ for (const [feature, table] of Object.entries(TABLES))
     OPERATIONS.set(entry.name, entry);
   }
 
-export const classifyOperation = (name) => OPERATIONS.get(name)?.class ?? null;
+export const classifyOperation = (name: string) =>
+  OPERATIONS.get(name)?.class ?? null;

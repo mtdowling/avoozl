@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 import assert from "node:assert/strict";
 import test from "node:test";
 import { workspaceFixture, workspaceShapes } from "../../test/fixtures.ts";
@@ -27,10 +26,10 @@ test("GitHub fixture workspaces link every task to an issue", (t) => {
   assert.equal(repository.private, true);
   assert.equal(data.tasks.length, 2);
   for (const task of data.tasks) {
-    assert.equal(task.github.repository, repository.id);
-    assert.ok(Number.isInteger(task.github.number));
-    assert.ok(task.github.issueId);
-    assert.match(task.github.url, /^https:\/\/example\.test\//);
+    assert.equal(task.github?.repository, repository.id);
+    assert.ok(Number.isInteger(task.github?.number));
+    assert.ok(task.github?.issueId);
+    assert.match(String(task.github?.url), /^https:\/\/example\.test\//);
   }
   assert.deepEqual(
     data.edges.map((edge) => [edge.from, edge.to]),

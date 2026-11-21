@@ -1,5 +1,4 @@
-// @ts-nocheck: typing debt
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import assert from "node:assert/strict";
 import { fixture } from "../../test/fixtures.ts";
 import {
@@ -10,7 +9,7 @@ import {
 
 const SHA = "a".repeat(40);
 
-function setup(t, { chat = true } = {}) {
+function setup(t: TestContext, { chat = true } = {}) {
   const { store } = fixture(t);
   store.put("task_deliveries", {
     id: "t1",
@@ -55,15 +54,19 @@ test("a conflict goes to the same chat with the file list, twice, then Needs you
     assert.equal(out.messages[0].slot, "slot-1");
     assert.match(out.messages[0].text, new RegExp(`round ${round} of 2`));
     assert.match(out.messages[0].text, /src\/a\.mjs\ndocs\/b\.md/);
-    assert.equal(store.get("task_deliveries", "t1").state, "running");
+    assert.equal(store.get("task_deliveries", "t1")?.state, "running");
   }
   const last = sendConflictBack(store, conflict());
   assert.equal(last.messages.length, 0);
   assert.equal(last.notify.length, 1);
   assert.equal(last.notify[0].channel, "decision");
-  const delivery = store.get("task_deliveries", "t1");
-  assert.equal(delivery.state, "decision");
-  assert.equal(delivery.landingConflicts.length, 2);
+  const delivery = store.get<{
+    id: string;
+    state: string;
+    landingConflicts: unknown[];
+  }>("task_deliveries", "t1");
+  assert.equal(delivery?.state, "decision");
+  assert.equal(delivery?.landingConflicts.length, 2);
 });
 
 test("zero rounds, or a gone chat, goes straight to Needs you", (t) => {
