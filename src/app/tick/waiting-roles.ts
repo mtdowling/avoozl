@@ -3,7 +3,7 @@
 // `since` stays from the first tick that saw the role waiting.
 import type { Store } from "../store/store.ts";
 
-type Waiting = {
+export type Waiting = {
   role: string;
   since: string;
   requests: string[];

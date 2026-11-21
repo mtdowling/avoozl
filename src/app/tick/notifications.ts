@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Decisions and failures reach the person through the Avoozl app's own Kiro
 // Crew notification channels (app.json `notifications.channels`), each with a
 // link to the session it concerns (design §4.2, Requirements 9 and 26.10).
@@ -11,6 +10,7 @@
 import { createHash } from "node:crypto";
 import { gatewayClient } from "../executors/kirocrew/gateway-client.ts";
 import { fail } from "../store/store.ts";
+import type { Store } from "../store/store.ts";
 import { decisionPath, decisionReference } from "../api/direct-links.ts";
 
 // app.json notifications.channels ids. The Intake tab's channel keeps its
@@ -21,9 +21,61 @@ const CHANNEL_ALIASES = new Map([["intake", "untriaged"]]);
 const MAX_TITLE = 200;
 const MAX_BODY = 2000;
 
+// A tick notice: what stopped, why, and the action that resumes work.
+export interface Notice {
+  channel?: string;
+  task?: string | null;
+  slot?: string | null;
+  title?: string;
+  text?: string;
+  resume?: string;
+  record?: unknown;
+}
+
+// What a push sends: Kiro Crew's notification body.
+export interface NotificationPayload {
+  channel: string;
+  title: string;
+  body: string;
+  url: string;
+  group_key: string;
+}
+
+// One app_notifications row. `sentTo` maps each sink that took it to when.
+export interface NotificationRow {
+  id: string;
+  task: string | null;
+  slot: string | null;
+  decision?: { id: string; [key: string]: unknown };
+  payload: NotificationPayload;
+  queuedAt: string;
+  sentAt?: string;
+  sentTo?: Record<string, string>;
+}
+
+type Push = (payload: NotificationPayload) => Promise<void>;
+
+// A sink deliverToSinks pushes to. `row` is null for a backlog notice.
+export interface Sink {
+  id: string;
+  push: (
+    payload: NotificationPayload,
+    context: { row: NotificationRow | null; store: Store },
+  ) => Promise<void>;
+}
+
+// One sink's record: when it was first seen, its failures in a row, and
+// when it may be tried again.
+interface SinkState {
+  since: string;
+  failures: number;
+  error?: string;
+  retryAt?: string;
+}
+
 // The dashboard path that opens one session (Kiro Crew `/chat?sid=<slot>`),
 // or the Avoozl page when a notice names no session.
-export function sessionUrl(slot) {
+export function sessionUrl(slot: unknown) {
   if (typeof slot !== "string" || !slot) return "/apps/avoozl";
   const key = slot.startsWith("dashboard:")
     ? slot.slice("dashboard:".length)
@@ -31,17 +83,17 @@ export function sessionUrl(slot) {
   return "/chat?sid=" + encodeURIComponent(key);
 }
 
-const clip = (text, max) => {
+const clip = (text: unknown, max: number) => {
   const value = String(text ?? "").trim();
   return value.length > max ? value.slice(0, max - 1).trimEnd() + "…" : value;
 };
 
 // The push body for one tick notice {channel, task?, slot?, title, text,
 // resume}: what stopped, why, the action that resumes work, and the link.
-export function notificationPayload(notice) {
-  const channel = CHANNEL_ALIASES.get(notice?.channel) ?? notice?.channel;
-  if (!CHANNELS.has(channel))
-    fail("Choose notification channel decision, failure or untriaged.");
+export function notificationPayload(notice: Notice): NotificationPayload {
+  const channel = CHANNEL_ALIASES.get(notice?.channel ?? "") ?? notice?.channel;
+  if (!channel || !CHANNELS.has(channel))
+    return fail("Choose notification channel decision, failure or untriaged.");
   const body = [notice.text, notice.resume].filter(Boolean).join("\n\n");
   return {
     channel,
@@ -56,7 +108,11 @@ export function notificationPayload(notice) {
 // repeated tick cannot notify twice. Returns the number of new rows.
 // A decision notice records its occurrence (direct-links D3) and links to
 // that exact decision in Needs you instead of the session.
-export function queueNotifications(store, notices, now = Date.now()) {
+export function queueNotifications(
+  store: Store,
+  notices: Notice[] | null | undefined,
+  now = Date.now(),
+) {
   if (!notices?.length) return 0;
   const at = new Date(now).toISOString();
   return store.transaction(() => {
@@ -90,7 +146,11 @@ export function queueNotifications(store, notices, now = Date.now()) {
 // mark each one sent. A failed push leaves its row queued for the next drain.
 // `push` may instead be a list of sinks, [{id, push}], as the headless tick
 // gives (deliverToSinks); the app backend's one Kiro Crew push is unchanged.
-export async function deliverNotifications(store, push, now = Date.now()) {
+export async function deliverNotifications(
+  store: Store,
+  push: Push | Sink[] | null | undefined,
+  now = Date.now(),
+) {
   if (Array.isArray(push)) return deliverToSinks(store, push, now);
   if (!push) return { sent: 0, queued: queued(store).length, dormant: true };
   let sent = 0;
@@ -99,7 +159,7 @@ export async function deliverNotifications(store, push, now = Date.now()) {
     try {
       await push(row.payload);
     } catch (error) {
-      failures.push({ id: row.id, error: error.message });
+      failures.push({ id: row.id, error: (error as Error).message });
       continue;
     }
     store.transaction(() =>
@@ -113,14 +173,15 @@ export async function deliverNotifications(store, push, now = Date.now()) {
   return { sent, queued: queued(store).length, failures };
 }
 
-const queued = (store) =>
+const queued = (store: Store) =>
   store
-    .list("app_notifications")
+    .list<NotificationRow>("app_notifications")
     .filter((row) => !row.sentAt)
     .reverse();
 
 // Sent nowhere yet: not pushed to Kiro Crew and to no sink.
-const unsent = (row) => !row.sentAt && !Object.keys(row.sentTo ?? {}).length;
+const unsent = (row: NotificationRow) =>
+  !row.sentAt && !Object.keys(row.sentTo ?? {}).length;
 
 // More than this many waiting at a sink's first send, or after an outage,
 // go as one notice that counts them (NK7.7).
@@ -129,17 +190,15 @@ export const BACKLOG = 5;
 // hour (NK7.8).
 const RETRY_BASE = 60_000;
 const RETRY_MAX = 3_600_000;
-const sinkKey = (id) => "notifications.sink." + id;
+const sinkKey = (id: string) => "notifications.sink." + id;
 
-// One sink's record: when it was first seen, its failures in a row, and
-// when it may be tried again.
-function sinkState(store, id) {
-  const saved = store.getMeta(sinkKey(id));
+function sinkState(store: Store, id: string) {
+  const saved = store.getMeta<SinkState>(sinkKey(id));
   return saved && typeof saved === "object" ? saved : null;
 }
 
 // The notice a backlog becomes: a count, on the most urgent channel.
-function backlogPayload(rows) {
+function backlogPayload(rows: NotificationRow[]): NotificationPayload {
   const channel = rows.some((row) => row.payload.channel === "decision")
     ? "decision"
     : rows.some((row) => row.payload.channel === "failure")
@@ -158,9 +217,13 @@ function backlogPayload(rows) {
 // `sentTo`, so a sink that fails resends to none of the others, and never
 // holds up the tick or another sink. A sink sees the rows queued since it
 // first appeared and any row sent nowhere yet.
-export async function deliverToSinks(store, sinks, now = Date.now()) {
+export async function deliverToSinks(
+  store: Store,
+  sinks: Sink[],
+  now = Date.now(),
+) {
   const at = new Date(now).toISOString(),
-    results = [];
+    results: Record<string, unknown>[] = [];
   for (const sink of sinks) {
     const state = sinkState(store, sink.id),
       since = state?.since ?? at;
@@ -169,17 +232,18 @@ export async function deliverToSinks(store, sinks, now = Date.now()) {
       continue;
     }
     const pending = store
-      .list("app_notifications")
+      .list<NotificationRow>("app_notifications")
       .reverse()
       .filter(
         (row) =>
           !row.sentTo?.[sink.id] &&
           (unsent(row) || (row.queuedAt ?? "") >= since),
       );
-    const mark = (rows) =>
+    const mark = (rows: NotificationRow[]) =>
       store.transaction(() => {
         for (const row of rows) {
-          const current = store.get("app_notifications", row.id) ?? row;
+          const current =
+            store.get<NotificationRow>("app_notifications", row.id) ?? row;
           store.put("app_notifications", {
             ...current,
             sentTo: { ...current.sentTo, [sink.id]: at },
@@ -187,7 +251,7 @@ export async function deliverToSinks(store, sinks, now = Date.now()) {
         }
       });
     let sent = 0,
-      error = null;
+      error: string | null = null;
     try {
       if ((!state || state.failures > 0) && pending.length > BACKLOG) {
         await sink.push(backlogPayload(pending), { row: null, store });
@@ -200,7 +264,7 @@ export async function deliverToSinks(store, sinks, now = Date.now()) {
           sent += 1;
         }
     } catch (caught) {
-      error = caught?.message ?? String(caught);
+      error = (caught as Error)?.message ?? String(caught);
     }
     const failures = error ? (state?.failures ?? 0) + 1 : 0;
     store.setMeta(sinkKey(sink.id), {
@@ -222,8 +286,8 @@ export async function deliverToSinks(store, sinks, now = Date.now()) {
 
 // What waits with no sink to take it: how many rows were sent nowhere, and
 // the oldest one's age in seconds (NK7.6).
-export function waitingNotifications(store, now = Date.now()) {
-  const rows = store.list("app_notifications").filter(unsent);
+export function waitingNotifications(store: Store, now = Date.now()) {
+  const rows = store.list<NotificationRow>("app_notifications").filter(unsent);
   const oldest = rows
     .map((row) => row.queuedAt)
     .filter(Boolean)
@@ -242,7 +306,7 @@ export function waitingNotifications(store, now = Date.now()) {
 export function gatewayPusher(env = process.env, request = fetch) {
   const client = gatewayClient(env, request);
   if (!client) return null;
-  return async (payload) => {
+  return async (payload: NotificationPayload) => {
     const response = await client.call("/api/notifications/push", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

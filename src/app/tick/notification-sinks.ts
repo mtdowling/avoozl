@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Where notifications go on a machine with no Kiro Crew (without-kirocrew
 // NK7.2 to NK7.5, design D6): `notifications.sinks` in the machine file
 // (~/.config/avoozl/config.json), never in .avoozl.json, because a webhook URL
@@ -9,6 +8,20 @@
 import { execFile } from "node:child_process";
 import { check } from "../content/content-rules.ts";
 import { fail } from "../store/store.ts";
+import type { Store } from "../store/store.ts";
+import type {
+  NotificationPayload,
+  NotificationRow,
+  Sink,
+} from "./notifications.ts";
+
+// A sink from the machine file, after validation.
+type SinkSetting =
+  | { id: string; kind: "command"; argv: string[]; timeoutMs: number }
+  | { id: string; kind: "webhook"; url: string; timeoutMs: number };
+
+// What a command or webhook sink gets.
+type SmallPayload = ReturnType<typeof sinkPayload>;
 
 const SINK_KINDS = Object.freeze(["command", "webhook"]);
 export const COMMAND_SINK_KEYS = Object.freeze([
@@ -28,16 +41,17 @@ const ID = /^[a-z][a-z0-9-]{0,40}$/;
 const DEFAULT_TIMEOUT_MS = 10_000;
 const MAX_TIMEOUT_MS = 60_000;
 const LOOPBACK = new Set(["localhost", "127.0.0.1", "[::1]"]);
-const record = (v) => Boolean(v) && typeof v === "object" && !Array.isArray(v);
+const record = (v: unknown): v is Record<string, unknown> =>
+  Boolean(v) && typeof v === "object" && !Array.isArray(v);
 
 // A webhook URL may hold a secret (an ntfy topic, a chat webhook), so no
 // message here names it.
-function checkUrl(value, where) {
-  let url;
+function checkUrl(value: unknown, where: string) {
+  let url: URL;
   try {
-    url = new URL(value);
+    url = new URL(String(value));
   } catch {
-    fail(`${where}.url is not a URL.`);
+    return fail(`${where}.url is not a URL.`);
   }
   if (
     url.protocol !== "https:" &&
@@ -49,7 +63,10 @@ function checkUrl(value, where) {
 
 // Check a `notifications` value from the machine file; throws naming the
 // key. Returns the sinks, each with an id.
-export function validateNotifications(value, where = "notifications") {
+export function validateNotifications(
+  value: unknown,
+  where = "notifications",
+): { sinks: SinkSetting[] } {
   if (value === undefined) return { sinks: [] };
   if (!record(value)) fail(`${where} must be an object.`);
   for (const key of Object.keys(value))
@@ -57,22 +74,27 @@ export function validateNotifications(value, where = "notifications") {
       fail(`${where}.${key} is not a setting; use sinks.`);
   const list = value.sinks ?? [];
   if (!Array.isArray(list)) fail(`${where}.sinks must be a list.`);
-  const ids = new Set();
+  const ids = new Set<string>();
   const sinks = list.map((sink, index) => {
     const at = `${where}.sinks[${index}]`;
-    if (!record(sink) || !SINK_KINDS.includes(sink.kind))
-      fail(`${at}.kind must be command or webhook.`);
+    if (
+      !record(sink) ||
+      typeof sink.kind !== "string" ||
+      !SINK_KINDS.includes(sink.kind)
+    )
+      return fail(`${at}.kind must be command or webhook.`);
     const keys =
       sink.kind === "command" ? COMMAND_SINK_KEYS : WEBHOOK_SINK_KEYS;
     for (const key of Object.keys(sink))
       if (!keys.includes(key))
         fail(`${at}.${key} is not a ${sink.kind} sink setting.`);
     const id = sink.id ?? `${sink.kind}-${index + 1}`;
-    if (!ID.test(id) || ids.has(id))
+    if (typeof id !== "string" || !ID.test(id) || ids.has(id))
       fail(`${at}.id must be a short unique name of a-z, 0-9 and -.`);
     ids.add(id);
     const timeoutMs = sink.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     if (
+      typeof timeoutMs !== "number" ||
       !Number.isInteger(timeoutMs) ||
       timeoutMs < 1 ||
       timeoutMs > MAX_TIMEOUT_MS
@@ -86,10 +108,20 @@ export function validateNotifications(value, where = "notifications") {
         !sink.argv.length ||
         !sink.argv.every((part) => typeof part === "string" && part)
       )
-        fail(`${at}.argv must be a nonempty list of strings.`);
-      return { id, kind: "command", argv: [...sink.argv], timeoutMs };
+        return fail(`${at}.argv must be a nonempty list of strings.`);
+      return {
+        id,
+        kind: "command" as const,
+        argv: [...(sink.argv as string[])],
+        timeoutMs,
+      };
     }
-    return { id, kind: "webhook", url: checkUrl(sink.url, at), timeoutMs };
+    return {
+      id,
+      kind: "webhook" as const,
+      url: checkUrl(sink.url, at),
+      timeoutMs,
+    };
   });
   return { sinks };
 }
@@ -97,7 +129,11 @@ export function validateNotifications(value, where = "notifications") {
 // The link a notice carries: the standalone page's address when that page
 // is on, else the command that shows the item. Never a Kiro Crew path. A
 // decision links to its exact row in Needs you (direct-links D3).
-export const noticeLink = (id, pageUrl = null, decision = null) =>
+export const noticeLink = (
+  id: string | null,
+  pageUrl: string | null = null,
+  decision: string | null = null,
+) =>
   pageUrl
     ? new URL(
         decision ? decision : id ? `?task=${encodeURIComponent(id)}` : "",
@@ -109,7 +145,14 @@ export const noticeLink = (id, pageUrl = null, decision = null) =>
 
 // What a command or webhook sink gets (NK7.4): no file text, brief or path.
 // A title a content rule matches is held back, and a neutral one is sent.
-export function sinkPayload(payload, row, { store = null, pageUrl } = {}) {
+export function sinkPayload(
+  payload: NotificationPayload,
+  row: NotificationRow | null,
+  {
+    store = null,
+    pageUrl = null,
+  }: { store?: Store | null; pageUrl?: string | null } = {},
+) {
   const id = row?.task ?? null;
   let title = payload.title;
   if (store)
@@ -139,9 +182,12 @@ export function sinkPayload(payload, row, { store = null, pageUrl } = {}) {
 
 // Run the command with the title and the rest of the payload as its last
 // two arguments, without a shell. Resolves on exit 0.
-function runCommand(sink, small) {
+function runCommand(
+  sink: Extract<SinkSetting, { kind: "command" }>,
+  small: SmallPayload,
+) {
   const [file, ...args] = sink.argv;
-  return new Promise((resolve, reject) =>
+  return new Promise<void>((resolve, reject) =>
     execFile(
       file,
       [...args, small.title, JSON.stringify(small)],
@@ -160,8 +206,12 @@ function runCommand(sink, small) {
   );
 }
 
-async function postWebhook(sink, small, request) {
-  let response;
+async function postWebhook(
+  sink: Extract<SinkSetting, { kind: "webhook" }>,
+  small: SmallPayload,
+  request: typeof fetch,
+) {
+  let response: Response;
   try {
     response = await request(sink.url, {
       method: "POST",
@@ -179,10 +229,22 @@ async function postWebhook(sink, small, request) {
 }
 
 // The pushers deliverToSinks runs, one per sink: push(payload, {row, store}).
-export function sinkPushers(sinks, { pageUrl = null, request = fetch } = {}) {
+export function sinkPushers(
+  sinks: SinkSetting[],
+  {
+    pageUrl = null,
+    request = fetch,
+  }: { pageUrl?: string | null; request?: typeof fetch } = {},
+): Sink[] {
   return sinks.map((sink) => ({
     id: sink.id,
-    push: (payload, { row = null, store = null } = {}) => {
+    push: (
+      payload: NotificationPayload,
+      {
+        row = null,
+        store = null,
+      }: { row?: NotificationRow | null; store?: Store | null } = {},
+    ) => {
       const small = sinkPayload(payload, row, { store, pageUrl });
       return sink.kind === "command"
         ? runCommand(sink, small)
