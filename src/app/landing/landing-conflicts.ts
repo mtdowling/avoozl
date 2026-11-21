@@ -10,7 +10,7 @@
 import { listSessionBindings } from "../sessions/session-bindings.ts";
 import { fail } from "../store/store.ts";
 import { briefCell } from "../workers/worker-briefs.ts";
-import { taskIds } from "./landing-queue.ts";
+import { type QueueEntry, taskIds } from "./landing-queue.ts";
 import { DEFAULT_CONFLICT_ROUNDS } from "./landing-config.ts";
 import type { SessionBinding } from "../sessions/session-bindings.ts";
 import type { Store } from "../store/store.ts";
@@ -126,9 +126,7 @@ export function sendConflictBack(
   store: Store,
   result: {
     state?: string;
-    entry?: {
-      key: string;
-      base: string;
+    entry?: Pick<QueueEntry, "key" | "base" | "tasks"> & {
       baseHead?: string;
       files?: string[];
       against?: Against;
@@ -145,7 +143,7 @@ export function sendConflictBack(
     messages: { slot: string; task: string; text: string }[] = [],
     notify: Notice[] = [];
   store.transaction(() => {
-    for (const taskId of taskIds(entry) as string[]) {
+    for (const taskId of taskIds(entry)) {
       const delivery = store.get<Delivery>("task_deliveries", taskId);
       if (!delivery) continue;
       const used = delivery.landingConflicts ?? [],

@@ -1,21 +1,8 @@
 // What waits to land and what landed (Home's Landing queue and Recently
 // landed, task home-radar-layout). Read from the landing queue table only:
 // no GitHub call, no git, so Home never waits on either.
-import { pausedBy, taskIds } from "./landing-queue.ts";
+import { pausedBy, type QueueEntry, taskIds } from "./landing-queue.ts";
 import type { Store } from "../store/store.ts";
-
-// One landing queue row, as this view reads it.
-interface QueueEntry {
-  id: string;
-  repositoryId: string;
-  base: string;
-  state: string;
-  seq: number;
-  pr?: unknown;
-  queuedAt?: string;
-  finishedAt?: string;
-  [key: string]: unknown;
-}
 
 const TABLE = "landing_queue";
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
@@ -57,7 +44,7 @@ export function landingView(
       key: entry.id,
       base: entry.base,
       repository,
-      tasks: (taskIds(entry) as string[]).map((id) => ({
+      tasks: taskIds(entry).map((id) => ({
         id,
         title: titles.get(id) ?? id,
       })),
