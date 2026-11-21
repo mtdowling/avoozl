@@ -6,8 +6,23 @@ import { EmptyState } from './ui/EmptyState'
 import { FieldGroup } from './ui/FieldGroup.tsx'
 import { PairedCard, PairedCards } from './ui/PairedCards.tsx'
 import Badge from './ui/Badge.tsx'
-import { CONTRACT_LABEL, canApprove, capabilityLine, runsAs, PLUGIN_PARTS, partsOf, pluginsClient, signInClaims, signInClashes, stateLabel, type PluginRow } from './plugins-api.ts'
+import {
+  CONTRACT_LABEL,
+  canApprove,
+  capabilityLine,
+  runsAs,
+  PLUGIN_PARTS,
+  partsOf,
+  pluginsClient,
+  signInClaims,
+  signInClashes,
+  stateLabel,
+  updateBadge,
+  updateLine,
+  type PluginRow,
+} from './plugins-api.ts'
 import { useRead } from './useRead.ts'
+import { Switch } from './ui/Switch'
 import { PluginChecksFacts } from './PluginChecks.tsx'
 import { ContextPartFacts } from './ContextPart.tsx'
 import { errorMessage } from './workspace-api.ts'
@@ -83,6 +98,8 @@ function PluginCard(props: { row: PluginRow; busy: boolean; act: (fn: () => Prom
   const { row, busy, act, client, workspaceId } = props
   const status = stateLabel(row)
   const id = row.id ?? ''
+  const update = updateBadge(row.update)
+  const checked = updateLine(row.update)
   return (
     <FieldGroup
       level={4}
@@ -91,6 +108,11 @@ function PluginCard(props: { row: PluginRow; busy: boolean; act: (fn: () => Prom
         <>
           <Badge variant={status.attention ? 'warning' : undefined}>{status.label}</Badge>
           {row.health?.state === 'ok' ? <Badge>Healthy</Badge> : null}
+          {update ? (
+            <Badge variant="warning" data-plugin-update>
+              {update}
+            </Badge>
+          ) : null}
         </>
       }
     >
@@ -108,6 +130,11 @@ function PluginCard(props: { row: PluginRow; busy: boolean; act: (fn: () => Prom
           ) : null}
         </div>
       ) : null}
+      {checked ? (
+        <Hint as="p" size="xs" data-plugin-update-line>
+          {checked}
+        </Hint>
+      ) : null}
       <Parts row={row} />
       {row.checks && row.id ? <PluginChecksFacts plugin={row.id} part={row.checks} busy={busy} act={act} workspaceId={workspaceId} /> : null}
       {row.context && row.id ? <ContextPartFacts plugin={row.id} part={row.context} busy={busy} act={act} workspaceId={workspaceId} /> : null}
@@ -123,6 +150,11 @@ function PluginCard(props: { row: PluginRow; busy: boolean; act: (fn: () => Prom
           {row.git ? (
             <TipBtn tooltip="Fetch the ref's current commit. A new commit needs approval again." disabled={busy} onClick={() => act(() => client.update(workspaceId, id))}>
               {row.commit ? `Update from ${row.git.ref}` : `Fetch ${row.git.ref}`}
+            </TipBtn>
+          ) : null}
+          {row.update !== undefined && row.state !== 'disabled' ? (
+            <TipBtn tooltip="Ask whether a newer version exists. Fetches and installs nothing." disabled={busy} onClick={() => act(() => client.checkUpdates(workspaceId, id))}>
+              Check now
             </TipBtn>
           ) : null}
           {row.state === 'disabled' ? (
@@ -242,6 +274,22 @@ export default function PluginsSettings({ workspaceId, onOpenGitHub, onOpenRepos
                 />
               }
             />
+          ) : null}
+          {value?.updateChecks ? (
+            <Box mb="3" data-plugin-update-checks>
+              <Switch
+                checked={value.updateChecks.enabled}
+                onChange={(next) => act(() => client.configureUpdates(workspaceId, next))}
+                label="Check for plugin updates daily"
+                size="sm"
+                disabled={acting || busy}
+              >
+                Check for plugin updates daily
+              </Switch>
+              <Hint as="p" size="xs">
+                Asks each plugin's source once a day whether something newer exists. It never fetches or installs: you choose Update, review and approve.
+              </Hint>
+            </Box>
           ) : null}
           <Stack gap={4}>
             {value?.plugins.map((row, i) => (

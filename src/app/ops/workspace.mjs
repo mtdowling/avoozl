@@ -16,6 +16,7 @@ import { requirePrivateRepository } from "../github/github.mjs";
 import { HARNESS_UNCONFINED } from "../executors/harness-definitions.mjs";
 import { machineAvoozlPaths } from "../settings/host-config.mjs";
 import { startTelemetry } from "../telemetry/index.mjs";
+import { startPluginUpdateChecks } from "../plugins/plugin-updates.mjs";
 import {
   ensureGlobalLocalIgnore,
   globalLocalIgnoreStatus,
@@ -68,6 +69,10 @@ export const entries = [
           stateDirectory: machineAvoozlPaths().stateDirectory,
         });
 
+      // The daily plugin update check runs on its own timer (R34.17).
+      startPluginUpdateChecks(store, this.pluginOptions, {
+        countGit: this.countPluginGit(),
+      });
       await this.applyBaseTicks();
       // An approver's spec commit that reached main approves it (§4.42).
       await this.applyMainApprovals();

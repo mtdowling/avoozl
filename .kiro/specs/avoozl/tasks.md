@@ -214,6 +214,9 @@ Each task's plain sub-bullets say what done means.
 - [x] `8.8` Private integration boundary, with 8.6 [R34.10, R34.11, R24.2] (§4.8, §13)
   - Private integration boundary, with 8.6
   - A public guide to writing a route or tracker plugin that uses only the fake plugins as examples; the fake route and fake tracker live under `test/fixtures/plugins/`; extend the 7.4 scan to plugin docs and fixtures so no company-internal tool name lands in the public tree.
+- [x] `8.9` Plugin update checks, after 8.6 [R34.17] (§4.8)
+  - Plugin update checks, after 8.6
+  - A daily check per plugin and Check now: git `ls-remote`, package dist-tags, folder hash; an update badge and one Needs you row per plugin; a quiet "couldn't check"; `updateChecks` in `plugins.json`; tests cover a moved branch, a newer tag, nothing newer, a failure, the setting off, and that nothing is fetched.
 - [x] `8.2` Deferred GitHub features, each behind its own proof: stacked pull requests on an open blocker, Discussions answering, comment-mention steering.
   - Deferred GitHub features, each behind its own proof: stacked pull requests on an open blocker, Discussions answering, comment-mention steering.
 - [x] `8.5` Add MCP App views (`ui://` resources) to `plans_graph`, `plans_preview`, `plans_project_preview`, and `plans_decision` (**MANUAL**)

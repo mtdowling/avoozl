@@ -109,6 +109,8 @@ export function readPluginSettings(file) {
     ...(record(value.credentialsPick)
       ? { credentialsPick: value.credentialsPick }
       : {}),
+    // The daily update check (plugin-updates.mjs) is on unless this is false.
+    ...(value.updateChecks === false ? { updateChecks: false } : {}),
   };
 }
 

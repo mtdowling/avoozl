@@ -2027,10 +2027,39 @@ function NeedsPage() {
 const intake = page === 'intake'
 if (intake) answerIntake(query.get('empty') === '1')
 // &plugins=many|none: Settings > Plugins with eight plugins, or none.
-if (query.get('plugins')) {
+if (query.get('plugins') && query.get('plugins') !== 'updates') {
   const many = query.get('plugins') === 'many'
   const rows = Array.from({ length: 8 }, (_, i) => ({ ...PLUGINS[i % 2], id: `${PLUGINS[i % 2].id}-${i + 1}` }))
   answer('plugins.list', () => ({ supportedContracts: [1], plugins: many ? rows : [] }))
+}
+// &plugins=updates: Settings > Plugins after the daily update check found a
+// newer tag, a moved branch, and one source it couldn't reach.
+if (query.get('plugins') === 'updates') {
+  const at = new Date(Date.now() - 2 * 3600_000).toISOString()
+  const git = (id: string, ref: string, commit: string, update: Record<string, unknown>) => ({
+    ...PLUGINS[0],
+    id,
+    git: { url: `https://git.example.com/team/${id}.git`, ref },
+    commit,
+    version: ref.startsWith('v') ? ref.slice(1) : '1.4.0',
+    location: `~/.config/avoozl/plugins/git/${id}/${commit}`,
+    health: { state: 'ok', reason: null },
+    update: { checkedAt: at, ...update },
+  })
+  answer('plugins.list', () => ({
+    supportedContracts: [1],
+    updateChecks: { enabled: true },
+    plugins: [
+      git('team-rules', 'v1.0.0', '4f1c2e9a7b3d5f60812a4c6e8b0d2f4a6c8e0b1d', { state: 'newer', kind: 'tag', current: 'v1.0.0', latest: 'v1.2.0' }),
+      git('team-checks', 'main', '9a8b7c6d5e4f30211a2b3c4d5e6f708192a3b4c5', {
+        state: 'newer',
+        kind: 'commit',
+        current: '9a8b7c6d5e4f30211a2b3c4d5e6f708192a3b4c5',
+        latest: 'abc1234f9e8d7c6b5a4f3e2d1c0b9a8f7e6d5c4b',
+      }),
+      git('team-context', 'v2.1.0', '1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e', { state: 'failed', reason: 'git ls-remote failed: Could not resolve host: git.example.com' }),
+    ],
+  }))
 }
 // &rules=many|one: Settings > Content rules with fourteen rule sets, or one.
 if (query.get('rules')) {

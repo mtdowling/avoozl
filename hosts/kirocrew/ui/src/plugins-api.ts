@@ -41,12 +41,27 @@ export interface PluginRow {
   checks?: PluginChecksPart
   // A context part: skills, reads and MCP servers for its owner's own work.
   context?: ContextPart
+  // The newest update check (R34.17), or null before one.
+  update?: PluginUpdate | null
+}
+
+// What the daily update check found. It never fetches or installs.
+export interface PluginUpdate {
+  state: 'newer' | 'current' | 'failed'
+  kind?: 'commit' | 'tag' | 'version' | 'files'
+  current?: string
+  latest?: string
+  moved?: string
+  reason?: string
+  checkedAt: string
 }
 
 export interface PluginList {
   supportedContracts: number[]
   plugins: PluginRow[]
   credentialsPick?: Record<string, string>
+  // The daily update check's switch, kept in this machine's plugins.json.
+  updateChecks?: { enabled: boolean }
 }
 
 export interface PluginForm {
@@ -262,6 +277,27 @@ export function stateLabel(row: PluginRow): { label: string; attention: boolean 
   return { label: labels[row.state], attention: row.state !== 'disabled' }
 }
 
+// The update badge: "Update available: v1.2.0 (was v1.0.0)", or null.
+export function updateBadge(update: PluginUpdate | null | undefined): string | null {
+  if (update?.state !== 'newer') return null
+  if (update.kind === 'tag' || update.kind === 'version') return `Update available: ${update.latest} (was ${update.current})`
+  if (update.kind === 'files') return 'Update available: files changed on disk'
+  return `Update available: new commit ${String(update.latest ?? '').slice(0, 7)}`
+}
+
+// The quiet line under a plugin: when it was last checked, or why it
+// couldn't be.
+export function updateLine(update: PluginUpdate | null | undefined, now = Date.now()): string | null {
+  if (!update) return null
+  if (update.state === 'failed') return `Couldn't check for updates ${relativeTime(update.checkedAt, now)}: ${update.reason ?? 'no answer'}`
+  if (update.state === 'newer') {
+    const next =
+      update.kind === 'version' ? 'Install it into the plugin folder, then approve it.' : update.kind === 'files' ? 'Approve it to run the new files.' : 'Update, then approve it.'
+    return `Checked ${relativeTime(update.checkedAt, now)}. ${next} Nothing new runs until you approve.`
+  }
+  return `Up to date, checked ${relativeTime(update.checkedAt, now)}`
+}
+
 // Approve is offered only for a plugin Avoozl could hash and can load.
 export const canApprove = (row: PluginRow) => Boolean(row.hash) && (row.state === 'unapproved' || row.state === 'changed')
 
@@ -293,6 +329,10 @@ export function pluginsClient(api: AppApi) {
     update: (workspaceId: string, id: string) => run<PluginRow>('plugin.update', { id }, workspaceId),
     disable: (workspaceId: string, id: string, disabled: boolean) => run<PluginRow>('plugin.disable', { id, disabled }, workspaceId),
     remove: (workspaceId: string, id: string) => run<{ id: string; removed: boolean }>('plugin.remove', { id }, workspaceId),
+    // Check now: ask whether something newer exists, for one plugin or all.
+    // It fetches nothing.
+    checkUpdates: (workspaceId: string, id?: string) => run<Record<string, PluginUpdate>>('plugin.updates.check', id ? { id } : {}, workspaceId),
+    configureUpdates: (workspaceId: string, enabled: boolean) => run<{ enabled: boolean }>('plugin.updates.configure', { enabled }, workspaceId),
     // Use this one: the credentials plugin that serves a host where two claim one owner.
     pick: (workspaceId: string, host: string, id: string) => run<{ host: string; id: string }>('plugin.credentials.pick', { host, id }, workspaceId),
   }

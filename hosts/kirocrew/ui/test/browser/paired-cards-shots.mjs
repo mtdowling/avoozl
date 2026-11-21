@@ -36,6 +36,7 @@ const PICK = `(() => { const b = [...document.querySelectorAll('[data-rule-panel
 const CASES = [
   ['plugins-many', PLUGINS, { plugins: 'many' }, 900],
   ['plugins-none', PLUGINS, { plugins: 'none' }, 900],
+  ['plugins-updates', PLUGINS, { plugins: 'updates' }, 1400],
   ['plugins-short', PLUGINS, { plugins: 'none' }, 420, { desktop: true }],
   ['content-many', RULES, { rules: 'many' }, 900],
   ['content-details', RULES, { rules: 'one' }, 700, { pick: true }],

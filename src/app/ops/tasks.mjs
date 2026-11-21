@@ -35,6 +35,7 @@ import {
   startNow,
 } from "../delivery/delivery.mjs";
 import { diskNeedsYou } from "../workspace/disk-space.mjs";
+import { updateNeedsYou } from "../plugins/plugin-updates.mjs";
 import { resolveDecision } from "../api/direct-links.mjs";
 import { machineLinks } from "../tick/crews.mjs";
 import { withWorkLock } from "../git/git.mjs";
@@ -356,6 +357,7 @@ export const entries = [
       view.items.push(...claimsNeedsYou(store), ...closedPullNeedsYou(store));
       view.items.push(...lanesNeedsYou(store));
       view.items.push(...diskNeedsYou(store));
+      view.items.push(...updateNeedsYou(store, this.pluginOptions));
       view.items.push(...rateNeedsYou(store));
       view.items.push(...credentialsNeedsYou(store));
       view.items.push(...paceNeedsYou(store));
