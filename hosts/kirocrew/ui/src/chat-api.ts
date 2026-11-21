@@ -44,9 +44,15 @@ export function itemRef(item: ConflictItem): ItemRef {
 // work and the item's IDs; the skill reads the rest itself. A spec is
 // revised with avoozl-spec or reviewed with avoozl-spec-review, a task is
 // worked with avoozl-work, and a Needs you item is explained with avoozl.
-export type RunTarget = { kind: 'spec'; spec: string; review: boolean } | { kind: 'task'; taskId: string } | { kind: 'item'; item: ItemRef & { reason?: string } }
+export type RunTarget =
+  | { kind: 'spec'; spec: string; review: boolean }
+  | { kind: 'task'; taskId: string }
+  | { kind: 'item'; item: ItemRef & { reason?: string } }
+  | { kind: 'retro'; scope: string; days: number }
 
 export function runSeed(target: RunTarget): string {
+  if (target.kind === 'retro')
+    return `Use the avoozl-retro skill to run a retro over \`${target.scope}\` for the last ${target.days} days. Save the report with retro.save and change nothing else.`
   if (target.kind === 'spec')
     return target.review
       ? `Use the avoozl-spec-review skill to review the spec \`${target.spec}\`. Post findings only; edit no file.`

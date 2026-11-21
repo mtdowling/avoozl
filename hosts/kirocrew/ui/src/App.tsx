@@ -22,6 +22,7 @@ import { WorkspacePill } from './WorkspacePill.tsx'
 import { NavSlotProvider } from './nav-slot.tsx'
 import DeliveryView from './DeliveryView.tsx'
 import ActivityView from './ActivityView.tsx'
+import InsightsView from './InsightsView.tsx'
 import { VIEW_ICONS } from './icons.ts'
 import { LineBanner, useOpenStops } from './StopLine.tsx'
 import SettingsView, { GITHUB_TABS, SETTINGS_TABS, type SettingsTab } from './SettingsView'
@@ -84,9 +85,9 @@ function AvoozlPage() {
   const api = useAppApi()
   const client = useMemo(() => workspaceClient(api), [api])
   const saved = useMemo(() => readPageState(storage()), [])
-  // The page always opens on Plans; the tab is remembered only while the page
-  // stays open.
-  const [tab, setTab] = useState<Tab>('plans')
+  // The page always opens on Insights, its home; the tab is remembered only
+  // while the page stays open.
+  const [tab, setTab] = useState<Tab>('insights')
   // Settings starts on Workspaces each visit (settingsTabOnEnter).
   const [settingsTab, setSettingsTab] = useState<SettingsTab>(SETTINGS_HOME)
   // The sub-page the nav shows for Needs you.
@@ -255,8 +256,8 @@ function AvoozlPage() {
   // A stopped line shows its banner on every page.
   const stops = useOpenStops(active)
   // Radar's nav model: Needs you and Settings open in the nav to their
-  // sub-pages; Plans, Graph, In flight and Activity open to their filters (a
-  // slot the page fills).
+  // sub-pages; Insights, Plans, Graph, In flight and Activity open to their
+  // filters (a slot the page fills).
   const kids: Partial<Record<Tab, { key: string; label: string }[]>> = {
     waiting: WAITING_SECTIONS.map((x) => ({
       key: x.key,
@@ -269,7 +270,7 @@ function AvoozlPage() {
     key: t.key,
     text: t.label,
     children: kids[t.key],
-    slot: t.key === 'plans' || t.key === 'graph' || t.key === 'delivery' || t.key === 'activity',
+    slot: t.key === 'insights' || t.key === 'plans' || t.key === 'graph' || t.key === 'delivery' || t.key === 'activity',
     aria: t.key === 'waiting' && waitingCount > 0 ? `Needs you, ${waitingCount} items` : undefined,
     label: <NavLabel view={t.key} text={t.label} count={t.key === 'waiting' ? waitingCount : 0} />,
   }))
@@ -363,6 +364,11 @@ function AvoozlPage() {
                             </Btn>
                           ) : undefined
                         }
+                      />
+                    ) : tab === 'insights' ? (
+                      <InsightsView
+                        workspaceId={active}
+                        onOpen={(next, section) => go({ focus: null, drill: null, tab: next, ...(section ? { settingsTab: section as SettingsTab } : {}) })}
                       />
                     ) : tab === 'plans' ? (
                       <PlansView workspaceId={active} onScope={scopeTo} onDrill={openDrill} onOpenSettings={openSettings} />

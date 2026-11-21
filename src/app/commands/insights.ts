@@ -2,23 +2,9 @@
 // Insights view's numbers as text, and the saved retros.
 import fs from "node:fs";
 import { help } from "../cli/command-help.mjs";
+import { MAIN_WORDS, duration } from "../insights/format.ts";
 
 const show = (value: unknown) => console.log(JSON.stringify(value, null, 2));
-
-// Seconds as the page writes them: 45 s, 12 min, 3.5 h, 2.1 d.
-export function duration(seconds: number | null): string {
-  if (seconds === null || !Number.isFinite(seconds)) return "none";
-  if (seconds < 60) return `${Math.round(seconds)} s`;
-  if (seconds < 3600) return `${Math.round(seconds / 60)} min`;
-  if (seconds < 86400) return `${Math.round(seconds / 360) / 10} h`;
-  return `${Math.round(seconds / 8640) / 10} d`;
-}
-
-const MAIN = {
-  passing: "passing",
-  stopped: "line stopped",
-  unknown: "not read yet",
-};
 
 // The insights.view reply as the lines `avoozl insights` prints.
 export function insightsText(view: any): string[] {
@@ -31,7 +17,7 @@ export function insightsText(view: any): string[] {
       .filter(Boolean)
       .join(", "),
     lines = [
-      `Needs you ${strip.needsYou} · In flight ${strip.inFlight} · Ready ${strip.ready} · Main ${MAIN[strip.main.state as keyof typeof MAIN] ?? strip.main.state} · Autopilot ${strip.loop ? "on" : "off"}`,
+      `Needs you ${strip.needsYou} · In flight ${strip.inFlight} · Ready ${strip.ready} · Main ${MAIN_WORDS[strip.main.state] ?? strip.main.state} · Autopilot ${strip.loop ? "on" : "off"}`,
       "",
       `Last ${range.days} days${scope ? ` (${scope})` : ""}`,
       `Finished tasks: ${finished}`,

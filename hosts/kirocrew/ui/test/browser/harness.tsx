@@ -33,6 +33,7 @@ import PluginsSettings from '../../src/PluginsSettings.tsx'
 import SettingsView, { RateBlock, RepositoryEditor } from '../../src/SettingsView.tsx'
 import type { EditTab } from '../../src/repo-edit-tabs.ts'
 import { answerIntake, PLUGINS } from './intake-fixture.ts'
+import { answerInsights } from './insights-fixture.ts'
 import { chainsGraph, draftsGraph } from './graph-chains.ts'
 import { PrModeFields, ConflictFields, MergeMethodFields } from '../../src/LandingFields.tsx'
 import { emptyRepository, type RepositoryForm } from '../../src/settings-api.ts'
@@ -456,6 +457,8 @@ if (query.get('page') === 'home' || query.get('page') === 'demo') {
 // repository on the local Avoozl worker.
 if (query.get('page') === 'app') {
   const worker = query.get('worker') === '1'
+  // &insights=full: the Insights home with data; else every chart is empty.
+  answerInsights(query.get('insights') === 'full')
   // &needs=N: N open Needs you items, so the nav shows its count. Home's
   // other reads answer empty, so Home fills in.
   const needs = Number(query.get('needs') ?? 0)
