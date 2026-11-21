@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Git plugin sources (design §4.8, Requirement 34.12–34.15). A `plugins`
 // entry may name `git` (a URL or local repository path), `ref` (a tag,
 // branch or full commit) and an optional `subdir`. A branch moves, so a ref
@@ -21,29 +20,33 @@ const GIT_TIMEOUT_MS = 120_000;
 // A credential in an error message or a URL is shown masked.
 const TOKEN =
   /\b(?:gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|glpat-[A-Za-z0-9_-]{20,})/g;
-export function maskCredentials(text) {
+export function maskCredentials(text: unknown) {
   return String(text)
     .replace(/([a-z][a-z0-9+.-]*:\/\/)[^/@\s]*@/gi, "$1***@")
     .replace(TOKEN, "***");
 }
 
-const isGitUrl = (value) => URL_FORM.test(value) || SCP_FORM.test(value);
+const isGitUrl = (value: string) =>
+  URL_FORM.test(value) || SCP_FORM.test(value);
 
 // The shape checks validateEntry runs for a git entry. No network.
-export function validateGitSource(entry, where) {
+export function validateGitSource(
+  entry: { git?: unknown; ref?: unknown; subdir?: unknown },
+  where: string,
+) {
   const { git, ref, subdir } = entry;
   if (typeof git !== "string" || !git.trim() || git.length > 2048)
-    fail(`${where}.git must be a repository URL or path.`);
+    return fail(`${where}.git must be a repository URL or path.`);
   if (/[\s\0-\x1f]/.test(git) || git.startsWith("-"))
     fail(`${where}.git must be a repository URL or path.`);
   if (/^[a-z][a-z0-9+.-]*::/i.test(git))
     fail(`${where}.git may not name a git transport helper.`);
   if (URL_FORM.test(git)) {
-    let url;
+    let url: URL;
     try {
       url = new URL(git);
     } catch {
-      fail(`${where}.git is not a valid URL.`);
+      return fail(`${where}.git is not a valid URL.`);
     }
     if (!["https:", "http:", "ssh:", "git:", "file:"].includes(url.protocol))
       fail(`${where}.git must use https, ssh, git or file.`);
@@ -85,10 +88,10 @@ export function validateGitSource(entry, where) {
 // The value handed to git: a URL as written, or a local repository path
 // resolved against `base` (the workspace for `.avoozl.json`, the settings
 // folder for machine entries).
-export const gitRemote = (git, base) =>
+export const gitRemote = (git: string, base: string) =>
   isGitUrl(git) ? git : path.resolve(base, git);
 
-function hooksOff(root) {
+function hooksOff(root: string) {
   const folder = path.join(root, ".hooks-off");
   fs.mkdirSync(folder, { recursive: true, mode: 0o700 });
   return folder;
@@ -96,7 +99,14 @@ function hooksOff(root) {
 
 // Run the person's git with hooks, submodules, fsmonitor and LFS downloads
 // off. Errors come back with credentials masked.
-function git(args, { cwd, hooks, timeout = GIT_TIMEOUT_MS } = {}) {
+function git(
+  args: string[],
+  {
+    cwd,
+    hooks,
+    timeout = GIT_TIMEOUT_MS,
+  }: { cwd?: string; hooks: string; timeout?: number },
+) {
   const config = [
     `core.hooksPath=${hooks}`,
     "core.fsmonitor=false",
@@ -105,7 +115,7 @@ function git(args, { cwd, hooks, timeout = GIT_TIMEOUT_MS } = {}) {
     "protocol.ext.allow=never",
     "advice.detachedHead=false",
   ].flatMap((value) => ["-c", value]);
-  return new Promise((resolve, reject) =>
+  return new Promise<string>((resolve, reject) =>
     execFile(
       "git",
       [...config, ...args],
@@ -124,9 +134,11 @@ function git(args, { cwd, hooks, timeout = GIT_TIMEOUT_MS } = {}) {
         const message = maskCredentials(
           (stderr || error.message).trim().split("\n").slice(-4).join(" "),
         );
-        const refused = Error(`git ${args[0]} failed: ${message}`);
-        refused.status = 409;
-        reject(refused);
+        reject(
+          Object.assign(Error(`git ${args[0]} failed: ${message}`), {
+            status: 409,
+          }),
+        );
       },
     ),
   );
@@ -134,12 +146,15 @@ function git(args, { cwd, hooks, timeout = GIT_TIMEOUT_MS } = {}) {
 
 // Every ref the remote advertises, name to commit, from one `git ls-remote`.
 // It reads names only and fetches no content.
-export async function remoteRefs(remote, { scratch, timeout } = {}) {
+export async function remoteRefs(
+  remote: string,
+  { scratch, timeout }: { scratch: string; timeout?: number },
+) {
   const listing = await git(["ls-remote", "--", remote], {
     hooks: hooksOff(scratch),
     timeout,
   });
-  const refs = new Map();
+  const refs = new Map<string, string>();
   for (const line of listing.split("\n")) {
     const [sha, name] = line.split("\t");
     if (sha && name) refs.set(name, sha);
@@ -149,7 +164,11 @@ export async function remoteRefs(remote, { scratch, timeout } = {}) {
 
 // `ref` to one full commit. A full commit is taken as given; a name must
 // match exactly one branch or tag (an annotated tag counts by its commit).
-export async function resolveGitRef(remote, ref, { scratch }) {
+export async function resolveGitRef(
+  remote: string,
+  ref: string,
+  { scratch }: { scratch: string },
+) {
   if (COMMIT.test(ref)) return ref;
   const refs = await remoteRefs(remote, { scratch });
   const names = ref.startsWith("refs/")
@@ -170,7 +189,7 @@ export async function resolveGitRef(remote, ref, { scratch }) {
   return found[0];
 }
 
-const exists = (file) => {
+const exists = (file: string) => {
   try {
     fs.lstatSync(file);
     return true;
@@ -180,7 +199,7 @@ const exists = (file) => {
 };
 
 // Avoozl runs no install, so a plugin must ship what its package.json needs.
-function checkReadyToRun(folder) {
+function checkReadyToRun(folder: string) {
   let pkg;
   try {
     pkg = JSON.parse(
@@ -203,7 +222,19 @@ function checkReadyToRun(folder) {
 // Fetch exactly `commit` into `<root>/<commit>/` and return the plugin
 // folder (`subdir` inside it). An existing folder for the same commit is
 // reused; the content hash still decides whether it is approved.
-export async function fetchGitCommit({ remote, ref, commit, subdir, root }) {
+export async function fetchGitCommit({
+  remote,
+  ref,
+  commit,
+  subdir,
+  root,
+}: {
+  remote: string;
+  ref: string;
+  commit: string;
+  subdir?: string;
+  root: string;
+}) {
   fs.mkdirSync(root, { recursive: true, mode: 0o700 });
   const target = path.join(root, commit);
   if (!exists(target)) {
@@ -214,7 +245,7 @@ export async function fetchGitCommit({ remote, ref, commit, subdir, root }) {
     const hooks = hooksOff(root);
     try {
       await git(["init", "-q", "--template=", temporary], { hooks });
-      const fetch = (what) =>
+      const fetch = (what: string) =>
         git(
           [
             "fetch",
@@ -259,11 +290,11 @@ export async function fetchGitCommit({ remote, ref, commit, subdir, root }) {
     }
   }
   const folder = subdir ? path.join(target, subdir) : target;
-  let real;
+  let real: string;
   try {
     real = fs.realpathSync.native(folder);
   } catch {
-    fail(`Commit ${commit.slice(0, 12)} has no folder ${subdir}.`, 409);
+    return fail(`Commit ${commit.slice(0, 12)} has no folder ${subdir}.`, 409);
   }
   const top = fs.realpathSync.native(target);
   if (real !== top && !real.startsWith(top + path.sep))

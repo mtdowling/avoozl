@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Label filters (workflow v1 rule 9.1, simplify §D5): a repository's
 // `labels.require` and `labels.exclude`. A spec runs on this runner only when
 // its spec issue carries every `require` label, each added by a writer, and
@@ -12,26 +11,82 @@
 import { PERMISSIONS } from "../github/github-policy.ts";
 import { linkedReader } from "./order.ts";
 import { specTasks } from "./spec-tasks.ts";
+import type { Store } from "../store/store.ts";
+
+// A repository's label lists and stop label.
+interface Filters {
+  require: string[];
+  exclude: string[];
+  stop: string;
+}
+export type Label = string | { name?: string } | null;
+// One issue event GitHub lists, as far as the rules read it.
+export interface IssueEvent {
+  event?: string;
+  label?: { name?: string };
+  actor?: { login?: string };
+}
+type Permission = (login: string | undefined) => Promise<unknown>;
+// One spec's cached result.
+type Result = { pass: boolean; reason?: string; stopped?: boolean };
+// The spec links a stop follows.
+interface Linked {
+  parents(name: string): { name: string }[];
+}
+// The GitHub reads the filters make.
+export interface LabelReader {
+  issue(
+    repository: string,
+    number: number,
+  ): Promise<{ labels?: Label[] } | null>;
+  issueEvents?(repository: string, number: number): Promise<IssueEvent[]>;
+  permission(
+    repository: string,
+    login: string | undefined,
+  ): Promise<{ permission?: string } | null>;
+}
+type Repository = {
+  id: string;
+  github?: string | null;
+  labels?: { require?: string[]; exclude?: string[]; stop?: string };
+};
+type Plan = {
+  id: string;
+  spec?: string;
+  state?: string;
+  deletedAt?: string;
+  files?: Record<string, string>;
+};
+type Receipt = { repository: string; number: number };
 
 const META = "labels.specs";
-const WRITERS = new Set(PERMISSIONS.slice(PERMISSIONS.indexOf("write")));
-const lower = (value) => String(value ?? "").toLowerCase();
+const WRITERS = new Set<unknown>(
+  PERMISSIONS.slice(PERMISSIONS.indexOf("write")),
+);
+const lower = (value: unknown) => String(value ?? "").toLowerCase();
 
 const STOP_LABEL = "avoozl:stopped";
 
 // A repository's two lists, empty when it sets none, and its stop label.
-export const labelFilters = (repository) => ({
+export const labelFilters = (
+  repository: Repository | null | undefined,
+): Filters => ({
   require: repository?.labels?.require ?? [],
   exclude: repository?.labels?.exclude ?? [],
   stop: repository?.labels?.stop ?? STOP_LABEL,
 });
-const filtering = (filters) =>
+const filtering = (filters: Filters) =>
   filters.require.length > 0 || filters.exclude.length > 0;
 
 // Whether one issue passes `filters`: its labels, its issue `events`
 // (oldest first), and `permission(login)` the actor's role. Returns {pass}
 // or {pass: false, reason}.
-export async function issuePasses(issue, events, filters, permission) {
+export async function issuePasses(
+  issue: { labels?: Label[] } | null | undefined,
+  events: IssueEvent[] | null | undefined,
+  filters: Filters,
+  permission: Permission,
+): Promise<Result> {
   const names = new Set(
     (issue?.labels ?? []).map((label) =>
       lower(typeof label === "string" ? label : label?.name),
@@ -62,7 +117,11 @@ export async function issuePasses(issue, events, filters, permission) {
 // not clear the stop.
 // shortcut: a writer stands in for an approver; read the approvers when a
 // repository names approvers apart from writers.
-async function issueStopped(events, stop, permission) {
+async function issueStopped(
+  events: IssueEvent[] | null | undefined,
+  stop: string,
+  permission: Permission,
+) {
   let stopped = false;
   for (const event of events ?? []) {
     if (lower(event?.label?.name) !== lower(stop)) continue;
@@ -75,10 +134,15 @@ async function issueStopped(events, stop, permission) {
 
 // The specs a set of stopped specs stops (rule 10.1): each one, and every
 // spec a stopped spec links, through any depth.
-export function stoppedSpecs(names, stopped, linked) {
-  const memo = new Map(),
-    walk = (name, seen = new Set()) => {
-      if (memo.has(name)) return memo.get(name);
+export function stoppedSpecs(
+  names: Iterable<string>,
+  stopped: Set<string>,
+  linked: Linked,
+) {
+  const memo = new Map<string, boolean>(),
+    walk = (name: string, seen = new Set<string>()): boolean => {
+      const known = memo.get(name);
+      if (known !== undefined) return known;
       if (stopped.has(name)) return true;
       if (seen.has(name)) return false;
       seen.add(name);
@@ -96,28 +160,38 @@ export function stoppedSpecs(names, stopped, linked) {
 // read per actor per pass; the events are read only when a filter, the stop
 // label or a stop to clear needs them. Returns the read errors; a spec whose
 // read fails keeps its last result.
-export async function readLabelFilters(store, github) {
-  if (!github?.issueEvents) return [];
+export async function readLabelFilters(
+  store: Store,
+  github: LabelReader | null | undefined,
+) {
+  const issueEvents = github?.issueEvents?.bind(github);
+  if (!github || !issueEvents) return [];
   const repositories = new Map(
       store
-        .list("repositories")
+        .list<Repository>("repositories")
         .filter((r) => r.github)
         .map((r) => [lower(r.github), r]),
     ),
-    roles = new Map(),
-    results = { ...(store.getMeta(META) ?? {}) },
-    errors = [];
-  for (const plan of store.list("plans")) {
+    roles = new Map<string, unknown>(),
+    results: Record<string, Result> = {
+      ...(store.getMeta<Record<string, Result>>(META) ?? {}),
+    },
+    errors: { repository: string; error: string }[] = [];
+  for (const plan of store.list<Plan>("plans")) {
     if (plan.state !== "approved" || !plan.spec || plan.deletedAt) continue;
-    const receipt = store.get("receipts", `github-parent:plan:${plan.id}`),
+    const receipt = store.get<Receipt>(
+        "receipts",
+        `github-parent:plan:${plan.id}`,
+      ),
       repository = receipt && repositories.get(lower(receipt.repository)),
       filters = labelFilters(repository);
-    if (!repository) {
+    if (!receipt || !repository?.github) {
       delete results[plan.id];
       continue;
     }
+    const github_ = repository.github;
     try {
-      const issue = await github.issue(repository.github, receipt.number),
+      const issue = await github.issue(github_, receipt.number),
         stopOn = (issue?.labels ?? []).some(
           (label) =>
             lower(typeof label === "string" ? label : label?.name) ===
@@ -125,14 +199,14 @@ export async function readLabelFilters(store, github) {
         ),
         events =
           filtering(filters) || stopOn || results[plan.id]?.stopped
-            ? await github.issueEvents(repository.github, receipt.number)
+            ? await issueEvents(github_, receipt.number)
             : [],
-        permission = async (login) => {
-          const key = `${lower(repository.github)}|${lower(login)}`;
+        permission = async (login: string | undefined) => {
+          const key = `${lower(github_)}|${lower(login)}`;
           if (!roles.has(key))
             roles.set(
               key,
-              (await github.permission(repository.github, login))?.permission,
+              (await github.permission(github_, login))?.permission,
             );
           return roles.get(key);
         };
@@ -143,7 +217,7 @@ export async function readLabelFilters(store, github) {
         stopped: await issueStopped(events, filters.stop, permission),
       };
     } catch (error) {
-      errors.push({ repository: repository.github, error: error.message });
+      errors.push({ repository: github_, error: (error as Error).message });
     }
   }
   // Written only when a result changed, so a pass that reads writes nothing.
@@ -155,35 +229,37 @@ export async function readLabelFilters(store, github) {
 // The spec IDs a stop holds (rule 10): each spec whose spec issue carries a
 // writer's stop label, by the cache, and every spec one of them links. A
 // task of one is not ready, and nothing of it is pushed or landed (10.2).
-export function stoppedSpecIds(store) {
+export function stoppedSpecIds(store: Store) {
   const direct = new Set(
-    Object.entries(store.getMeta(META) ?? {})
+    Object.entries(store.getMeta<Record<string, Result>>(META) ?? {})
       .filter(([, result]) => result.stopped)
       .map(([id]) => id),
   );
   if (!direct.size) return direct;
   const plans = store
-      .list("plans")
+      .list<Plan>("plans")
       .filter((plan) => plan.spec && !plan.deletedAt && plan.files),
     linked = linkedReader(
       plans.map((plan) => ({
         name: plan.spec,
-        text: specTasks(plan.files)?.text ?? "",
+        text: specTasks(plan.files ?? {})?.text ?? "",
       })),
     ),
-    ids = new Map(plans.map((plan) => [plan.spec, plan.id])),
+    ids = new Map(plans.map((plan) => [String(plan.spec), plan.id])),
     names = new Set(
-      plans.filter((plan) => direct.has(plan.id)).map((plan) => plan.spec),
+      plans
+        .filter((plan) => direct.has(plan.id))
+        .map((plan) => String(plan.spec)),
     );
-  for (const name of stoppedSpecs(ids.keys(), names, linked))
-    direct.add(ids.get(name));
+  for (const name of stoppedSpecs(ids.keys(), names, linked as Linked))
+    direct.add(ids.get(name) as string);
   return direct;
 }
 
 // Spec ID -> why its spec issue holds it, for each spec the filters hold. A
 // spec in a repository that filters, with no spec issue, is held too.
-export function labelHolds(store) {
-  const results = store.getMeta(META) ?? {},
+export function labelHolds(store: Store) {
+  const results = store.getMeta<Record<string, Result>>(META) ?? {},
     holds = new Map(
       Object.entries(results)
         .filter(([, result]) => !result.pass)
@@ -197,7 +273,7 @@ export function labelHolds(store) {
     );
   const filtered = new Set(
     store
-      .list("repositories")
+      .list<Repository>("repositories")
       .filter((r) => filtering(labelFilters(r)))
       .map((r) => r.id),
   );
@@ -206,6 +282,7 @@ export function labelHolds(store) {
     if (!task.planId || holds.has(task.planId)) continue;
     const repository = task.repository ?? task.repositoryId;
     if (
+      typeof repository === "string" &&
       filtered.has(repository) &&
       !store.get("receipts", `github-parent:plan:${task.planId}`)
     )
