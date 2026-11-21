@@ -74,6 +74,9 @@ the tick wraps it in:
   gets no credential helper. The names its harness definition lists in
   `keepEnv` are kept, with values from the tick's environment or this
   machine's `machine.env`, an owner-only file outside every child's reach.
+- `~/.aws` is hidden unless its harness definition lists it in `reads`;
+  then the child may read it, never write it, to sign in with your AWS
+  profile.
 - On Linux it gets an empty `$XDG_RUNTIME_DIR`, and the docker socket,
   podman's socket folder and the SSH agent socket are hidden, since a Unix
   socket on a read-only mount still connects.

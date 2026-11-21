@@ -1,11 +1,64 @@
 // Whether a harness can start on this machine's server, and why not (MS5.3):
-// its program is not found, or none of its sign-in variables is set and no
-// model proxy is named. One function, read by `avoozl status`, Settings ›
-// Models and the Needs you item a blocked request opens. The supervisor
-// spawns the path `findProgram` returns, so the check and the spawn agree.
+// its program is not found, or its last sign-in probe failed. One function,
+// read by `avoozl status`, Settings › Models and the Needs you item a
+// blocked request opens. The supervisor spawns the path `findProgram`
+// returns, so the check and the spawn agree. `keepEnv` names only what
+// passes through to a child; no name in it is required.
 import fs from "node:fs";
 import path from "node:path";
+import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
+import { machineEnvPath } from "./machine-env.mjs";
+
+export const probeCachePath = (configDirectory) =>
+  path.join(path.resolve(configDirectory), "harness-probes.json");
+
+// A probe answer holds for one definition hash and one machine.env, since
+// each probe is a model call: a changed file or machine.env needs a new one.
+export function probeKey(configDirectory, hash) {
+  let bytes = "";
+  try {
+    bytes = fs.readFileSync(machineEnvPath(configDirectory));
+  } catch {}
+  return `${hash}:${createHash("sha256").update(bytes).digest("hex")}`;
+}
+
+function readProbes(configDirectory) {
+  try {
+    const value = JSON.parse(
+      fs.readFileSync(probeCachePath(configDirectory), "utf8"),
+    );
+    return value && typeof value === "object" && !Array.isArray(value)
+      ? value
+      : {};
+  } catch {
+    return {};
+  }
+}
+
+// The cached probe of harness `name` at `hash`: {ok, message, at}, or null
+// when none ran for this hash and machine.env.
+export function cachedProbe(configDirectory, name, hash) {
+  if (!configDirectory || !hash) return null;
+  const entry = readProbes(configDirectory)[name];
+  return entry?.key === probeKey(configDirectory, hash)
+    ? { ok: entry.ok === true, message: entry.message ?? null, at: entry.at }
+    : null;
+}
+
+export function recordProbe(configDirectory, name, hash, result) {
+  const file = probeCachePath(configDirectory);
+  const all = {
+    ...readProbes(configDirectory),
+    [name]: { key: probeKey(configDirectory, hash), ...result },
+  };
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  const temporary = `${file}.${process.pid}.tmp`;
+  fs.writeFileSync(temporary, JSON.stringify(all, null, 2) + "\n", {
+    mode: 0o600,
+  });
+  fs.renameSync(temporary, file);
+}
 
 function inDirectory(program, pathEnv, platform) {
   const names =
@@ -96,13 +149,14 @@ export function findProgram(
 }
 
 // `value` is the definition's parsed JSON. Returns a sentence, or null when it
-// can start. `modelProxy` is true when a repository names a model proxy.
+// can start. `probe` is its cached sign-in probe, or null when none ran: an
+// unchecked harness is not held back.
 export function harnessStartProblem(
   value,
   {
     env = process.env,
     machineEnv = {},
-    modelProxy = false,
+    probe = null,
     platform = process.platform,
     loginPath,
   } = {},
@@ -111,12 +165,5 @@ export function harnessStartProblem(
   if (typeof program !== "string" || !program) return null;
   const found = findProgram(program, { env, machineEnv, platform, loginPath });
   if (found.problem) return found.problem;
-  const keep = Array.isArray(value.keepEnv) ? value.keepEnv : [];
-  if (
-    keep.length &&
-    !modelProxy &&
-    !keep.some((name) => env[name] || machineEnv[name])
-  )
-    return `None of ${keep.join(", ")} is set for this machine's server, and no repository names a model proxy. Set one in machine.env.`;
-  return null;
+  return probe && !probe.ok ? probe.message : null;
 }

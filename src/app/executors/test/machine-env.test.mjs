@@ -91,7 +91,7 @@ test("the file is outside a child's reach: the config folder is a secret path", 
   );
 });
 
-test("a harness that cannot start says why: no program, or no sign-in and no proxy", () => {
+test("a harness that cannot start says why: no program, or a failed sign-in probe", () => {
   const value = { start: [process.execPath], keepEnv: ["MODEL_KEY"] };
   const env = { PATH: path.dirname(process.execPath) };
   assert.match(
@@ -101,24 +101,18 @@ test("a harness that cannot start says why: no program, or no sign-in and no pro
     ),
     /no-such-agent-cli was not found on the server's PATH\. Set PATH in machine\.env/,
   );
-  assert.match(harnessStartProblem(value, { env }), /None of MODEL_KEY is set/);
+  // keepEnv only passes names through: none set, and no probe yet, starts.
+  assert.equal(harnessStartProblem(value, { env }), null);
   assert.equal(
-    harnessStartProblem(value, { env: { ...env, MODEL_KEY: "x" } }),
+    harnessStartProblem(value, { env, probe: { ok: true, message: null } }),
     null,
   );
   assert.equal(
-    harnessStartProblem(value, { env, machineEnv: { MODEL_KEY: "x" } }),
-    null,
-  );
-  assert.equal(harnessStartProblem(value, { env, modelProxy: true }), null);
-  assert.equal(
-    harnessStartProblem({ start: [process.execPath] }, { env }),
-    null,
-  );
-  // The value is never in the sentence.
-  assert.doesNotMatch(
-    harnessStartProblem(value, { env: { ...env, OTHER: "secret-value" } }),
-    /secret-value/,
+    harnessStartProblem(value, {
+      env,
+      probe: { ok: false, message: "claude failed its sign-in check: x" },
+    }),
+    "claude failed its sign-in check: x",
   );
 });
 
