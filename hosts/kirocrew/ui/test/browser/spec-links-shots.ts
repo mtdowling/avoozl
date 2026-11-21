@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt
 // Screenshots of the spec details panel's Links box (task 44.2) in the full
 // app on demo data, desktop 1280 and phone 390, light and dark:
 //   links-<width>-<theme>.png   Meal planner with a fixture link set

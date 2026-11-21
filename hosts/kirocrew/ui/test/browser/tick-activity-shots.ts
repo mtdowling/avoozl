@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt
 // Full-app shots for the tick in Activity: Activity with a row of each GitHub
 // kind (activity-links), the Tick source row picked in the
 // Activity filters, the Needs you row for a tick that keeps failing, and the
@@ -12,15 +11,15 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { buildHarness, shotCss } from './build.ts'
-import { findChrome, launch } from './chrome.ts'
+import { needChrome, launch, type Page } from './chrome.ts'
 
 const [out] = process.argv.slice(2)
 if (!out) process.exit(2)
 fs.mkdirSync(out, { recursive: true })
 const harness = await buildHarness({ hostCss: await shotCss() })
-const browser = await launch(findChrome())
-const wait = (page, ms = 400) => page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
-const click = (page, selector) => page.evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`)
+const browser = await launch(needChrome())
+const wait = (page: Page, ms = 400) => page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
+const click = (page: Page, selector: string) => page.evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`)
 try {
   const page = await browser.page()
   for (const [width, height] of [
@@ -30,18 +29,18 @@ try {
     for (const theme of ['light', 'dark']) {
       const phone = width < 768
       const scope = phone ? '[data-top-rail-list]' : '[data-left-nav]'
-      const head = (text) => `[...document.querySelectorAll('${scope} [data-nav-head]')].find((x) => x.textContent.includes(${JSON.stringify(text)}))`
+      const head = (text: string) => `[...document.querySelectorAll('${scope} [data-nav-head]')].find((x) => x.textContent.includes(${JSON.stringify(text)}))`
       const menu = async () => {
         if (!phone) return
         if (!(await page.evaluate(`Boolean(document.querySelector('[data-top-rail-list]'))`))) await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
         await wait(page, 200)
       }
-      const open = async (text) => {
+      const open = async (text: string) => {
         await menu()
         await page.evaluate(`(() => { const b = ${head(text)}; if (b && !b.hasAttribute('data-open')) b.click(); return Boolean(b) })()`)
         await wait(page)
       }
-      const shot = async (name) => {
+      const shot = async (name: string) => {
         await wait(page)
         const file = path.join(out, `${name}-${width}-${theme}.png`)
         await page.screenshot(file)

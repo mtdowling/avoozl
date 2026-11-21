@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt
 // Screenshots of plugin checks on the page (plugin-checks pk-3.1), desktop
 // 1280 and phone 390, light and dark, from fixture records only:
 //   plugin-checks-<width>-<theme>.png
@@ -11,7 +10,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { buildHarness, shotCss } from './build.ts'
-import { findChrome, launch } from './chrome.ts'
+import { needChrome, launch } from './chrome.ts'
 
 const [out] = process.argv.slice(2)
 if (!out) {
@@ -20,7 +19,7 @@ if (!out) {
 }
 fs.mkdirSync(out, { recursive: true })
 const harness = await buildHarness({ hostCss: await shotCss(), entry: fileURLToPath(new URL('./plugin-checks.tsx', import.meta.url)) })
-const browser = await launch(findChrome())
+const browser = await launch(needChrome())
 try {
   const page = await browser.page()
   for (const width of [1280, 390])

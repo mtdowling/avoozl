@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt
 // Full-app screenshots of Send message on a `process` session (task 50.2) on
 // fake data (harness ?page=app&process=1), desktop (1280) and phone (390),
 // light and dark: <out>/send-<width>-<theme>.png. When the row has a Send

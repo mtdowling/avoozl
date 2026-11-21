@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt
 // Screenshots of the Settings pages that pair two cards (PairedCards), in the
 // full app shell on fake data, 1280 and 390 px, light and dark:
 // <out>/<case>-<width>-<theme>.png. Plugins (?plugins=many|none): eight
@@ -13,6 +12,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { buildHarness, shotCss } from './build.ts'
 import { findChrome, launch } from './chrome.ts'
+import { head, lastItem, menu } from './shots.ts'
 
 const [out, ...only] = process.argv.slice(2)
 if (!out) {
@@ -28,13 +28,16 @@ fs.mkdirSync(out, { recursive: true })
 const harness = await buildHarness({ hostCss: await shotCss() })
 const browser = await launch(chrome)
 // Each card of the pair: its height and whether its body overflows.
-const measure = (layout) =>
+const measure = (layout: string) =>
   `JSON.stringify([...(document.querySelector('${layout}')?.children ?? [])].map((c) => { const s = c.querySelector('[data-paired-body]') ?? c; return { h: Math.round(c.getBoundingClientRect().height), scrolls: s.scrollHeight > s.clientHeight + 1 } }))`
-const PLUGINS = ['Plugins', '[data-plugins-layout]']
-const RULES = ['Content rules', '[data-content-layout]']
+// A Settings page and the element that holds its pair of cards.
+type Pair = [string, string]
+const PLUGINS: Pair = ['Plugins', '[data-plugins-layout]']
+const RULES: Pair = ['Content rules', '[data-content-layout]']
 // Opens a rule set so the details side shows its fields.
 const PICK = `(() => { const b = [...document.querySelectorAll('[data-rule-panel] button')].find((x) => x.textContent.includes('codenames')); if (b) b.click(); return true })()`
-const CASES = [
+// Each case: name, page, harness query, window height, and options.
+const CASES: [string, Pair, Record<string, string>, number, { desktop?: boolean; pick?: boolean }?][] = [
   ['plugins-many', PLUGINS, { plugins: 'many' }, 900],
   ['plugins-none', PLUGINS, { plugins: 'none' }, 900],
   ['plugins-updates', PLUGINS, { plugins: 'updates' }, 1400],
@@ -45,13 +48,6 @@ const CASES = [
 try {
   const page = await browser.page()
   const settle = () => page.evaluate('new Promise((r) => setTimeout(r, 400))')
-  const scope = (width) => (width < 768 ? '[data-top-rail-list]' : '[data-left-nav]')
-  const menu = (width) =>
-    width >= 768 ? 'true' : `(() => { if (!document.querySelector('[data-top-rail-list]')) document.querySelector('[data-top-rail-bar]').click(); return true })()`
-  const head = (width) =>
-    `(() => { const b = [...document.querySelectorAll('${scope(width)} [data-nav-head]')].find((x) => x.textContent.includes('Settings')); if (b && !b.hasAttribute('data-open')) b.click(); return Boolean(b) })()`
-  const item = (width, label) =>
-    `(() => { const b = [...document.querySelectorAll('${scope(width)} [data-nav-item]')].filter((x) => x.textContent.trim() === ${JSON.stringify(label)}).at(-1); if (b) b.click(); return Boolean(b) })()`
   const cases = only.length ? CASES.filter(([name]) => only.includes(name)) : CASES
   for (const theme of ['light', 'dark'])
     for (const width of [1280, 390])
@@ -59,7 +55,7 @@ try {
         if (width < 768 && opts.desktop) continue
         await page.open(harness.url({ page: 'app', theme, roles: 'single', ...query }), { width, height, dark: theme === 'dark' })
         await page.until(`Boolean(document.querySelector('[data-shell-main]'))`)
-        for (const step of [menu(width), head(width), item(width, label)]) {
+        for (const step of [menu(width), head(width), lastItem(width, label)]) {
           await settle()
           await page.evaluate(step)
         }

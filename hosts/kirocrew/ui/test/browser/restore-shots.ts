@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt
 // Screenshots of task 41.6's restored parts in the full app shell (harness
 // ?page=app&delivery=1), at 390 and 1280 px, light and dark:
 // <out>/<part>-<width>-<theme>.png for Dashboards › Delivery with its nav
@@ -10,11 +9,12 @@
 // AVOOZL_CHROME names the browser; AVOOZL_HOST_CSS the host's stylesheet.
 import path from 'node:path'
 import { startShots } from './shots.ts'
+import type { Page } from './chrome.ts'
 
 const { out, harness, browser } = await startShots('restore-shots.mjs <out dir>')
-const wait = (page, ms = 400) => page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
-const scope = (width) => (width < 768 ? '[data-top-rail-list]' : '[data-left-nav]')
-const button = (text, within = 'document') => `[...${within}.querySelectorAll('button')].find((b) => b.textContent.trim().startsWith(${JSON.stringify(text)}))`
+const wait = (page: Page, ms = 400) => page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
+const scope = (width: number) => (width < 768 ? '[data-top-rail-list]' : '[data-left-nav]')
+const button = (text: string, within = 'document') => `[...${within}.querySelectorAll('button')].find((b) => b.textContent.trim().startsWith(${JSON.stringify(text)}))`
 try {
   const page = await browser.page()
   for (const [width, height] of [
@@ -27,13 +27,13 @@ try {
         await page.until(`Boolean(document.querySelector('[data-shell-main]'))`)
         await wait(page, 1000)
       }
-      const menu = async (on) => {
+      const menu = async (on: boolean) => {
         if (width >= 768) return
         const shown = await page.evaluate(`Boolean(document.querySelector('[data-top-rail-list]'))`)
         if (shown !== on) await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
         await wait(page, 300)
       }
-      const nav = async (group, item) => {
+      const nav = async (group: string, item: string) => {
         await menu(true)
         await page.evaluate(
           `(() => { const h = document.querySelector('${scope(width)} [data-nav-head][data-nav-group="${group}"]'); if (h && !h.hasAttribute('data-open')) h.click(); return true })()`,
@@ -42,7 +42,7 @@ try {
         await page.evaluate(`document.querySelector('${scope(width)} [data-nav-item="${group}/${item}"]')?.click()`)
         await wait(page, 500)
       }
-      const shot = async (name) => {
+      const shot = async (name: string) => {
         await wait(page, 500)
         const file = path.join(out, `${name}-${width}-${theme}.png`)
         await page.screenshot(file)

@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt
 // Screenshots of the GitHub sign-in screens (plugin-credentials pc-4.3) on
 // fake data (signin-fixture.ts): Settings › GitHub › GitHub calls with the
 // sign-in lines and calls by login, Settings › Plugins with a credentials
@@ -11,15 +10,16 @@ import { saveShot, startShots } from './shots.ts'
 
 const { out, harness, browser } = await startShots('signin-shots.mjs <out dir>')
 // Clicks the first element under `selector` whose text starts with `text`.
-const tap = (selector, text) =>
+const tap = (selector: string, text: string) =>
   `(() => { const b = [...document.querySelectorAll(${JSON.stringify(selector)})].find((x) => x.textContent.trim().startsWith(${JSON.stringify(text)})); b?.click(); return Boolean(b) })()`
-const settingsGitHub = (phone) => [
+const settingsGitHub = (phone: boolean) => [
   ...(phone ? [`document.querySelector('[data-top-rail-bar]')?.click()`] : []),
   tap(`${phone ? '[data-top-rail-list]' : '[data-left-nav]'} [data-nav-head]`, 'Settings'),
   tap(`${phone ? '[data-top-rail-list]' : '[data-left-nav]'} [data-nav-item]`, 'GitHub'),
   tap('button, [role=tab]', 'GitHub calls'),
 ]
-const SHOTS = [
+// Each shot: name, the harness query, and the steps for a phone or not.
+const SHOTS: [string, Record<string, string>, (phone: boolean) => string[]][] = [
   ['signin-github-calls', { page: 'app', basic: '1', roles: 'plans' }, settingsGitHub],
   ['signin-plugins', { page: 'intake' }, () => []],
   ['signin-confirm', { page: 'needs' }, () => [tap('button', 'Needs you'), tap('button', 'Create labels')]],

@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt
 // Screenshots of Repository setup and Settings › Workspaces in the full app
 // shell on fake data (harness ?page=app&roles=...): desktop (1280 px) and
 // phone (390 px), light and dark: <out>/<name>-<width>-<theme>.png.
@@ -14,11 +13,11 @@ const { out, harness, browser } = await startShots('repo-roles-shots.mjs <out di
 try {
   const page = await browser.page()
   const settle = () => page.evaluate('new Promise((r) => setTimeout(r, 400))')
-  const press = (text) =>
+  const press = (text: string) =>
     `(() => { const b = [...document.querySelectorAll('button, summary')].find((x) => x.textContent.trim().startsWith(${JSON.stringify(text)})); if (b) b.click(); return Boolean(b) })()`
   // The guided Add repository dialog on its suggestion.
   const typeFolder = `(() => { const i = document.getElementById('avoozl-repo-folder'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, '~/src/new-service'); i.dispatchEvent(new Event('input', { bubbles: true })); return true })()`
-  const shots = [
+  const shots: [string, string, string, boolean][] = [
     ['repository-setup-plans', 'plans', 'Repository setup', false],
     ['repository-setup-plans-add', 'plans', 'Repository setup', true],
     ['repository-setup-single', 'single', 'Repository setup', false],

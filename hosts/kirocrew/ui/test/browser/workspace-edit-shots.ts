@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt
 // Full-app shots for the workspace edit and folder picker: the pencil's edit
 // form, then with Browse open, and the Add dialog's Browse, at 1280x800 and
 // 390x844, light and dark.
@@ -10,15 +9,15 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { buildHarness, shotCss } from './build.ts'
-import { findChrome, launch } from './chrome.ts'
+import { needChrome, launch, type Page } from './chrome.ts'
 
 const [out] = process.argv.slice(2)
 if (!out) process.exit(2)
 fs.mkdirSync(out, { recursive: true })
 const harness = await buildHarness({ hostCss: await shotCss() })
-const browser = await launch(findChrome())
-const wait = (page, ms = 400) => page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
-const click = (page, selector) => page.evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`)
+const browser = await launch(needChrome())
+const wait = (page: Page, ms = 400) => page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
+const click = (page: Page, selector: string) => page.evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`)
 try {
   const page = await browser.page()
   for (const [width, height] of [
@@ -33,7 +32,7 @@ try {
         await page.evaluate(`void (document.querySelector('[data-top-rail-list]') || document.querySelector('[data-top-rail-bar]').click())`)
         await wait(page)
       }
-      const name = (shot) => path.join(out, `${shot}-${width}-${theme}.png`)
+      const name = (shot: string) => path.join(out, `${shot}-${width}-${theme}.png`)
       await page.open(harness.url({ page: 'app', theme, needs: '12', specs: '1', activity: '1' }), { width, height, dark: theme === 'dark' })
       await page.until(`Boolean(document.querySelector('[data-shell-main]'))`)
       // Settings › Workspaces: the pencil, then Browse.

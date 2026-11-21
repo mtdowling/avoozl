@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt
 // Full-app screenshots at 1280x800 of the Specs page that does not scroll:
 // the list alone, a spec's Overview scrolled down (tab bar fixed), and a
 // document tab scrolled; light and dark.
@@ -8,7 +7,7 @@ import path from 'node:path'
 import { click, startShots } from './shots.ts'
 
 const { out, harness, browser } = await startShots('specs-scroll-shots.mjs <out dir>')
-const scroll = (selector, to) => `document.querySelector(${JSON.stringify(selector)}).scrollTop = ${to}`
+const scroll = (selector: string, to: number | string) => `document.querySelector(${JSON.stringify(selector)}).scrollTop = ${to}`
 try {
   const page = await browser.page()
   const settle = () => page.evaluate('new Promise((r) => setTimeout(r, 400))')

@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt
 // Screenshots of one harness page (?page=<name>) at 320, 768 and 1280 px
 // wide, light and dark: <out>/<name>-<width>-<theme>.png.
 //

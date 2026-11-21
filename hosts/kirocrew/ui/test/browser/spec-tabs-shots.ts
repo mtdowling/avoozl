@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt
 // Full-app screenshots of a spec's page (&stored=1), one per tab: Overview,
 // Tasks, and each document; 1280 and 390 px, light and dark.
 //   node test/browser/spec-tabs-shots.mjs <out dir>

@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt
 // Full-page screenshots of Settings pages on the
 // harness page with sample data, at 320, 768 and 1280 px wide, light and
 // dark: <out>/<page>-<width>-<theme>.png. `--open` also opens every fold.
@@ -39,7 +38,7 @@ try {
         await page.until(`Boolean(document.querySelector('[data-settings-page] button, [data-settings-page] input, [data-modal] button, [data-github-rate]'))`)
         if (open) await page.evaluate(`(() => { document.querySelectorAll('[data-settings-page] details').forEach((d) => (d.open = true)); return true })()`)
         await page.evaluate('new Promise((r) => setTimeout(r, 150))')
-        const height = await page.evaluate('Math.ceil(document.documentElement.scrollHeight)')
+        const height = await page.evaluate<number>('Math.ceil(document.documentElement.scrollHeight)')
         await page.open(harness.url({ page: name, theme }), { width, height, dark: theme === 'dark' })
         await page.until(`Boolean(document.querySelector('[data-settings-page] button, [data-settings-page] input, [data-modal] button, [data-github-rate]'))`)
         if (open) await page.evaluate(`(() => { document.querySelectorAll('[data-settings-page] details').forEach((d) => (d.open = true)); return true })()`)
