@@ -1,17 +1,36 @@
-// @ts-nocheck: typing debt
 // The Recipe Box sample specs the page tests' sample workspace drafts
 // (demo-fixture.mjs). Every name in them is made up. Test only.
 import { taskToken } from "../specs/spec-refs.ts";
 
 // A task item and its done bullets (simplify §D20); a person's task ends
 // its title with the tag.
-const item = (id, title, { acceptance = [], manual = false }) =>
+// One task's manifest entry.
+interface Leaf {
+  repository: string;
+  acceptance: string[];
+  summary?: string[];
+  manual?: boolean;
+  requires?: string[];
+}
+// One sample spec: its phases of [id, title] items and their entries.
+interface SampleSpec {
+  title: string;
+  goal: string;
+  phases: [string, [string, string][]][];
+  manifest: Record<string, Leaf>;
+}
+
+const item = (
+  id: string,
+  title: string,
+  { acceptance = [], manual = false }: Partial<Leaf>,
+) =>
   [
     `- [ ] ${taskToken(id)} ${title}${manual ? " (**MANUAL**)" : ""}`,
     ...acceptance.map((line) => `  - ${line}`),
   ].join("\n");
 
-const leaf = (done, extra = {}) => ({
+const leaf = (done: string, extra: Partial<Leaf> = {}): Leaf => ({
   repository: "app",
   acceptance: [done],
   ...extra,
@@ -20,7 +39,7 @@ const leaf = (done, extra = {}) => ({
 // Three specs under one epic, each with phases from tasks.md headings.
 // `word` says what the sample is in its own text: "demo" or "example".
 export function sampleSpecs({ word = "demo" } = {}) {
-  const specs = {
+  const specs: Record<string, SampleSpec> = {
     "recipe-import": {
       title: "Recipe import",
       goal: "Paste a link to a recipe and get a clean recipe card.",
@@ -100,13 +119,13 @@ export function sampleSpecs({ word = "demo" } = {}) {
       },
     },
   };
-  const files = {};
+  const files: Record<string, Record<string, string>> = {};
   for (const [name, spec] of Object.entries(specs)) {
     const lines = ["---", "repo: app", "---", "# Tasks", ""];
     for (const [phase, items] of spec.phases) {
       lines.push(`## ${phase}`, "");
       for (const [id, title] of items)
-        lines.push(item(id, title, spec.manifest[id]));
+        lines.push(item(id, title, spec.manifest[id] ?? {}));
       lines.push("");
     }
     files[name] = {
@@ -123,7 +142,7 @@ export function sampleSpecs({ word = "demo" } = {}) {
     "tasks.md": `# Plans\n\n${members
       .map(
         (m, i) =>
-          `- [ ] \`rb-${i + 1}\` Build [${specs[m].title}](../${m}/tasks.md)\n`,
+          `- [ ] \`rb-${i + 1}\` Build [${specs[m]?.title}](../${m}/tasks.md)\n`,
       )
       .join("")}`,
   };
