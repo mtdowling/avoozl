@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // `avoozl next` buckets, one writer for every surface, and decisions and
 // failures on the app's notification channels with a link to the session
 // (tasks 2.14 and 2.12; moved from the Crew Mode runner tests by worker-paths
@@ -8,31 +7,59 @@ import { execFileSync } from "node:child_process";
 import { createHmac } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
+import type { Edge, Task } from "../../types.ts";
 import { fileURLToPath } from "node:url";
 import { workspaceConfig } from "../settings/config.ts";
 import { handleMcp } from "../mcp/mcp.ts";
 import {
   gatewayPusher,
+  type NotificationRow,
   notificationPayload,
   sessionUrl,
 } from "../tick/notifications.ts";
 import { Operations } from "../api/operations.ts";
-import { Store } from "../store/store.ts";
+import type { SessionBinding } from "../sessions/session-bindings.ts";
+import { Store, type StatusError } from "../store/store.ts";
 import { snapshot } from "./fixtures.ts";
 import { temporaryDirectory } from "./temporary.ts";
 import { loopOn } from "./fixtures.ts";
+import { found, type TickResult } from "./view-shapes.ts";
+
+// One row of runner.next, for the fields read here.
+interface Row {
+  id: string;
+  repository?: string;
+  reason?: string;
+  detail?: string;
+  link?: string;
+  blockedBy?: Row[];
+}
+interface NextView {
+  ready: Row[];
+  running: Row[];
+  needsYou: Row[];
+  done: Row[];
+  waiting: Row[];
+  finished: boolean;
+}
+// What notifications.deliver answers.
+interface Delivered {
+  sent: number;
+  queued: number;
+  dormant?: boolean;
+}
 
 // The tick starts and lands work only with the server loop on.
 loopOn();
 
 const cli = fileURLToPath(new URL("../../../cli.ts", import.meta.url));
 
-function git(cwd, ...args) {
+function git(cwd: string, ...args: string[]) {
   return execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
 }
 
-const leaf = (id, extra = {}) => ({
+const leaf = (id: string, extra: Record<string, unknown> = {}): Task => ({
   id,
   title: "Task " + id,
   kind: "leaf",
@@ -47,15 +74,18 @@ const leaf = (id, extra = {}) => ({
   ...extra,
 });
 
-const requires = (from, to) => ({
+const requires = (from: string, to: string): Edge => ({
   id: `${from}-${to}`,
   from,
   to,
   kind: "requires",
 });
 
-function isolatedEnv(dir) {
-  const env = { ...process.env, XDG_CONFIG_HOME: path.join(dir, "config") };
+function isolatedEnv(dir: string) {
+  const env: NodeJS.ProcessEnv = {
+    ...process.env,
+    XDG_CONFIG_HOME: path.join(dir, "config"),
+  };
   for (const name of Object.keys(env))
     if (
       /^(AVOOZL|AICOMMANDER|NUPP_WORKSPACE)_|^NUPP_WORKSPACE$|^PORT$/.test(name)
@@ -66,8 +96,18 @@ function isolatedEnv(dir) {
 
 // A workspace at the CLI's default database path with a real checkout `app`.
 function setup(
-  t,
-  { tasks = [leaf("a")], edges = [], delivery = {}, lanes = { local: 4 } } = {},
+  t: TestContext,
+  {
+    tasks = [leaf("a")],
+    edges = [],
+    delivery = {},
+    lanes = { local: 4 },
+  }: {
+    tasks?: Task[];
+    edges?: Edge[];
+    delivery?: Record<string, unknown>;
+    lanes?: Record<string, number>;
+  } = {},
 ) {
   const root = temporaryDirectory("avoozl-runner-"),
     checkout = path.join(root, "app");
@@ -102,17 +142,21 @@ function setup(
 }
 
 const local = { local: true };
-const as = (slot) => ({ caller: { sessionKey: "dashboard:" + slot } });
-const next = (ops) => ops.execute("runner.next", {});
-const ids = (rows) => rows.map((row) => row.id);
-const run = (root, ...args) =>
+const as = (slot: string) => ({ caller: { sessionKey: "dashboard:" + slot } });
+const next = (ops: Operations) => ops.execute<NextView>("runner.next", {});
+const ids = (rows: Row[] = []) => rows.map((row) => row.id);
+const run = (root: string, ...args: string[]) =>
   JSON.parse(
     execFileSync(process.execPath, [cli, ...args, "--workspace", root], {
       encoding: "utf8",
       env: isolatedEnv(root),
     }),
   );
-const tool = (name, input, sessionKey) => ({
+const tool = (
+  name: string,
+  input: Record<string, unknown>,
+  sessionKey?: string,
+) => ({
   jsonrpc: "2.0",
   id: 1,
   method: "tools/call",
@@ -166,7 +210,7 @@ test("avoozl next puts every local leaf in one bucket with what it waits on", as
     ["check", "review"],
     ["stuck", "blocked"],
   ]);
-  const question = view.needsYou.find((row) => row.id === "asks");
+  const question = found(view.needsYou.find((row) => row.id === "asks"));
   assert.equal(question.detail, "YAML or JSON?");
   assert.equal(question.link, "/chat?sid=w-asks");
   assert.deepEqual(ids(view.done).sort(), ["merged", "old"]);
@@ -194,11 +238,11 @@ test("every take and next goes through Operations.execute, and MCP may not take"
   // Nearby inputs: the CLI (another process, the local caller), the app's
   // MCP server (attested caller), and an unattested MCP call.
   const { root, store, ops } = setup(t, { tasks: [leaf("a"), leaf("b")] });
-  const executed = [],
+  const executed: string[] = [],
     execute = ops.execute.bind(ops);
-  ops.execute = (...args) => {
+  ops.execute = <T>(...args: Parameters<Operations["execute"]>) => {
     executed.push(args[0]);
-    return execute(...args);
+    return execute<T>(...args);
   };
   const viaCli = run(root, "take", "a");
   assert.equal(viaCli.binding.conductor, "cli");
@@ -209,15 +253,20 @@ test("every take and next goes through Operations.execute, and MCP may not take"
       ops,
       { attestedCaller },
     );
-    assert.equal(denied.body.result.isError, true);
+    assert.equal((denied.body?.result as { isError?: boolean }).isError, true);
   }
   const listed = await handleMcp(tool("plans_next", {}, "dashboard:c"), ops, {
     attestedCaller: true,
   });
-  assert.deepEqual(ids(listed.body.result.structuredContent.running), ["a"]);
+  const content = listed.body?.result as {
+    structuredContent: { running: Row[] };
+  };
+  assert.deepEqual(ids(content.structuredContent.running), ["a"]);
   assert.ok(executed.includes("runner.next"));
   assert.deepEqual(
-    store.list("session_bindings").map((b) => [b.taskId, b.source]),
+    store
+      .list<SessionBinding>("session_bindings")
+      .map((b) => [b.taskId, b.source]),
     [["a", "conductor"]],
   );
 });
@@ -226,7 +275,7 @@ test("the removed Crew Mode report command is refused as unknown and changes not
   // worker-paths WP7.1 (owner decision 2026-11-18): removed commands are
   // deleted, not answered.
   const { root, store } = setup(t);
-  let out;
+  let out: (Error & { status?: number; stderr?: string }) | undefined;
   try {
     execFileSync(
       process.execPath,
@@ -244,10 +293,11 @@ test("the removed Crew Mode report command is refused as unknown and changes not
       { encoding: "utf8", env: isolatedEnv(root) },
     );
   } catch (error) {
+    assert.ok(error instanceof Error);
     out = error;
   }
   assert.equal(out?.status, 1);
-  assert.match(out.stderr, /Unknown command or operation report/);
+  assert.match(String(out?.stderr), /Unknown command or operation report/);
   assert.deepEqual(store.list("session_bindings"), []);
 });
 
@@ -266,14 +316,15 @@ test("decisions and failures queue once on the app's channels with a link to the
     slot: "w-1",
     source: "tick",
   });
-  const page = await ops.execute("workspace.tick", {});
+  const page = await ops.execute<TickResult>("workspace.tick", {});
   assert.equal(store.list("app_notifications").length, 0, String(page.notify));
-  const stopped = await ops.execute("workspace.tick", {
+  const stopped = await ops.execute<TickResult>("workspace.tick", {
     sessions: [{ target: "w-1", status: "closed" }],
   });
-  assert.equal(stopped.notify.length, 1);
-  assert.equal(stopped.notify[0].link, "/chat?sid=w-1");
-  const rows = store.list("app_notifications");
+  const notify = found(stopped.notify);
+  assert.equal(notify.length, 1);
+  assert.equal(notify[0].link, "/chat?sid=w-1");
+  const rows = store.list<NotificationRow>("app_notifications");
   assert.equal(rows.length, 1);
   assert.deepEqual(rows[0].payload, {
     channel: "failure",
@@ -292,30 +343,33 @@ test("decisions and failures queue once on the app's channels with a link to the
     queued: 1,
     dormant: true,
   });
-  const pushed = [];
+  const pushed: unknown[] = [];
   let fail = true;
   const pushing = new Operations(store, {
-    notifier: async (payload) => {
+    notifier: async (payload: unknown) => {
       if (fail) throw Error("gateway down");
       pushed.push(payload);
     },
   });
-  const down = await pushing.execute("notifications.deliver", {});
+  const down = await pushing.execute<Delivered>("notifications.deliver", {});
   assert.deepEqual([down.sent, down.queued], [0, 1]);
   fail = false;
-  const up = await pushing.execute("notifications.deliver", {});
+  const up = await pushing.execute<Delivered>("notifications.deliver", {});
   assert.deepEqual([up.sent, up.queued], [1, 0]);
   assert.deepEqual(pushed, [rows[0].payload]);
-  assert.ok(store.list("app_notifications")[0].sentAt);
+  assert.ok(store.list<NotificationRow>("app_notifications")[0].sentAt);
 
   // The person resumes the stopped leaf.
-  const resumed = await ops.execute("delivery.retry", { taskId: "a" });
+  const resumed = await ops.execute<{ delivery: { state: string } }>(
+    "delivery.retry",
+    { taskId: "a" },
+  );
   assert.equal(resumed.delivery.state, "failed");
   await assert.rejects(
     ops.execute("delivery.retry", { taskId: "a" }),
-    (error) => error.status === 409,
+    (error: StatusError) => error.status === 409,
   );
-  const redo = await ops.execute("workspace.tick", {
+  const redo = await ops.execute<TickResult>("workspace.tick", {
     sessions: [{ target: "w-1", status: "closed" }],
   });
   assert.deepEqual(
@@ -341,25 +395,21 @@ test("the backend pushes to the gateway only on a proven origin, with an app tok
     gatewayPusher({ ...env, KIROCREW_GATEWAY_ORIGIN_PROOF: "0".repeat(64) }),
     null,
   );
-  const calls = [];
+  const calls: [string, Headers][] = [];
   let pushes = [401, 200];
-  const fetch = async (url, init) => {
-    calls.push([url, init.headers]);
-    if (url.endsWith("/token"))
-      return {
-        ok: true,
-        status: 200,
-        json: async () => ({ token: "t" + calls.length }),
-      };
-    const status = pushes.shift();
-    return { ok: status === 200, status, json: async () => ({}) };
+  const fetch = async (url: string | URL | Request, init?: RequestInit) => {
+    calls.push([String(url), new Headers(init?.headers)]);
+    if (String(url).endsWith("/token"))
+      return new Response(JSON.stringify({ token: "t" + calls.length }));
+    return new Response("{}", { status: pushes.shift() ?? 500 });
   };
-  const push = gatewayPusher(env, fetch),
+  const push = found(gatewayPusher(env, fetch)),
     payload = {
       channel: "decision",
       title: "T",
       body: "B",
       url: "/chat?sid=s",
+      group_key: "avoozl:t",
     };
   await push(payload);
   assert.deepEqual(
@@ -371,7 +421,7 @@ test("the backend pushes to the gateway only on a proven origin, with an app tok
       origin + "/api/notifications/push?token=t3",
     ],
   );
-  assert.equal(calls[0][1]["X-App-Secret"], secret);
+  assert.equal(calls[0][1].get("X-App-Secret"), secret);
   // A 403 is also exchanged once more (Kiro Crew 0.12.2.4); a second 403 stands.
   pushes = [403, 403];
   await assert.rejects(push(payload), /refused the notification \(403\)/);

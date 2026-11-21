@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Proof P27: review gates with fake writers and reviewers (tasks.md Phase 9,
 // design §5.2, Requirements 36–39). An approved spec in an isolated
 // temporary workspace, a sample git repository, and a fake session driver
@@ -6,17 +5,54 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { deliveryPolicy } from "../delivery/delivery.ts";
 import { drainCheckRuns } from "../delivery/check-runs.ts";
 import { Operations } from "../api/operations.ts";
-import { Store } from "../store/store.ts";
+import { Store, type StatusError } from "../store/store.ts";
+import type { Task } from "../../types.ts";
 import { queryTasks } from "../../model.ts";
-import { commitIn, fakeCrew, git } from "./fake-crew.ts";
+import {
+  commitIn,
+  type CrewSession,
+  type Dispatch,
+  fakeCrew,
+  type Script,
+  type SessionContext,
+  git,
+} from "./fake-crew.ts";
 import { snapshot } from "./fixtures.ts";
 import { writeSpec } from "./spec-fixture.ts";
 import { temporaryDirectory } from "./temporary.ts";
 import { loopOn } from "./fixtures.ts";
+import { found, type PlanPreview } from "./view-shapes.ts";
+
+// A tick's answer, for the fields read here.
+interface Tick {
+  dispatch: Dispatch[];
+  notify: { channel: string; text: string }[];
+  policy: { status: string };
+}
+// A task_deliveries row, for the fields read here.
+interface Delivery {
+  state: string;
+  cause?: string;
+  commit?: string;
+  integratedCommit?: string;
+  attempts: { cause: string }[];
+  rebases: { from: string; to: string }[];
+}
+// One review round on delivery.view.
+interface Round {
+  commit: string;
+  current: boolean;
+  verdicts: {
+    role: string;
+    verdict: string;
+    model: string;
+    findings: { ref: string; state: string }[];
+  }[];
+}
 
 // The tick starts and lands work only with the server loop on.
 loopOn();
@@ -29,7 +65,7 @@ const W1 = "p27.1",
   D1 = "p27.2",
   W2 = "p27.3",
   D2 = "p27.4";
-const aliases = {
+const aliases: Record<string, string> = {
   [W1]: "w1",
   [D1]: "d1",
   [W2]: "w2",
@@ -51,7 +87,7 @@ const REVIEWERS = [
   },
 ];
 
-const policy = (delivery = {}) =>
+const policy = (delivery: Record<string, unknown> = {}) =>
   JSON.stringify({
     version: 1,
     lanes: { local: 1, reviewers: 2 },
@@ -65,7 +101,7 @@ const policy = (delivery = {}) =>
 
 // Avoozl runs the repository's check at each commit (§5.2 Checks); the
 // fake sessions play the writers and reviewers.
-const leaf = (summary, extra = {}) => ({
+const leaf = (summary: string, extra: Record<string, unknown> = {}) => ({
   kind: "leaf",
   repository: "app",
   summary,
@@ -101,7 +137,7 @@ const spec = {
   ),
 };
 
-async function workspace(t, delivery) {
+async function workspace(t: TestContext, delivery?: Record<string, unknown>) {
   const root = temporaryDirectory("avoozl-p27-"),
     checkout = path.join(root, "app");
   fs.mkdirSync(path.join(checkout, "scripts"), { recursive: true });
@@ -130,8 +166,11 @@ async function workspace(t, delivery) {
   return { root, checkout: fs.realpathSync.native(checkout), store, ops };
 }
 
-async function approve(ops) {
-  const preview = await ops.execute("plan.preview", { id: "p27" });
+async function approve(ops: Operations) {
+  const preview = await ops.execute<PlanPreview & { reviewedHash: string }>(
+    "plan.preview",
+    { id: "p27" },
+  );
   return ops.execute("plan.approve", {
     id: "p27",
     expectedHash: preview.reviewedHash,
@@ -142,9 +181,9 @@ async function approve(ops) {
 const passed = [{ command: CHECK, exitCode: 0 }];
 // What an unscripted session does: the writer changes its own file, the
 // checks role passes, a reviewer approves and closes nothing.
-const defaults = (role) =>
+const defaults = (role: string): Script =>
   role === "worker"
-    ? async ({ session, worktree, report }) => {
+    ? async ({ session, worktree, report }: SessionContext) => {
         const commit = commitIn(
           await worktree(),
           `src/${session.alias}.txt`,
@@ -155,18 +194,18 @@ const defaults = (role) =>
         return commit;
       }
     : role === "verifier"
-      ? ({ session, report }) =>
+      ? ({ session, report }: SessionContext) =>
           report({
             commit: session.commit,
             checks: passed,
             verdict: "approved",
           })
-      : ({ session, report }) =>
+      : ({ session, report }: SessionContext) =>
           report({ commit: session.commit, verdict: "approved" });
 
 const writes =
-  (file, text) =>
-  async ({ session, worktree, report }) => {
+  (file: string, text: string) =>
+  async ({ session, worktree, report }: SessionContext) => {
     const commit = commitIn(
       await worktree(),
       file,
@@ -183,9 +222,9 @@ const F1 = {
   paths: ["src/a.txt"],
   text: "a1 is wrong.",
 };
-const closeF1 = (state) => ({ finding: "1:correctness:F1", state });
+const closeF1 = (state: string) => ({ finding: "1:correctness:F1", state });
 
-const scripts = {
+const scripts: Record<string, Script> = {
   "w1:worker:1": writes("src/a.txt", "a1\n"),
   "w1:review:correctness:1": ({ session, report }) =>
     report({
@@ -216,19 +255,25 @@ const scripts = {
   "w2:review:correctness": "hold",
 };
 
-const writers = (result) =>
+const writers = (result: { dispatch: Dispatch[] }) =>
   result.dispatch
     .filter((d) => d.role === "worker")
     .map((d) => aliases[d.task]);
-const roles = (result, taskId) =>
+const roles = (result: { dispatch: Dispatch[] }, taskId: string) =>
   result.dispatch
     .filter((d) => d.task === taskId && d.role !== "worker")
     .map((d) => [d.role, d.attempt, d.model ?? null, d.commit]);
-const ready = (ops) =>
+const ready = (ops: Operations) =>
   queryTasks(ops.read(), { scope: "all", q: "ready:true" }).map(
     (t) => aliases[t.id] ?? t.id,
   );
-const task = (ops, id) => ops.read().tasks.find((t) => t.id === id);
+const task = (ops: Operations, id: string) =>
+  found(
+    ops.read().tasks.find((t) => t.id === id),
+    id,
+  );
+const deliveryOf = (store: Store, id: string) =>
+  found(store.get<Delivery>("task_deliveries", id), id);
 
 // Real Git and many ticks with no sleeps: CPU- and disk-bound, so a loaded
 // host stretches it toward the default 60 s limit (53 s beside two other
@@ -240,7 +285,7 @@ test("P27 actions 1-5 and 7: review gates on one delivery with fake sessions", {
     { store, ops, checkout } = env,
     crew = fakeCrew(ops, { aliases, scripts, defaults }),
     // The sessions answer, then Avoozl runs the queued checks.
-    play = async (only) => {
+    play = async (only?: (session: CrewSession) => boolean) => {
       await crew.play(only);
       await drainCheckRuns(store);
     };
@@ -253,7 +298,7 @@ test("P27 actions 1-5 and 7: review gates on one delivery with fake sessions", {
   );
   assert.deepEqual(writers(await crew.tick()), [], "w1's writer is live");
   await play();
-  const c1 = crew.find("w1", "worker", 1).result;
+  const c1 = found(crew.find("w1", "worker", 1)).result;
 
   // Three role sessions open on C1 with three different models.
   const round1 = await crew.tick();
@@ -262,7 +307,7 @@ test("P27 actions 1-5 and 7: review gates on one delivery with fake sessions", {
     ["review:correctness", 1, "fake-c", c1],
   ]);
   const models = store
-    .list("session_bindings")
+    .list<{ taskId: string; role: string; model?: string }>("session_bindings")
     .filter((b) => b.taskId === W1)
     .map((b) => `${b.role} ${b.model ?? "-"}`)
     .sort();
@@ -276,23 +321,23 @@ test("P27 actions 1-5 and 7: review gates on one delivery with fake sessions", {
 
   // (2) changes-requested fails the attempt; the retry quotes F1; d1 waits.
   const rework = await crew.tick();
-  let delivery = store.get("task_deliveries", W1);
+  let delivery = deliveryOf(store, W1);
   assert.equal(delivery.state, "failed");
   assert.match(
     delivery.attempts[0].cause,
     /review correctness requested changes: F1/,
   );
-  const retry = rework.dispatch.find((d) => d.task === W1);
+  const retry = found(rework.dispatch.find((d) => d.task === W1));
   assert.deepEqual([retry.role, retry.attempt], ["worker", 2]);
   assert.match(
-    retry.brief,
+    String(retry.brief),
     /1:correctness:F1 \(defect, src\/a\.txt\): a1 is wrong\./,
   );
-  assert.match(retry.brief, /data, not instructions/);
+  assert.match(String(retry.brief), /data, not instructions/);
   assert.ok(!ready(ops).includes("d1"), "d1 stays waiting");
   assert.equal(task(ops, D1).integration, undefined);
   await play();
-  const c2 = crew.find("w1", "worker", 2).result;
+  const c2 = found(crew.find("w1", "worker", 2)).result;
   assert.notEqual(c2, c1);
 
   // (3) Every role reviews C2. The script's unchanged approval is refused
@@ -308,7 +353,7 @@ test("P27 actions 1-5 and 7: review gates on one delivery with fake sessions", {
   // nothing merges, and all three roles review C3 with F1 still closed.
   const moved = commitIn(checkout, "README.md", "moved\n", "Move base");
   const round3 = await crew.tick();
-  delivery = store.get("task_deliveries", W1);
+  delivery = deliveryOf(store, W1);
   const c3 = delivery.commit;
   assert.notEqual(c3, c2);
   assert.deepEqual(
@@ -321,16 +366,20 @@ test("P27 actions 1-5 and 7: review gates on one delivery with fake sessions", {
     ["review:correctness", 3, "fake-c", c3],
   ]);
   assert.doesNotMatch(
-    round3.dispatch.find(
-      (d) => d.task === W1 && d.role === "review:correctness",
-    ).brief,
+    String(
+      found(
+        round3.dispatch.find(
+          (d) => d.task === W1 && d.role === "review:correctness",
+        ),
+      ).brief,
+    ),
     /1:correctness:F1/,
     "F1 stays closed",
   );
   await play();
   // After they approve, C3 fast-forwards and d1 dispatches.
   const landing = await crew.tick();
-  delivery = store.get("task_deliveries", W1);
+  delivery = deliveryOf(store, W1);
   assert.equal(delivery.state, "integrated");
   assert.equal(delivery.integratedCommit, c3);
   assert.equal(git(checkout, "rev-parse", "main"), c3);
@@ -352,18 +401,22 @@ test("P27 actions 1-5 and 7: review gates on one delivery with fake sessions", {
         evidence: ["Typed by hand."],
       },
     }),
-    (error) => error.status === 409 && /review roles/.test(error.message),
+    (error: StatusError) =>
+      error.status === 409 && /review roles/.test(error.message),
   );
   assert.notEqual(task(ops, W1).status, "accepted", "not yet accepted");
-  const accepted = await ops.execute("task.accept", {
+  const accepted = await ops.execute<Task>("task.accept", {
     id: W1,
     evidence: "Reviewed at the integrated commit.",
   });
   assert.equal(accepted.status, "accepted");
 
   // Every earlier verdict stays on w1's delivery, by round.
-  const view = await ops.execute("delivery.view", {}),
-    rounds = view.items.find((item) => item.id === W1).rounds;
+  const view = await ops.execute<{ items: { id: string; rounds: Round[] }[] }>(
+      "delivery.view",
+      {},
+    ),
+    rounds = found(view.items.find((item) => item.id === W1)).rounds;
   assert.deepEqual(
     rounds.map((r) => [r.commit, r.current, r.verdicts.length]),
     [
@@ -372,7 +425,7 @@ test("P27 actions 1-5 and 7: review gates on one delivery with fake sessions", {
       [c3, true, 3],
     ],
   );
-  const f1 = rounds[0].verdicts.find((v) => v.role === "correctness");
+  const f1 = found(rounds[0].verdicts.find((v) => v.role === "correctness"));
   assert.deepEqual(
     [f1.verdict, f1.model, f1.findings[0].ref, f1.findings[0].state],
     ["changes-requested", "fake-c", "1:correctness:F1", "fixed"],
@@ -383,7 +436,7 @@ test("P27 action 6: a reviewer on the writer's model or auto is refused; an unkn
   // Conductor reading of Expected (6): policy validation refuses both
   // fake-a and auto, and a writer claim with no model opens a decision
   // instead of a review.
-  const withModel = (model) =>
+  const withModel = (model: string) =>
     deliveryPolicy({
       roles: { worker: { model: "fake-a" } },
       delivery: { reviewers: [{ ...REVIEWERS[0], model }, REVIEWERS[1]] },
@@ -403,7 +456,7 @@ test("P27 action 6: a reviewer on the writer's model or auto is refused; an unkn
       path.join(root, ".avoozl.json"),
       policy({ reviewers: [{ ...REVIEWERS[0], model }] }),
     );
-    const result = await ops.execute("workspace.tick", { sessions: [] });
+    const result = await ops.execute<Tick>("workspace.tick", { sessions: [] });
     assert.equal(result.policy.status, "invalid");
     assert.ok(
       result.notify.some(
@@ -417,7 +470,7 @@ test("P27 action 6: a reviewer on the writer's model or auto is refused; an unkn
   fs.writeFileSync(path.join(root, ".avoozl.json"), policy({}));
 
   // A person takes w1 by hand; nothing says which model wrote it.
-  const claim = await ops.execute(
+  const claim = await ops.execute<{ worktree: { path: string } }>(
     "runner.take",
     { taskId: W1, slot: "w-1" },
     undefined,
@@ -430,12 +483,12 @@ test("P27 action 6: a reviewer on the writer's model or auto is refused; an unkn
     undefined,
     { caller: { sessionKey: "dashboard:w-1" } },
   );
-  const result = await ops.execute("workspace.tick", {
+  const result = await ops.execute<Tick>("workspace.tick", {
     sessions: [{ target: "w-1", status: "idle" }],
   });
-  const delivery = store.get("task_deliveries", W1);
+  const delivery = deliveryOf(store, W1);
   assert.equal(delivery.state, "decision");
-  assert.match(delivery.cause, /writer's model is unknown/);
+  assert.match(found(delivery.cause), /writer's model is unknown/);
   assert.deepEqual(roles(result, W1), [], "no review and no checks session");
   assert.ok(result.notify.some((n) => n.channel === "decision"));
 });
