@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Every role on `process` (R97.3, R94.4, design §4.28): reviewer, responder,
 // decide and assistant children, read-only roles in the read-only class, and
 // each role's result read back from its result file.
@@ -8,6 +7,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import type { TestContext } from "node:test";
 import { fileURLToPath } from "node:url";
 import {
   fillHarnessArgv,
@@ -24,6 +24,7 @@ import { enqueueSessionRequests } from "../../sessions/session-requests.ts";
 import { snapshot } from "../../test/fixtures.ts";
 import { initCheckout, openFakeSupervisor } from "./process-machine.ts";
 import { Store } from "../../store/store.ts";
+import type { SessionBinding } from "../../sessions/session-bindings.ts";
 
 const CLAUDE = fileURLToPath(
   new URL("../../../../examples/harnesses/claude-code.json", import.meta.url),
@@ -36,7 +37,7 @@ test("Claude Code's read class is dontAsk and may write only its result file", (
   assert.equal(definition.permission.read, "dontAsk");
   // Absolute from the session's folder: a relative rule moves with `cd`.
   assert.deepEqual(
-    fillHarnessArgv(definition.resultAllow, { worktree: "/w" }),
+    fillHarnessArgv(definition.resultAllow ?? [], { worktree: "/w" }),
     [
       "--allowedTools",
       "Edit(//w/.avoozl/result.json)",
@@ -100,7 +101,9 @@ test("no child is moved off its folder: briefs say no cd, result rules are absol
     JSON.parse(fs.readFileSync(CLAUDE, "utf8")),
   );
   const worktree = "/private/var/folders/x/T/avoozl-review-a";
-  for (const rule of fillHarnessArgv(definition.resultAllow, { worktree }))
+  for (const rule of fillHarnessArgv(definition.resultAllow ?? [], {
+    worktree,
+  }))
     if (rule !== "--allowedTools")
       assert.ok(rule.startsWith(`Edit(/${worktree}/.avoozl/`), rule);
 });
@@ -140,10 +143,10 @@ const result = /RESULT:(.+)/.exec(text);
 if (result) fs.writeFileSync(".avoozl/result.json", result[1]);
 `;
 
-const gitIn = (cwd, ...args) =>
+const gitIn = (cwd: string, ...args: string[]) =>
   execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
 
-function machine(t) {
+function machine(t: TestContext) {
   const root = fs.realpathSync(
     fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-roles-")),
   );
@@ -181,7 +184,7 @@ function machine(t) {
     });
   });
   const data = snapshot();
-  data.tasks[0].repository = "app";
+  Object.assign(data.tasks[0], { repository: "app" });
   store.initialize(data);
   store.put("repositories", {
     id: "app",
@@ -189,7 +192,7 @@ function machine(t) {
     executor: "process",
     harness: "fake-cli",
   });
-  const log = (slot) => {
+  const log = (slot: string) => {
     const file = path.join(
       supervisorPaths(stateDirectory).children,
       slot,
@@ -200,7 +203,11 @@ function machine(t) {
   return { root, stateDirectory, checkout, supervisor, store, log };
 }
 
-async function settle({ store, supervisor, stateDirectory }, ops, slot) {
+async function settle(
+  { store, supervisor, stateDirectory }: ReturnType<typeof machine>,
+  ops: unknown,
+  slot: string,
+) {
   const end = Date.now() + 30_000;
   for (;;) {
     supervisor.pass();
@@ -238,14 +245,17 @@ test("a reviewer runs read-only in a detached worktree Avoozl adds, and its verd
       },
     ],
   });
-  const reports = [];
-  const ops = { execute: async (name, input) => reports.push({ name, input }) };
+  const reports: { name: string; input: unknown }[] = [];
+  const ops = {
+    execute: async (name: string, input: unknown) =>
+      reports.push({ name, input }),
+  };
   const { errors } = await drainProcessRequests(m.store, {
     stateDirectory: m.stateDirectory,
     ops,
   });
   assert.deepEqual(errors, []);
-  const [binding] = m.store.list("session_bindings");
+  const [binding] = m.store.list<SessionBinding>("session_bindings");
   assert.equal(binding.permissionClass, "read");
   assert.equal(gitIn(worktree, "rev-parse", "HEAD"), commit);
   assert.deepEqual(await settle(m, ops, binding.slot), []);
@@ -311,7 +321,7 @@ test("a process repository's review requests name process", (t) => {
     path.join(root, ".avoozl-worktrees", "avoozl-sample-task-review-c-1"),
   );
   assert.ok(
-    review.brief.includes("a".repeat(40)),
+    review.brief?.includes("a".repeat(40)),
     "the brief names the commit",
   );
 });

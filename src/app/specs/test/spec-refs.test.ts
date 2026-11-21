@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Task IDs as code spans and the requirement and design refs on a tasks.md
 // item (Requirement 115): parsed out of the title, checked against the
 // spec's own files, and carried on each proposal.
@@ -14,6 +13,12 @@ import {
 } from "../spec-refs.ts";
 import { fixture } from "../../test/fixtures.ts";
 import { legacySpecFiles, writeSpec } from "../../test/spec-fixture.ts";
+import {
+  found,
+  type GraphView,
+  type PlanDraft,
+  type PlanPreview,
+} from "../../test/view-shapes.ts";
 
 const REQUIREMENTS = [
   "# Requirements",
@@ -48,7 +53,7 @@ const DESIGN = [
   "## 9. Inside a fence",
   "```",
 ].join("\n");
-const spec = (tasks) => ({
+const spec = (tasks: string) => ({
   name: "config",
   exists: true,
   files: {
@@ -57,7 +62,7 @@ const spec = (tasks) => ({
     "tasks.md": `---\nrepo: app\n---\n# Tasks\n\n${tasks}`,
   },
 });
-const problems = (parsed) =>
+const problems = (parsed: ReturnType<typeof parseSpec>) =>
   parsed.diagnostics
     .filter((d) => d.severity === "error")
     .map((d) => `${d.code} ${d.file}:${d.lineStart} ${d.message}`);
@@ -174,7 +179,7 @@ test("every ref must exist in the spec, and lint names the ref, file and line", 
     new Set(parsed.diagnostics.map((d) => d.id)).size,
     parsed.diagnostics.length,
   );
-  const ok = parsed.proposals.find((p) => p.id === "ok-1");
+  const ok = found(parsed.proposals.find((p) => p.id === "ok-1"));
   assert.equal(ok.title, "Fine");
   assert.deepEqual(ok.refs, [
     { kind: "requirement", ref: "R1", file: "requirements.md", line: 7 },
@@ -200,7 +205,7 @@ test("a ref is checked only when its file exists, and names a missing file", () 
       "  - Broken",
     ].join("\n"),
     full = spec(tasks),
-    only = (drop) => ({
+    only = (drop: string[]) => ({
       ...full,
       files: Object.fromEntries(
         Object.entries(full.files).filter(([file]) => !drop.includes(file)),
@@ -237,7 +242,7 @@ test("a ref is checked only when its file exists, and names a missing file", () 
 });
 
 test("refs and the ID's form are part of the revision hash", () => {
-  const files = (line) => spec(`${line}\n  - Fine\n`).files;
+  const files = (line: string) => spec(`${line}\n  - Fine\n`).files;
   const base = specHash(files("- [ ] `ok-1` Fine [R1] (§D1)"));
   assert.notEqual(specHash(files("- [ ] `ok-1` Fine [R1.1] (§D1)")), base);
   assert.notEqual(specHash(files("- [ ] `ok-1` Fine [R1]")), base);
@@ -256,8 +261,8 @@ test("approval puts a task's refs on it, and graph.view shows them", async (t) =
       "1.2 Validate loaded config [R1.2] (§D1)",
     ),
   });
-  const plan = await ops.execute("plan.create", { spec: "config" }),
-    preview = await ops.execute("plan.preview", { id: "config" });
+  const plan = await ops.execute<PlanDraft>("plan.create", { spec: "config" }),
+    preview = await ops.execute<PlanPreview>("plan.preview", { id: "config" });
   await ops.execute("plan.approve", {
     id: "config",
     expectedHash: plan.hash,
@@ -267,13 +272,16 @@ test("approval puts a task's refs on it, and graph.view shows them", async (t) =
     { kind: "requirement", ref: "R1.2", file: "requirements.md", line: 12 },
     { kind: "design", ref: "§D1", file: "design.md", line: 7 },
   ];
-  const task = store.read().tasks.find((row) => row.id === "config.1.2");
+  const task = found(store.read().tasks.find((row) => row.id === "config.1.2"));
   assert.equal(task.title, "Validate loaded config");
   assert.deepEqual(task.refs, refs);
-  const graph = await ops.execute("graph.view", {});
+  const graph = await ops.execute<GraphView>("graph.view", {});
   assert.deepEqual(
-    graph.tasks.find((row) => row.id === "config.1.2").refs,
+    found(graph.tasks.find((row) => row.id === "config.1.2")).refs,
     refs,
   );
-  assert.deepEqual(graph.tasks.find((row) => row.id === "config.1.1").refs, []);
+  assert.deepEqual(
+    found(graph.tasks.find((row) => row.id === "config.1.1")).refs,
+    [],
+  );
 });
