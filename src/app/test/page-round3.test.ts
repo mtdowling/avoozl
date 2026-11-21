@@ -1,10 +1,11 @@
-// @ts-nocheck: typing debt
 // Round 3 of the app page: the plan and repository filters, Start now, the
 // tick log, Recent activity and the "Ask in a chat" seed.
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
+import type { Edge, Task } from "../../types.ts";
+import type { StoredSnapshot } from "../store/store.ts";
 import { Operations } from "../api/operations.ts";
 import { principalAllows } from "../executors/kirocrew/app-backend.ts";
 import { classifyOperation } from "../api/operation-table.ts";
@@ -12,8 +13,9 @@ import { readyLeaves } from "../delivery/delivery.ts";
 import { specOf } from "../api/page-views.ts";
 import { tickLogEntry } from "../tick/tick.ts";
 import { fixture, snapshot } from "./fixtures.ts";
+import type { GraphView } from "./view-shapes.ts";
 
-const leaf = (id, extra = {}) => ({
+const leaf = (id: string, extra: Record<string, unknown> = {}): Task => ({
   id,
   title: "Task " + id,
   scope: "catalog",
@@ -25,9 +27,35 @@ const leaf = (id, extra = {}) => ({
   ...extra,
 });
 
-function workspace(t, { delivery = {}, tasks, edges = [] } = {}) {
+// What these operations answer, for the fields read here.
+interface Started {
+  full: boolean;
+  message: string;
+}
+interface Items<T> {
+  items: T[];
+}
+interface Line {
+  at: string;
+  level: string;
+  taskId?: string;
+  text?: string;
+}
+
+function workspace(
+  t: TestContext,
+  {
+    delivery = {},
+    tasks,
+    edges = [],
+  }: {
+    delivery?: Record<string, unknown> | null;
+    tasks?: Task[];
+    edges?: Edge[];
+  } = {},
+) {
   const { root, store } = fixture(t),
-    data = snapshot(),
+    data: StoredSnapshot = snapshot(),
     checkout = path.join(root, "checkout");
   fs.mkdirSync(checkout, { recursive: true });
   data.tasks = tasks ?? [
@@ -65,12 +93,12 @@ test("graph.view names each task's spec and its place in the dispatch order", as
   const { store, ops } = workspace(t, {
     edges: [{ id: "a:requires:c", from: "a", to: "c", kind: "requires" }],
   });
-  const graph = await ops.execute("graph.view", {});
+  const graph = await ops.execute<GraphView>("graph.view", {});
   const ready = graph.tasks.filter(
     (task) => task.ready && task.kind === "leaf",
   );
   const pageOrder = [...ready]
-    .sort((x, y) => x.order - y.order)
+    .sort((x, y) => Number(x.order) - Number(y.order))
     .map((task) => task.id);
   const tickOrder = readyLeaves(
     store,
@@ -88,7 +116,7 @@ test("graph.view names each task's spec and its place in the dispatch order", as
 
 test("task.start puts a ready task first in line, or says the workspace is full", async (t) => {
   const { store, ops } = workspace(t);
-  const first = await ops.execute("task.start", { taskId: "d" });
+  const first = await ops.execute<Started>("task.start", { taskId: "d" });
   assert.equal(first.full, false);
   assert.match(first.message, /next tick/);
   assert.equal(
@@ -102,7 +130,7 @@ test("task.start puts a ready task first in line, or says the workspace is full"
     source: "tick",
   });
   await ops.execute("session.status", { slot: "slot-d-1", status: "working" });
-  const full = await ops.execute("task.start", { taskId: "c" });
+  const full = await ops.execute<Started>("task.start", { taskId: "c" });
   assert.equal(full.full, true);
   assert.match(full.message, /All slots are busy/);
   await assert.rejects(
@@ -132,11 +160,13 @@ test("tick log lines carry a time and a level, newest first", async (t) => {
   const { ops } = workspace(t);
   await ops.execute("workspace.tick", {});
   await ops.execute("workspace.tick", {});
-  const log = await ops.execute("workspace.tick.log", { limit: 1 });
+  const log = await ops.execute<Items<Line>>("workspace.tick.log", {
+    limit: 1,
+  });
   assert.equal(log.items.length, 1);
   assert.equal(log.items[0].level, "info");
   assert.ok(log.items[0].at);
-  const all = await ops.execute("workspace.tick.log", {});
+  const all = await ops.execute<Items<Line>>("workspace.tick.log", {});
   assert.equal(all.items.length, 2);
   assert.ok(all.items[0].at >= all.items[1].at);
   assert.equal(tickLogEntry({ outcome: "locked" }).level, "warn");
@@ -150,12 +180,14 @@ test("activity.recent lists task events newest first", async (t) => {
   const { ops } = workspace(t);
   await ops.execute("session.bind", { taskId: "a", slot: "slot-a-1" });
   await ops.execute("session.status", { slot: "slot-a-1", status: "working" });
-  const { items } = await ops.execute("activity.recent", { limit: 3 });
+  const { items } = await ops.execute<Items<Line>>("activity.recent", {
+    limit: 3,
+  });
   assert.ok(items.length >= 1 && items.length <= 3);
   assert.ok(items.every((item, i) => i === 0 || items[i - 1].at >= item.at));
   assert.ok(
     items.some(
-      (item) => item.taskId === "a" && /worker attempt 1/.test(item.text),
+      (item) => item.taskId === "a" && /worker attempt 1/.test(item.text ?? ""),
     ),
   );
 });
@@ -165,14 +197,14 @@ test("chat.context seeds a chat with the item, its task, plan and history, and w
     tasks: [leaf("x", { decision: "Pick a format", repositoryId: "app" })],
   });
   const before = store.read().revision;
-  const { message } = await ops.execute("chat.context", {
+  const { message } = await ops.execute<{ message: string }>("chat.context", {
     items: [{ kind: "decision", taskId: "x" }],
   });
   assert.match(message, /Open decision|Why: Pick a format/);
   assert.match(message, /Task x \(x\)/);
   assert.match(message, /History/);
   assert.match(message, /Do not change anything/);
-  const gone = await ops.execute("chat.context", {
+  const gone = await ops.execute<{ message: string }>("chat.context", {
     items: [{ kind: "decision", taskId: "nope" }],
   });
   assert.match(gone.message, /no longer open/);
@@ -206,7 +238,10 @@ test("highlight.languages reads grammar files inside the workspace only", async 
       },
     }),
   );
-  const result = await ops.execute("highlight.languages", {});
+  const result = await ops.execute<{
+    languages: Record<string, { tokens: { type: string }[] }>;
+    problems: string[];
+  }>("highlight.languages", {});
   assert.deepEqual(Object.keys(result.languages), ["nupp"]);
   assert.equal(result.languages.nupp.tokens[0].type, "keyword");
   assert.equal(result.problems.length, 3);

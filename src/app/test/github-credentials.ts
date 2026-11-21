@@ -1,4 +1,4 @@
-// @ts-nocheck: typing debt
+import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { machineCredentials } from "../github/github-credentials.ts";
@@ -25,7 +25,15 @@ export function fixedCredentials(
   return {
     host: "github.com",
     available: () => true,
-    async token({ repository = null, owner = null, job }) {
+    async token({
+      repository = null,
+      owner = null,
+      job,
+    }: {
+      repository?: string | null;
+      owner?: string | null;
+      job: string;
+    }) {
       return {
         token,
         login,
@@ -49,13 +57,13 @@ export function fixedCredentials(
 
 // `client` whose calls run as `job` unless the code under test already
 // bound one (an operation entry, a tick step or a write site's own job).
-export function defaultJob(job, client) {
-  const proxy = new Proxy(client, {
+export function defaultJob<T extends object>(job: string, client: T): T {
+  const proxy: T = new Proxy(client, {
     get(target, prop, receiver) {
-      const value = target[prop],
+      const value: unknown = Reflect.get(target, prop),
         self = receiver === proxy ? target : receiver;
       if (typeof value !== "function") return value;
-      return (...args) => {
+      return (...args: unknown[]) => {
         const run = () => value.apply(self, args),
           result = currentJob() ? run() : withJob(job, run);
         return result === target ? proxy : result;
@@ -67,14 +75,17 @@ export function defaultJob(job, client) {
 
 // Runs `fn` as the high-risk `job` on `target` with a person's Allow, as
 // the confirm makes it (plugin-credentials §D7).
-export function granted(job, target, fn) {
+export function granted<T>(job: string, target: string, fn: () => T) {
   const grants = new Grants().allow([confirmStep({ job, target })]);
   return withJob(job, fn, grants);
 }
 
 // Runs `fn` with a person's Allow for every high-risk step in `steps` (a
 // setup preview's writes), as the confirm modal's Allow makes them.
-export function allowing(steps, fn) {
+export function allowing<T>(
+  steps: ReturnType<typeof confirmStep>[],
+  fn: () => T,
+) {
   const grants = new Grants().allow(
     steps.filter((step) => step.risk === "high"),
   );
@@ -92,16 +103,25 @@ export const MANIFEST = JSON.parse(
 );
 
 // A fake GitHub /user: the login a token signs in as.
-const fakeFetch = (seen = []) =>
-  async function (url, init) {
-    const auth = init?.headers?.Authorization || "";
+const fakeFetch = (seen: { path: string; auth: string }[] = []) =>
+  async function (url: string | URL | Request, init?: RequestInit) {
+    // The client sends a plain headers object.
+    const headers = init?.headers,
+      auth =
+        headers && !(headers instanceof Headers) && !Array.isArray(headers)
+          ? String(headers.Authorization || "")
+          : "";
     seen.push({ path: new URL(String(url)).pathname, auth });
     const login = auth.includes("env-token") ? "env-person" : "mtdowling";
     return new Response(JSON.stringify({ login }), { status: 200 });
   };
 
 // A plugin folder made from the fixture, with manifest changes.
-export function pluginFolder(root, id, manifest = {}) {
+export function pluginFolder(
+  root: string,
+  id: string,
+  manifest: Record<string, unknown> = {},
+) {
   const folder = path.join(root, id);
   fs.cpSync(FIXTURE, folder, { recursive: true });
   fs.writeFileSync(
@@ -116,6 +136,13 @@ export function pluginFolder(root, id, manifest = {}) {
 export function credentialsMachine({
   plugins = [],
   ghToken = "gh-token-1",
+}: {
+  plugins?: {
+    id?: string;
+    manifest?: Record<string, unknown>;
+    config?: Record<string, unknown>;
+  }[];
+  ghToken?: string | null;
 } = {}) {
   const root = temporaryDirectory("avoozl-credentials-"),
     settingsFile = path.join(root, "config", "plugins.json"),
@@ -143,9 +170,13 @@ ${ghToken === null ? "process.exit(1);" : `await new Promise((r) => setTimeout(r
     options,
     approve(id = "acme-github") {
       const p = inspectPlugins(options).find((x) => x.id === id);
+      assert.ok(p && "version" in p && "hash" in p, `${id} has no hash`);
       return approvePlugin(options, { id, version: p.version, hash: p.hash });
     },
-    credentials(env = {}, extra = {}) {
+    credentials(
+      env: NodeJS.ProcessEnv = {},
+      extra: Parameters<typeof machineCredentials>[0] = {},
+    ) {
       return machineCredentials({
         settingsFile,
         apiUrl: "https://api.github.com",
@@ -171,7 +202,13 @@ ${ghToken === null ? "process.exit(1);" : `await new Promise((r) => setTimeout(r
   };
 }
 
-export const call = (credentials, repository, job = "check-in") =>
+export const call = (
+  credentials: {
+    token(input: { repository: string; owner: string; job: string }): unknown;
+  },
+  repository: string,
+  job = "check-in",
+) =>
   credentials.token({
     repository,
     owner: repository.split("/")[0],

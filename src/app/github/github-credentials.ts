@@ -280,6 +280,20 @@ export function machineCredentials({
     inspectPlugins({ workspaceRoot: null, settingsFile }),
   settings: readSettings = () => readPluginSettings(settingsFile),
   now = Date.now,
+}: {
+  settingsFile?: string;
+  apiUrl?: string;
+  gitUrl?: string;
+  fetch?: typeof fetch;
+  env?: NodeJS.ProcessEnv;
+  // "gh", or [program, ...arguments] that stands in for it.
+  ghCommand?: string | string[];
+  timeoutMs?: number;
+  guard?: boolean;
+  checkListeners?: typeof listeningSockets;
+  plugins?: () => ReturnType<typeof inspectPlugins>;
+  settings?: () => ReturnType<typeof readPluginSettings>;
+  now?: () => number;
 } = {}) {
   const host = githubHost(apiUrl, gitUrl),
     cache = new Map(),

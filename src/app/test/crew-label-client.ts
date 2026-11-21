@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 import { defaultJob, fixedCredentials } from "./github-credentials.ts";
 import { GitHubClient } from "../github/github.ts";
 
@@ -6,20 +5,51 @@ import { GitHubClient } from "../github/github.ts";
 // over a fake fetch, so a test sees the request GitHub would get (R103.2).
 // The fake still makes the issue. Returns the requests and the label edits
 // made after a create; no network is involved.
-export function throughClient(fake) {
+// The fake's parts this wraps: its create and its label edits.
+interface Issue {
+  id?: number;
+  node_id?: string;
+  number: number;
+  html_url?: string;
+  state?: string;
+  title?: string;
+  body?: string;
+  labels?: unknown[];
+  assignees?: unknown[];
+}
+interface Fake {
+  createIssue(
+    repository: unknown,
+    input: Record<string, unknown>,
+  ): Promise<Issue>;
+  addLabels?(...args: unknown[]): unknown;
+  updateIssue?(...args: unknown[]): unknown;
+}
+// GraphQL createIssue's input, for the fields the fake takes.
+interface CreateInput {
+  title: string;
+  body: string;
+  labelIds?: string[];
+  assigneeIds?: string[];
+  parentIssueId?: string;
+  issueTypeId?: string;
+}
+
+export function throughClient(fake: Fake) {
   const make = fake.createIssue.bind(fake),
-    requests = [],
-    labelEdits = [];
-  let target = null;
-  const answer = (body) => new Response(JSON.stringify(body));
+    requests: { form: string; labels: string[] }[] = [],
+    labelEdits: unknown[][] = [];
+  let target: unknown = null;
+  const answer = (body: unknown) => new Response(JSON.stringify(body));
   const client = defaultJob(
     "check-in",
     new GitHubClient({
       credentials: fixedCredentials("test-token"),
       apiUrl: "https://api.example.test",
-      fetch: async (url, options) => {
-        const { pathname } = new URL(url),
-          body = options.body ? JSON.parse(options.body) : null;
+      fetch: async (url, options = {}) => {
+        const { pathname } = new URL(String(url)),
+          body =
+            typeof options.body === "string" ? JSON.parse(options.body) : null;
         if (
           options.method === "POST" &&
           /^\/repos\/[^/]+\/[^/]+\/issues$/.test(pathname)
@@ -29,7 +59,7 @@ export function throughClient(fake) {
         }
         if (pathname.includes("/labels/"))
           return answer({
-            node_id: "L:" + decodeURIComponent(pathname.split("/").pop()),
+            node_id: "L:" + decodeURIComponent(pathname.split("/").pop() ?? ""),
           });
         if (pathname.startsWith("/users/"))
           return answer({ node_id: "U:" + pathname.split("/").pop() });
@@ -41,7 +71,7 @@ export function throughClient(fake) {
             })),
           );
         if (pathname === "/graphql") {
-          const input = body.variables.input,
+          const input: CreateInput = body.variables.input,
             labels = (input.labelIds || []).map((id) => id.slice(2));
           requests.push({ form: "graphql", labels });
           const issue = await make(target, {
@@ -82,10 +112,10 @@ export function throughClient(fake) {
     target = value;
     return client.createIssue(value, input);
   };
-  for (const name of ["addLabels", "updateIssue"]) {
+  for (const name of ["addLabels", "updateIssue"] as const) {
     const call = fake[name]?.bind(fake);
     if (call)
-      fake[name] = (...args) => {
+      fake[name] = (...args: unknown[]) => {
         labelEdits.push([name, ...args.slice(1)]);
         return call(...args);
       };

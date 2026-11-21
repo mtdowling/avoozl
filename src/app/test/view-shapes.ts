@@ -10,6 +10,10 @@ export interface GraphNode {
   handSetReview?: boolean;
   nextAction?: string;
   noSession?: string | null;
+  kind?: string;
+  ready?: boolean;
+  // Its place in the dispatch order.
+  order?: number;
   [key: string]: unknown;
 }
 export interface GraphView {
