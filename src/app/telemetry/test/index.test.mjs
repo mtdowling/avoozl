@@ -172,7 +172,7 @@ test("the tick, workers, checks and landing import only the recording API", () =
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       const full = path.join(dir, entry.name);
       if (entry.isDirectory() && entry.name !== "test") walk(full);
-      else if (entry.name.endsWith(".mjs")) files.push(full);
+      else if (/\.(mjs|ts)$/.test(entry.name)) files.push(full);
     }
   };
   for (const folder of ["tick", "workers", "landing"])

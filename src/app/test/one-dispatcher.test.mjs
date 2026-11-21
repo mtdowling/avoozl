@@ -47,7 +47,7 @@ const sources = () =>
   fs
     .readdirSync(APP, { recursive: true })
     .map((name) => name.split(path.sep).join("/"))
-    .filter((name) => name.endsWith(".mjs") && !/(^|\/)test\//.test(name))
+    .filter((name) => /\.(mjs|ts)$/.test(name) && !/(^|\/)test\//.test(name))
     .map((name) => [name, path.join(APP, name)])
     .map(([name, file]) => [name, fs.readFileSync(file, "utf8")]);
 

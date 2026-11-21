@@ -1,3 +1,4 @@
+// @ts-nocheck: typing debt
 // Operations of one feature: name, class, MCP policy and handler.
 import { frontMatterCategory } from "../../front-matter.mjs";
 import { applyPlanMetadata } from "../../plan-model.mjs";

@@ -217,7 +217,9 @@ test("the telemetry folder imports nothing from the flow folder", () => {
   const folder = path
     .dirname(fileURLToPath(import.meta.url))
     .replace(/test$/, "");
-  for (const name of fs.readdirSync(folder).filter((n) => n.endsWith(".mjs")))
+  for (const name of fs
+    .readdirSync(folder)
+    .filter((n) => /\.(mjs|ts)$/.test(n)))
     assert.doesNotMatch(
       fs.readFileSync(path.join(folder, name), "utf8"),
       /from\s+["'][^"']*\/flow\//,

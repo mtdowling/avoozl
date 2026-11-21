@@ -9,19 +9,19 @@
 // The dispatcher, the class lookup and the MCP policy (mcp-policy.mjs) read
 // this table; a new operation is one entry in one feature module. An
 // operation with no entry is refused by name.
-import { entries as content } from "../ops/content.mjs";
-import { entries as context } from "../ops/context.mjs";
-import { entries as delivery } from "../ops/delivery.mjs";
-import { entries as flow } from "../ops/flow.mjs";
-import { entries as github } from "../ops/github.mjs";
-import { entries as intake } from "../ops/intake.mjs";
-import { entries as plans } from "../ops/plans.mjs";
-import { entries as plugins } from "../ops/plugins.mjs";
-import { entries as sessions } from "../ops/sessions.mjs";
-import { entries as specs } from "../ops/specs.mjs";
-import { entries as tasks } from "../ops/tasks.mjs";
-import { entries as telemetry } from "../ops/telemetry.mjs";
-import { entries as workspace } from "../ops/workspace.mjs";
+import { entries as content } from "../ops/content.ts";
+import { entries as context } from "../ops/context.ts";
+import { entries as delivery } from "../ops/delivery.ts";
+import { entries as flow } from "../ops/flow.ts";
+import { entries as github } from "../ops/github.ts";
+import { entries as intake } from "../ops/intake.ts";
+import { entries as plans } from "../ops/plans.ts";
+import { entries as plugins } from "../ops/plugins.ts";
+import { entries as sessions } from "../ops/sessions.ts";
+import { entries as specs } from "../ops/specs.ts";
+import { entries as tasks } from "../ops/tasks.ts";
+import { entries as telemetry } from "../ops/telemetry.ts";
+import { entries as workspace } from "../ops/workspace.ts";
 
 export const TABLES = {
   content,

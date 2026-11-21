@@ -28,7 +28,7 @@ const sources = (directory) =>
         ? entry.name === "test"
           ? []
           : sources(path.join(directory, entry.name))
-        : entry.name.endsWith(".mjs")
+        : /\.(mjs|ts)$/.test(entry.name)
           ? [path.join(directory, entry.name)]
           : [],
     );

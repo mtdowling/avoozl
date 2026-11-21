@@ -1,3 +1,4 @@
+// @ts-nocheck: typing debt
 // Settings' plugin list and actions (§4.8, R34.9). Approval is a person's act
 // in Settings or the CLI: an agent session cannot approve a plugin, and no MCP
 // tool offers it. Operations.pluginOperation holds the work.

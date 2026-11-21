@@ -14,7 +14,9 @@ test("no git push in the app source uses --mirror, --all, --tags or a wildcard",
   const found = [];
   for (const entry of fs
     .readdirSync(dir, { recursive: true })
-    .filter((n) => n.endsWith(".mjs") && !n.split(path.sep).includes("test"))) {
+    .filter(
+      (n) => /\.(mjs|ts)$/.test(n) && !n.split(path.sep).includes("test"),
+    )) {
     const file = path.basename(entry);
     if (file === "cli.mjs") continue; // the word there is an option name
     const text = fs.readFileSync(path.join(dir, entry), "utf8");

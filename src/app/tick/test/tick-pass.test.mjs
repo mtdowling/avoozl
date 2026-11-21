@@ -138,7 +138,7 @@ test("only the tick pass drains requests, and nothing runs the tick on a timer",
       const file = path.join(directory, entry.name);
       if (entry.isDirectory()) {
         if (entry.name !== "test") walk(file);
-      } else if (file.endsWith(".mjs")) files.push(file);
+      } else if (/\.(mjs|ts)$/.test(file)) files.push(file);
     }
   };
   walk(SRC);
@@ -150,7 +150,9 @@ test("only the tick pass drains requests, and nothing runs the tick on a timer",
   for (const name of ["drainProcessRequests", "drainCheckRuns"]) {
     const found = callers(new RegExp(`\\b${name}\\(`)).filter(
       (file) =>
-        !/^app\/(executors\/process|delivery\/check-runs)\.mjs$/.test(file),
+        !/^app\/(executors\/process|delivery\/check-runs)\.(mjs|ts)$/.test(
+          file,
+        ),
     );
     assert.deepEqual(
       found,

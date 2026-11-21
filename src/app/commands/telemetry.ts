@@ -1,3 +1,4 @@
+// @ts-nocheck: typing debt
 // `avoozl telemetry status|enable|disable` (spec otel-export, OT11.7).
 import { help } from "../cli/command-help.mjs";
 

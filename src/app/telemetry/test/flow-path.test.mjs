@@ -29,7 +29,10 @@ test("no source file writes a span or usage table of its own", () => {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       const full = path.join(dir, entry.name);
       if (entry.isDirectory()) walk(full);
-      else if (entry.name.endsWith(".mjs") && full !== import.meta.filename) {
+      else if (
+        /\.(mjs|ts)$/.test(entry.name) &&
+        full !== import.meta.filename
+      ) {
         // The store's list of tables an old database drops is the one place
         // the old names stay.
         const text = fs

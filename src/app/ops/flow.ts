@@ -1,3 +1,4 @@
+// @ts-nocheck: typing debt
 // Operations of one feature: name, class, MCP policy and handler.
 import { taskRepository } from "../../work-model.mjs";
 import { runLocalChecks } from "../flow/flow-checks.mjs";

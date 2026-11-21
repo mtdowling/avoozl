@@ -192,7 +192,7 @@ test("every plans_* tool a brief, prompt, agent, cron or skill names is listed",
   const sources = [
     ...files(
       path.join(root, "src", "app"),
-      (f) => /\.mjs$/.test(f) && !f.includes(`${path.sep}test${path.sep}`),
+      (f) => /\.(mjs|ts)$/.test(f) && !f.includes(`${path.sep}test${path.sep}`),
     ),
     ...files(
       path.join(root, "src", "app"),
