@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // What needs Kiro Crew, and why (without-kirocrew NK8, design D7). One
 // table, which the command line, `avoozl status` and the page's "Needs Kiro
 // Crew" states read. A role is in it while its row in the role table cannot
@@ -10,14 +9,38 @@
 import { ROLE_TABLE, rowFor } from "../agents/role-table.ts";
 import { pendingSessionRequests } from "../sessions/session-requests.ts";
 import { fail } from "../store/store.ts";
+import type { Store } from "../store/store.ts";
 import { recordWaitingRoles } from "./waiting-roles.ts";
+import type { Waiting } from "./waiting-roles.ts";
+
+// One row of the table below.
+interface NeedsKirocrew {
+  id: string;
+  what: string;
+  role?: string;
+  reason: string;
+  operations: Record<string, string[]>;
+  refuse?: Record<string, string>;
+}
+
+// The settings file Run on writes, as far as it reads it.
+interface ModelSettings {
+  readModelSettings(): {
+    hash: string;
+    roles: Record<string, Record<string, unknown>>;
+  };
+  updateModelSettings(input: {
+    roles: Record<string, unknown>;
+    expectedHash: string;
+  }): unknown;
+}
 
 // Operations name the readers they call (the Operations context keys); a
 // reader of Kiro Crew that an operation outside this table calls fails
 // src/app/test/needs-kirocrew.test.mjs. `refuse` names the operations that
 // cannot run at all without the reader; the others answer with an
 // unavailable view.
-const PARTS = Object.freeze([
+const PARTS: readonly NeedsKirocrew[] = Object.freeze([
   {
     id: "kirocrew-chat",
     what: "Attaching to a Kiro Crew chat",
@@ -30,7 +53,7 @@ const PARTS = Object.freeze([
 
 // Every row: the parts above, then each role that still runs only as a
 // Kiro Crew chat.
-export const NEEDS_KIROCREW = Object.freeze([
+export const NEEDS_KIROCREW: readonly NeedsKirocrew[] = Object.freeze([
   ...PARTS,
   ...Object.values(ROLE_TABLE)
     .filter((row) => !row.process)
@@ -51,7 +74,7 @@ export const KIROCREW_READERS = Object.freeze(
 );
 
 // The reader an operation cannot run without, and what to call it, or null.
-export function requiredReader(operation) {
+export function requiredReader(operation: string) {
   for (const row of NEEDS_KIROCREW)
     if (row.refuse?.[operation])
       return { reader: row.refuse[operation], what: row.what };
@@ -63,29 +86,29 @@ export function requiredReader(operation) {
 const SEEN = "kirocrew.seenAt";
 const ITEMS = "needs-kirocrew.items";
 const RECENT_MS = 10 * 60_000;
-export const markKirocrewSeen = (store, now = Date.now()) =>
+export const markKirocrewSeen = (store: Store, now = Date.now()) =>
   store.setMeta(SEEN, new Date(now).toISOString());
-function kirocrewReachable(store, now = Date.now()) {
-  const at = store.getMeta(SEEN);
+function kirocrewReachable(store: Store, now = Date.now()) {
+  const at = store.getMeta<string>(SEEN);
   return {
-    reachable: Boolean(at) && now - Date.parse(at) < RECENT_MS,
+    reachable: Boolean(at) && now - Date.parse(String(at)) < RECENT_MS,
     seenAt: typeof at === "string" ? at : null,
   };
 }
 
-const items = (store) => {
-  const value = store.getMeta(ITEMS);
+const items = (store: Store): Record<string, Waiting> => {
+  const value = store.getMeta<Record<string, Waiting>>(ITEMS);
   return value && typeof value === "object" ? value : {};
 };
 // Whether the last headless tick found `role` (a role table setting) waiting
 // on a Kiro Crew this machine does not have.
-export const waitsOnKirocrew = (store, role) =>
+export const waitsOnKirocrew = (store: Store, role: string) =>
   Object.hasOwn(items(store), role);
 
 // The headless tick's step: with no Kiro Crew seen lately, one Needs you
 // item per role that has a `kirocrew` start waiting. It starts nothing.
 // With Kiro Crew back, the items go. Returns the items.
-export function needsKirocrewStep(store, now = Date.now()) {
+export function needsKirocrewStep(store: Store, now = Date.now()) {
   const before = items(store);
   if (kirocrewReachable(store, now).reachable) {
     if (Object.keys(before).length) store.setMeta(ITEMS, {});
@@ -97,7 +120,7 @@ export function needsKirocrewStep(store, now = Date.now()) {
     pendingSessionRequests(store, "kirocrew")
       .filter((request) => request.operation !== "send")
       .map((request) => ({
-        role: rowFor(request.role)?.setting ?? request.role,
+        role: rowFor(String(request.role))?.setting ?? String(request.role),
         id: request.id,
       })),
     now,
@@ -106,7 +129,7 @@ export function needsKirocrewStep(store, now = Date.now()) {
 
 // Needs you rows: one per waiting role, with the harnesses this machine has
 // approved for **Run on**.
-export function needsKirocrewItems(store, harnesses = []) {
+export function needsKirocrewItems(store: Store, harnesses: unknown[] = []) {
   return Object.values(items(store)).map((item) => ({
     kind: "needs-kirocrew",
     id: `needs-kirocrew:${item.role}`,
@@ -122,9 +145,13 @@ export function needsKirocrewItems(store, harnesses = []) {
 // Run on (person only): the role's harness becomes `harness` in the
 // settings file, and its waiting `kirocrew` starts are canceled, so the next
 // tick starts the role on that harness.
-export function runOn(store, { role, harness }, { settings, approved }) {
+export function runOn(
+  store: Store,
+  { role, harness }: { role: string; harness: string },
+  { settings, approved }: { settings: ModelSettings; approved: string[] },
+) {
   const item = items(store)[role];
-  if (!item) fail(`No ${role} sessions wait on Kiro Crew.`, 404);
+  if (!item) return fail(`No ${role} sessions wait on Kiro Crew.`, 404);
   if (!approved.includes(harness))
     fail(`${harness} is not an approved harness on this machine.`, 409);
   const current = settings.readModelSettings();
@@ -137,7 +164,10 @@ export function runOn(store, { role, harness }, { settings, approved }) {
   });
   store.transaction(() => {
     for (const id of item.requests) {
-      const row = store.get("session_requests", id);
+      const row = store.get<{ id: string; state?: string }>(
+        "session_requests",
+        id,
+      );
       if (row?.state === "pending")
         store.put("session_requests", {
           ...row,
