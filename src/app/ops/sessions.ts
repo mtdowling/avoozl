@@ -86,14 +86,12 @@ export const entries = [
     handler(this: Operations, { input, context }: OperationCall) {
       const store = this.store;
       markKirocrewSeen(store);
-      return takeKirocrewRequest(
-        store,
-        input,
-        context,
-        (
-          request: Parameters<typeof sessionStartHold>[1],
-          queued?: Parameters<typeof sessionStartHold>[2],
-        ) => sessionStartHold(store, request, queued),
+      return takeKirocrewRequest(store, input, context, (request, queued) =>
+        sessionStartHold(
+          store,
+          { task: request.task ?? "", role: request.role ?? "" },
+          queued,
+        ),
       );
     },
   },
