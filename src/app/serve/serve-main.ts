@@ -41,7 +41,9 @@ const host = loadHostConfig({
   configPath: path.join(configDirectory, "config.json"),
   catalogPath: path.join(stateDirectory, "catalog.sqlite"),
 }).config;
-const root = host.workspaces[host.defaultWorkspace]?.root;
+const root = host.defaultWorkspace
+  ? host.workspaces[host.defaultWorkspace]?.root
+  : undefined;
 const server = await startServe({
   config: workspaceConfig(root ? { workspace: root } : {}),
   port: Number(values.port ?? 0),

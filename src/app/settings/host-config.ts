@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 import { validateServe } from "./serve-config.ts";
 import { validateEpicContext } from "../context/epic-context-config.ts";
 import { validateTelemetry } from "./telemetry-config.ts";
@@ -29,18 +28,52 @@ export const hostConfigSchemaPath = fileURLToPath(
 
 const WORKSPACE_ID = /^[a-z][a-z0-9-]{0,60}$/;
 
+// A JSON object read from a file.
+type Json = Record<string, unknown>;
+// Where machine paths are worked out from.
+interface PathOptions {
+  env?: NodeJS.ProcessEnv;
+  home?: string;
+  platform?: NodeJS.Platform;
+}
+// One registered workspace, as normalizeWorkspace keeps it.
+export interface HostWorkspace {
+  root: string;
+  name: string;
+  enabled: boolean;
+  repositories: Record<string, string>;
+}
+// The machine file, as normalizeHostConfig returns it.
+export interface HostConfig {
+  [key: string]: unknown;
+  $schema: string;
+  version: 1;
+  host: string;
+  port: number;
+  defaultWorkspace: string | null;
+  workspaces: Record<string, HostWorkspace>;
+}
+// What a workspace is registered with.
+interface WorkspaceInput {
+  root?: string;
+  name?: string;
+  enabled?: boolean;
+  repositories?: Record<string, unknown>;
+}
+
 // The platform's own path rules, so a Windows layout can be computed (and
 // tested) on any host. An explicit XDG folder wins on every platform, which
 // is how tests and portable setups move Avoozl's machine files.
-const pathFor = (platform) => (platform === "win32" ? path.win32 : path.posix);
-const localAppData = ({ env, home, platform }) =>
+const pathFor = (platform: string) =>
+  platform === "win32" ? path.win32 : path.posix;
+const localAppData = ({ env, home, platform }: Required<PathOptions>) =>
   pathFor(platform).resolve(
     env.LOCALAPPDATA ||
       env.APPDATA ||
       pathFor(platform).join(home, "AppData", "Local"),
   );
 
-function configHome({ env, home, platform }) {
+function configHome({ env, home, platform }: Required<PathOptions>) {
   const p = pathFor(platform);
   if (env.XDG_CONFIG_HOME) return p.resolve(env.XDG_CONFIG_HOME);
   return platform === "win32"
@@ -52,7 +85,7 @@ export function machineAvoozlPaths({
   env = process.env,
   home = os.homedir(),
   platform = process.platform,
-} = {}) {
+}: PathOptions = {}) {
   const p = pathFor(platform);
   const scoped = crewHomeAvoozlDirectory({ env, home, platform });
   if (scoped)
@@ -76,23 +109,32 @@ export function machineAvoozlPaths({
   };
 }
 
-function record(value) {
+function record(value: unknown): value is Json {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
-function assertInteger(value, name, { minimum, maximum }) {
-  if (!Number.isInteger(value) || value < minimum || value > maximum)
+function assertInteger(
+  value: unknown,
+  name: string,
+  { minimum, maximum }: { minimum: number; maximum: number },
+): asserts value is number {
+  if (
+    typeof value !== "number" ||
+    !Number.isInteger(value) ||
+    value < minimum ||
+    value > maximum
+  )
     throw Error(`${name} must be an integer from ${minimum} to ${maximum}.`);
 }
 
-function assertWorkspaceId(id) {
-  if (!WORKSPACE_ID.test(id || ""))
+function assertWorkspaceId(id: unknown): asserts id is string {
+  if (typeof id !== "string" || !WORKSPACE_ID.test(id))
     throw Error(
       "Workspace IDs must start with a lowercase letter and contain only lowercase letters, numbers, and hyphens.",
     );
 }
 
-function regularFile(filename, label) {
+function regularFile(filename: string, label: string) {
   if (!fs.existsSync(filename)) return false;
   const stat = fs.lstatSync(filename);
   if (stat.isSymbolicLink() || !stat.isFile())
@@ -102,7 +144,11 @@ function regularFile(filename, label) {
   return true;
 }
 
-function safeDirectory(directory, label, { mustExist = true } = {}) {
+function safeDirectory(
+  directory: string,
+  label: string,
+  { mustExist = true } = {},
+) {
   if (!fs.existsSync(directory)) {
     if (mustExist) throw Error(`${label} does not exist: ${directory}`);
     return;
@@ -114,7 +160,7 @@ function safeDirectory(directory, label, { mustExist = true } = {}) {
     );
 }
 
-function sameRealPath(a, b) {
+function sameRealPath(a: string, b: string) {
   try {
     return fs.realpathSync.native(a) === fs.realpathSync.native(b);
   } catch {
@@ -122,8 +168,9 @@ function sameRealPath(a, b) {
   }
 }
 
-function processAlive(pid) {
-  if (!Number.isInteger(pid) || pid <= 0) return false;
+function processAlive(pid: unknown) {
+  if (typeof pid !== "number" || !Number.isInteger(pid) || pid <= 0)
+    return false;
   try {
     process.kill(pid, 0);
     return true;
@@ -133,10 +180,10 @@ function processAlive(pid) {
 }
 
 function normalizeRepositories(
-  repositories,
-  root,
+  repositories: unknown,
+  root: string,
   { validatePaths = false } = {},
-) {
+): Record<string, string> {
   if (repositories == null) return {};
   if (!record(repositories))
     throw Error(
@@ -150,7 +197,7 @@ function normalizeRepositories(
       const resolved = path.resolve(root, repositoryRoot);
       if (!validatePaths) return [id, resolved];
       safeDirectory(resolved, `Repository ${id}`);
-      let checkoutRoot;
+      let checkoutRoot: string;
       try {
         checkoutRoot = execFileSync("git", ["rev-parse", "--show-toplevel"], {
           cwd: resolved,
@@ -173,7 +220,11 @@ function normalizeRepositories(
   );
 }
 
-function normalizeWorkspace(id, value, { validatePaths = false } = {}) {
+function normalizeWorkspace(
+  id: string,
+  value: unknown,
+  { validatePaths = false } = {},
+): HostWorkspace {
   assertWorkspaceId(id);
   if (!record(value)) throw Error(`Workspace ${id} must be an object.`);
   if (typeof value.root !== "string" || !value.root.trim())
@@ -199,15 +250,15 @@ function normalizeWorkspace(id, value, { validatePaths = false } = {}) {
   };
 }
 
-function readJson(filename) {
+function readJson(filename: string): Json {
   if (!regularFile(filename, "Avoozl host configuration"))
     return { version: 1 };
-  let value;
+  let value: unknown;
   try {
     value = JSON.parse(fs.readFileSync(filename, "utf8"));
   } catch (error) {
     throw Error(
-      `Could not parse Avoozl host configuration at ${filename}: ${error.message}`,
+      `Could not parse Avoozl host configuration at ${filename}: ${(error as Error).message}`,
     );
   }
   if (!record(value))
@@ -216,9 +267,9 @@ function readJson(filename) {
 }
 
 export function normalizeHostConfig(
-  value,
+  value: unknown,
   source = "Avoozl host configuration",
-) {
+): HostConfig {
   if (!record(value)) throw Error(`${source} must be an object.`);
   if (value.version !== 1) throw Error(`${source} must use version 1.`);
   assertSafeConfig(value, source);
@@ -237,9 +288,11 @@ export function normalizeHostConfig(
       normalizeWorkspace(id, workspace),
     ]),
   );
-  let defaultWorkspace = value.defaultWorkspace ?? null;
-  if (defaultWorkspace != null) {
-    assertWorkspaceId(defaultWorkspace);
+  const named = value.defaultWorkspace ?? null;
+  let defaultWorkspace: string | null = null;
+  if (named != null) {
+    assertWorkspaceId(named);
+    defaultWorkspace = named;
     if (!workspaces[defaultWorkspace])
       throw Error(`Default workspace ${defaultWorkspace} is not registered.`);
   } else {
@@ -256,14 +309,17 @@ export function normalizeHostConfig(
     ...rest,
     $schema: savedSchemaUrl(value.$schema, HOST_CONFIG_SCHEMA_URL),
     version: 1,
-    host: value.host || "127.0.0.1",
+    // shortcut: the host is kept as the file wrote it, unchecked; check its type when a caller binds to it.
+    host: (value.host || "127.0.0.1") as string,
     port,
     defaultWorkspace,
     workspaces,
   };
 }
 
-export function loadHostConfig(options = {}) {
+export function loadHostConfig(
+  options: PathOptions & { configPath?: string; catalogPath?: string } = {},
+) {
   const paths = {
     ...machineAvoozlPaths(options),
     ...(options.configPath
@@ -283,8 +339,8 @@ export function loadHostConfig(options = {}) {
 }
 
 function validateWorkspaceFiles(
-  id,
-  root,
+  id: string,
+  root: string,
   { writeIdentity = false, allowIdentityMismatch = false } = {},
 ) {
   safeDirectory(root, `Workspace ${id}`);
@@ -293,14 +349,14 @@ function validateWorkspaceFiles(
     mustExist: false,
   });
   const filename = path.join(root, ".avoozl.json");
-  let saved = null;
+  let saved: Json | null = null;
   if (fs.existsSync(filename)) {
     regularFile(filename, `Workspace ${id} configuration`);
     try {
       saved = JSON.parse(fs.readFileSync(filename, "utf8"));
     } catch (error) {
       throw Error(
-        `Could not parse workspace configuration at ${filename}: ${error.message}`,
+        `Could not parse workspace configuration at ${filename}: ${(error as Error).message}`,
       );
     }
     if (!record(saved))
@@ -368,7 +424,7 @@ function validateWorkspaceFiles(
   };
 }
 
-function atomicWrite(filename, value) {
+function atomicWrite(filename: string, value: unknown) {
   const directory = path.dirname(filename);
   safeDirectory(directory, "Avoozl configuration directory", {
     mustExist: false,
@@ -383,8 +439,11 @@ function atomicWrite(filename, value) {
   fs.renameSync(temporary, filename);
 }
 
-function writePortableWorkspaceIdentity(files, id) {
-  const current = files.config || {
+function writePortableWorkspaceIdentity(
+  files: ReturnType<typeof validateWorkspaceFiles>,
+  id: string,
+) {
+  const current: Json = files.config || {
       $schema: REPOSITORY_CONFIG_SCHEMA_URL,
       version: 1,
       name: path.basename(files.root),
@@ -406,16 +465,28 @@ function writePortableWorkspaceIdentity(files, id) {
   };
 }
 
-function adoptDatabaseIdentity(store, id) {
+// A process that owns a workspace database, as its meta record keeps it.
+interface Owner {
+  pid?: number;
+}
+// What an earlier adoption recorded.
+interface Adoption {
+  previousWorkspaceId?: string | null;
+  adoptedAt?: string;
+}
+
+function adoptDatabaseIdentity(store: Store, id: string) {
   return store.transaction(() => {
     const previousWorkspaceId = store.getMeta("workspaceId") || null,
-      priorAdoption = store.getMeta("workspaceAdoption"),
+      priorAdoption = store.getMeta<Adoption>("workspaceAdoption"),
       owners = ["machineHostOwner", "webOwner", "runtimeOwner"]
-        .map((key) => ({ key, value: store.getMeta(key) }))
-        .filter(({ value }) => value),
-      workLocks = store.db
-        .prepare("SELECT COUNT(*) count FROM work_locks")
-        .get().count;
+        .map((key) => ({ key, value: store.getMeta<Owner>(key) }))
+        .filter((owner): owner is { key: string; value: Owner } =>
+          Boolean(owner.value),
+        ),
+      workLocks = Number(
+        store.db.prepare("SELECT COUNT(*) count FROM work_locks").get()?.count,
+      );
     const liveOwners = owners.filter(({ value }) => processAlive(value.pid));
     if (liveOwners.length)
       throw Error(
@@ -455,9 +526,9 @@ function adoptDatabaseIdentity(store, id) {
 export class WorkspaceRegistry {
   configPath: string;
   catalogPath: string;
-  config: ReturnType<typeof normalizeHostConfig>;
+  config: HostConfig;
   catalog: CatalogStore;
-  constructor(options = {}) {
+  constructor(options: Parameters<typeof loadHostConfig>[0] = {}) {
     const loaded = loadHostConfig(options);
     this.configPath = loaded.configPath;
     this.catalogPath = loaded.catalogPath;
@@ -479,7 +550,12 @@ export class WorkspaceRegistry {
     return this.describe();
   }
 
-  save(next, action, workspaceId, detail = {}) {
+  save(
+    next: HostConfig,
+    action: string,
+    workspaceId: string | null,
+    detail: Record<string, unknown> = {},
+  ) {
     const normalized = normalizeHostConfig(next);
     atomicWrite(this.configPath, normalized);
     this.config = normalized;
@@ -510,7 +586,7 @@ export class WorkspaceRegistry {
     return this.describe().workspaces;
   }
 
-  get(id) {
+  get(id: string) {
     assertWorkspaceId(id);
     const registered = this.config.workspaces[id];
     if (!registered) throw Error(`Unknown workspace: ${id}`);
@@ -520,7 +596,7 @@ export class WorkspaceRegistry {
     };
   }
 
-  validate(id, { writeIdentity = false } = {}) {
+  validate(id: string, { writeIdentity = false } = {}) {
     const registered = this.config.workspaces[id];
     if (!registered) throw Error(`Unknown workspace: ${id}`);
     const candidate = normalizeWorkspace(id, registered, {
@@ -558,17 +634,7 @@ export class WorkspaceRegistry {
 
   add(
     id: string,
-    {
-      root,
-      name,
-      enabled = true,
-      repositories = {},
-    }: {
-      root?: string;
-      name?: string;
-      enabled?: boolean;
-      repositories?: Record<string, unknown>;
-    } = {},
+    { root, name, enabled = true, repositories = {} }: WorkspaceInput = {},
   ) {
     assertWorkspaceId(id);
     if (this.config.workspaces[id])
@@ -619,7 +685,10 @@ export class WorkspaceRegistry {
     return { ...this.get(id), receipt: saved.receipt };
   }
 
-  adopt(id, { root, name, enabled = true, repositories = {} } = {}) {
+  adopt(
+    id: string,
+    { root, name, enabled = true, repositories = {} }: WorkspaceInput = {},
+  ) {
     assertWorkspaceId(id);
     if (!root) throw Error("Choose a workspace root.");
     const candidate = normalizeWorkspace(
@@ -657,7 +726,7 @@ export class WorkspaceRegistry {
       throw Error(`Workspace ${id} is not initialized: ${files.database}`);
     const before = fs.statSync(files.database),
       store = new Store(files.database);
-    let migration;
+    let migration: ReturnType<typeof adoptDatabaseIdentity>;
     try {
       migration = adoptDatabaseIdentity(store, id);
     } finally {
@@ -697,7 +766,7 @@ export class WorkspaceRegistry {
     };
   }
 
-  remove(id) {
+  remove(id: string) {
     const current = this.get(id);
     const next = structuredClone(this.config);
     delete next.workspaces[id];
@@ -721,10 +790,10 @@ export class WorkspaceRegistry {
   // A person's edit of one workspace: its name and its folder. A new folder must already hold this workspace (its
   // .avoozl.json and database, as after a move), so an edit never points a
   // workspace at an empty or another workspace's folder.
-  update(id, { name, root } = {}) {
+  update(id: string, { name, root }: { name?: unknown; root?: unknown } = {}) {
     this.get(id);
     const registered = this.config.workspaces[id],
-      value = { ...registered };
+      value: Json = { ...registered };
     if (name !== undefined) {
       if (typeof name !== "string" || !name.trim())
         throw Error("Give the workspace a name.");
@@ -732,7 +801,11 @@ export class WorkspaceRegistry {
     }
     const moved =
       root !== undefined &&
-      !(fs.existsSync(root) && sameRealPath(root, registered.root));
+      !(
+        typeof root === "string" &&
+        fs.existsSync(root) &&
+        sameRealPath(root, registered.root)
+      );
     if (moved) {
       if (typeof root !== "string" || !path.isAbsolute(root))
         throw Error("Choose an absolute workspace directory.");
@@ -742,12 +815,12 @@ export class WorkspaceRegistry {
         if (
           otherId !== id &&
           fs.existsSync(other.root) &&
-          sameRealPath(other.root, value.root)
+          sameRealPath(other.root, String(value.root))
         )
           throw Error(
             `Workspace root ${value.root} is already registered as ${otherId}.`,
           );
-      const files = validateWorkspaceFiles(id, value.root);
+      const files = validateWorkspaceFiles(id, String(value.root));
       if (!files.initialized)
         throw Error(
           `No Avoozl workspace in ${value.root}. Move the workspace folder there first, or add it as a new workspace.`,
@@ -764,7 +837,7 @@ export class WorkspaceRegistry {
     return { ...this.get(id), receipt: saved.receipt };
   }
 
-  setDefault(id) {
+  setDefault(id: string) {
     this.get(id);
     const next = structuredClone(this.config);
     next.defaultWorkspace = id;
@@ -772,7 +845,7 @@ export class WorkspaceRegistry {
     return { ...this.get(id), default: true, receipt: saved.receipt };
   }
 
-  setEnabled(id, enabled) {
+  setEnabled(id: string, enabled: unknown) {
     this.get(id);
     const next = structuredClone(this.config);
     next.workspaces[id].enabled = Boolean(enabled);
@@ -783,7 +856,7 @@ export class WorkspaceRegistry {
     return { ...this.get(id), receipt: saved.receipt };
   }
 
-  drain(id) {
+  drain(id: string) {
     this.get(id);
     return this.catalog.setState(id, "draining", {
       requestedBy: "local-cli",
