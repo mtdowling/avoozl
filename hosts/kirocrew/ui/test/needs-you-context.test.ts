@@ -55,6 +55,8 @@ test('every item kind says what is asked, and a task item says what it unblocks'
 test('Resolve comes after the context block, and the review drawer lists text before Mark reviewed', () => {
   const view = source('ConflictsView.tsx')
   assert.ok(view.indexOf('<ItemContextBlock') < view.indexOf('data-conflict-resolve'))
+  assert.match(view, /data-manual-ready-resolve/)
+  assert.match(view, /Open task to mark done/)
   const drawer = source('TaskDrawer.tsx')
   assert.ok(drawer.indexOf('<ReviewTaskContext') < drawer.indexOf('<ReviewButton item={group}'))
 })
@@ -94,7 +96,12 @@ test('each kind draws its spec link, evidence and context before Resolve', { ski
     if (key.includes(':search.2:')) assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-pr-chip]') && document.querySelector('[data-branch-chip]'))`), true)
     if (key.includes(':search.8:')) assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-no-evidence]'))`), true)
     if (key.includes(':search.review-ranking:'))
-      assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-reference-material] [data-reference-material-body] h2'))`), true)
+      assert.deepEqual(
+        await page.evaluate(
+          `({ material: Boolean(document.querySelector('[data-reference-material] [data-reference-material-body] h2')), resolve: document.querySelector('[data-manual-ready-resolve]')?.textContent.trim() ?? '' })`,
+        ),
+        { material: true, resolve: 'Open task to mark done' },
+      )
     if (kind === 'stale-session') {
       const shown = await page.evaluate<string>(`document.querySelector('[data-conflict-detail] [data-failed-checks]')?.textContent ?? ''`)
       assert.match(shown, /test \(ubuntu-latest\)/)

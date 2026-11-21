@@ -602,6 +602,17 @@ function ConflictDetail(props: {
         <Box as="h4" m0 mb="2" size="sm" weight="semibold">
           Resolve
         </Box>
+        {item.kind === 'needs-human' && item.reason === 'manual-ready' && item.taskId && (
+          <IconLabel
+            icon={DetailsIcon}
+            primary
+            tooltip="Open the manual task, review its acceptance criteria, and record your decision"
+            onClick={() => drawer.openTask(item.taskId!)}
+            data-manual-ready-resolve
+          >
+            Open task to mark done
+          </IconLabel>
+        )}
         <ConflictActions
           item={item}
           workspaceId={props.workspaceId}
