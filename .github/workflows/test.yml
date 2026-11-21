@@ -98,6 +98,7 @@ jobs:
       - run: node scripts/check/check-no-images.ts
       - run: node scripts/check/spec-lint.ts
       - run: npm run typecheck
+      - run: npm run nocheck
 
   # Copy/paste check (scripts/check/dup.ts): fails when duplicated lines grow past
   # scripts/dup-baseline.json. Main and the nightly run only; a pull request

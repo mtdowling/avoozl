@@ -41,6 +41,12 @@ an ignore. `npm run dup` checks the whole repo against
 `scripts/check/dup-baseline.json`; when a cleanup lowers the count, run
 `npm run dup -- --update` and commit the lower baseline.
 
+Type checking is strict. A file still marked `// @ts-nocheck` is typing
+debt; `npm run nocheck` fails unless the count of marked files equals
+`scripts/check/nocheck-baseline.json`. Never add a mark. When you type a
+file, remove its mark, run `npm run nocheck -- --update` and commit the
+lower baseline.
+
 Initialization creates an empty workspace. Example data is explicitly requested,
 transactional, and installed once. Preserve edits on retries. Never use example
 installation to approve drafts, start agents, or configure an execution repository.

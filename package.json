@@ -23,6 +23,7 @@
     "kit:docs": "node scripts/kit/scenarios-doc.ts",
     "dup": "node scripts/check/dup.ts",
     "dup:changed": "node scripts/check/dup.ts --changed",
+    "nocheck": "node scripts/check/nocheck.ts",
     "format": "biome format --write",
     "format:check": "biome format",
     "typecheck": "tsc --noEmit -p tsconfig.json"
