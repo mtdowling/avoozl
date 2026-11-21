@@ -22,7 +22,7 @@ export type SessionRequest = {
   [key: string]: unknown;
 };
 // One queued `session_requests` row.
-type RequestRow = {
+export type RequestRow = {
   id: string;
   kind?: string;
   executor?: string;

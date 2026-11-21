@@ -1,10 +1,10 @@
-// @ts-nocheck: typing debt
 // Direct links to work and decisions (spec direct-links): a notice opens its
 // exact decision, an old link never opens a newer one, every link target is
 // checked, and each attempt opens its own chat or log.
 import assert from "node:assert/strict";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
+import type { Task } from "../../types.ts";
 import {
   attemptDestination,
   chatRoute,
@@ -14,16 +14,25 @@ import {
   validateLinks,
 } from "../api/direct-links.ts";
 import { sinkPayload } from "../tick/notification-sinks.ts";
-import { queueNotifications } from "../tick/notifications.ts";
+import {
+  type NotificationRow,
+  queueNotifications,
+} from "../tick/notifications.ts";
 import { Operations } from "../api/operations.ts";
 import { deliveryView } from "../api/page-views.ts";
 import { Store } from "../store/store.ts";
 import { snapshot } from "./fixtures.ts";
 import { temporaryDirectory } from "./temporary.ts";
+import { type ConflictsView, found } from "./view-shapes.ts";
 
-const page = (href) => new URL(href, "http://127.0.0.1:1");
+// A queued notice that names a decision.
+type DecisionRow = NotificationRow & {
+  decision: NonNullable<NotificationRow["decision"]>;
+};
 
-function workspace(t, tasks) {
+const page = (href: string) => new URL(href, "http://127.0.0.1:1");
+
+function workspace(t: TestContext, tasks: Task[]) {
   const root = temporaryDirectory(),
     store = new Store(path.join(root, "workspace.sqlite"));
   store.initialize({ ...snapshot(), tasks });
@@ -32,7 +41,7 @@ function workspace(t, tasks) {
   return { root, store, ops: new Operations(store, { workspaceRoot: root }) };
 }
 
-const task = (id, extra = {}) => ({
+const task = (id: string, extra: Record<string, unknown> = {}): Task => ({
   id,
   title: `Task ${id}`,
   scope: "catalog",
@@ -80,9 +89,9 @@ test("a decision notice links to its own occurrence in Needs you; others keep th
   queueNotifications(store, [
     { channel: "decision", task: "a", slot: "s1", title: "a asks", text: "2" },
   ]);
-  const rows = store.list("app_notifications"),
-    decisions = rows.filter((row) => row.decision),
-    failure = rows.find((row) => !row.decision);
+  const rows = store.list<NotificationRow>("app_notifications"),
+    decisions = rows.filter((row): row is DecisionRow => !!row.decision),
+    failure = found(rows.find((row) => !row.decision));
   assert.equal(decisions.length, 2);
   assert.notEqual(decisions[0].decision.id, decisions[1].decision.id);
   for (const row of decisions) {
@@ -110,7 +119,8 @@ test("a decision notice links to its own occurrence in Needs you; others keep th
 });
 
 test("an old link never opens a newer decision for the same task", () => {
-  const at = (s) => new Date(Date.UTC(2026, 0, 1, 0, 0, s)).toISOString();
+  const at = (s: number) =>
+    new Date(Date.UTC(2026, 0, 1, 0, 0, s)).toISOString();
   const rows = [
     {
       queuedAt: at(10),
@@ -182,18 +192,24 @@ test("conflicts.view marks the linked item and writes nothing", async (t) => {
   queueNotifications(store, [
     { channel: "decision", task: "a", title: "a needs you", text: "Pick" },
   ]);
-  const id = store.list("app_notifications")[0].decision.id,
+  const id = found(
+      store.list<NotificationRow>("app_notifications")[0].decision,
+    ).id,
     before = store.read().revision;
-  const view = await ops.execute("conflicts.view", { decision: id });
+  type Linked = ConflictsView & {
+    target?: { state: string };
+    items: { linked?: boolean }[];
+  };
+  const view = await ops.execute<Linked>("conflicts.view", { decision: id });
   assert.deepEqual(view.target, { state: "open" });
   assert.deepEqual(
     view.items.filter((item) => item.linked).map((item) => item.taskId),
     ["a"],
   );
-  const plain = await ops.execute("conflicts.view", {});
+  const plain = await ops.execute<Linked>("conflicts.view", {});
   assert.equal(plain.target, undefined);
   assert.equal(plain.items.filter((item) => item.linked).length, 0);
-  const unknown = await ops.execute("conflicts.view", {
+  const unknown = await ops.execute<Linked>("conflicts.view", {
     decision: "AbCdEfGhIjKl",
   });
   assert.deepEqual(unknown.target, { state: "unknown" });
@@ -229,7 +245,7 @@ test("each attempt opens its own chat, log, or where to connect", () => {
   });
   assert.equal(away.action, "connect");
   assert.equal(away.href, "/settings/instances");
-  assert.match(away.note, /devbox does not answer/);
+  assert.match(found(away.note), /devbox does not answer/);
   const log = attemptDestination({
     ...local,
     executor: "process",
@@ -253,7 +269,7 @@ test("each attempt opens its own chat, log, or where to connect", () => {
   assert.equal(desktop.href, "kirocrew://chat?sid=avoozl_a1");
   const none = attemptDestination(local, { standalone: true });
   assert.equal(none.href, null);
-  assert.match(none.note, /links\.dashboard/);
+  assert.match(found(none.note), /links\.dashboard/);
   // A slot or crew outside Kiro Crew's grammar gets no link at all.
   assert.equal(chatRoute("bad slot"), null);
   assert.equal(chatRoute("ok", "-x"), null);
@@ -271,7 +287,7 @@ test("links settings are checked, and hold no sign-in", () => {
       desktop: true,
     },
   );
-  for (const [value, message] of [
+  const cases: [Record<string, unknown>, RegExp][] = [
     [{ dashboard: "http://crew.example" }, /must be https/],
     [{ dashboard: "https://user:pw@crew.example" }, /no sign-in/],
     [{ dashboard: "https://crew.example/?token=x" }, /no sign-in/],
@@ -281,7 +297,8 @@ test("links settings are checked, and hold no sign-in", () => {
       /links\.workers is not a setting/,
     ],
     [{ other: 1 }, /links\.other is not a setting/],
-  ])
+  ];
+  for (const [value, message] of cases)
     assert.throws(() => validateLinks(value), message);
 });
 
@@ -294,7 +311,9 @@ test("a queued worker start shows as starting until its session binds", (t) => {
     request: { task: "a", role: "worker", attempt: 1, executor: "kirocrew" },
   });
   const starting = () =>
-    deliveryView(store, store.read()).items.find((row) => row.id === "a");
+    found(
+      deliveryView(store, store.read()).items.find((row) => row.id === "a"),
+    );
   assert.equal(starting().starting, true);
   store.put("session_bindings", {
     id: "avoozl_a1",

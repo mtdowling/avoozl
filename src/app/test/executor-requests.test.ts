@@ -1,39 +1,65 @@
-// @ts-nocheck: typing debt
 import assert from "node:assert/strict";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import {
   enqueueSessionRequests,
+  type RequestRow,
+  type SessionRequest,
   takeSessionRequest,
 } from "../sessions/session-requests.ts";
+import type { Store } from "../store/store.ts";
 import {
   kirocrewRequest,
   persistKirocrewConfiguration,
 } from "../executors/kirocrew.ts";
 import { Operations } from "../api/operations.ts";
 import { fixture } from "./fixtures.ts";
+import { found } from "./view-shapes.ts";
 
-const context = (id) => ({ caller: { sessionKey: `cron:${id}` } });
-const start = (extra = {}) => ({
+const context = (id: string) => ({ caller: { sessionKey: `cron:${id}` } });
+const start = (extra: Record<string, unknown> = {}) => ({
   executor: "kirocrew",
   role: "worker",
   task: "sample-task",
   title: "avoozl:sample-task work",
   brief: "Do the synthetic work.",
-  worktree: null,
+  worktree: null as string | null,
   model: "fake-model",
   permissionClass: "write",
   ...extra,
 });
-const env = (t) => {
+const env = (t: TestContext) => {
   const value = fixture(t);
   return {
     ...value,
     ops: new Operations(value.store, { workspaceRoot: value.root }),
   };
 };
-const call = (ops, name, input, consumer = "one") =>
-  ops.execute(`executor.kirocrew.${name}`, input, undefined, context(consumer));
-const input = (request) => ({ id: request.id, version: request.version });
+// A claim the native cron took.
+interface Claim {
+  claimToken: string;
+}
+const call = (
+  ops: Operations,
+  name: string,
+  input: Record<string, unknown>,
+  consumer = "one",
+) =>
+  ops.execute<Claim | null>(
+    `executor.kirocrew.${name}`,
+    input,
+    undefined,
+    context(consumer),
+  );
+const input = (request: SessionRequest) => ({
+  id: request.id,
+  version: typeof request.version === "string" ? request.version : undefined,
+});
+interface PlanRow {
+  id: string;
+  [key: string]: unknown;
+}
+const row = (store: Store, id: string) =>
+  found(store.get<RequestRow>("session_requests", id), id);
 
 test("native consumers cannot take process requests or complete another consumer's claim", async (t) => {
   const { store, ops } = env(t),
@@ -63,7 +89,7 @@ test("native consumers cannot take process requests or complete another consumer
     }),
     /Only the native executor cron/,
   );
-  const claim = await call(ops, "take", input(native));
+  const claim = found(await call(ops, "take", input(native)));
   assert.ok(claim.claimToken);
   assert.equal(await call(ops, "take", input(native)), null);
   await assert.rejects(
@@ -87,7 +113,7 @@ test("native consumers cannot take process requests or complete another consumer
   );
   assert.equal(store.get("session_bindings", "s-native"), null);
   const message = queued.sends[1],
-    messageClaim = await call(ops, "take", input(message));
+    messageClaim = found(await call(ops, "take", input(message)));
   await assert.rejects(
     call(ops, "complete", { id: message.id, outcome: "sent" }),
     /does not own/,
@@ -106,12 +132,14 @@ test("native consumers cannot take process requests or complete another consumer
     claimToken: messageClaim.claimToken,
     outcome: "sent",
   });
-  assert.equal(store.get("session_requests", message.id).state, "sent");
+  assert.equal(row(store, message.id).state, "sent");
   const foreignMessage = queued.sends[0],
-    processClaim = takeSessionRequest(store, input(foreignMessage), {
-      executor: "process",
-      consumer: "process-owner",
-    });
+    processClaim = found(
+      takeSessionRequest(store, input(foreignMessage), {
+        executor: "process",
+        consumer: "process-owner",
+      }),
+    );
   await assert.rejects(
     call(ops, "complete", {
       id: foreignMessage.id,
@@ -132,11 +160,11 @@ test("a version change fences stale starts, and a claim never expires from age",
   assert.equal(first.id, latest.id);
   assert.notEqual(first.version, latest.version);
   assert.equal(await call(ops, "take", input(first)), null);
-  const taken = await call(ops, "take", input(latest));
-  const row = store.get("session_requests", latest.id);
+  const taken = found(await call(ops, "take", input(latest)));
+  const claimed = row(store, latest.id);
   store.put("session_requests", {
-    ...row,
-    claim: { ...row.claim, claimedAt: "1970-01-01T00:00:00Z" },
+    ...claimed,
+    claim: { ...found(claimed.claim), claimedAt: "1970-01-01T00:00:00Z" },
   });
   assert.equal(await call(ops, "take", input(latest), "two"), null);
   await assert.rejects(
@@ -152,7 +180,7 @@ test("a version change fences stale starts, and a claim never expires from age",
     claimToken: taken.claimToken,
     reason: "before-open",
   });
-  assert.equal(store.get("session_requests", latest.id).state, "pending");
+  assert.equal(row(store, latest.id).state, "pending");
 });
 
 test("a successful binding accepts reordered context and replay cannot start it again", async (t) => {
@@ -168,7 +196,7 @@ test("a successful binding accepts reordered context and replay cannot start it 
         }),
       ],
     }).starts[0],
-    claim = await call(ops, "take", input(request));
+    claim = found(await call(ops, "take", input(request)));
   await ops.execute(
     "session.bind",
     {
@@ -190,7 +218,7 @@ test("a successful binding accepts reordered context and replay cannot start it 
     undefined,
     context("one"),
   );
-  assert.equal(store.get("session_requests", request.id).state, "bound");
+  assert.equal(row(store, request.id).state, "bound");
   assert.equal(await call(ops, "take", input(request)), null);
   const again = enqueueSessionRequests(store, { starts: [start()] }).starts[0];
   assert.equal(again.id, request.id);
@@ -199,7 +227,7 @@ test("a successful binding accepts reordered context and replay cannot start it 
 
 test("worker consumption rechecks prerequisites, owner approval and the approved hash", async (t) => {
   for (const mutate of [
-    (store) =>
+    (store: Store) =>
       store.mutate("add blocker", (data) => {
         data.tasks.push({ ...data.tasks[0], id: "blocker" });
         data.edges.push({
@@ -208,10 +236,16 @@ test("worker consumption rechecks prerequisites, owner approval and the approved
           kind: "requires",
         });
       }),
-    (store) =>
-      store.put("plans", { ...store.get("plans", "p"), state: "draft" }),
-    (store) =>
-      store.put("plans", { ...store.get("plans", "p"), hash: "new-hash" }),
+    (store: Store) =>
+      store.put("plans", {
+        ...found(store.get<PlanRow>("plans", "p")),
+        state: "draft",
+      }),
+    (store: Store) =>
+      store.put("plans", {
+        ...found(store.get<PlanRow>("plans", "p")),
+        hash: "new-hash",
+      }),
   ]) {
     const { store, ops } = env(t);
     store.put("plans", { id: "p", state: "approved", hash: "approved-hash" });
@@ -222,7 +256,7 @@ test("worker consumption rechecks prerequisites, owner approval and the approved
       .starts[0];
     mutate(store);
     assert.equal(await call(ops, "take", input(request)), null);
-    assert.equal(store.get("session_requests", request.id).state, "canceled");
+    assert.equal(row(store, request.id).state, "canceled");
   }
   const { store, ops } = env(t),
     request = enqueueSessionRequests(store, { starts: [start()] }).starts[0];
@@ -254,7 +288,7 @@ test("native configuration stays outside planner objects and durable neutral row
 
 test("request IDs cannot be reassigned to another executor or start target", (t) => {
   const { store } = env(t),
-    request = start({ id: "fixed-start" });
+    request = { ...start(), id: "fixed-start" };
   enqueueSessionRequests(store, { starts: [request] });
   for (const change of [
     { executor: "process" },
@@ -267,7 +301,7 @@ test("request IDs cannot be reassigned to another executor or start target", (t)
         enqueueSessionRequests(store, { starts: [{ ...request, ...change }] }),
       /cannot change/,
     );
-  assert.equal(store.get("session_requests", request.id).executor, "kirocrew");
+  assert.equal(row(store, request.id).executor, "kirocrew");
 });
 
 test("later real ticks reoffer pending transport rows but never claimed or completed ones", async (t) => {
@@ -280,7 +314,10 @@ test("later real ticks reoffer pending transport rows but never claimed or compl
     ],
   });
   const tick = () =>
-    ops.execute("workspace.tick", { cron: true, sessions: [] });
+    ops.execute<{ dispatch: { id: string }[]; messages: { id: string }[] }>(
+      "workspace.tick",
+      { cron: true, sessions: [] },
+    );
   const replay = await tick();
   assert.equal(
     replay.dispatch.some((request) => request.id === queued.starts[0].id),
@@ -291,7 +328,7 @@ test("later real ticks reoffer pending transport rows but never claimed or compl
     queued.sends.map((request) => request.id).sort(),
   );
   await call(ops, "take", input(queued.starts[0]));
-  const claim = await call(ops, "take", input(queued.sends[0]));
+  const claim = found(await call(ops, "take", input(queued.sends[0])));
   await call(ops, "complete", {
     id: queued.sends[0].id,
     claimToken: claim.claimToken,
