@@ -63,6 +63,7 @@ def run(ctx):
 
     opened = 0
     dispatch_refused = []
+    first_dispatch_error = None
     for d in intents.get("dispatch") or []:
         if not executor.owns(d):
             continue
@@ -78,6 +79,8 @@ def run(ctx):
             # One malformed or stale request belongs to its workspace. Keep it
             # claimed for inspection, but do not let it starve valid requests
             # from every other workspace served by this machine-wide cron.
+            if first_dispatch_error is None:
+                first_dispatch_error = error
             dispatch_refused.append(
                 "%s: %s" % (d.get("task", "unknown"), str(error)[:200])
             )
@@ -107,6 +110,10 @@ def run(ctx):
         else:
             executor.complete_message(m, "sent")
 
+    # Preserve the transport contract for an uncertain open: if nothing else
+    # made progress, surface the error and leave its claim held for inspection.
+    if first_dispatch_error is not None and not (opened or messages):
+        raise first_dispatch_error
     if not (opened or messages or dispatch_refused):
         raise Skip()
     # The run's summary (cron history) names what did not get through.

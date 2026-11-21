@@ -143,9 +143,18 @@ function parsePolicy(text) {
   return value;
 }
 
-// The workspace name a lane's header and folder carry (simplify §D22).
-export const laneWorkspace = (workspaceRoot: string | null | undefined) =>
-  workspaceRoot ? path.basename(path.resolve(workspaceRoot)) : null;
+// The stable workspace name a lane's header and folder carry (simplify §D22).
+// Registered workspaces often live in folders literally named `workspace`, so
+// the root basename cannot distinguish their Kiro Crew session folders.
+export const laneWorkspace = (
+  workspaceRoot: string | null | undefined,
+  workspaceId?: unknown,
+) =>
+  typeof workspaceId === "string" && workspaceId
+    ? workspaceId
+    : workspaceRoot
+      ? path.basename(path.resolve(workspaceRoot))
+      : null;
 
 // This machine's lanes (R6.3, simplify §D22): lanes.local or, with `key`,
 // lanes.reviewers in the machine file, or undefined when it sets none or
@@ -597,6 +606,10 @@ async function runTick(
         );
       // An invalid file keeps the last valid policy's delivery settings.
       const bindings = listSessionBindings(store),
+        laneWorkspaceId = laneWorkspace(
+          workspaceRoot,
+          store.getMeta("workspaceId"),
+        ),
         delivery = ["loaded", "invalid"].includes(policy.status)
           ? deliveryPolicy(memory.value, machinePolicyLanes())
           : null;
@@ -609,11 +622,7 @@ async function runTick(
       const planned = { messages: [], notify: [] };
       // A lane whose session a person closed pauses until Resume (SM20.8).
       if (delivery && workspaceRoot)
-        for (const lane of observeLanes(
-          store,
-          delivery,
-          laneWorkspace(workspaceRoot),
-        ))
+        for (const lane of observeLanes(store, delivery, laneWorkspaceId))
           planned.notify.push({
             channel: "decision",
             title: `Avoozl paused lane ${lane.id}`,
@@ -875,7 +884,7 @@ async function runTick(
         plannedReady = !schedule
           ? []
           : planReadyDispatches(store, delivery, {
-              workspace: laneWorkspace(workspaceRoot),
+              workspace: laneWorkspaceId,
               skip: new Set([...readySkip, ...schedule.skip, ...outOfLoop]),
               // Settings › Models' worker harness (R98.3, R98.6).
               config: memory.value || {},
@@ -885,7 +894,7 @@ async function runTick(
           unobserved.length || !delivery
             ? []
             : planReviewDispatches(store, delivery, {
-                workspace: laneWorkspace(workspaceRoot),
+                workspace: laneWorkspaceId,
                 config: memory.value || {},
               });
       // The loop pass claims each start on origin first (simplify §D6).

@@ -607,7 +607,7 @@ test("tick cron continues past one refused dispatch", () => {
     ["slot-new"],
   );
   assert.match(
-    result.returned,
+    result.returned ?? "",
     /^1 dispatch\(es\) refused: bad: bad session binding$/,
   );
 });

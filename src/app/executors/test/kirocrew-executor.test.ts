@@ -12,6 +12,7 @@ const adapter = fileURLToPath(
 );
 // What the Python fake records: an open, a bind, a mode change or a send.
 interface Binding {
+  _avoozlWorkspaceId?: string;
   taskId?: string;
   slot?: string;
   lane?: string;
@@ -21,9 +22,21 @@ interface Binding {
 }
 type Open = ["open", string, Record<string, string>];
 type Bind = ["bind", Binding];
-type Call = Open | Bind | ["mode", string, string] | ["send", string, string];
+type Tool = [
+  "tool",
+  string,
+  string,
+  { input: Record<string, string | undefined> },
+];
+type Call =
+  | Open
+  | Bind
+  | Tool
+  | ["mode", string, string]
+  | ["send", string, string];
 const isBind = (row: Call): row is Bind => row[0] === "bind";
 const isOpen = (row: Call): row is Open => row[0] === "open";
+const isTool = (row: Call): row is Tool => row[0] === "tool";
 
 // Run `body` against the adapter and parse what it prints as T.
 const run = <T>(body: string): T =>
@@ -124,7 +137,7 @@ print(json.dumps({"slot": slot, "calls": calls, "observations": e.observations()
 });
 
 test("the real adapter carries a dispatch's workspace through take and bind", () => {
-  const result = run(`
+  const result = run<Call[]>(`
 d = {
     "id": "start:one",
     "version": "version-one",
@@ -137,15 +150,17 @@ d = {
 e.start(*e.arguments(d))
 print(json.dumps(calls))`);
   const take = result.find(
-    (row) => row[0] === "tool" && row[2] === "plans_executor",
+    (row): row is Tool => isTool(row) && row[2] === "plans_executor",
   );
+  assert.ok(take);
   assert.equal(take[3].input._avoozlWorkspaceId, "workspace-two");
-  const bind = result.find((row) => row[0] === "bind");
+  const bind = result.find(isBind);
+  assert.ok(bind);
   assert.equal(bind[1]._avoozlWorkspaceId, "workspace-two");
 });
 
 test("a title owned by an old cron opens under a stable recovery title", () => {
-  const result = run(`
+  const result = run<{ slot: string; calls: Call[] }>(`
 original_open = ctx.open_session
 def ownership_aware(name, **kwargs):
     if name == "avoozl:task-one work":
@@ -164,19 +179,18 @@ d = {
 slot = e.start(*e.arguments(d))
 print(json.dumps({"slot": slot, "calls": calls}))`);
   assert.equal(result.slot, "session-one");
-  const opens = result.calls.filter((row) => row[0] === "open");
+  const opens = result.calls.filter(isOpen);
   assert.equal(opens.length, 2);
   assert.equal(opens[0][1], "avoozl:task-one work");
   assert.match(opens[1][1], /^avoozl:task-one work retry-[0-9a-f]{8}$/);
-  assert.equal(
-    result.calls.find((row) => row[0] === "bind")[1].title,
-    opens[1][1],
-  );
+  const binding = result.calls.find(isBind);
+  assert.ok(binding);
+  assert.equal(binding[1].title, opens[1][1]);
   assert.doesNotMatch(opens[1][1], /claim-one/);
 });
 
 test("a lane title owned by an old cron opens a replacement lane chat", () => {
-  const result = run(`
+  const result = run<{ slot: string; calls: Call[] }>(`
 original_open = ctx.open_session
 header = "Avoozl · workspace · worker 1"
 def ownership_aware(name, **kwargs):
@@ -201,16 +215,17 @@ e._requests[("worker", "task-one")] = d
 slot = e.start("worker", "task-one", None, "Do the work", None, "write")
 print(json.dumps({"slot": slot, "calls": calls}))`);
   assert.equal(result.slot, "session-one");
-  const opens = result.calls.filter((row) => row[0] === "open");
+  const opens = result.calls.filter(isOpen);
   assert.equal(opens.length, 2);
   assert.equal(opens[0][1], "Avoozl · workspace · worker 1");
   assert.match(
     opens[1][1],
     /^Avoozl · workspace · worker 1 retry-[0-9a-f]{8}$/,
   );
-  const binding = result.calls.find((row) => row[0] === "bind")[1];
-  assert.equal(binding.title, "Avoozl · workspace · worker 1");
-  assert.equal(binding.lane, "worker-1");
+  const binding = result.calls.find(isBind);
+  assert.ok(binding);
+  assert.equal(binding[1].title, "Avoozl · workspace · worker 1");
+  assert.equal(binding[1].lane, "worker-1");
 });
 
 test("a missing project or unsupported remote dispatch refuses without opening locally", () => {
