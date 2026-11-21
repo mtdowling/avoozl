@@ -7,7 +7,7 @@ import type { Store } from "../store/store.ts";
 export function sessionStartHold(
   store: Store,
   request: { task: string; role: string },
-  queued: { approval?: { planId: string; hash: string } | null } = {},
+  queued: { approval?: { planId: string; hash?: string } | null } = {},
 ) {
   const data = store.read();
   const hold = sessionRequestHold(data, request.task, request.role);
