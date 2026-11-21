@@ -818,7 +818,7 @@ export function parseSpec({
         );
         continue;
       }
-      const step = entry.step ?? "implement",
+      const step = String(entry.step ?? "implement"),
         pair = `${entry.plan}\0${step}`;
       if (named.has(pair)) {
         diagnostics.push(

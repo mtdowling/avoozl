@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Tasks hold no facts (simplify §D20). A task is its title and the plain
 // bullets under it; the list orders it (order.mjs), `(**MANUAL**)` in its
 // title marks a person's task, and the front matter's `repo` names the one
@@ -18,6 +17,47 @@
 // This module imports nothing from spec-plans.mjs: callers pass the checklist
 // items, so the two files do not import each other.
 
+// A checklist item as specItems reads it (spec-plans.mjs passes them).
+export interface FactItem {
+  key: string | null;
+  line: number;
+  mark?: string;
+  parent?: { key: string | null } | null;
+  title?: string;
+  spec?: unknown;
+}
+// How one key reads: the field it fills and its value's type.
+interface KeySpec {
+  as: string;
+  type: string;
+  item?: (value: string) => unknown;
+}
+// One problem with its line, for lint.
+export interface FactProblem {
+  code: string;
+  line: number;
+  message: string;
+  key?: string | null;
+}
+// One task's facts, by field.
+type Entry = Record<string, unknown>;
+// The object parseSpec checks.
+export interface Manifest {
+  version: number;
+  kind?: string;
+  tasks: Record<string, Entry>;
+  [key: string]: unknown;
+}
+// A bullet: its line and its text.
+type Nested = { line: number; text: string };
+// The front-matter block, as readFront reads it.
+interface Front {
+  lines: number;
+  values: Record<string, unknown>;
+  problems: FactProblem[];
+  at: Record<string, number>;
+}
+
 const FENCE = /^\s*(```|~~~)/;
 const BULLET = /^(\s*)[-*+][ \t]+(.*?)\s*$/;
 // A task fact: a bullet that reads `$key: value`.
@@ -27,17 +67,17 @@ const NOTE = /^([A-Za-z][A-Za-z0-9]*):/;
 const OPEN = /^\uFEFF?---[ \t]*$/;
 const CLOSE = /^(?:---|\.\.\.)[ \t]*$/;
 const STATUS = /^Status:/;
-const ONE_LINE = (key) =>
+const ONE_LINE = (key: string) =>
   `A fact is one bullet on one line. Write another "$${key}:" bullet for each value, and nothing under it.`;
 
 // No fact is read: every `$key:` bullet is gone (REMOVED_FACTS).
-const KEYS = {};
+const KEYS: Record<string, KeySpec> = {};
 const FACT_KEYS = Object.keys(KEYS);
 
 const GONE = "Avoozl no longer reads it; delete this line.";
 // Facts that are gone, and what to do with a line that still has one. Each
 // is the lint error `facts.removed-key` at its line.
-const REMOVED_FACTS = {
+const REMOVED_FACTS: Record<string, string> = {
   done: "Write the result as a plain bullet under the task: delete `$done:` and keep the text.",
   after:
     "Order tasks by the list; tag a group `(**PARALLEL**)` for tasks that run side by side. Delete this line.",
@@ -91,14 +131,14 @@ const REMOVED_FACTS = {
 };
 
 // Front-matter: a default for a leaf, and values for the whole spec.
-const DEFAULTS = {
+const DEFAULTS: Record<string, KeySpec> = {
   repo: { as: "repository", type: "text" },
 };
-const SPEC_KEYS = [];
+const SPEC_KEYS: string[] = [];
 const FRONT_KEYS = [...Object.keys(DEFAULTS), ...SPEC_KEYS];
 // Front-matter keys the list form removed (simplify §D20): the lint error
 // `frontmatter.removed-key`.
-const REMOVED_SPEC_FRONT = {
+const REMOVED_SPEC_FRONT: Record<string, string> = {
   kind: "A spec is a list of tasks; a parent links its member specs from task titles. Delete this line.",
   epic: "A parent spec links its member specs from task titles. Delete this line.",
   integrationBranch:
@@ -108,7 +148,7 @@ const REMOVED_SPEC_FRONT = {
 };
 // Front-matter keys that are gone. `phase-<id>` and `batch-<id>` are matched
 // by their prefix.
-const REMOVED_FRONT = {
+const REMOVED_FRONT: Record<string, string> = {
   completion:
     "A task completes when it lands, and a person's task ends its title with `(**MANUAL**)`; delete this line.",
   ship: "The repository's landing setting says how work ships; delete this line.",
@@ -120,7 +160,7 @@ const REMOVED_FRONT = {
   "batch-<id>":
     "Batches are gone: the agent groups its own work. Delete this line and every `$batch` bullet.",
 };
-const removedFront = (key) => {
+const removedFront = (key: string) => {
   const named = /^(phase|batch)-./.exec(key);
   return Object.hasOwn(REMOVED_FRONT, key)
     ? REMOVED_FRONT[key]
@@ -137,15 +177,20 @@ const TOP_ORDER = [
   "tasks",
 ];
 
-const indentOf = (raw) => /^\s*/.exec(raw)[0].length;
+const indentOf = (raw: string) => (/^\s*/.exec(raw)?.[0] ?? "").length;
 
-function problem(code, line, message, extra = {}) {
+function problem(
+  code: string,
+  line: number,
+  message: string,
+  extra: { key?: string | null } = {},
+): FactProblem {
   return { code, line, message, ...extra };
 }
 
 // A list's items: its text split on commas outside backticks, so
 // `src/{a,b}.js` stays one item.
-function split(value) {
+function split(value: string) {
   const parts = [""];
   let quoted = false;
   for (const char of value) {
@@ -158,7 +203,12 @@ function split(value) {
 
 // Read one key: `inline` is the text after the colon, `nested` the child
 // bullets as [{line, text}]. Returns {value} or {error}.
-function readValue(key, spec, inline, nested) {
+function readValue(
+  key: string,
+  spec: KeySpec,
+  inline: string,
+  nested: Nested[],
+): { value?: unknown; error?: string } {
   const loose = spec.type === "list";
   if (!loose && nested.length)
     return { error: `${key} takes one value on its line, not a list.` };
@@ -174,7 +224,8 @@ function readValue(key, spec, inline, nested) {
       return {
         error: `"${level}" names a completion level, and levels are gone. Write the task ID alone.`,
       };
-    return { value: spec.item ? items.map(spec.item) : items };
+    const each = spec.item;
+    return { value: each ? items.map((item) => each(item)) : items };
   }
   if (!inline) return { error: `${key} needs a value.` };
   if (spec.type === "bool") {
@@ -187,8 +238,8 @@ function readValue(key, spec, inline, nested) {
 
 // The front-matter block of tasks.md: {lines: how many, values, problems,
 // at: key -> line}. A `Status:` line the approval commit adds is not a fact.
-function readFront(rows) {
-  const out = { lines: 0, values: {}, problems: [], at: {} };
+function readFront(rows: string[]): Front {
+  const out: Front = { lines: 0, values: {}, problems: [], at: {} };
   if (!rows.length || !OPEN.test(rows[0])) return out;
   const end = rows.findIndex((row, index) => index > 0 && CLOSE.test(row));
   if (end < 0) {
@@ -217,12 +268,12 @@ function readFront(rows) {
       continue;
     }
     const [, key, inline] = match,
-      nested = [];
+      nested: Nested[] = [];
     while (index + 1 < end && /^\s+[-*+]\s+/.test(rows[index + 1])) {
       index++;
       nested.push({
         line: index + 1,
-        text: BULLET.exec(rows[index])[2],
+        text: BULLET.exec(rows[index])?.[2] ?? "",
       });
     }
     const line = index + 1 - nested.length;
@@ -260,8 +311,8 @@ function readFront(rows) {
       );
       continue;
     }
-    let spec = DEFAULTS[key];
-    if (!spec && SPEC_KEYS.includes(key)) spec = { type: "text" };
+    let spec: KeySpec | undefined = DEFAULTS[key];
+    if (!spec && SPEC_KEYS.includes(key)) spec = { as: key, type: "text" };
     if (!spec) {
       out.problems.push(
         problem(
@@ -288,14 +339,14 @@ function readFront(rows) {
 //   lineOfFact(key, fact)
 //   isEpic
 //   factLines    the tasks.md line numbers a revision hash leaves out
-export function readFacts(text, items) {
+export function readFacts(text: unknown, items: FactItem[]) {
   const rows = String(text)
       .split("\n")
       .map((row) => row.replace(/\r$/, "")),
     front = readFront(rows),
     problems = [...front.problems],
     byLine = new Map(items.map((item) => [item.line, item])),
-    skip = new Set();
+    skip = new Set<number>();
   for (let at = 0; at < front.lines; at++) skip.add(at + 1);
   // shortcut: epic folders are gone with the `kind` key; the epic paths
   // below are unreachable until they are deleted with the epic code.
@@ -303,7 +354,7 @@ export function readFacts(text, items) {
 
   // Each item's facts: its direct child bullets that read `$key: value`. A
   // sub-item's bullets are its own, and a fenced block holds none.
-  const fenced = new Set();
+  const fenced = new Set<number>();
   let fence = false;
   rows.forEach((raw, index) => {
     if (FENCE.test(raw)) {
@@ -311,15 +362,15 @@ export function readFacts(text, items) {
       fenced.add(index + 1);
     } else if (fence) fenced.add(index + 1);
   });
-  const tasks = {},
-    lines = new Map(),
-    factLine = new Map();
+  const tasks: Record<string, Entry> = {},
+    lines = new Map<string | null, number>(),
+    factLine = new Map<string, number>();
   for (const item of items) {
     const base = indentOf(rows[item.line - 1] ?? ""),
-      entry = {},
-      seen = new Map();
-    let child = null,
-      fact = null;
+      entry: Entry = {},
+      seen = new Map<string, number>();
+    let child: number | null = null,
+      fact: { key: string; nested: boolean } | null = null;
     for (let at = item.line; at < rows.length; at++) {
       const raw = rows[at],
         line = at + 1;
@@ -418,7 +469,10 @@ export function readFacts(text, items) {
       }
       // A list fact written again adds to the list.
       if (seen.has(key)) {
-        entry[spec.as] = [...entry[spec.as], ...read.value];
+        entry[spec.as] = [
+          ...(entry[spec.as] as unknown[]),
+          ...(read.value as unknown[]),
+        ];
         continue;
       }
       seen.set(key, line);
@@ -462,7 +516,7 @@ export function readFacts(text, items) {
   ]);
   if (!isEpic)
     for (const [key, entry] of Object.entries(tasks)) {
-      const fill = { kind: parents.has(key) ? "package" : "leaf" };
+      const fill: Entry = { kind: parents.has(key) ? "package" : "leaf" };
       if (fill.kind === "leaf")
         for (const [name, spec] of Object.entries(DEFAULTS))
           if (front.values[name] !== undefined && entry[spec.as] === undefined)
@@ -470,12 +524,16 @@ export function readFacts(text, items) {
       tasks[key] = withDefaults(entry, fill);
     }
 
-  const manifest = { version: 1 };
-  if (isEpic) manifest.kind = "epic";
+  const spec: Record<string, unknown> = {};
   for (const key of SPEC_KEYS)
     if (key !== "kind" && front.values[key] !== undefined)
-      manifest[key] = front.values[key];
-  manifest.tasks = tasks;
+      spec[key] = front.values[key];
+  const manifest: Manifest = {
+    version: 1,
+    ...(isEpic ? { kind: "epic" } : {}),
+    ...spec,
+    tasks,
+  };
 
   return {
     manifest,
@@ -483,10 +541,10 @@ export function readFacts(text, items) {
     isEpic,
     skip,
     front,
-    lineOf: (key) => lineOfItem(items, key, lines),
-    lineOfFact: (key, fact) =>
+    lineOf: (key: string | null) => lineOfItem(items, key, lines),
+    lineOfFact: (key: string | null, fact: string) =>
       factLine.get(`${key}\0${fact}`) ?? lineOfItem(items, key, lines),
-    frontLine: (key) => front.at[key] ?? 1,
+    frontLine: (key: string) => front.at[key] ?? 1,
   };
 }
 
@@ -495,17 +553,17 @@ export function readFacts(text, items) {
 // each with its nested lines, as written. Returns item line ->
 // [{line, text}], for items that have any. They are not facts: the revision
 // hash reads them only as tasks.md text.
-export function itemBullets(text, items) {
+export function itemBullets(text: unknown, items: FactItem[]) {
   const rows = String(text)
       .split("\n")
       .map((row) => row.replace(/\r$/, "")),
     itemLines = new Set(items.map((item) => item.line)),
-    out = new Map();
+    out = new Map<number, Nested[]>();
   for (const item of items) {
     const base = indentOf(rows[item.line - 1] ?? ""),
-      kept = [];
-    let child = null,
-      own = null,
+      kept: { line: number; lines: string[] }[] = [];
+    let child: number | null = null,
+      own: { line: number; lines: string[] } | null = null,
       fenced = false;
     for (let at = item.line; at < rows.length; at++) {
       const raw = rows[at],
@@ -524,7 +582,8 @@ export function itemBullets(text, items) {
             : null;
         if (own) kept.push(own);
       }
-      if (own) own.lines.push(raw.slice(Math.min(indent, child)).trimEnd());
+      if (own)
+        own.lines.push(raw.slice(Math.min(indent, child ?? indent)).trimEnd());
       if (FENCE.test(raw)) fenced = !fenced;
     }
     if (kept.length)
@@ -538,31 +597,35 @@ export function itemBullets(text, items) {
 
 // `entry` with each key of `fill` placed before the first key of `entry` that
 // ORDER ranks after it.
-function withDefaults(entry, fill) {
-  const out = [],
+function withDefaults(entry: Entry, fill: Entry) {
+  const out: [string, unknown][] = [],
     pending = Object.entries(fill).sort(
       ([a], [b]) => rank(ORDER, a) - rank(ORDER, b),
     );
   for (const pair of Object.entries(entry)) {
     while (pending.length && rank(ORDER, pending[0][0]) < rank(ORDER, pair[0]))
-      out.push(pending.shift());
+      out.push(pending.shift() as [string, unknown]);
     out.push(pair);
   }
   return Object.fromEntries([...out, ...pending]);
 }
 
-const rank = (order, key) => {
+const rank = (order: string[], key: string) => {
   const at = order.indexOf(key);
   return at < 0 ? order.length : at;
 };
 
-function lineOfItem(items, key, lines) {
+function lineOfItem(
+  items: FactItem[],
+  key: string | null,
+  lines: Map<string | null, number>,
+) {
   return lines.get(key) ?? items.find((item) => item.key === key)?.line ?? 1;
 }
 
 // tasks.md without its facts: the front-matter block and every fact bullet,
 // so the text is what the file said before they were added. Line numbers are not kept: the revision hash reads this.
-export function withoutFacts(text, items) {
+export function withoutFacts(text: unknown, items: FactItem[]) {
   const { skip } = readFacts(text, items);
   return String(text)
     .split("\n")
@@ -572,7 +635,7 @@ export function withoutFacts(text, items) {
 
 // The text a revision hash reads for the facts: spec-wide keys in a fixed
 // order, then each task's keys in their order (see readFacts).
-export function factsText(manifest) {
+export function factsText(manifest: Manifest) {
   const out = Object.fromEntries(
     Object.entries(manifest).sort(
       ([a], [b]) => rank(TOP_ORDER, a) - rank(TOP_ORDER, b),
@@ -586,4 +649,4 @@ const FACT_OF = Object.fromEntries(
 );
 
 // The fact name a parsed key is written as, such as repo for repository.
-export const factName = (key) => FACT_OF[key] ?? key;
+export const factName = (key: string) => FACT_OF[key] ?? key;
