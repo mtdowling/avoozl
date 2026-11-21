@@ -223,6 +223,19 @@ that unattended work does not fail on a missing login.
    the sandbox denies the keychain (V: `src/app/executors/sandbox.mjs`). The
    docs SHALL say to use an API key, a cloud provider's short-lived
    credentials in `machine.env`, or a model proxy.
+5. A definition with `egress` SHALL get its own egress proxy per session,
+   bound to 127.0.0.1 only, with no setting that widens it. The proxy SHALL
+   allow only CONNECT to port 443 of a listed host, where `*` stands for one
+   label and the last two labels are fixed. It SHALL refuse every other
+   request. It SHALL log host names only, never a header or tunnel byte.
+   The child SHALL get `HTTPS_PROXY` for it, and its sandbox SHALL open
+   only that loopback port beyond the repository's own. A definition with
+   `credentialExport` SHALL have that argv run outside the sandbox before
+   each start and each probe. The child SHALL get only the
+   `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` and `AWS_SESSION_TOKEN`
+   values that argv prints, without `AWS_PROFILE`. Its copied `homeFiles`
+   SHALL leave out the harness's own credential helper. No value SHALL be
+   logged, and a failed export SHALL name its exit, never its output.
 
 ### Requirement MS6: Every role on Claude Code, unattended
 

@@ -500,7 +500,7 @@ export async function preflightModel(
       : [];
   const network = JSON.parse(row?.settings || "{}").network ?? null;
   const proxied = tail(run.paths.proxyLog, 1000).some((line) =>
-    / allow connect /.test(line),
+    / allow /.test(line),
   );
   run.event("preflight", { role, status, network, proxied });
   if (status === "exited 0" && proxied) return;

@@ -137,11 +137,20 @@ environment. Two things then fail quietly: the harness program is not on
   `src/app/executors/harness-definitions.mjs`).
 - Sign-in probe: the definition's `probe` argv (no placeholders) runs in a
   fresh temp folder with a seeded home, the definition's `keepEnv`, `reads`
-  and the worker's sandbox, with the network off. Its answer is kept in
+  and the worker's sandbox and egress. Its answer is kept in
   `harness-probes.json` in the machine config folder, keyed on the
   definition hash and a hash of `machine.env`, and read by
   `listHarnessDefinitions` (V: `probeHarness`,
   `src/app/executors/harness-probe.ts`).
+- Egress (MS5.5): `harnessNetwork` runs the definition's
+  `credentialExport` and starts `egress-proxy-main.ts`, a detached process,
+  as the context broker is, since the child outlives the tick. The proxy
+  listens on 127.0.0.1 on a free port, writes the port to the session
+  folder, and ends when the run's exit file appears. The supervisor records
+  its pid in `egress.json` and stops it with the session's context. The
+  child gets `HTTPS_PROXY`, the exported keys and `setEnv`, and its sandbox
+  network gets `localhost:PORT` (V: `src/app/executors/egress-proxy.ts`,
+  `src/app/executors/harness-network.ts`).
 - Readiness: one function per definition answers "can this start here?"
   and both `avoozl status` and Settings › Models show it per role (MS5.3).
   It fails on a program not found or a failed cached probe, never on a

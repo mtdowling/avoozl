@@ -121,6 +121,20 @@ function openAndPass(options) {
   return supervisor;
 }
 
+// Request one child and pass until it is no longer working.
+async function runToEnd({ stateDirectory, configDirectory, worktree, defer }) {
+  const db = openSupervisorDatabase(stateDirectory);
+  defer(() => db.close());
+  const id = requestChild(db, request(worktree));
+  const supervisor = openAndPass({ stateDirectory, configDirectory });
+  defer(() => supervisor.close());
+  await until(() => {
+    supervisor.pass();
+    return childStatus(db, id) !== "working";
+  });
+  return { db, id };
+}
+
 async function until(check, timeoutMs = 30_000) {
   const end = Date.now() + timeoutMs;
   for (;;) {
@@ -296,6 +310,39 @@ fs.writeFileSync("seen.json", JSON.stringify([process.env.MODEL_KEY, process.env
   );
 });
 
+test("a child with egress reaches its proxy, and the proxy refuses an unlisted host (MS5.5)", {
+  // Bubblewrap turns the network off whole; loopback ports are macOS only.
+  skip: sandboxKind() === "bwrap",
+}, async (t) => {
+  const { stateDirectory, configDirectory, worktree, defer } = scratch(t, {
+    extra: { egress: ["bedrock-runtime.*.amazonaws.com"] },
+  });
+  fs.writeFileSync(
+    path.join(worktree, "agent.mjs"),
+    `import fs from "node:fs";
+import net from "node:net";
+const url = new URL(process.env.HTTPS_PROXY);
+const socket = net.connect(Number(url.port), url.hostname, () =>
+  socket.write("CONNECT example.com:443 HTTP/1.1\\r\\nHost: example.com\\r\\n\\r\\n"));
+let text = "";
+socket.on("data", (chunk) => { text += chunk; });
+const done = (answer) => { fs.writeFileSync("seen.json", JSON.stringify([url.hostname, answer])); process.exit(0); };
+socket.on("close", () => done(text.split("\\r\\n")[0]));
+socket.on("error", (error) => done(error.code));`,
+  );
+  const { db, id } = await runToEnd({
+    stateDirectory,
+    configDirectory,
+    worktree,
+    defer,
+  });
+  assert.deepEqual(
+    JSON.parse(fs.readFileSync(path.join(worktree, "seen.json"), "utf8")),
+    ["127.0.0.1", "HTTP/1.1 403 Forbidden"],
+    childLog(db, id),
+  );
+});
+
 test("the child is the program the readiness check finds, on machine.env's PATH (MS5.3)", {
   skip: process.platform === "win32",
 }, async (t) => {
@@ -315,14 +362,11 @@ test("the child is the program the readiness check finds, on machine.env's PATH 
     `PATH=${bin}:/usr/bin:/bin\n`,
     { mode: 0o600 },
   );
-  const db = openSupervisorDatabase(stateDirectory);
-  defer(() => db.close());
-  const id = requestChild(db, request(worktree));
-  const supervisor = openAndPass({ stateDirectory, configDirectory });
-  defer(() => supervisor.close());
-  await until(() => {
-    supervisor.pass();
-    return childStatus(db, id) !== "working";
+  const { db, id } = await runToEnd({
+    stateDirectory,
+    configDirectory,
+    worktree,
+    defer,
   });
   assert.deepEqual(
     fs.readFileSync(path.join(worktree, "ran.txt"), "utf8").split("\n"),

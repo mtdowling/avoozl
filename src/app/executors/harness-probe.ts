@@ -16,10 +16,13 @@ import {
 } from "./harness-definitions.ts";
 import { findProgram, recordProbe } from "./harness-ready.ts";
 import { readMachineEnv, withKeptValues } from "./machine-env.ts";
+import { harnessNetwork } from "./harness-network.ts";
+import { stopEgressProxy } from "./egress-proxy.ts";
 import {
   catalogWorkspaceRoots,
   confineChild,
   sandboxKind,
+  sandboxNetwork,
   sandboxSecretPaths,
 } from "./sandbox.ts";
 import { GIT_USER_CONFIG } from "./supervisor.ts";
@@ -36,6 +39,18 @@ type Definition = {
   home?: string;
   keepEnv?: readonly string[];
   tmpEnv?: readonly string[];
+  egress?: readonly string[];
+  credentialExport?: readonly string[];
+  setEnv?: Readonly<Record<string, string>>;
+};
+// The hosts the probe's egress proxy refused, from its log of host names.
+const refusedHosts = (folder: string) => {
+  try {
+    const lines = fs.readFileSync(path.join(folder, "egress.log"), "utf8");
+    return [...new Set([...lines.matchAll(/ deny (S+)/g)].map((m) => m[1]))];
+  } catch {
+    return [];
+  }
 };
 // The sandbox's JavaScript signatures, typed loosely from their defaults.
 const confine = confineChild as unknown as (
@@ -94,6 +109,7 @@ export function probeHarness({
   if (found.problem) return finish(false, found.problem);
   const home = env.HOME || os.homedir();
   const folder = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-probe-"));
+  let proxyPid: number | undefined;
   try {
     const work = path.join(folder, "work"),
       tmp = path.join(folder, "tmp"),
@@ -103,6 +119,18 @@ export function probeHarness({
     // A fresh home seeded as a lane's is, so the probe sees what a worker
     // sees.
     if (definition.home) seedHarnessHome(definition, harnessHome, home);
+    let reach;
+    try {
+      reach = harnessNetwork(definition, {
+        env,
+        machineEnv,
+        folder,
+        exitFile: path.join(folder, "exit"),
+      });
+    } catch (error) {
+      return finish(false, (error as Error).message);
+    }
+    proxyPid = reach.proxy?.pid;
     const childEnv: NodeJS.ProcessEnv = withoutPushCredentials({
       ...withKeptValues(env, definition.keepEnv ?? [], machineEnv),
       ...(found.path ? { PATH: found.path } : {}),
@@ -110,8 +138,10 @@ export function probeHarness({
         ["TMPDIR", ...(definition.tmpEnv ?? [])].map((key) => [key, tmp]),
       ),
       ...(definition.home ? { [definition.home]: harnessHome } : {}),
+      ...reach.env,
       AVOOZL_CHILD: "1",
     });
+    for (const key of reach.unset) delete childEnv[key];
     let confined;
     try {
       confined = confine([found.file, ...definition.probe.slice(1)], {
@@ -132,7 +162,8 @@ export function probeHarness({
           ...harnessReads(definition, home),
           ...GIT_USER_CONFIG.map((file: string) => path.join(home, file)),
         ],
-        keepEnv: definition.keepEnv ?? [],
+        keepEnv: [...(definition.keepEnv ?? []), ...reach.keep],
+        network: sandboxNetwork(reach.ports.length ? reach.ports : undefined),
         env: childEnv,
         kind,
       });
@@ -150,6 +181,7 @@ export function probeHarness({
     if (run.status === 0) return finish(true, null);
     const values = [
       ...(definition.keepEnv ?? []).map((key: string) => childEnv[key] ?? ""),
+      ...Object.values(reach.env).map(String),
       ...Object.values(machineEnv).map(String),
     ];
     const said =
@@ -157,11 +189,13 @@ export function probeHarness({
       (run.error
         ? `it did not finish (${(run.error as NodeJS.ErrnoException).code ?? "error"})`
         : `it exited ${run.status ?? run.signal}`);
+    const refused = refusedHosts(folder);
     return finish(
       false,
-      `${name} failed its sign-in check: ${said} ${fixLine(name)}`,
+      `${name} failed its sign-in check: ${said}${refused.length ? ` Its egress proxy refused ${refused.join(", ")}; add the ones it needs to egress.` : ""} ${fixLine(name)}`,
     );
   } finally {
+    stopEgressProxy(proxyPid);
     fs.rmSync(folder, { recursive: true, force: true });
   }
 }

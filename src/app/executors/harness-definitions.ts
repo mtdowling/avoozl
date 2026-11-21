@@ -12,6 +12,7 @@ import { fail } from "../store/store.ts";
 import { EXECUTOR_CONTRACT } from "./executors.ts";
 import { readMachineEnv } from "./machine-env.ts";
 import { cachedProbe, harnessStartProblem } from "./harness-ready.ts";
+import { egressProblem } from "./egress-proxy.ts";
 
 const HARNESS_DIRECTORY = "harnesses";
 const HARNESS_APPROVALS = "harness-approvals.json";
@@ -78,6 +79,20 @@ const KEYS = new Set([
   // start, such as Claude Code's ~/.claude/settings.json, so its provider
   // settings reach the child.
   "homeFiles",
+  // The hosts the session's egress proxy tunnels to (egress-proxy.ts),
+  // such as its model's API. Without it the child has no network but its
+  // repository's.
+  "egress",
+  // The argv Avoozl runs outside the sandbox before each start, whose
+  // credential_process JSON gives the child short-lived AWS keys.
+  "credentialExport",
+  // Fixed variables the child gets, such as Codex's SSL_CERT_FILE.
+  "setEnv",
+]);
+export const EXPORTED_AWS_KEYS = Object.freeze([
+  "AWS_ACCESS_KEY_ID",
+  "AWS_SECRET_ACCESS_KEY",
+  "AWS_SESSION_TOKEN",
 ]);
 // Files a definition may never copy into a child's home.
 const NEVER_COPIED =
@@ -89,6 +104,7 @@ const ROLE_CLASSES = Object.freeze(["read", "write"]);
 // GitHub, git, SSH, Kiro Crew or Avoozl name: those stay out of a child.
 const KEEP_NAME = /^[A-Z][A-Z0-9_]{0,63}$/;
 const NEVER_KEPT = /^(GH_|GITHUB_|GIT_|SSH_|KIROCREW_|KIRO_|AVOOZL_)/;
+const SECRET_LIKE = /(TOKEN|SECRET|PASSW(OR)?D|API_?KEY|CREDENTIAL|AUTH)/i;
 const SHELLS = new Set([
   "sh",
   "bash",
@@ -323,10 +339,35 @@ export function parseHarnessDefinition(value, { source = "harness" } = {}) {
       );
     definition.reads = Object.freeze([...value.reads]);
   }
-  if (value.probe !== undefined) {
-    definition.probe = argv(value.probe, "probe", source);
-    if (definition.probe.some((item) => item.includes("{")))
-      fail(`${source}: probe takes no placeholders.`);
+  for (const key of ["probe", "credentialExport"])
+    if (value[key] !== undefined) {
+      definition[key] = argv(value[key], key, source);
+      if (definition[key].some((item) => item.includes("{")))
+        fail(`${source}: ${key} takes no placeholders.`);
+    }
+  if (value.egress !== undefined) {
+    const problem = egressProblem(value.egress);
+    if (problem) fail(`${source}: ${problem}`);
+    definition.egress = Object.freeze(value.egress.map((h) => h.toLowerCase()));
+  }
+  if (value.setEnv !== undefined) {
+    if (
+      !record(value.setEnv) ||
+      Object.entries(value.setEnv).some(
+        ([key, item]) =>
+          !KEEP_NAME.test(key) ||
+          NEVER_KEPT.test(key) ||
+          SECRET_LIKE.test(key) ||
+          /^(PATH|HOME|HTTPS?_PROXY|NO_PROXY)$/i.test(key) ||
+          key.startsWith("AWS_") ||
+          typeof item !== "string" ||
+          item.length > 1024,
+      )
+    )
+      fail(
+        `${source}: setEnv maps plain variable names to fixed text, such as {"SSL_CERT_FILE": "/etc/ssl/cert.pem"}; never a secret, PATH, HOME, a proxy or an AWS name.`,
+      );
+    definition.setEnv = Object.freeze({ ...value.setEnv });
   }
   if (value.homeFiles !== undefined) {
     if (
@@ -749,7 +790,38 @@ export function seedHarnessHome(definition, harnessHome, home = os.homedir()) {
     const from = path.join(home, item.slice(2));
     if (!fs.statSync(from, { throwIfNoEntry: false })?.isFile()) continue;
     const to = path.join(harnessHome, path.basename(from));
-    fs.copyFileSync(from, to);
+    const text = fs.readFileSync(from, "utf8");
+    fs.writeFileSync(
+      to,
+      definition.credentialExport ? withoutCredentialHelpers(to, text) : text,
+      { mode: 0o600 },
+    );
     fs.chmodSync(to, 0o600);
   }
+}
+
+// With `credentialExport`, Avoozl gives the child its keys, so the copy
+// drops the harness's own credential helper, which cannot reach its sign-in
+// from the sandbox: Claude Code's `awsCredentialExport` and Codex's
+// `[...credential_export]` tables.
+// shortcut: these two shapes only; add a harness's own when one appears.
+function withoutCredentialHelpers(file, text) {
+  if (file.endsWith(".json"))
+    try {
+      const { awsCredentialExport, ...rest } = JSON.parse(text);
+      void awsCredentialExport;
+      return JSON.stringify(rest, null, 2) + "\n";
+    } catch {
+      return text;
+    }
+  if (!file.endsWith(".toml")) return text;
+  let skip = false;
+  return text
+    .split("\n")
+    .filter((line) => {
+      if (/^\s*\[/.test(line))
+        skip = /credential_export\]\s*(#.*)?$/.test(line.trim());
+      return !skip;
+    })
+    .join("\n");
 }
