@@ -1,11 +1,10 @@
-// @ts-nocheck: typing debt
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { execFile, execFileSync } from "node:child_process";
 import { promisify } from "node:util";
 import { createHash } from "node:crypto";
-import { fail } from "../store/store.ts";
+import { fail, type Store } from "../store/store.ts";
 import { expandHome } from "../workspace/folder-browse.ts";
 import {
   checksSetting,
@@ -22,16 +21,66 @@ import { currentJob } from "../github/github-jobs.ts";
 import { taskGit } from "./task-git.ts";
 export { taskGit } from "./task-git.ts";
 const exec = promisify(execFile);
-function liveLocks(store, repositoryId) {
+
+// A registered repository (repositoryConfig makes one).
+export interface Repository {
+  id: string;
+  root: string;
+  baseBranch: string;
+  integrationBranch?: string;
+  worktreeRoot: string;
+  checks?: unknown;
+  checksEnv?: string[];
+  worktreeHelper?: string;
+  landing?: string;
+  isolation?: unknown;
+  github?: string | null;
+  createdAt?: string;
+  [key: string]: unknown;
+}
+// One `integration` row: a run's verified head waiting to land, then landed.
+export interface IntegrationEntry {
+  id: string;
+  runId?: string;
+  taskId: string;
+  repositoryId: string;
+  branch: string;
+  worktree: string;
+  commit: string;
+  baseCommit?: string;
+  state: string;
+  evidenceIds?: string[];
+  createdAt?: string;
+  integratedCommit?: string;
+  into?: string;
+  integratedAt?: string;
+  revalidatedEvidenceIds?: string[];
+  [key: string]: unknown;
+}
+// What one repository check did.
+export interface CommandRecord {
+  argv: string[];
+  startedAt: string;
+  endedAt: string;
+  exitCode: number | null;
+  signal?: string | null;
+  stdout: string;
+  stderr: string;
+  isolation?: unknown;
+}
+type Env = NodeJS.ProcessEnv;
+type LockRow = { id: string; kind: string; pid: number; token: string };
+
+function liveLocks(store: Store, repositoryId: string) {
   const rows = store.db
     .prepare("SELECT * FROM work_locks WHERE repository_id=?")
-    .all(repositoryId);
+    .all(repositoryId) as LockRow[];
   return rows.filter((row) => {
     try {
       process.kill(row.pid, 0);
       return true;
     } catch (error) {
-      if (error.code !== "ESRCH") return true;
+      if ((error as NodeJS.ErrnoException).code !== "ESRCH") return true;
       store.db
         .prepare("DELETE FROM work_locks WHERE id=? AND token=?")
         .run(row.id, row.token);
@@ -39,7 +88,15 @@ function liveLocks(store, repositoryId) {
     }
   });
 }
-export async function withWorkLock(store, { id, repositoryId, kind }, fn) {
+export async function withWorkLock<T>(
+  store: Store,
+  {
+    id,
+    repositoryId,
+    kind,
+  }: { id: string; repositoryId: string; kind: string },
+  fn: () => Promise<T>,
+): Promise<T> {
   const token = crypto.randomUUID();
   store.transaction(() => {
     if (
@@ -50,12 +107,12 @@ export async function withWorkLock(store, { id, repositoryId, kind }, fn) {
     ) {
       // Contention is transient: the work is valid, the lock is simply held.
       // Callers that run unattended may retry instead of reporting failure.
-      const error = Error(
-        "Validation or integration already owns this work. Retry after it finishes.",
+      throw Object.assign(
+        Error(
+          "Validation or integration already owns this work. Retry after it finishes.",
+        ),
+        { status: 409, contention: true },
       );
-      error.status = 409;
-      error.contention = true;
-      throw error;
     }
     store.db
       .prepare("INSERT INTO work_locks VALUES (?,?,?,?,?)")
@@ -69,7 +126,11 @@ export async function withWorkLock(store, { id, repositoryId, kind }, fn) {
       .run(id, token);
   }
 }
-export async function git(cwd, args, { env } = {}) {
+export async function git(
+  cwd: string,
+  args: string[],
+  { env }: { env?: Env } = {},
+): Promise<string> {
   return (
     await exec("git", args, {
       cwd,
@@ -83,13 +144,17 @@ export async function git(cwd, args, { env } = {}) {
 // local branch, then the remote's tracking copy. A checkout that only fetched
 // the branch (no local branch) still has a base. Every place that resolves a
 // repository's base branch goes through these, so all of them agree.
-export const branchRefs = (branch, remote = "origin") => [
+export const branchRefs = (branch: string, remote = "origin") => [
   `refs/heads/${branch}`,
   `refs/remotes/${remote}/${branch}`,
 ];
 // {ref, commit} for the first of branchRefs that holds a commit, or null.
 // Read only: no branch is created or moved.
-export async function branchTip(root, branch, remote = "origin") {
+export async function branchTip(
+  root: string,
+  branch: unknown,
+  remote = "origin",
+): Promise<{ ref: string; commit: string } | null> {
   if (typeof branch !== "string" || !branch || branch.startsWith("-"))
     return null;
   for (const ref of branchRefs(branch, remote))
@@ -108,7 +173,11 @@ export async function branchTip(root, branch, remote = "origin") {
 }
 // The ref a repository's base branch resolves to; refuses naming both refs
 // it tried.
-export async function baseRef(root, branch, remote = "origin") {
+export async function baseRef(
+  root: string,
+  branch: string,
+  remote = "origin",
+): Promise<string> {
   const tip = await branchTip(root, branch, remote);
   if (tip) return tip.ref;
   const [local, tracking] = branchRefs(branch, remote);
@@ -128,7 +197,7 @@ export function githubGitUrl(env = process.env) {
 }
 
 // The host of a git remote: a URL or the scp form `git@host:path`.
-function remoteHost(remote) {
+function remoteHost(remote: string) {
   const scp = /^[^/@:]+@([^/:]+):/.exec(remote);
   if (scp) return scp[1].toLowerCase();
   try {
@@ -139,7 +208,7 @@ function remoteHost(remote) {
 }
 
 // The `owner/name` a GitHub remote names: the last two path parts.
-function repositoryOfRemote(remote) {
+function repositoryOfRemote(remote: string) {
   const scp = /^[^/@:]+@[^/:]+:(.+)$/.exec(remote);
   let pathname = scp ? scp[1] : null;
   if (!pathname)
@@ -157,7 +226,7 @@ function repositoryOfRemote(remote) {
 
 // The remote a network command names: its first argument after the
 // subcommand that is not an option, as a URL.
-function remoteOf(cwd, args, env) {
+function remoteOf(cwd: string, args: string[], env: Env) {
   const named = args.slice(1).find((arg) => !arg.startsWith("-"));
   if (!named) return null;
   if (/[:/]/.test(named)) return named;
@@ -186,11 +255,23 @@ const helperCommand = () =>
 // only through the helper's stdout: never its environment, arguments or
 // config. Any other remote keeps the person's own git sign-in. `job` is
 // the current job unless named.
+export interface RemoteGitOptions {
+  repository?: string | null;
+  job?: string;
+  env?: Env;
+  remote?: string;
+}
+
 export function remoteGitSetup(
-  cwd,
-  args,
-  { repository = null, job = currentJob() || "check-in", env, remote } = {},
-) {
+  cwd: string,
+  args: string[],
+  {
+    repository = null,
+    job = currentJob() || "check-in",
+    env,
+    remote,
+  }: RemoteGitOptions = {},
+): { args: string[]; env: Env | undefined } {
   const base = env ?? process.env,
     gitUrl = githubGitUrl(process.env),
     plain = { args, env };
@@ -230,14 +311,18 @@ export function remoteGitSetup(
 
 // The one way Avoozl runs a network git command (push, fetch, ls-remote,
 // clone). A test fails on any other in src/app.
-export function remoteGit(cwd, args, options = {}) {
+export function remoteGit(
+  cwd: string,
+  args: string[],
+  options: RemoteGitOptions = {},
+) {
   const setup = remoteGitSetup(cwd, args, options);
   return git(cwd, setup.args, { env: setup.env });
 }
 
 // The job of a landing push (PC4.7): one that changes a workflow file needs
 // `workflows: write`.
-export async function landingJob(cwd, from, to) {
+export async function landingJob(cwd: string, from: string, to: string) {
   const files = await git(cwd, ["diff", "--name-only", `${from}..${to}`]).catch(
     () => "",
   );
@@ -251,12 +336,12 @@ export async function landingJob(cwd, from, to) {
 // refuses a worker commit that holds one.
 const AVOOZL_FILES = ":(glob)**/.avoozl/**";
 const EXCLUDE_AVOOZL = ":(exclude,glob)**/.avoozl/**";
-const isAvoozlPath = (file) =>
+const isAvoozlPath = (file: string) =>
   /(^|\/)\.avoozl(\/|$)/.test(file.replaceAll("\\", "/"));
 // Changes in the task folder, Avoozl's own files left out. Every git call
 // on a task folder goes through taskGit (task-git.mjs), with the
 // repository's `checkout`.
-export const worktreeChanges = (worktree, checkout) =>
+export const worktreeChanges = (worktree: string, checkout: string) =>
   taskGit(worktree, ["status", "--porcelain", "--", ".", EXCLUDE_AVOOZL], {
     checkout,
   });
@@ -264,8 +349,14 @@ export const worktreeChanges = (worktree, checkout) =>
 // null when nothing changed. A symbolic link that points outside the folder
 // is refused, since it would hand a host file to whoever reads the commit
 // (VM5.4).
-export async function commitWorkerChanges(worktree, message, { checkout }) {
-  const inTask = (args) => taskGit(worktree, args, { checkout });
+type InTask = (args: string[]) => Promise<string>;
+
+export async function commitWorkerChanges(
+  worktree: string,
+  message: string,
+  { checkout }: { checkout: string },
+) {
+  const inTask: InTask = (args) => taskGit(worktree, args, { checkout });
   await inTask(["add", "-A", "--", ".", EXCLUDE_AVOOZL]);
   // A file the worker staged itself (`git add -f`) is unstaged again.
   await inTask(["reset", "-q", "--", AVOOZL_FILES]);
@@ -276,7 +367,7 @@ export async function commitWorkerChanges(worktree, message, { checkout }) {
 }
 // Refuse a staged symbolic link whose target leaves the folder. Only links
 // the change adds or alters are read; ones already on the branch stay.
-async function refuseOutsideLinks(worktree, inTask) {
+async function refuseOutsideLinks(worktree: string, inTask: InTask) {
   const folder = fs.realpathSync.native(worktree);
   const changed = new Set(
     (
@@ -312,7 +403,12 @@ async function refuseOutsideLinks(worktree, inTask) {
 }
 // Refuse when any commit in from..to adds, changes or removes a path under
 // `.avoozl/`; the worker may have committed one itself.
-async function refuseAvoozlPaths(worktree, from, to, { checkout }) {
+async function refuseAvoozlPaths(
+  worktree: string,
+  from: string,
+  to: string,
+  { checkout }: { checkout: string },
+) {
   const files = [
     ...new Set(
       (
@@ -334,9 +430,12 @@ async function refuseAvoozlPaths(worktree, from, to, { checkout }) {
 }
 // The real path of a Git checkout root, refused in plain words when the
 // folder is missing, is not a checkout, or is inside one.
-export async function checkoutRoot(root, label) {
+export async function checkoutRoot(
+  root: unknown,
+  label: string,
+): Promise<string> {
   if (typeof root !== "string" || !root) fail(`Name the ${label} folder.`);
-  let real;
+  let real: string;
   try {
     real = fs.realpathSync.native(root);
   } catch {
@@ -344,7 +443,7 @@ export async function checkoutRoot(root, label) {
   }
   // An empty prefix means the root; comparing --show-toplevel paths breaks
   // on Windows, where Git and Node spell the same folder differently.
-  let prefix;
+  let prefix: string;
   try {
     prefix = await git(real, ["rev-parse", "--show-prefix"]);
   } catch {
@@ -353,7 +452,7 @@ export async function checkoutRoot(root, label) {
   if (prefix) fail(`The ${label} must be the Git checkout root.`);
   return real;
 }
-export function githubRepositoryFromRemote(value) {
+export function githubRepositoryFromRemote(value: unknown) {
   const match = String(value || "")
     .trim()
     .match(
@@ -363,7 +462,7 @@ export function githubRepositoryFromRemote(value) {
 }
 // The GitHub repository a checkout's origin names, or null. Synchronous for
 // callers that resolve paths without awaiting.
-export function originRepositorySync(root) {
+export function originRepositorySync(root: string) {
   try {
     return githubRepositoryFromRemote(
       execFileSync("git", ["remote", "get-url", "origin"], {
@@ -377,7 +476,7 @@ export function originRepositorySync(root) {
   }
 }
 // The branch a checkout has checked out, or null (detached, or not git).
-export function currentBranchSync(root) {
+export function currentBranchSync(root: string) {
   try {
     return (
       execFileSync("git", ["branch", "--show-current"], {
@@ -390,11 +489,14 @@ export function currentBranchSync(root) {
     return null;
   }
 }
-export async function repositoryGitHubRemote(store, input = {}) {
-  const repository = store.get("repositories", input.repositoryId);
-  if (!repository) fail("Choose a registered repository.");
+export async function repositoryGitHubRemote(
+  store: Store,
+  input: { repositoryId?: unknown; remote?: string } = {},
+) {
+  const repository = store.get<Repository>("repositories", input.repositoryId);
+  if (!repository) return fail("Choose a registered repository.");
   const remote = input.remote || "origin";
-  let remoteUrl;
+  let remoteUrl: string;
   try {
     remoteUrl = await git(repository.root, ["remote", "get-url", remote]);
   } catch {
@@ -413,7 +515,7 @@ export async function repositoryGitHubRemote(store, input = {}) {
     repository: github,
   };
 }
-async function remoteRepository(root, remote = "origin") {
+async function remoteRepository(root: string, remote = "origin") {
   try {
     return githubRepositoryFromRemote(
       await git(root, ["remote", "get-url", remote]),
@@ -422,7 +524,7 @@ async function remoteRepository(root, remote = "origin") {
     return null;
   }
 }
-async function effectiveGitIdentity(root) {
+async function effectiveGitIdentity(root: string) {
   try {
     const [name, email] = await Promise.all([
       git(root, ["config", "--get", "user.name"]),
@@ -433,7 +535,7 @@ async function effectiveGitIdentity(root) {
     return null;
   }
 }
-async function configureWorktreeIdentity(root, worktree) {
+async function configureWorktreeIdentity(root: string, worktree: string) {
   const identity = await effectiveGitIdentity(root);
   if (!identity) return;
   // OpenHands may isolate its process-level Git configuration. Preserve the
@@ -451,32 +553,43 @@ async function configureWorktreeIdentity(root, worktree) {
 // How a repository lands verified work (R87.1). Unset keeps the local
 // fast-forward. shortcut: R87.1's default `off` until setup writes another
 // is not applied, so existing workspaces keep landing; upgrade with 42.7.
-const LANDINGS = Object.freeze(["direct", "pr", "off"]);
+const LANDINGS: readonly unknown[] = Object.freeze(["direct", "pr", "off"]);
 export async function repositoryConfig({
   id,
-  root,
+  root: given,
   baseBranch = "main",
   integrationBranch,
-  worktreeRoot,
-  checks = [],
+  worktreeRoot: chosenRoot,
+  checks: givenChecks = [],
   checksEnv,
   worktreeHelper,
   landing,
-  isolation,
-}) {
-  if (!/^[a-z][a-z0-9-]{1,60}$/.test(id || ""))
+  isolation: givenIsolation,
+}: {
+  id?: unknown;
+  root?: unknown;
+  baseBranch?: unknown;
+  integrationBranch?: unknown;
+  worktreeRoot?: string;
+  checks?: unknown;
+  checksEnv?: unknown;
+  worktreeHelper?: unknown;
+  landing?: unknown;
+  isolation?: unknown;
+}): Promise<Repository> {
+  if (typeof id !== "string" || !/^[a-z][a-z0-9-]{1,60}$/.test(id))
     fail("Choose a stable repository ID.");
   if (landing !== undefined && !LANDINGS.includes(landing))
     fail("landing must be direct, pr or off.");
-  root = await checkoutRoot(root, "repository root");
+  const root = await checkoutRoot(given, "repository root");
   // A leading dash would reach git as an option.
   if (typeof baseBranch !== "string" || baseBranch.startsWith("-"))
     fail("Name a valid base branch.");
   await baseRef(root, baseBranch);
   // The repository's named checks; the older list of argv arrays loads too.
-  checks = checksSetting(checks, "checks");
+  const checks = checksSetting(givenChecks, "checks");
   // The isolation its checks run under; a person sets it here.
-  isolation = isolationSetting(isolation, "isolation");
+  const isolation = isolationSetting(givenIsolation, "isolation");
   // An opt-in allowlist of environment variable names for check processes
   // (R83.5) and the hash of the scripts/worktree helper a person approved
   // (R83.4).
@@ -494,8 +607,8 @@ export async function repositoryConfig({
     )
   )
     fail("worktreeHelper must be the helper's SHA-256 hash.");
-  worktreeRoot = path.resolve(
-    worktreeRoot || path.join(path.dirname(root), ".avoozl-worktrees"),
+  const worktreeRoot = path.resolve(
+    chosenRoot || path.join(path.dirname(root), ".avoozl-worktrees"),
   );
   if (worktreeRoot === root || worktreeRoot.startsWith(root + path.sep))
     fail("Place worktrees outside the repository checkout.");
@@ -520,7 +633,7 @@ export async function repositoryConfig({
     checks,
     ...(checksEnv === undefined ? {} : { checksEnv: [...checksEnv] }),
     ...(worktreeHelper === undefined ? {} : { worktreeHelper }),
-    ...(landing === undefined ? {} : { landing }),
+    ...(landing === undefined ? {} : { landing: landing as string }),
     ...(isolation === undefined ? {} : { isolation }),
     github: await remoteRepository(root),
     createdAt: new Date().toISOString(),
@@ -532,7 +645,17 @@ export async function repositoryConfig({
 // Worktree adds for different runs still proceed concurrently.
 // A task passes `branch`, `worktree` and `start` to cut its own branch; a
 // task that already has the branch passes `existing` and gets a plain add.
-export async function createWorktree(store, repository, runId, task = {}) {
+export async function createWorktree(
+  store: Store,
+  repository: Repository,
+  runId: string,
+  task: {
+    branch?: string;
+    worktree?: string;
+    start?: string;
+    existing?: boolean;
+  } = {},
+) {
   return withWorkLock(
     store,
     { id: "worktree:" + runId, repositoryId: repository.id, kind: "worktree" },
@@ -564,7 +687,7 @@ export async function createWorktree(store, repository, runId, task = {}) {
                 : "."),
             409,
           );
-        await exec(helper, [branch, worktree, start], {
+        await exec(helper, [branch, worktree, start as string], {
           cwd: repository.root,
           env: repositoryEnvironment(),
           maxBuffer: 8 * 1024 * 1024,
@@ -577,7 +700,7 @@ export async function createWorktree(store, repository, runId, task = {}) {
           "-b",
           branch,
           worktree,
-          start,
+          start as string,
         ]);
       await configureWorktreeIdentity(repository.root, worktree);
       return {
@@ -591,19 +714,20 @@ export async function createWorktree(store, repository, runId, task = {}) {
   );
 }
 // The worktrees git knows for `root`: path -> branch ref (or null if detached).
-async function listWorktrees(root) {
-  const entries = new Map();
-  let current = null;
+async function listWorktrees(root: string) {
+  const entries = new Map<string, string | null>();
+  let current: string | null = null;
   for (const line of (
     await git(root, ["worktree", "list", "--porcelain"])
   ).split("\n")) {
     if (line.startsWith("worktree ")) {
       // Real path, so git's C:/ form matches node's (8.3 names, slashes).
-      current = path.resolve(line.slice(9));
+      let found = path.resolve(line.slice(9));
       try {
-        current = fs.realpathSync.native(current);
+        found = fs.realpathSync.native(found);
       } catch {}
-      entries.set(current, null);
+      current = found;
+      entries.set(found, null);
     } else if (line.startsWith("branch ") && current)
       entries.set(current, line.slice(7));
   }
@@ -614,9 +738,13 @@ async function listWorktrees(root) {
 // re-adds it on the existing branch so earlier commits are kept. Nothing is
 // ever removed or reset here.
 export async function prepareTaskWorktree(
-  store,
-  repository,
-  { branch, name, start: chosen = null },
+  store: Store,
+  repository: Repository,
+  {
+    branch,
+    name,
+    start: chosen = null,
+  }: { branch: string; name: string; start?: string | null },
 ) {
   return withWorkLock(
     store,
@@ -633,7 +761,7 @@ export async function prepareTaskWorktree(
       const listed = await listWorktrees(repository.root),
         holder = [...listed].find(([, value]) => value === ref)?.[0];
       let created = false,
-        started = null;
+        started: { branch: string; commit: string } | null = null;
       if (listed.has(worktree)) {
         if (listed.get(worktree) !== ref)
           fail(`Worktree ${worktree} is not on branch ${branch}.`, 409);
@@ -700,19 +828,22 @@ const GATEWAY_SECRETS = [
   "KIROCREW_PROXY_SECRET",
   "KIROCREW_GATEWAY_ORIGIN_PROOF",
 ];
-export function repositoryEnvironment(env = process.env, allow) {
-  const out = { ...env };
+export function repositoryEnvironment(
+  env: Env = process.env,
+  allow?: readonly string[],
+): Env {
+  const out: Env = { ...env };
   for (const name of GATEWAY_SECRETS) delete out[name];
   if (!allow) return out;
   // Opt-in allowlist (R83.5): only what a process needs to start, plus the
   // names a person listed. The gateway secrets stay out even when listed.
   // Windows names compare without case.
-  const same = (a, b) =>
+  const same = (a: string, b: string) =>
     process.platform === "win32"
       ? a.toLowerCase() === b.toLowerCase()
       : a === b;
   const wanted = [...BASE_ENV, ...allow],
-    kept = {};
+    kept: Env = {};
   for (const key of Object.keys(out))
     if (
       wanted.some((name) => same(name, key)) &&
@@ -739,8 +870,8 @@ const PUSH_CREDENTIALS = [
   // The git credential helper's job, repository and workspace (§D9).
   /^AVOOZL_CREDENTIAL_/i,
 ];
-export function withoutPushCredentials(env = process.env) {
-  const out = {};
+export function withoutPushCredentials(env: Env = process.env) {
+  const out: Env = {};
   for (const [name, value] of Object.entries(env))
     if (!PUSH_CREDENTIALS.some((pattern) => pattern.test(name)))
       out[name] = value;
@@ -768,36 +899,65 @@ const ENV_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
 // to start (BASE_ENV) and the names the repository lists in `checksEnv`,
 // whether or not it lists any. The gateway secrets and the push and GitHub
 // credentials never reach a check, even when listed.
-export function checkEnvironment(env = process.env, allow = []) {
+export function checkEnvironment(
+  env: Env = process.env,
+  allow: readonly string[] = [],
+) {
   const kept = repositoryEnvironment(env, allow);
   for (const name of Object.keys(kept))
     if (PUSH_CREDENTIALS.some((pattern) => pattern.test(name)))
       delete kept[name];
   return kept;
 }
-export const helperHash = (file) =>
+export const helperHash = (file: string) =>
   createHash("sha256").update(fs.readFileSync(file)).digest("hex");
 
 // `isolate(argv, env)` (check-isolation.mjs) wraps a repository check in its
 // repository's isolation: {argv, env, isolation, cleanup?}, or {refused}.
 // The record names the isolation it ran under.
+export interface CommandOptions {
+  timeoutMs?: number;
+  onStart?: () => void;
+  onChild?: (child: import("node:child_process").ChildProcess) => void;
+  env?: readonly string[];
+  isolate?: (
+    argv: string[],
+    env: Env,
+  ) =>
+    | { refused: string }
+    | {
+        refused?: undefined;
+        argv: string[];
+        env: Env;
+        isolation: unknown;
+        cleanup?: () => void;
+      };
+}
+
 export async function commandEvidence(
-  cwd,
-  argv,
-  { timeoutMs = 120000, onStart, onChild, env: allow, isolate } = {},
-) {
+  cwd: string,
+  argv: unknown,
+  {
+    timeoutMs = 120000,
+    onStart,
+    onChild,
+    env: allow,
+    isolate,
+  }: CommandOptions = {},
+): Promise<CommandRecord> {
   if (
     !Array.isArray(argv) ||
     !argv.length ||
     argv.some((x) => typeof x !== "string")
   )
     fail("Use a command argument array.");
+  const words = argv as string[];
   const startedAt = new Date().toISOString(),
     environment = checkEnvironment(process.env, allow),
-    wrapped = isolate ? isolate(argv, environment) : null;
-  if (wrapped?.refused)
+    wrapped = isolate ? isolate(words, environment) : null;
+  if (wrapped?.refused !== undefined)
     return {
-      argv,
+      argv: words,
       startedAt,
       endedAt: startedAt,
       exitCode: null,
@@ -805,7 +965,7 @@ export async function commandEvidence(
       stderr: wrapped.refused,
       isolation: null,
     };
-  const run = wrapped?.argv ?? argv,
+  const run = wrapped?.argv ?? words,
     shown = wrapped ? { isolation: wrapped.isolation } : {};
   onStart?.();
   try {
@@ -820,7 +980,7 @@ export async function commandEvidence(
     onChild?.(running.child);
     const { stdout, stderr } = await running;
     return {
-      argv,
+      argv: words,
       startedAt,
       endedAt: new Date().toISOString(),
       exitCode: 0,
@@ -828,7 +988,13 @@ export async function commandEvidence(
       stderr,
       ...shown,
     };
-  } catch (error) {
+  } catch (thrown) {
+    const error = thrown as Error & {
+      code?: unknown;
+      signal?: string;
+      stdout?: string;
+      stderr?: string;
+    };
     // A sandbox that could not start the command says so on its first line
     // and exits; that is a check that did not start, not one that failed.
     const unstarted =
@@ -837,10 +1003,15 @@ export async function commandEvidence(
         String(error.stderr || ""),
       );
     return {
-      argv,
+      argv: words,
       startedAt,
       endedAt: new Date().toISOString(),
-      exitCode: Number.isInteger(error.code) && !unstarted ? error.code : null,
+      exitCode:
+        typeof error.code === "number" &&
+        Number.isInteger(error.code) &&
+        !unstarted
+          ? error.code
+          : null,
       signal: error.signal || null,
       stdout: error.stdout || "",
       stderr: error.stderr || error.message,
@@ -852,15 +1023,18 @@ export async function commandEvidence(
 }
 // `source` is the integration entry of a Kiro Crew delivery (delivery.mjs).
 export async function validateUnlocked(
-  store,
-  runId,
-  { phase = "validation", source } = {},
+  store: Store,
+  runId: string,
+  {
+    phase = "validation",
+    source,
+  }: { phase?: string; source?: IntegrationEntry | null } = {},
 ) {
   const run = source;
-  if (!run?.worktree) fail("Run has no worktree.");
-  const repository = store.get("repositories", run.repositoryId);
-  if (!repository) fail("Repository configuration is missing.");
-  const inRun = (args) =>
+  if (!run?.worktree) return fail("Run has no worktree.");
+  const repository = store.get<Repository>("repositories", run.repositoryId);
+  if (!repository) return fail("Repository configuration is missing.");
+  const inRun = (args: string[]) =>
     taskGit(run.worktree, args, { checkout: repository.root });
   const head = await inRun(["rev-parse", "HEAD"]),
     dirty = await worktreeChanges(run.worktree, repository.root);
@@ -870,10 +1044,14 @@ export async function validateUnlocked(
       409,
     );
   // The repository's own commands: plugin checks run only in check runs.
-  const checks = repositoryChecks(repository, []);
+  const checks: { name: string; argv: string[] }[] = repositoryChecks(
+    repository,
+    [],
+  );
   if (!checks.length)
     fail("Configure the repository's checks before validation.");
-  const results = [];
+  const results: (CommandRecord & { id: string; [key: string]: unknown })[] =
+    [];
   const ready = await prepareChecks(repository, run.worktree);
   if (ready && ready.exitCode !== 0)
     fail(
@@ -918,7 +1096,7 @@ export async function validateUnlocked(
     if (task) {
       task.evidence = [
         ...new Set([
-          ...(task.evidence || []),
+          ...((task.evidence as string[] | undefined) || []),
           ...results.map((r) => "workspace:evidence/" + r.id),
         ]),
       ];
@@ -930,7 +1108,7 @@ export async function validateUnlocked(
     }
   });
   if (passed) {
-    const entry = {
+    const entry: IntegrationEntry = {
       id: runId,
       runId,
       taskId: run.taskId,
@@ -952,8 +1130,12 @@ export async function validateUnlocked(
 // fast-forward could touch: any staged or unstaged change, or an untracked
 // file at a path the incoming commits write. The message names the worktree
 // and the files, and becomes the delivery's decision (delivery.mjs).
-async function refuseBusyHolder(holder, target, { from, to } = {}) {
-  const names = async (args) =>
+async function refuseBusyHolder(
+  holder: string,
+  target: string,
+  { from, to }: { from?: string; to?: string } = {},
+) {
+  const names = async (args: string[]) =>
       (await git(holder, args)).split("\n").filter(Boolean),
     changed = [
       ...new Set([
@@ -962,12 +1144,12 @@ async function refuseBusyHolder(holder, target, { from, to } = {}) {
       ]),
     ],
     written = to
-      ? new Set(await names(["diff", "--name-only", from, to]))
+      ? new Set(await names(["diff", "--name-only", String(from), to]))
       : null,
     untracked = (
       await names(["ls-files", "--others", "--exclude-standard"])
     ).filter((file) => !written || written.has(file)),
-    shown = (files) =>
+    shown = (files: string[]) =>
       files.slice(0, 5).join(", ") +
       (files.length > 5 ? ` and ${files.length - 5} more` : "");
   if (changed.length)
@@ -981,9 +1163,14 @@ async function refuseBusyHolder(holder, target, { from, to } = {}) {
       409,
     );
 }
-export async function integrateRun(store, { id, expectedCommit }) {
-  const entry = store.get("integration", id);
-  if (!entry) fail("Integration not found.", 404);
+type IntegrateInput = { id: string; expectedCommit: string };
+
+export async function integrateRun(
+  store: Store,
+  { id, expectedCommit }: IntegrateInput,
+) {
+  const entry = store.get<IntegrationEntry>("integration", id);
+  if (!entry) return fail("Integration not found.", 404);
   return withWorkLock(
     store,
     {
@@ -994,10 +1181,15 @@ export async function integrateRun(store, { id, expectedCommit }) {
     () => integrateUnlocked(store, { id, expectedCommit }),
   );
 }
-async function integrateUnlocked(store, { id, expectedCommit }) {
-  const entry = store.get("integration", id);
-  if (!entry || entry.state !== "ready") fail("Integration is not ready.", 409);
-  const repository = store.get("repositories", entry.repositoryId);
+async function integrateUnlocked(
+  store: Store,
+  { id, expectedCommit }: IntegrateInput,
+) {
+  const entry = store.get<IntegrationEntry>("integration", id);
+  if (!entry || entry.state !== "ready")
+    return fail("Integration is not ready.", 409);
+  const repository = store.get<Repository>("repositories", entry.repositoryId);
+  if (!repository) return fail("Repository configuration is missing.");
   if (entry.commit !== expectedCommit)
     fail("Review the current integration head.", 409);
   // An integration branch keeps the user's checkout untouched: the work lands
@@ -1006,7 +1198,7 @@ async function integrateUnlocked(store, { id, expectedCommit }) {
   // has nothing the fast-forward could touch; it is never stashed or reset.
   const target = repository.integrationBranch || repository.baseBranch,
     separate = Boolean(repository.integrationBranch);
-  let holder = null;
+  let holder: string | null = null;
   if (separate) {
     const ref = "refs/heads/" + target;
     holder =
@@ -1048,7 +1240,7 @@ async function integrateUnlocked(store, { id, expectedCommit }) {
         409,
       );
   }
-  const inEntry = (args) =>
+  const inEntry = (args: string[]) =>
     taskGit(entry.worktree, args, { checkout: repository.root });
   if (await worktreeChanges(entry.worktree, repository.root))
     fail("Run worktree has uncommitted changes.", 409);
@@ -1139,14 +1331,14 @@ async function integrateUnlocked(store, { id, expectedCommit }) {
 // A task's own worktree and local branch go once its head has landed (R88.6).
 // The work is already on the target, so a failure here only leaves them kept.
 export async function removeLandedTaskWorktree(
-  store,
-  repository,
-  entry,
-  target,
-  head,
+  store: Store,
+  repository: Repository,
+  entry: IntegrationEntry,
+  target: string,
+  head: string,
 ) {
   const records = store
-    .list("task_worktrees")
+    .list<{ id: string; path?: string; repository?: string }>("task_worktrees")
     .filter((r) => r.path === entry.worktree && r.repository === repository.id);
   if (!records.length) return;
   try {
@@ -1167,17 +1359,17 @@ export async function removeLandedTaskWorktree(
 // only): its root, the branch tasks land on (origin's default, else the
 // current branch), its GitHub remote, and a suggested ID. A leading `~` is
 // the home folder, as in a shell.
-export async function detectCheckout(folder, home = os.homedir()) {
+export async function detectCheckout(folder: unknown, home = os.homedir()) {
   const wanted = typeof folder === "string" ? expandHome(folder, home) : "";
   if (!path.isAbsolute(wanted))
     fail("Give the folder as an absolute path, or one that starts with ~/.");
-  let root;
+  let root: string;
   try {
     root = fs.realpathSync.native(wanted);
   } catch {
     fail("That folder does not exist.");
   }
-  let top;
+  let top: string;
   try {
     // git prints C:/ forward-slash paths on Windows; return node's form.
     top = fs.realpathSync.native(
@@ -1186,7 +1378,7 @@ export async function detectCheckout(folder, home = os.homedir()) {
   } catch {
     fail("That folder is not a Git checkout.");
   }
-  const quiet = (args) => git(top, args).catch(() => "");
+  const quiet = (args: string[]) => git(top, args).catch(() => "");
   const originHead = (
     await quiet(["symbolic-ref", "--short", "refs/remotes/origin/HEAD"])
   ).replace(/^origin\//, "");

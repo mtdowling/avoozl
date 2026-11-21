@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Git on a task folder, from the host. A worker can write the folder's
 // top-level `.git` file, since the task folder is writable. A `.git` file that names a git directory the worker
 // made, with `core.fsmonitor`, a hook, a filter or a signing program in its
@@ -24,9 +23,9 @@ import { promisify } from "node:util";
 import { fail } from "../store/store.ts";
 
 const exec = promisify(execFile);
-const real = (file) => fs.realpathSync.native(file);
+const real = (file: string) => fs.realpathSync.native(file);
 
-let emptyHooks = null;
+let emptyHooks: string | null = null;
 // One empty folder per process: no hook is found there.
 function emptyHooksFolder() {
   if (emptyHooks && fs.existsSync(emptyHooks)) return emptyHooks;
@@ -43,8 +42,8 @@ const noHookConfig = () => [
   "core.fsmonitor=false",
 ];
 
-const commonDirs = new Map();
-async function checkoutCommonDir(checkout) {
+const commonDirs = new Map<string, string>();
+async function checkoutCommonDir(checkout: string) {
   const root = real(checkout);
   if (!commonDirs.has(root)) {
     const { stdout } = await exec(
@@ -54,15 +53,15 @@ async function checkoutCommonDir(checkout) {
     );
     commonDirs.set(root, real(stdout.trim()));
   }
-  return commonDirs.get(root);
+  return commonDirs.get(root)!;
 }
 
 // The git directory of `folder`, checked against `checkout`'s own records,
 // or a refusal naming why.
-async function taskGitDir(folder, checkout) {
+async function taskGitDir(folder: string, checkout: unknown) {
   if (typeof checkout !== "string" || !checkout)
     fail(`Avoozl needs the repository checkout to run git in ${folder}.`);
-  let root;
+  let root: string;
   try {
     root = real(folder);
   } catch {
@@ -70,7 +69,7 @@ async function taskGitDir(folder, checkout) {
   }
   const common = await checkoutCommonDir(checkout),
     dotGit = path.join(root, ".git");
-  let stat;
+  let stat: fs.Stats;
   try {
     stat = fs.lstatSync(dotGit);
   } catch {
@@ -88,14 +87,16 @@ async function taskGitDir(folder, checkout) {
     );
   const line = /^gitdir: (.+)\n?$/.exec(fs.readFileSync(dotGit, "utf8"));
   const named = line && path.resolve(root, line[1]);
-  let gitDir = null;
+  let gitDir: string | null = null;
   try {
     gitDir = named && real(named);
   } catch {}
   let pointsBack = false;
   try {
-    const back = fs.readFileSync(path.join(gitDir, "gitdir"), "utf8").trim();
-    pointsBack = real(path.dirname(path.resolve(back))) === root;
+    if (gitDir) {
+      const back = fs.readFileSync(path.join(gitDir, "gitdir"), "utf8").trim();
+      pointsBack = real(path.dirname(path.resolve(back))) === root;
+    }
   } catch {}
   if (
     !gitDir ||
@@ -111,7 +112,11 @@ async function taskGitDir(folder, checkout) {
 
 // Run git in a task folder (D6). `checkout` is the repository's own
 // checkout, which names the folder's git directory.
-export async function taskGit(folder, args, { checkout, env } = {}) {
+export async function taskGit(
+  folder: string,
+  args: string[],
+  { checkout, env }: { checkout?: string; env?: NodeJS.ProcessEnv } = {},
+): Promise<string> {
   const gitDir = await taskGitDir(folder, checkout),
     root = real(folder);
   return (

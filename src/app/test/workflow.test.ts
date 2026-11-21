@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -19,7 +18,7 @@ test("SQLite initialize round trips every record and unknown metadata", (t) => {
   const { store } = fixture(t);
   assert.equal(canonical(store.read()), canonical(snapshot()));
   assert.equal(
-    store.db.prepare("PRAGMA integrity_check").get().integrity_check,
+    store.db.prepare("PRAGMA integrity_check").get()?.integrity_check,
     "ok",
   );
   assert.equal(store.getMeta("mode"), "active");
@@ -93,7 +92,7 @@ test("real isolated Git work validates at its head, rebases and integrates witho
   assert.equal(fs.existsSync(run.worktree), false);
   assert.equal(store.read().tasks[0].status, "implemented");
   assert.equal(
-    store.read().tasks[0].integration.commit,
+    store.read().tasks[0].integration?.commit,
     await git(repo, ["rev-parse", "HEAD"]),
   );
 });
