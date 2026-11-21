@@ -33,9 +33,7 @@ interface Protection {
 }
 // The GitHub reads the rules make.
 export interface RulesReader {
-  repository(
-    name: ReturnType<typeof parseRepository>,
-  ): Promise<{
+  repository(name: ReturnType<typeof parseRepository>): Promise<{
     default_branch?: string;
     permissions?: { admin?: boolean };
   } | null>;

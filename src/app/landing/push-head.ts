@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Pushing a landing's exact commit, and the checks around it (Requirement
 // 102.4-102.7, design §4.32.3).
 //
@@ -17,35 +16,71 @@ import { enforce, pushLines } from "../content/content-rules.ts";
 import { globalAvoozlConfigPath } from "../settings/layered-config.ts";
 import { privacyHits, privacyRules } from "../content/privacy.ts";
 import { fail } from "../store/store.ts";
+import type { Store } from "../store/store.ts";
+
+// A fully qualified reference: where the work is and where it lands.
+export interface QualifiedRef {
+  source: { repository: string; branch: string; commit: string };
+  target: { repository: string; base: string };
+  pr?: number;
+}
+// A registered, fetchable repository.
+interface Registered {
+  repository: string;
+  url: string;
+  parent: string | null;
+}
+export interface SourceRegistry {
+  get(repository: string): Registered;
+  has(repository: string): boolean;
+}
+// One scan finding: where and which rule, never the text.
+type Hit = { target: string; line: number; rule: string };
+// The range a scan covers.
+type ScanRange = {
+  base: string;
+  head: string;
+  refs: string[];
+  machine?: { hostname?: string; username?: string } | null;
+  configFile?: string;
+};
+// One outgoing line a scan reads.
+type Line = { target: string; line: number; text: string };
 
 const REPOSITORY = /^[A-Za-z0-9_.-]{1,100}\/[A-Za-z0-9_.-]{1,100}$/;
 const SHA = /^[0-9a-f]{40}$/;
 
-const lower = (value) => String(value).toLowerCase();
+const lower = (value: unknown) => String(value).toLowerCase();
 
-function repositoryOf(value, label) {
+function repositoryOf(value: unknown, label: string): string {
   if (
     typeof value !== "string" ||
     !REPOSITORY.test(value) ||
     value.split("/").some((part) => part === "." || part === "..")
   )
-    fail(`The ${label} repository must be owner/name.`, 400);
+    return fail(`The ${label} repository must be owner/name.`, 400);
   return value;
 }
 
-function branchOf(value, label) {
+function branchOf(value: unknown, label: string): string {
   const problem = branchNameProblem(value);
   if (problem) fail(`The ${label} branch is not usable: ${problem}`, 400);
-  return value;
+  return value as string;
 }
 
 // A fully qualified reference: {source: {repository, branch, commit},
 // target: {repository, base}}. Refuses anything else, so a URL, path or
 // command can never stand in for a repository or branch.
-export function qualifiedRef(input = {}) {
+export function qualifiedRef(
+  input: {
+    source?: { repository?: unknown; branch?: unknown; commit?: unknown };
+    target?: { repository?: unknown; base?: unknown };
+    pr?: unknown;
+  } = {},
+): QualifiedRef {
   const { source = {}, target = {} } = input;
   if (typeof source.commit !== "string" || !SHA.test(source.commit))
-    fail("A reference needs the exact 40-character commit.", 400);
+    return fail("A reference needs the exact 40-character commit.", 400);
   return {
     source: {
       repository: repositoryOf(source.repository, "source"),
@@ -56,32 +91,41 @@ export function qualifiedRef(input = {}) {
       repository: repositoryOf(target.repository, "target"),
       base: branchOf(target.base, "target base"),
     },
-    ...(Number.isSafeInteger(input.pr) && input.pr > 0 ? { pr: input.pr } : {}),
+    ...(typeof input.pr === "number" &&
+    Number.isSafeInteger(input.pr) &&
+    input.pr > 0
+      ? { pr: input.pr }
+      : {}),
   };
 }
 
 // The trusted registry of fetchable repositories, from repository setup only:
 // {"owner/name": {url, parent?}}. `parent` names the target a fork belongs
 // to when GitHub cannot be asked. Returns a lookup by repository identity.
-export function sourceRegistry(sources = {}) {
-  const entries = new Map();
+export function sourceRegistry(
+  sources: Record<string, { url?: unknown; parent?: unknown } | null> = {},
+): SourceRegistry {
+  const entries = new Map<string, Registered>();
   for (const [repository, entry] of Object.entries(sources)) {
     repositoryOf(repository, "registered");
     const url = entry?.url;
     if (typeof url !== "string" || !url.trim() || url.startsWith("-"))
-      fail(`Registered repository ${repository} needs a fetch location.`, 400);
-    if (entry.parent !== undefined) repositoryOf(entry.parent, "parent");
+      return fail(
+        `Registered repository ${repository} needs a fetch location.`,
+        400,
+      );
+    if (entry?.parent !== undefined) repositoryOf(entry?.parent, "parent");
     entries.set(lower(repository), {
       repository,
       url,
-      parent: entry.parent ?? null,
+      parent: (entry?.parent as string | undefined) ?? null,
     });
   }
   return {
     get(repository) {
       const found = entries.get(lower(repository));
       if (!found)
-        fail(
+        return fail(
           `${repository} is not a registered repository. Add it in repository setup first; a pull request or record cannot add one.`,
           403,
         );
@@ -93,7 +137,17 @@ export function sourceRegistry(sources = {}) {
 
 // Whether the source may land in the target: the same repository, a fork
 // the registry names as the target's, or a fork GitHub says belongs to it.
-export async function verifyRelationship(github, ref, registry) {
+export async function verifyRelationship(
+  github: {
+    repository(name: string): Promise<{
+      fork?: boolean;
+      parent?: { full_name?: string };
+      source?: { full_name?: string };
+    } | null>;
+  } | null,
+  ref: QualifiedRef,
+  registry: SourceRegistry,
+) {
   const { repository } = registry.get(ref.source.repository);
   registry.get(ref.target.repository);
   if (lower(repository) === lower(ref.target.repository)) return "same";
@@ -108,7 +162,7 @@ export async function verifyRelationship(github, ref, registry) {
     family.some((name) => lower(name) === lower(ref.target.repository))
   )
     return "fork";
-  fail(
+  return fail(
     `${repository} is not ${ref.target.repository} or a fork of it, so its work cannot land there.`,
     403,
   );
@@ -116,7 +170,7 @@ export async function verifyRelationship(github, ref, registry) {
 
 const NO_PROMPT = { GIT_TERMINAL_PROMPT: "0" };
 
-async function revParse(root, name) {
+async function revParse(root: string, name: string) {
   try {
     return await git(root, [
       "rev-parse",
@@ -129,12 +183,23 @@ async function revParse(root, name) {
   }
 }
 
-const hasCommit = async (root, sha) => Boolean(await revParse(root, sha));
+const hasCommit = async (root: string, sha: string) =>
+  Boolean(await revParse(root, sha));
 
 // The acceptance gate for integration: evidence for this exact commit, every
 // check passed and none missing, and paths inside the task's rules. A
 // checkpoint is never evidence.
-export function verifiedEvidence(evidence, commit) {
+export function verifiedEvidence(
+  evidence:
+    | {
+        commit?: string;
+        checks?: { exitCode?: number | null; conclusion?: string }[];
+        paths?: { outside?: unknown[]; protected?: unknown[] };
+      }
+    | null
+    | undefined,
+  commit: string,
+) {
   if (!evidence || evidence.commit !== commit)
     return "there is no verification for this exact commit";
   const checks = evidence.checks;
@@ -152,16 +217,19 @@ export function verifiedEvidence(evidence, commit) {
 // The privacy scan of an outgoing range: added lines in the code scope,
 // commit messages and ref names in the text scope (privacy.mjs). Returns
 // [{target, line, rule}], never the matched text.
-export function privacyScan(root, { base, head, refs, machine, configFile }) {
-  const lines = pushLines(root, base, head, refs),
+export function privacyScan(
+  root: string,
+  { base, head, refs, machine, configFile }: ScanRange,
+): Hit[] {
+  const lines: Line[] = pushLines(root, base, head, refs),
     options = {
       machine: machine ?? null,
       configFile: configFile ?? globalAvoozlConfigPath(),
     },
     code = privacyRules({ ...options, scope: "code" }),
     text = privacyRules({ ...options, scope: "text" }),
-    isText = (entry) => /^(?:commit|ref):/.test(entry.target),
-    scanned = (rules, picked) =>
+    isText = (entry: Line) => /^(?:commit|ref):/.test(entry.target),
+    scanned = (rules: ReturnType<typeof privacyRules>, picked: Line[]) =>
       privacyHits(
         picked.map((entry) => entry.text),
         rules,
@@ -187,15 +255,33 @@ export function privacyScan(root, { base, head, refs, machine, configFile }) {
 // private plan's names never reach a pushed branch. A plain push only: a non-fast-forward is refused by git, never
 // forced. Avoozl's own process pushes; agents have no credentials for it.
 export async function pushHead(
-  root,
-  { repository, branch, commit },
-  registry,
-  { scan = privacyScan, since, env, machine, configFile, store } = {},
+  root: string,
+  {
+    repository,
+    branch,
+    commit,
+  }: { repository: string; branch: string; commit: string },
+  registry: SourceRegistry,
+  {
+    scan = privacyScan,
+    since,
+    env,
+    machine,
+    configFile,
+    store,
+  }: {
+    scan?: (root: string, range: ScanRange) => Hit[] | Promise<Hit[]>;
+    since?: string | null;
+    env?: NodeJS.ProcessEnv;
+    machine?: ScanRange["machine"];
+    configFile?: string;
+    store?: Store | null;
+  } = {},
 ) {
   const { url } = registry.get(repository);
   branchOf(branch, "pushed");
   if (!SHA.test(commit ?? "")) fail("Name the exact commit to push.", 400);
-  let remote = null;
+  let remote: string | null = null;
   try {
     const listed = await remoteGit(
       root,
@@ -212,8 +298,8 @@ export async function pushHead(
   // Scan everything the remote branch lacks; a new branch is scanned from
   // `since`, the target base it starts from.
   const base = remote && (await hasCommit(root, remote)) ? remote : since;
-  if (!SHA.test(base ?? ""))
-    fail(
+  if (!base || !SHA.test(base))
+    return fail(
       "Name the base commit the pushed range starts from, so the scan covers all of it.",
       400,
     );
@@ -267,8 +353,17 @@ export async function pushHead(
 // contributor may checkpoint to a fork with no upstream write access; the
 // target's own maintainer lands, and Avoozl observes when it cannot merge.
 const WRITE = ["admin", "maintain", "write"];
-export async function landingRights(github, ref, login) {
-  const role = async (repository) =>
+export async function landingRights(
+  github: {
+    permission(
+      repository: string,
+      login: string,
+    ): Promise<{ permission?: string } | null>;
+  },
+  ref: QualifiedRef,
+  login: string,
+) {
+  const role = async (repository: string) =>
       String(
         (await github.permission(repository, login))?.permission ?? "none",
       ),
