@@ -1,7 +1,6 @@
-// @ts-nocheck: typing debt
 // Permission classes, write roots, the skip-flag refusal and the
 // per-machine opt-in for harnesses (R94.4, R94.4b, R94.5, §4.28).
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -25,13 +24,13 @@ const example = (patch = {}) => ({
   ...patch,
 });
 
-function machine(t) {
+function machine(t: TestContext) {
   const configDirectory = fs.mkdtempSync(
     path.join(os.tmpdir(), "avoozl-harness-"),
   );
   t.after(() => fs.rmSync(configDirectory, { recursive: true, force: true }));
   fs.mkdirSync(path.join(configDirectory, "harnesses"));
-  const install = (value, { approve = true } = {}) => {
+  const install = (value: { name: string }, { approve = true } = {}) => {
     const file = path.join(configDirectory, "harnesses", value.name + ".json");
     fs.writeFileSync(file, JSON.stringify(value, null, 2));
     const hash = harnessDefinitionHash(fs.readFileSync(file));
@@ -42,8 +41,9 @@ function machine(t) {
   return { configDirectory, install };
 }
 
-const at = (...parts) => path.join(path.parse(os.tmpdir()).root, ...parts);
-const session = (extra = {}) => ({
+const at = (...parts: string[]) =>
+  path.join(path.parse(os.tmpdir()).root, ...parts);
+const session = (extra: { cacheDirs?: string[]; tmp?: string } = {}) => ({
   permissionClass: "write",
   worktree: at("work", "task-1"),
   tmp: at("scratch", "task-1"),
@@ -53,7 +53,7 @@ const session = (extra = {}) => ({
 
 test("approved definitions with a skip-permission value never load", (t) => {
   const { configDirectory, install } = machine(t);
-  for (const [name, patch, value] of [
+  const cases: [string, Record<string, unknown>, string][] = [
     [
       "bypass-cli",
       { permission: { write: "bypassPermissions", read: "read-only" } },
@@ -69,11 +69,12 @@ test("approved definitions with a skip-permission value never load", (t) => {
       { resume: ["skip-cli", "--dangerously-skip-permissions"] },
       "--dangerously-skip-permissions",
     ],
-  ]) {
+  ];
+  for (const [name, patch, value] of cases) {
     install(example({ name, ...patch }));
     assert.throws(
       () => loadHarnessDefinition({ configDirectory, name }),
-      (error) =>
+      (error: Error) =>
         error.message.includes(value) &&
         error.message.includes("skips permissions"),
       name,
@@ -89,11 +90,12 @@ test("permission keys are the executor's classes and write roots are placeholder
       ),
     /permission\.admin is not a permission class/,
   );
-  for (const [writeRoots, pattern] of [
+  const cases: [string[], RegExp][] = [
     [["{worktree}", "/home/me"], /writeRoots\[1\] must be one of/],
     [["{worktree}/sub"], /writeRoots\[0\] must be one of/],
     [["{tmp}"], /must include \{worktree\}/],
-  ])
+  ];
+  for (const [writeRoots, pattern] of cases)
     assert.throws(
       () => parseHarnessDefinition(example({ writeRoots })),
       pattern,
@@ -144,7 +146,7 @@ test("a read class writes nowhere; a write class writes the task, temp and cache
 test("repository cache folders cannot reach the git directory, home or root", () => {
   const home = at("home", "me");
   const gitCommonDir = at("repo", ".git");
-  for (const [value, pattern] of [
+  const cases: [unknown, RegExp][] = [
     ["cache", /absolute path/],
     [[path.parse(home).root], /filesystem root/],
     [[home], /home folder/],
@@ -152,7 +154,8 @@ test("repository cache folders cannot reach the git directory, home or root", ()
     [[at("repo")], /git directory/],
     [[at("repo", ".git", "objects")], /git directory/],
     [[3], /list of absolute/],
-  ])
+  ];
+  for (const [value, pattern] of cases)
     assert.throws(
       () =>
         sandboxWriteRoots(Array.isArray(value) ? value : [value], {

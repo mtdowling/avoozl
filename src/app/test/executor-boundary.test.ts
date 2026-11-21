@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // P56's static boundary check. The live worker/receipt remains a separate proof.
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -10,58 +9,70 @@ import { fileURLToPath } from "node:url";
 import { parseAst } from "rolldown/parseAst";
 
 const root = fileURLToPath(new URL("../../../", import.meta.url));
-const nativeCalls = new Set([
+const nativeCalls = new Set<unknown>([
   "open_session",
   "send_to_session",
   "set_session_mode",
   "list_session_folders",
   "create_session_folder",
 ]);
-const privatePath = (name) =>
+const nativeFields = new Set<unknown>(["folder_id", "project_dir"]);
+// An identifier or a literal key, by its name or its value.
+interface Named {
+  name?: string;
+  value?: unknown;
+}
+// An ESTree node, read only for the fields this check names.
+interface AstNode {
+  type?: string;
+  value?: unknown;
+  key?: Named;
+  property?: Named;
+  quasis?: { value: { raw: string } }[];
+  arguments?: unknown[];
+}
+const named = (part?: Named) => part?.name ?? part?.value;
+const privatePath = (name: string) =>
   name === "src/app/executors/kirocrew.ts" ||
   name.startsWith("src/app/executors/kirocrew/") ||
   name === "hosts/kirocrew/executors/kirocrew.py" ||
   name === "hosts/kirocrew/ui/src/executors/kirocrew.ts";
-const pathProblem = (value) =>
+const pathProblem = (value: unknown) =>
   typeof value === "string" &&
   (/^Avoozl\//.test(value) ||
     /^\/api\/chat\/folders(?:\/|$)/.test(value) ||
     /(?:^|\/)agents\/.*\.json$/.test(value));
 
-async function jsLeaks(source, name) {
+async function jsLeaks(source: string, name: string) {
   const ast = parseAst(source, {
       lang: name.endsWith(".tsx") ? "tsx" : /\.m?ts$/.test(name) ? "ts" : "jsx",
     }),
-    found = [];
-  const isString = (node) =>
-    node?.type === "Literal" && typeof node.value === "string";
-  function visit(node) {
-    if (!node || typeof node !== "object") return;
+    found: string[] = [];
+  const isString = (node: AstNode): node is AstNode & { value: string } =>
+    node.type === "Literal" && typeof node.value === "string";
+  function visit(value: unknown) {
+    if (!value || typeof value !== "object") return;
+    const node: AstNode = value;
     if (
       node.type === "MemberExpression" &&
-      nativeCalls.has(node.property?.name ?? node.property?.value)
+      nativeCalls.has(named(node.property))
     )
       found.push("native session API");
     if (
-      ["Property", "MemberExpression"].includes(node.type) &&
-      ["folder_id", "project_dir"].includes(
-        node.key?.name ??
-          node.key?.value ??
-          node.property?.name ??
-          node.property?.value,
-      )
+      (node.type === "Property" || node.type === "MemberExpression") &&
+      nativeFields.has(named(node.key) ?? named(node.property))
     )
       found.push("native project field");
     if (isString(node) && pathProblem(node.value))
       found.push("native asset/sidebar path");
     if (
       node.type === "TemplateLiteral" &&
-      pathProblem(node.quasis.map((part) => part.value.raw).join("value"))
+      pathProblem(node.quasis?.map((part) => part.value.raw).join("value"))
     )
       found.push("native asset/sidebar template");
     if (node.type === "CallExpression") {
-      const fragments = [];
-      function literals(value) {
+      const fragments: string[] = [];
+      function literals(value: unknown) {
         if (!value || typeof value !== "object") return;
         if (isString(value)) fragments.push(value.value);
         for (const [key, child] of Object.entries(value)) {
@@ -70,7 +81,7 @@ async function jsLeaks(source, name) {
           else if (child && typeof child === "object") literals(child);
         }
       }
-      node.arguments.forEach(literals);
+      node.arguments?.forEach(literals);
       if (
         fragments.includes("agents") &&
         fragments.some((value) => value.endsWith(".json"))
@@ -87,7 +98,8 @@ async function jsLeaks(source, name) {
   return found;
 }
 
-function pythonLeaks(sources) {
+// Each leaking file's name and what it leaks, from [name, source] pairs.
+function pythonLeaks(sources: [string, string][]): [string, string[]][] {
   return JSON.parse(
     execFileSync(
       "python3",
@@ -128,8 +140,8 @@ print(json.dumps(out))
   );
 }
 
-function files(directory) {
-  const result = [];
+function files(directory: string): string[] {
+  const result: string[] = [];
   for (const entry of fs.readdirSync(path.join(root, directory), {
     withFileTypes: true,
   })) {
@@ -146,8 +158,8 @@ function files(directory) {
 }
 
 test("the runtime boundary rejects native folder/project/agent-file paths outside its executor", async () => {
-  const leaked = [],
-    python = [];
+  const leaked: [string, string[]][] = [],
+    python: [string, string][] = [];
   for (const name of [
     ...files("src"),
     ...files("hosts/kirocrew/crons"),

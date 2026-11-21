@@ -645,9 +645,12 @@ const overlaps = (a, b) =>
 // never the filesystem root, the home folder or one above it, and never
 // over the git directory, which the child must not reach (R94.4a).
 export function sandboxWriteRoots(
-  value,
-  { gitCommonDir, home = os.homedir() } = {},
-) {
+  value: unknown,
+  {
+    gitCommonDir,
+    home = os.homedir(),
+  }: { gitCommonDir?: string; home?: string } = {},
+): string[] {
   if (value === undefined) return [];
   if (!Array.isArray(value) || value.some((item) => typeof item !== "string"))
     fail("sandbox.writeRoots must be a list of absolute folder paths.");
@@ -692,6 +695,13 @@ export function harnessPermission(
     cacheDirs = [],
     gitCommonDir,
     configDirectory,
+  }: {
+    permissionClass: string;
+    worktree?: string;
+    tmp?: string;
+    cacheDirs?: unknown;
+    gitCommonDir?: string;
+    configDirectory?: string;
   },
 ) {
   if (!PERMISSION_CLASSES.includes(permissionClass))
