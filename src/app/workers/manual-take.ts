@@ -31,7 +31,7 @@ interface TakeInput {
   slot?: string;
   claim?: boolean;
   start?: unknown;
-  workspaceRoot?: string;
+  workspaceRoot?: string | null;
 }
 
 // Why `task` cannot be taken now, or null when it may be.

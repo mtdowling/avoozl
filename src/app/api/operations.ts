@@ -61,7 +61,10 @@ import { sourceMap } from "../intake/intake.ts";
 import { loadLayeredConfig } from "../settings/layered-config.ts";
 import { telemetryHandle } from "../telemetry/index.ts";
 import { mcpRefusal } from "../mcp/mcp-policy.ts";
-import { queueNotifications } from "../tick/notifications.ts";
+import {
+  type deliverNotifications,
+  queueNotifications,
+} from "../tick/notifications.ts";
 import {
   DIRECT_TASK_EDITS,
   refuseGitHubAuthority,
@@ -209,7 +212,8 @@ export class Operations {
   github: GitHubClient;
   pluginOptions: { workspaceRoot: string | null; settingsFile: string };
   // Kiro Crew's readers, when the app backend runs inside Kiro Crew.
-  notifier: unknown;
+  notifier: Parameters<typeof deliverNotifications>[1];
+  kirocrewAbsent: boolean;
   sessionStopper: unknown;
   // This process's high-risk GitHub grants (github-jobs.ts).
   grants: typeof processGrants;

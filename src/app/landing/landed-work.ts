@@ -14,7 +14,7 @@ import { type QueuedTask, taskIds } from "./landing-queue.ts";
 // One landed entry: its spec and its tasks.
 type Entry = { spec: unknown; tasks: QueuedTask[] };
 // Where the landing runs.
-type Where = { workspaceRoot?: string; env?: NodeJS.ProcessEnv };
+type Where = { workspaceRoot?: string | null; env?: NodeJS.ProcessEnv };
 type GitHub = Parameters<typeof closeLanded>[0];
 
 // One landed entry ({spec, tasks}) at `candidate`, the commit on the base.
