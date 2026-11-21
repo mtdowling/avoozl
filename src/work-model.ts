@@ -1,7 +1,7 @@
 import { hasPendingSpecDependencies } from "./spec-dependencies.ts";
 import type { Edge, Snapshot, Task } from "./types.ts";
 
-type MaybeTask = Task | null | undefined;
+type MaybeTask = Partial<Task> | null | undefined;
 // Whether a list of names holds a value that may not be a string.
 const listed = (list: readonly string[], value: unknown): value is string =>
   typeof value === "string" && list.includes(value);
@@ -75,7 +75,7 @@ export function taskRepository(task: MaybeTask): string | null {
 // completion (§4.3). A row stored before the work model (no kind or completion
 // of its own) keeps the old meaning: its complete status.
 export function completionReached(
-  task: MaybeTask,
+  task: Task | null | undefined,
   level: string | undefined,
   complete: (status: string | undefined) => boolean,
 ) {

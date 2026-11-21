@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 import {
   duplicateCandidates,
   resolveTaskId,
@@ -6,15 +5,51 @@ import {
 } from "../../task-identity.ts";
 import { repositoryChecks } from "../workspace/repository-checks.ts";
 import { isManual, taskKind } from "../../work-model.ts";
+import type { Snapshot, Task } from "../../types.ts";
+
+// A task a spec proposes, as lint reads it.
+export interface Proposal {
+  id: string;
+  title: string;
+  kind?: string;
+  repository?: string;
+  repositoryId?: string;
+  acceptance?: string[];
+  requires?: string[];
+  manual?: boolean;
+  lineStart?: number;
+  lineEnd?: number;
+  [key: string]: unknown;
+}
+// One lint finding.
+export interface Diagnostic {
+  id: string;
+  code: string;
+  severity: string;
+  message: string;
+  lineStart: number;
+  lineEnd: number;
+  taskId?: string;
+  [key: string]: unknown;
+}
+// The plan whose proposals are linted.
+interface LintedPlan {
+  id?: string;
+  context?: { repositoryId?: string } | null;
+  mapping?: Record<string, string>;
+  [key: string]: unknown;
+}
+type Repository = { id: string; [key: string]: unknown };
+type Severity = "error" | "warning" | "info";
 
 function diagnostic(
-  code,
-  severity,
-  message,
+  code: string,
+  severity: string,
+  message: string,
   lineStart = 1,
   lineEnd = lineStart,
-  extra = {},
-) {
+  extra: { taskId?: string; [key: string]: unknown } = {},
+): Diagnostic {
   return {
     id: `${code}:${lineStart}:${extra.taskId || ""}`,
     code,
@@ -26,7 +61,7 @@ function diagnostic(
   };
 }
 
-function taskLine(task) {
+function taskLine(task: Proposal) {
   return {
     lineStart: task.lineStart || 1,
     lineEnd: task.lineEnd || task.lineStart || 1,
@@ -34,7 +69,11 @@ function taskLine(task) {
   };
 }
 
-function effectiveRepository(plan, task, existing) {
+function effectiveRepository(
+  plan: LintedPlan | null | undefined,
+  task: Proposal,
+  existing: { repository?: string; repositoryId?: string } | null,
+): string | null {
   return (
     task.repository ||
     task.repositoryId ||
@@ -50,7 +89,11 @@ const MANUAL_REFUSED = ["checks", "agent", "model", "paths"];
 
 // A manual leaf: acceptance, a repository for its issue, and nothing an
 // agent would use. It completes by a person; `manual: true` says so.
-function manualDiagnostics(task, repositoryId, add) {
+function manualDiagnostics(
+  task: Proposal,
+  repositoryId: string | null,
+  add: (code: string, message: string) => void,
+) {
   if (task.manual !== true) return;
   if (taskKind(task) !== "leaf")
     add(
@@ -72,10 +115,14 @@ function manualDiagnostics(task, repositoryId, add) {
 
 // A leaf is bounded: one repository, acceptance and checks. Acceptance is
 // enforced by extractPlan.
-function boundednessDiagnostics(task, repositoryId, repositories) {
+function boundednessDiagnostics(
+  task: Proposal,
+  repositoryId: string | null,
+  repositories: Map<string, Repository>,
+) {
   const at = taskLine(task),
-    found = [],
-    add = (code, message) =>
+    found: Diagnostic[] = [],
+    add = (code: string, message: string) =>
       found.push(
         diagnostic(code, "error", message, at.lineStart, at.lineEnd, {
           taskId: task.id,
@@ -95,10 +142,13 @@ function boundednessDiagnostics(task, repositoryId, repositories) {
   // An unregistered repository is reported as task.unknown-repository.
   // Every leaf runs its repository's checks; tasks never name them. Only a
   // registered repository's are known here.
-  const known = Boolean(repositoryId) && repositories.has(repositoryId),
+  const known = repositoryId !== null && repositories.has(repositoryId),
     // A verifier chat stands in for missing repository checks; plugin
     // checks never do.
-    checks = repositoryChecks(repositories.get(repositoryId), []);
+    checks = repositoryChecks(
+      repositoryId ? repositories.get(repositoryId) : undefined,
+      [],
+    );
   // A repository with no checks is judged by a verifier chat instead.
   if (!checks.length && known)
     found.push(
@@ -114,7 +164,7 @@ function boundednessDiagnostics(task, repositoryId, repositories) {
   return found;
 }
 
-function placeholderAcceptance(value) {
+function placeholderAcceptance(value: string) {
   const normalized = value
     .trim()
     .replace(/[.?!]+$/, "")
@@ -127,19 +177,19 @@ function placeholderAcceptance(value) {
   );
 }
 
-function cycleDiagnostics(tasks, mapping) {
-  const graph = new Map(tasks.map((task) => [task.id, []]));
+function cycleDiagnostics(tasks: Proposal[], mapping: Map<string, Proposal>) {
+  const graph = new Map<string, Proposal[]>(tasks.map((task) => [task.id, []]));
   for (const task of tasks)
-    for (const field of ["requires"])
+    for (const field of ["requires"] as const)
       for (const reference of task[field] || []) {
         const local = mapping.get(reference);
         if (local) graph.get(local.id)?.push(task);
       }
-  const active = new Set();
-  const complete = new Set();
-  const found = new Set();
-  const diagnostics = [];
-  function visit(task, path) {
+  const active = new Set<string>();
+  const complete = new Set<string>();
+  const found = new Set<string>();
+  const diagnostics: Diagnostic[] = [];
+  function visit(task: Proposal, path: string[]) {
     if (active.has(task.id)) {
       const cycle = [
         ...path.slice(path.findIndex((id) => id === task.id)),
@@ -179,8 +229,13 @@ export function lintPlan({
   data = {},
   proposals,
   declaredTasks = [],
+}: {
+  plan?: LintedPlan;
+  data?: Partial<Snapshot> & { repositories?: Repository[] };
+  proposals: Proposal[];
+  declaredTasks?: Proposal[];
 }) {
-  const diagnostics = [],
+  const diagnostics: Diagnostic[] = [],
     tasks = proposals;
 
   const repositories = new Map(
@@ -191,9 +246,9 @@ export function lintPlan({
   );
   const localTasks = new Map(tasks.map((task) => [task.id, task]));
   const declarations = new Map(declaredTasks.map((task) => [task.id, task]));
-  const normalizedTitles = new Map();
+  const normalizedTitles = new Map<string, Proposal>();
   // Built once: every proposal's title is checked against every task.
-  let titles = null;
+  let titles: ReturnType<typeof titleIndex> | null = null;
 
   for (const task of tasks) {
     const at = taskLine(task);
@@ -231,7 +286,7 @@ export function lintPlan({
     {
       titles ??= titleIndex(data.tasks || []);
       const duplicates = duplicateCandidates(
-        data,
+        data as Snapshot,
         {
           ...task,
           id: plan.mapping?.[task.id] || `${plan.id || "plan"}-${task.id}`,
@@ -266,7 +321,7 @@ export function lintPlan({
       repositories.size === 1 &&
       taskKind(task) === "leaf"
     )
-      repositoryId = repositories.keys().next().value;
+      repositoryId = repositories.keys().next().value ?? null;
     else if (
       !repositoryId &&
       repositories.size > 1 &&
@@ -287,8 +342,8 @@ export function lintPlan({
       ...boundednessDiagnostics(task, repositoryId, repositories),
     );
 
-    for (const field of ["requires"]) {
-      const seen = new Set();
+    for (const field of ["requires"] as const) {
+      const seen = new Set<string>();
       for (const reference of task[field] || []) {
         if (seen.has(reference))
           diagnostics.push(
@@ -316,7 +371,7 @@ export function lintPlan({
         const local = localTasks.get(reference);
         const canonicalReference = local
           ? null
-          : resolveTaskId(data, reference);
+          : resolveTaskId(data as Snapshot, reference);
         const existingReference = canonicalReference
           ? existingTasks.get(canonicalReference)
           : null;
@@ -333,7 +388,7 @@ export function lintPlan({
           );
         const dependencyRepository = local
           ? effectiveRepository(plan, local, null)
-          : existingReference?.repositoryId || null;
+          : (existingReference?.repositoryId as string | undefined) || null;
         if (
           repositoryId &&
           dependencyRepository &&
@@ -353,16 +408,16 @@ export function lintPlan({
     }
   }
   const all = new Map([...declarations, ...localTasks]),
-    reachable = new Set();
-  function include(id) {
+    reachable = new Set<string>();
+  function include(id: string) {
     if (reachable.has(id) || !all.has(id)) return;
     reachable.add(id);
     const task = all.get(id);
-    for (const field of ["requires"])
-      for (const from of task[field] || []) include(from);
+    for (const field of ["requires"] as const)
+      for (const from of task?.[field] || []) include(from);
   }
   for (const task of tasks) include(task.id);
-  const connected = [...reachable].map((id) => all.get(id));
+  const connected = [...reachable].map((id) => all.get(id) as Proposal);
   diagnostics.push(
     ...cycleDiagnostics(
       connected,
@@ -378,11 +433,13 @@ export function lintPlan({
   return summarize(diagnostics, tasks);
 }
 
-function severityRank(severity) {
-  return { error: 0, warning: 1, info: 2 }[severity] ?? 3;
+function severityRank(severity: string) {
+  return (
+    ({ error: 0, warning: 1, info: 2 } as Record<string, number>)[severity] ?? 3
+  );
 }
 
-function summarize(diagnostics, tasks) {
+function summarize(diagnostics: Diagnostic[], tasks: Proposal[]) {
   diagnostics = diagnostics.filter(
     (item, index, all) =>
       all.findIndex(
@@ -395,8 +452,8 @@ function summarize(diagnostics, tasks) {
           candidate.taskId === item.taskId,
       ) === index,
   );
-  const counts = { error: 0, warning: 0, info: 0 };
-  for (const item of diagnostics) counts[item.severity]++;
+  const counts: Record<Severity, number> = { error: 0, warning: 0, info: 0 };
+  for (const item of diagnostics) counts[item.severity as Severity]++;
   return {
     canApprove: counts.error === 0,
     counts,
