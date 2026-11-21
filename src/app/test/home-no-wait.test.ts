@@ -6,12 +6,12 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { createHash, createHmac, randomBytes } from "node:crypto";
 import { startAppBackend } from "../executors/kirocrew/app-backend.ts";
 import { workspaceConfig } from "../settings/config.ts";
 import { Store } from "../store/store.ts";
 import { initializeWorkspace } from "../workspace/workspace.ts";
 import { temporaryDirectory } from "./temporary.ts";
+import { sign } from "./write-path.ts";
 
 // Every read Home's page sends on first load: the shell, the nav, and each
 // Home card (DashboardView, IntegrationBranches, the setup cards).
@@ -30,30 +30,6 @@ const HOME: [string, Record<string, unknown>][] = [
 const REPO = "mtdowling/avoozl-home-test";
 // Each reply's limit. A slow `git` or `gh` takes 2 s to start below.
 const LIMIT_MS = 1500;
-
-function sign(body: string) {
-  const claim = {
-      issuedAt: Math.floor(Date.now() / 1000),
-      kind: "owner-session",
-      ownerId: "owner",
-      requestId: randomBytes(16).toString("hex"),
-      version: 1,
-    },
-    encoded = Buffer.from(JSON.stringify(claim)).toString("base64url");
-  const signature = createHmac("sha256", "secret")
-    .update(
-      [
-        "kirocrew-proxy-principal-v1",
-        String(claim.issuedAt),
-        "POST",
-        "/api/command",
-        createHash("sha256").update(body).digest("hex"),
-        encoded,
-      ].join("\n"),
-    )
-    .digest("hex");
-  return `${encoded}.${signature}`;
-}
 
 test("no Home read waits on GitHub, Kiro Crew or git", async (t) => {
   const root = temporaryDirectory();
@@ -161,7 +137,7 @@ test("no Home read waits on GitHub, Kiro Crew or git", async (t) => {
     const start = performance.now();
     const reply = await real(`http://127.0.0.1:${address.port}/api/command`, {
       method: "POST",
-      headers: { "X-KiroCrew-Principal": sign(body) },
+      headers: { "X-KiroCrew-Principal": sign(body, "secret") },
       body,
       signal: AbortSignal.timeout(10_000),
     });
