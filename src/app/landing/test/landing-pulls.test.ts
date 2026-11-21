@@ -1,19 +1,51 @@
-// @ts-nocheck: typing debt
 // Pull request portions from a target repository or a fork (task 42.1).
 // GitHub is a fake.
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import assert from "node:assert/strict";
-import { digest } from "../../../model.ts";
 import { fixture } from "../../test/fixtures.ts";
 import { landNext, landingQueue, enqueueLanding } from "../landing-queue.ts";
-import { approveMerge, pullSteps, releaseDraft } from "../landing-pulls.ts";
+import {
+  approveMerge,
+  pullSteps,
+  releaseDraft,
+  type PullGitHub,
+} from "../landing-pulls.ts";
 import { landingSettings, validateLandingConfig } from "../landing-config.ts";
 import { sourceRegistry } from "../push-head.ts";
 
 const Q = { repositoryId: "fixture", base: "main" };
-const DEF = digest("definition t1");
 const COMMIT = "a".repeat(40);
 const BASE = "b".repeat(40);
+type Pull = NonNullable<Awaited<ReturnType<PullGitHub["pullRequest"]>>>;
+// A check run on the head, as GitHub lists it.
+type CheckRun = { name?: string; status?: string; conclusion?: string | null };
+type Review = Awaited<ReturnType<PullGitHub["pullRequestReviews"]>>[number];
+type Steps = Parameters<typeof pullSteps>[0];
+// What the fake records: each pull request it opened, each merge, each
+// draft marked ready, each commit status, and each squash message.
+interface Calls {
+  created: { repo: string; input: Record<string, unknown> }[];
+  merged: { number: number; sha: string }[];
+  ready?: (string | undefined)[];
+  statuses?: Record<string, unknown>[];
+  messages?: { title?: string; message?: string }[];
+}
+// The fake's own pull request, and what a test sets on it.
+type FakePull = Pull & {
+  base?: { sha: string };
+  html_url?: string;
+  exists?: boolean;
+};
+interface FakeOptions {
+  released?: boolean;
+  pull?: Partial<FakePull>;
+  runs?: CheckRun[];
+  reviews?: Review[];
+  approvals?: number;
+  lastPush?: boolean;
+  roles?: Record<string, string>;
+}
+
 // A fake GitHub with one pull request from the fork `me/app` to `acme/app`.
 // `released`: a person marked the draft ready for review at once.
 function fakeGithub({
@@ -24,9 +56,9 @@ function fakeGithub({
   approvals = 1,
   lastPush = false,
   roles = { "acme/app": "write", "me/app": "write" },
-} = {}) {
-  const calls = { created: [], merged: [] };
-  const pr = {
+}: FakeOptions = {}) {
+  const calls: Calls = { created: [], merged: [] };
+  const pr: FakePull = {
     number: 7,
     state: "open",
     head: { sha: COMMIT },
@@ -35,7 +67,11 @@ function fakeGithub({
     html_url: "https://example.invalid/pull/7",
     ...pull,
   };
-  const github = {
+  const github: PullGitHub & {
+    calls: Calls;
+    pr: FakePull;
+    [key: string]: unknown;
+  } = {
     calls,
     pr,
     branchHead: async () => ({ oid: BASE }),
@@ -53,7 +89,7 @@ function fakeGithub({
       pr.draft = false;
     },
     repository: async () => ({ fork: true, parent: { full_name: "acme/app" } }),
-    permission: async (repo, login) => ({
+    permission: async (repo: string, login: string) => ({
       permission: login === "r1" ? "write" : (roles[repo] ?? "none"),
     }),
     branchRules: async () => [
@@ -70,14 +106,30 @@ function fakeGithub({
       },
     ],
     branchProtection: async () => null,
+    // No landing path here reads the branch's history.
+    listCommits: async () => {
+      throw Error("This fake lists no commits.");
+    },
     branch: async () => ({ protection: { enabled: false } }),
     checkRuns: async () => runs,
     commitStatus: async () => ({ statuses: [] }),
-    createCommitStatus: async (repo, sha, input) => {
+    createCommitStatus: async (
+      repo: string,
+      sha: string,
+      input: Record<string, unknown>,
+    ) => {
       calls.statuses = [...(calls.statuses ?? []), { repo, sha, ...input }];
     },
     pullRequestReviews: async () => reviews,
-    mergePullRequest: async (repo, number, { sha, title, message }) => {
+    mergePullRequest: async (
+      _repo: string,
+      number: number,
+      {
+        sha,
+        title,
+        message,
+      }: { sha: string; title?: string; message?: string },
+    ) => {
       calls.merged.push({ number, sha });
       calls.messages = [...(calls.messages ?? []), { title, message }];
       Object.assign(pr, {
@@ -90,22 +142,24 @@ function fakeGithub({
   return github;
 }
 
-async function setup(t, github, extra = {}) {
+async function setup(
+  t: TestContext,
+  github: PullGitHub,
+  extra: Partial<Steps> = {},
+) {
   const { store } = fixture(t);
   enqueueLanding(store, {
     ...Q,
     key: "s.t1",
     commit: COMMIT,
     spec: "s",
-    tasks: [
-      { task: "t1", definition: DEF, metrics: { tries: "2", model: "m-1" } },
-    ],
+    tasks: [{ task: "t1" }],
     source: { repository: "me/app", branch: "avoozl/s/work" },
   });
   return { store, steps: steps(github, extra) };
 }
 
-const steps = (github, extra = {}) =>
+const steps = (github: PullGitHub, extra: Partial<Steps> = {}) =>
   pullSteps({
     github,
     registry: sourceRegistry({
@@ -124,7 +178,7 @@ const steps = (github, extra = {}) =>
     ...extra,
   });
 
-const approval = (login, commit = COMMIT) => ({
+const approval = (login: string, commit = COMMIT) => ({
   id: 1,
   user: { login },
   state: "APPROVED",
@@ -141,13 +195,16 @@ test("a fork head opens a pull request, passes checks and review, and merges gua
   assert.equal(github.calls.created[0].input.base, "main");
   assert.deepEqual(github.calls.merged, [{ number: 7, sha: COMMIT }]);
   // The squash commit carries no trailer or attribution (SM4.4).
-  const [squash] = github.calls.messages;
-  assert.match(squash.title, /\(#7\)$/);
+  const [squash] = github.calls.messages ?? [];
+  assert.match(squash.title ?? "", /\(#7\)$/);
   assert.equal(squash.message, "");
-  assert.doesNotMatch(github.calls.created[0].input.body, /Avoozl-Task/);
-  assert.equal(result.entry.pr, 7);
-  assert.deepEqual(result.entry.approvers, ["r1"]);
-  assert.equal(result.entry.mergedBy, "ci-bot");
+  assert.doesNotMatch(
+    String(github.calls.created[0].input.body),
+    /Avoozl-Task/,
+  );
+  assert.equal(result.entry?.pr, 7);
+  assert.deepEqual(result.entry?.approvers, ["r1"]);
+  assert.equal(result.entry?.mergedBy, "ci-bot");
   assert.equal(github.calls.statuses, undefined, "no commit status is posted");
 });
 
@@ -169,7 +226,7 @@ test("without merge rights Avoozl waits, then records the maintainer's merge", a
   const second = await landNext(x.store, Q, x.steps);
   assert.equal(second.state, "landed");
   assert.equal(second.observed, true);
-  assert.equal(second.entry.mergedBy, "maintainer");
+  assert.equal(second.entry?.mergedBy, "maintainer");
   assert.equal(landingQueue(x.store, Q).length, 0);
 });
 
@@ -215,7 +272,7 @@ test("an approval GitHub still shows on an older head counts, unless the last pu
     x = await setup(t, kept),
     result = await landNext(x.store, Q, x.steps);
   assert.equal(result.state, "landed");
-  assert.deepEqual(result.entry.approvers, ["r1"]);
+  assert.deepEqual(result.entry?.approvers, ["r1"]);
   assert.deepEqual(kept.calls.merged, [{ number: 7, sha: COMMIT }]);
 
   const strict = fakeGithub({
@@ -303,13 +360,13 @@ test("a fork under another owner sends no head repository", async (t) => {
 
 test("an open pull request from a same-org fork is found by its head repository", async (t) => {
   const github = fakeGithub({ reviews: [approval("r1")] }),
-    lists = [];
+    lists: Record<string, unknown>[] = [];
   github.pr.head = {
     sha: COMMIT,
     ref: "avoozl/s/work",
     repo: { full_name: "acme/app-fork" },
   };
-  github.listPullRequests = async (repo, input) => {
+  github.listPullRequests = async (_repo, input) => {
     lists.push(input);
     return [
       {
@@ -340,7 +397,7 @@ test("an open pull request from a same-org fork is found by its head repository"
   const result = await landNext(x.store, Q, x.steps);
   assert.equal(result.state, "landed");
   assert.equal(github.calls.created.length, 0);
-  assert.equal(result.entry.pr, 7);
+  assert.equal(result.entry?.pr, 7);
   assert.equal("head" in lists[0], false);
 });
 
@@ -361,7 +418,7 @@ test("pk-1.5: a required plugin check waits for its local result on the exact he
       checks: ["parity"],
       local: {
         names: ["parity"],
-        result: (name, commit) =>
+        result: (name: string, commit: string) =>
           results.get(`${name}@${commit}`) ?? { conclusion: "pending" },
       },
     });
@@ -369,7 +426,7 @@ test("pk-1.5: a required plugin check waits for its local result on the exact he
   assert.equal(waiting.state, "waiting");
   assert.equal(github.calls.merged.length, 0);
   assert.deepEqual(
-    landingQueue(x.store, Q)[0].waiting.checks.map((c) => [
+    (landingQueue(x.store, Q)[0].waiting?.checks ?? []).map((c) => [
       c.command,
       c.conclusion,
     ]),
@@ -385,7 +442,7 @@ test("pk-1.5: a required plugin check waits for its local result on the exact he
   const landed = await landNext(x.store, Q, x.steps);
   assert.equal(landed.state, "landed");
   // The pull request body names tasks only: nothing of the plugin.
-  const body = github.calls.created[0].input.body;
+  const body = String(github.calls.created[0].input.body);
   assert.doesNotMatch(body, /parity|bin\/|prompt/);
 });
 
@@ -397,7 +454,7 @@ test("pk-1.5: a required name no plugin here provides and GitHub lacks waits as 
     x = await setup(t, github, { checks: ["parity"] });
   assert.equal((await landNext(x.store, Q, x.steps)).state, "waiting");
   assert.deepEqual(
-    landingQueue(x.store, Q)[0].waiting.checks.map((c) => [
+    (landingQueue(x.store, Q)[0].waiting?.checks ?? []).map((c) => [
       c.command,
       c.conclusion,
     ]),
@@ -424,8 +481,8 @@ test("a pull request opens as a draft; release only marks it ready, and a person
     first = await landNext(x.store, Q, x.steps);
   assert.equal(github.calls.created[0].input.draft, true);
   assert.equal(first.state, "waiting");
-  assert.equal(first.entry.waiting.reason, "draft");
-  assert.equal(first.entry.pr, 7);
+  assert.equal(first.entry?.waiting?.reason, "draft");
+  assert.equal(first.entry?.pr, 7);
   // Merge is refused while it is a draft: no check passed on its head.
   x.store.transaction(() =>
     x.store.put("repositories", { id: Q.repositoryId, github: "acme/app" }),
@@ -439,7 +496,7 @@ test("a pull request opens as a draft; release only marks it ready, and a person
   github.pr.draft = false;
   const ready = await landNext(x.store, Q, x.steps);
   assert.equal(ready.state, "waiting");
-  assert.equal(ready.entry.waiting.reason, "merge");
+  assert.equal(ready.entry?.waiting?.reason, "merge");
   assert.equal((await landNext(x.store, Q, x.steps)).state, "waiting");
   assert.equal(github.calls.merged.length, 0, "Avoozl never merges alone");
   assert.throws(
@@ -477,7 +534,7 @@ test("Approve in Avoozl marks the queued draft ready for review and nothing more
   assert.deepEqual(github.calls.ready, ["PR_node7"]);
   // Released, it waits for a person's merge; it is never made a draft again.
   const next = await landNext(x.store, Q, x.steps);
-  assert.equal(next.entry.waiting.reason, "merge");
+  assert.equal(next.entry?.waiting?.reason, "merge");
   assert.equal(github.calls.merged.length, 0);
   assert.equal(github.pr.draft, false);
   await assert.rejects(
@@ -502,7 +559,7 @@ test("landing.pr ready opens ready for review and waits for a person's merge; au
     first = await landNext(x.store, Q, x.steps);
   assert.equal(ready.calls.created[0].input.draft, false);
   assert.equal(first.state, "waiting");
-  assert.equal(first.entry.waiting.reason, "merge");
+  assert.equal(first.entry?.waiting?.reason, "merge");
   assert.equal(ready.calls.merged.length, 0);
 
   const auto = fakeGithub({ released: false, reviews: [approval("r1")] }),
@@ -513,7 +570,7 @@ test("landing.pr ready opens ready for review and waits for a person's merge; au
 });
 
 test("landing.pr reads the repository's block, then the workspace's, then draft", () => {
-  const config = (workspace, repository) => ({
+  const config = (workspace: string | null, repository: string | null) => ({
     ...(workspace ? { landing: { pr: workspace } } : {}),
     github: {
       repositories: {

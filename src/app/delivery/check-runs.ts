@@ -62,6 +62,9 @@ export interface CheckRun {
   fresh?: boolean;
   mcpIds?: Record<string, string>;
   waiting?: string;
+  // A finished run's results, and the checks its diff picked, by name.
+  checks?: CheckRecord[];
+  selected?: string[];
   [key: string]: unknown;
 }
 // What runChecksAt and runEach are given.
