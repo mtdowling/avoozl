@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // One row per role Avoozl starts (without-kirocrew D2, NK1, simplify §D10):
 // the worker, the reviewer, the responder, a plugin check's decide call, and
 // the standalone page's assistant. The `process` executor's brief, its folder
@@ -8,12 +7,40 @@
 // the task's `session.harness` pin, then the role's saved harness, then the
 // repository's executor.
 import { decideOutput } from "../plugins/decide-output.ts";
-import { fail } from "../store/store.ts";
+import { fail, type Store } from "../store/store.ts";
+
+// The field comments above ROLE_TABLE describe each one.
+export interface RoleRow {
+  setting: string;
+  roles: (string | RegExp)[];
+  prompt?: string;
+  process: boolean;
+  access: "read" | "write";
+  folder: "worktree" | "detached" | "given" | "snapshot";
+  scratch?: string;
+  offline?: boolean;
+  verdict?: boolean;
+  snapshot?: (
+    store: Store,
+    request: Record<string, unknown>,
+  ) => Promise<{ files: Record<string, string> }>;
+  hands: "report" | "folder" | "post-reply" | "decide";
+  output?: { limit: number; validate: (text: string) => unknown };
+  finish?: (allowCommands?: string[][] | null) => string[];
+}
+// A config with a `roles` table: `.avoozl.json` or a layer of it.
+type RolesConfig =
+  | { roles?: unknown; [key: string]: unknown }
+  | null
+  | undefined;
+// Saved role settings: role -> field -> value.
+export type RoleSettings = Record<string, Record<string, string>>;
 
 // The executor a repository's sessions run on: its `executor` setting, else
 // `kirocrew` (R93.5; a repository opts in, as the Nupp compiler's does).
-export const repositoryExecutor = (repository) =>
-  repository?.executor === "process" ? "process" : "kirocrew";
+export const repositoryExecutor = (
+  repository: { executor?: unknown } | null | undefined,
+) => (repository?.executor === "process" ? "process" : "kirocrew");
 
 // What a child does instead of the Avoozl tools it cannot reach (R96.1): a
 // sandboxed child has no database, so its report is the result file.
@@ -22,7 +49,7 @@ const RESULT_LIMIT =
 
 // A verdict child runs unattended, so only the repository's allow-list runs in
 // its shell, and a command line runs only when every part of it is listed.
-export function allowedShell(allowCommands) {
+export function allowedShell(allowCommands?: string[][] | null) {
   if (!allowCommands?.length)
     return "Your shell runs no command here: read files with your file tools.";
   return `Your shell runs only these commands, one per call, with no ; && | or $(...): ${allowCommands
@@ -30,7 +57,7 @@ export function allowedShell(allowCommands) {
     .join(", ")}. Read files with your file tools.`;
 }
 
-const verdictFinish = (allowCommands) => [
+const verdictFinish = (allowCommands?: string[][] | null) => [
   "You run without Avoozl's tools, so these steps replace the worktree and plans_report steps above.",
   "1. Avoozl already added the detached worktree at the commit: it is the current folder. Do not run git worktree add, and read only there.",
   allowedShell(allowCommands),
@@ -60,7 +87,7 @@ const verdictFinish = (allowCommands) => [
 //   finish   the lines that replace the Avoozl tools in a child's brief
 //   offline  true when the child gets no network, whatever its repository
 //            allows: it reads only its folder and brief
-export const ROLE_TABLE = Object.freeze({
+export const ROLE_TABLE: Readonly<Record<string, RoleRow>> = Object.freeze({
   worker: {
     setting: "worker",
     roles: ["worker"],
@@ -144,16 +171,16 @@ export const ROLES = Object.freeze(
   Object.values(ROLE_TABLE).map((row) => row.setting),
 );
 
-const matches = (row, role) =>
+const matches = (row: RoleRow, role: string) =>
   row.roles.some((r) => (r instanceof RegExp ? r.test(role) : r === role));
 
 // The row a dispatch role runs by, or null.
-export const rowFor = (role) =>
+export const rowFor = (role: string) =>
   Object.values(ROLE_TABLE).find((row) => matches(row, role)) ?? null;
 
 // The row a `process` child of this role follows, or null for a role that
 // does not run as a child yet.
-export const processRow = (role) => {
+export const processRow = (role: string) => {
   const row = rowFor(role);
   return row?.process ? row : null;
 };
@@ -164,7 +191,16 @@ export const processRow = (role) => {
 // Returns {executor, harness?}.
 // shortcut: every row runs as a child (`process: true`); drop the field if no
 // role is added that cannot.
-export function roleRun(setting, { config, repository } = {}) {
+export function roleRun(
+  setting: string,
+  {
+    config,
+    repository,
+  }: {
+    config?: RolesConfig;
+    repository?: { executor?: unknown } | null;
+  } = {},
+): { executor: string; harness?: string } {
   const row = ROLE_TABLE[setting];
   if (!row) throw Error(`${setting} is not a role in the role table.`);
   const named = roleHarness(config, setting);
@@ -184,37 +220,41 @@ export const KIROCREW_HARNESS = "kirocrew";
 const HARNESS = /^[a-z][a-z0-9-]{0,60}$/;
 const MODEL = /^(?:auto|[A-Za-z0-9][A-Za-z0-9._:/-]{0,127})$/;
 const AGENT = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
-const record = (v) => Boolean(v) && typeof v === "object" && !Array.isArray(v);
-const isHarnessName = (value) =>
+const record = (v: unknown): v is Record<string, unknown> =>
+  Boolean(v) && typeof v === "object" && !Array.isArray(v);
+const isHarnessName = (value: unknown): value is string =>
   typeof value === "string" && HARNESS.test(value);
 // The fields a row may set, by role.
 export const ROLE_FIELDS = Object.freeze(["harness", "model"]);
 export const AGENT_ROLE_FIELDS = Object.freeze(["harness", "agent", "model"]);
 export const HARNESS_ROLE_FIELDS = Object.freeze(["harness"]);
-const FIELDS = {
+const FIELDS: Record<string, readonly string[]> = {
   worker: AGENT_ROLE_FIELDS,
   checkDecide: ROLE_FIELDS,
 };
-const fieldsOf = (role) => FIELDS[role] ?? HARNESS_ROLE_FIELDS;
+const fieldsOf = (role: string) => FIELDS[role] ?? HARNESS_ROLE_FIELDS;
 
 // The saved `roles` table, field by field. Values are as saved, `auto`
 // included.
-export function resolveRoles(config) {
-  const table = {};
-  if (record(config?.roles))
-    for (const role of ROLES)
-      if (record(config.roles[role]))
+export function resolveRoles(config: RolesConfig) {
+  const table: RoleSettings = {};
+  const roles = config?.roles;
+  if (record(roles))
+    for (const role of ROLES) {
+      const row = roles[role];
+      if (record(row))
         for (const field of fieldsOf(role)) {
-          const value = config.roles[role][field];
+          const value = row[field];
           if (typeof value === "string" && value)
             (table[role] ??= {})[field] = value;
         }
+    }
   return table;
 }
 
 // Tables merged field by field, later over earlier.
-export function mergeRoles(...tables) {
-  const merged = {};
+export function mergeRoles(...tables: (RoleSettings | null | undefined)[]) {
+  const merged: RoleSettings = {};
   for (const table of tables)
     for (const [role, row] of Object.entries(table || {}))
       merged[role] = { ...merged[role], ...row };
@@ -222,7 +262,7 @@ export function mergeRoles(...tables) {
 }
 
 // The model a role's chat opens on, or null for the agent's own.
-export function chatModel(config, role) {
+export function chatModel(config: RolesConfig, role: string) {
   const model = resolveRoles(config)[role]?.model;
   return typeof model === "string" && model !== "auto" && MODEL.test(model)
     ? model
@@ -230,13 +270,13 @@ export function chatModel(config, role) {
 }
 
 // The harness a role's saved setting names, or null for its repository's.
-export function roleHarness(config, role) {
+export function roleHarness(config: RolesConfig, role: string) {
   const harness = resolveRoles(config)[role]?.harness;
   return isHarnessName(harness) && harness !== "auto" ? harness : null;
 }
 
 // The executor a named harness runs on.
-export function harnessExecutor(harness) {
+export function harnessExecutor(harness: string) {
   return harness === KIROCREW_HARNESS
     ? { executor: KIROCREW_HARNESS }
     : { executor: "process", harness };
@@ -244,7 +284,7 @@ export function harnessExecutor(harness) {
 
 // Check a config's `roles` value; throws naming the key. A role that is not
 // a row of the table is refused by name. Returns the checked `roles`.
-export function validateRoles(config, where = "roles") {
+export function validateRoles(config: RolesConfig, where = "roles") {
   const value = config?.roles;
   if (value === undefined) return {};
   if (!record(value)) fail(`${where} must be an object.`);

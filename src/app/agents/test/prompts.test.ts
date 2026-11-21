@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Task 28.1 and part of 28.7: the prompt registry, locked sections, local
 // override versions with revert, and override drift (design §4.18, R68,
 // R70.5). Only temporary config folders; nothing Avoozl ships is written.
@@ -41,7 +40,7 @@ test("each built-in prompt is named sections that join back to its text, with lo
     worker.filter((s) => s.locked).map((s) => s.name),
     [...LOCKED_SECTIONS],
   );
-  assert.equal(worker.find((s) => s.name === "steps").locked, null);
+  assert.equal(worker.find((s) => s.name === "steps")?.locked, null);
   for (const target of ["brief.worker", "brief.review"])
     assert.match(
       shipped[target],
@@ -54,8 +53,8 @@ function setup() {
   return overridesPath(dir, "w1");
 }
 
-const steps = (state) =>
-  state["brief.worker"].sections.find((s) => s.name === "steps");
+const steps = (state: ReturnType<typeof promptState>) =>
+  state["brief.worker"].sections.find((s) => s.name === "steps")!;
 
 test("approve writes override version 1 outside shipped files; revert is one step and revertible", () => {
   const file = setup(),
@@ -107,21 +106,25 @@ test("approve writes override version 1 outside shipped files; revert is one ste
   assert.equal(v1.sections.steps.shippedSha, current.sha256);
   // A stale base and a locked section are refused.
   assert.match(
-    sectionDiffProblem(after, {
-      target: "brief.worker",
-      section: "steps",
-      base: current.sha256,
-      diff,
-    }),
+    String(
+      sectionDiffProblem(after, {
+        target: "brief.worker",
+        section: "steps",
+        base: current.sha256,
+        diff,
+      }),
+    ),
     /is not the current text/,
   );
   assert.match(
-    sectionDiffProblem(after, {
-      target: "brief.worker",
-      section: "untrusted-data",
-      base: "x",
-      diff,
-    }),
+    String(
+      sectionDiffProblem(after, {
+        target: "brief.worker",
+        section: "untrusted-data",
+        base: "x",
+        diff,
+      }),
+    ),
     /locked \(untrusted-data\)/,
   );
   // Revert: the shipped text returns, recorded as version 2.
@@ -192,7 +195,7 @@ test("an update under an override is flagged with a three-way diff and a rebase;
   assert.equal(drift.section, "steps");
   assert.equal(drift.conflict, false);
   assert.match(
-    drift.rebased,
+    String(drift.rebased),
     /Read the task first\.[\s\S]*Add a test per branch\./,
   );
   assert.ok(drift.diffs.builtIn && drift.diffs.override);

@@ -1,7 +1,57 @@
-// @ts-nocheck: typing debt
 import { taskEpic } from "../epics/epics.ts";
 import { digest } from "../../model.ts";
 import { fail } from "../store/store.ts";
+
+type When = Partial<
+  Record<
+    | "scopes"
+    | "epics"
+    | "tracks"
+    | "tagsAny"
+    | "tagsAll"
+    | "tagsNone"
+    | "paths",
+    string[]
+  >
+>;
+export interface AgentInstruction {
+  id: string;
+  title: string;
+  appliesTo: string[];
+  when: When;
+  instruction: string;
+  enabled: boolean;
+  category?: string;
+  source: {
+    path: string;
+    repositoryId: string | null;
+    pointer: string;
+    hash: string;
+  };
+}
+// Where a rules value came from.
+interface InstructionSource {
+  path?: string;
+  repositoryId?: string | null;
+  revision?: string | null;
+  value?: unknown;
+}
+// The snapshot fields the instructions read and write.
+interface InstructionData {
+  agentInstructions?: AgentInstruction[];
+  agentInstructionOverrides?: Record<string, boolean>;
+  agentInstructionSource?: unknown;
+  [key: string]: unknown;
+}
+// The task fields a rule's `when` selects on.
+interface SelectedTask {
+  repositoryId?: string | null;
+  scope?: string;
+  track?: string;
+  path?: string;
+  tags?: string[];
+  [key: string]: unknown;
+}
 
 const AGENT_INSTRUCTION_CATEGORIES = Object.freeze([
   "all",
@@ -26,8 +76,8 @@ const AGENT_INSTRUCTION_CATEGORIES = Object.freeze([
   "github.pr.review",
 ]);
 
-const categories = new Set(AGENT_INSTRUCTION_CATEGORIES);
-export const whenKeys = new Set([
+const categories = new Set<unknown>(AGENT_INSTRUCTION_CATEGORIES);
+export const whenKeys = new Set<keyof When>([
   "scopes",
   "epics",
   "tracks",
@@ -37,8 +87,8 @@ export const whenKeys = new Set([
   "paths",
 ]);
 
-function record(value) {
-  return value && typeof value === "object" && !Array.isArray(value);
+function record(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 export const ruleKeys = new Set([
@@ -50,12 +100,20 @@ export const ruleKeys = new Set([
   "enabled",
 ]);
 
-function allowedKeys(value, allowed, label) {
+function allowedKeys(
+  value: Record<string, unknown>,
+  allowed: Set<string>,
+  label: string,
+) {
   for (const key of Object.keys(value))
     if (!allowed.has(key)) fail(`Unknown ${label} setting ${key}.`);
 }
 
-function stringList(value, label, { required = false } = {}) {
+function stringList(
+  value: unknown,
+  label: string,
+  { required = false } = {},
+): string[] {
   if (value === undefined && !required) return [];
   if (!Array.isArray(value) || (required && !value.length))
     fail(
@@ -72,7 +130,7 @@ function stringList(value, label, { required = false } = {}) {
   return result;
 }
 
-function normalizeWhen(value, id) {
+function normalizeWhen(value: unknown, id: string): When {
   if (value === undefined) return {};
   if (!record(value))
     fail(`Avoozl instruction ${id} when must contain an object.`);
@@ -87,7 +145,11 @@ function normalizeWhen(value, id) {
   );
 }
 
-function normalizeRule(input, source, index) {
+function normalizeRule(
+  input: unknown,
+  source: InstructionSource,
+  index: number,
+): AgentInstruction {
   if (!record(input))
     fail(`Avoozl instruction ${index + 1} must contain an object.`);
   allowedKeys(input, ruleKeys, `Avoozl instruction ${index + 1}`);
@@ -141,9 +203,12 @@ function normalizeRule(input, source, index) {
  * as structured policy.
  */
 export function parseAgentInstructions(
-  value,
-  { path = ".avoozl.json", repositoryId = null } = {},
-) {
+  value: unknown,
+  {
+    path = ".avoozl.json",
+    repositoryId = null,
+  }: { path?: string; repositoryId?: string | null } = {},
+): AgentInstruction[] {
   if (value === undefined || value === null) return [];
   if (
     record(value) &&
@@ -151,7 +216,7 @@ export function parseAgentInstructions(
     !record(value.agentInstructions)
   )
     fail(`agentInstructions in ${path} must contain an object.`);
-  if (record(value.agentInstructions))
+  if (record(value) && record(value.agentInstructions))
     allowedKeys(
       value.agentInstructions,
       new Set(["rules"]),
@@ -170,7 +235,7 @@ export function parseAgentInstructions(
   const normalized = rules.map((rule, index) =>
       normalizeRule(rule, { path, repositoryId }, index),
     ),
-    seen = new Set();
+    seen = new Set<string>();
   for (const rule of normalized) {
     if (seen.has(rule.id))
       fail(`Duplicate Avoozl instruction ID ${rule.id} in ${path}.`);
@@ -180,11 +245,16 @@ export function parseAgentInstructions(
 }
 
 export function synchronizeAgentInstructions(
-  data,
-  value,
-  { path = ".avoozl.json", repositoryId = null, revision = null, sources } = {},
+  data: InstructionData,
+  value: unknown,
+  {
+    path = ".avoozl.json",
+    repositoryId = null,
+    revision = null,
+    sources,
+  }: InstructionSource & { sources?: InstructionSource[] } = {},
 ) {
-  const entries = sources || [
+  const entries: InstructionSource[] = sources || [
       {
         value,
         path,
@@ -192,9 +262,12 @@ export function synchronizeAgentInstructions(
         revision,
       },
     ],
-    rules = [],
-    seen = new Map(),
-    sourceRecords = [];
+    rules: AgentInstruction[] = [],
+    seen = new Map<string, string>(),
+    sourceRecords: (Required<Omit<InstructionSource, "value">> & {
+      hash: string;
+      ruleCount: number;
+    })[] = [];
   for (const entry of entries) {
     const parsed = parseAgentInstructions(entry.value, entry);
     for (const rule of parsed) {
@@ -233,7 +306,11 @@ export function synchronizeAgentInstructions(
   return data.agentInstructions;
 }
 
-export function toggleAgentInstruction(data, id, enabled) {
+export function toggleAgentInstruction(
+  data: InstructionData,
+  id: string,
+  enabled: unknown,
+) {
   const rule = (data.agentInstructions || []).find((item) => item.id === id);
   if (!rule) fail("Agent instruction not found.", 404);
   data.agentInstructionOverrides ??= {};
@@ -242,7 +319,7 @@ export function toggleAgentInstruction(data, id, enabled) {
   return rule;
 }
 
-function inheritedCategories(category) {
+function inheritedCategories(category: unknown) {
   const parts = String(category || "all").split("."),
     result = ["all"];
   for (let index = 1; index <= parts.length; index++)
@@ -250,12 +327,16 @@ function inheritedCategories(category) {
   return new Set(result);
 }
 
-function includesOrAll(selected, value) {
-  return !selected?.length || selected.includes(value);
+function includesOrAll(selected: string[] | undefined, value: unknown) {
+  return !selected?.length || selected.includes(value as string);
 }
 
-function selectorMatches(rule, task, data) {
-  const when = rule.when || {};
+function selectorMatches(
+  rule: AgentInstruction,
+  task: SelectedTask | null | undefined,
+  data: InstructionData,
+) {
+  const when: When = rule.when || {};
   if (
     rule.source?.repositoryId &&
     rule.source.repositoryId !== task?.repositoryId
@@ -289,7 +370,11 @@ function selectorMatches(rule, task, data) {
   return true;
 }
 
-export function matchingAgentInstructions(data, category, task) {
+export function matchingAgentInstructions(
+  data: InstructionData,
+  category: unknown,
+  task?: SelectedTask | null,
+) {
   const inherited = inheritedCategories(category);
   return (data.agentInstructions || []).filter(
     (rule) =>
@@ -301,9 +386,13 @@ export function matchingAgentInstructions(data, category, task) {
   );
 }
 
-export function workflowCategory(run) {
+export function workflowCategory(run: {
+  mode?: string;
+  planId?: string;
+  context?: Record<string, unknown> | null;
+}) {
   const explicit = run.context?.workflowCategory;
-  if (categories.has(explicit)) return explicit;
+  if (categories.has(explicit)) return explicit as string;
   if (run.mode === "plan")
     return run.context?.planId || run.planId ? "plan.edit" : "plan.create";
   if (run.mode === "implement")

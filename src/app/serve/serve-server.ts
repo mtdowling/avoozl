@@ -77,7 +77,7 @@ function builtFiles(folder: string) {
       )
         files.set(name === "index.html" ? "" : name, {
           file: path.join(folder, name),
-          type: TYPES[path.extname(name)]!,
+          type: TYPES[path.extname(name)],
         });
     }
   };
