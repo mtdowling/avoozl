@@ -18,6 +18,7 @@ import {
 import { roleFor } from "../session-open.ts";
 import { fixture } from "../../test/fixtures.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
+import { found } from "../../test/view-shapes.ts";
 import type { RequestRow } from "../session-requests.ts";
 import type { SessionBinding } from "../session-bindings.ts";
 
@@ -132,7 +133,7 @@ test("Start records one read-only process request in the workspace root with the
   const slot = m.store.list<SessionBinding>("session_bindings")[0].slot;
   const db = openSupervisorDatabase(m.stateDirectory);
   try {
-    const row = childRecord(db, slot);
+    const row = found(childRecord(db, slot), "the child");
     assert.equal(row.role, "assist");
     assert.equal(row.worktree, m.workspaceRoot);
     assert.equal(

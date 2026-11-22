@@ -16,6 +16,7 @@ import { enqueueSessionRequests } from "../../sessions/session-requests.ts";
 import { FakeGitHub } from "../../test/fake-github.ts";
 import { unapprove } from "../../test/epic-context-seed.ts";
 import { until } from "./process-machine.ts";
+import { found } from "../../test/view-shapes.ts";
 import type { SessionBinding } from "../../sessions/session-bindings.ts";
 import type { RequestRow } from "../../sessions/session-requests.ts";
 
@@ -164,7 +165,7 @@ test("a failing or sourceless session runs exactly as one with no source", async
   assert.deepEqual(normal(failed, two), normal(plain, one));
   const db = openSupervisorDatabase(w.m.stateDirectory);
   try {
-    const row = (slot: string) => childRecord(db, slot);
+    const row = (slot: string) => found(childRecord(db, slot), "the child");
     assert.equal(row(failed).brief, row(plain).brief);
     assert.equal(
       row(failed).placeholder_values.replaceAll(failed, "S"),

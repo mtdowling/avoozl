@@ -20,6 +20,7 @@ import { FakeGitHub } from "../../test/fake-github.ts";
 import type { Dispatch } from "../../test/fake-crew.ts";
 import type { SessionBinding } from "../../sessions/session-bindings.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
+import { found } from "../../test/view-shapes.ts";
 import { postedText } from "../../github/github-posted.ts";
 
 const REPO = "example/code";
@@ -218,7 +219,7 @@ test("the responder child gets no network path, whatever its repository allows",
     const id = await executor.start(role, "t", folder, "Brief.", null, "read");
     const db = openSupervisorDatabase(state);
     try {
-      return JSON.parse(childRecord(db, id).settings);
+      return JSON.parse(found(childRecord(db, id), "the child").settings);
     } finally {
       db.close();
     }
@@ -247,7 +248,8 @@ test("every child reaches the model proxy; only an online one the network too", 
     const id = await executor.start(role, "t", folder, "Brief.", null, "read");
     const db = openSupervisorDatabase(state);
     try {
-      return JSON.parse(childRecord(db, id).settings).network;
+      return JSON.parse(found(childRecord(db, id), "the child").settings)
+        .network;
     } finally {
       db.close();
     }

@@ -25,6 +25,7 @@ import {
 import { tryLock } from "../pass-lock.ts";
 import { sandboxKind } from "../sandbox.ts";
 import { scratchRoot, until } from "./process-machine.ts";
+import { found } from "../../test/view-shapes.ts";
 
 const SUPERVISOR = new URL("../supervisor.ts", import.meta.url).href;
 
@@ -107,10 +108,14 @@ const request = (
   ...extra,
 });
 
+// A child row the test expects to exist.
+const child = (db: DatabaseSync, id: string) =>
+  found(childRecord(db, id), "the child");
+
 // The child's log, to explain a failed status.
 const childLog = (db: DatabaseSync, id: string) => {
-  const row = childRecord(db, id);
-  return `${row.error ?? ""}\n${row.log_file && fs.existsSync(row.log_file) ? fs.readFileSync(row.log_file, "utf8") : ""}`;
+  const row = child(db, id);
+  return `${row.error ?? ""}\n${row.log_file && fs.existsSync(row.log_file) ? fs.readFileSync(found(row.log_file, "the log"), "utf8") : ""}`;
 };
 
 // Stop a process this test started and wait until it is gone.
@@ -190,18 +195,21 @@ test("supervisor starts the approved harness and records pid, log and exit code"
     configDirectory,
   });
   defer(() => supervisor.close());
-  const running = childRecord(db, id);
+  const running = child(db, id);
   assert.equal(running.state, "running");
   assert.ok(Number.isInteger(running.pid));
-  assert.match(running.harness_hash, /^[0-9a-f]{64}$/);
+  assert.match(found(running.harness_hash, "the hash"), /^[0-9a-f]{64}$/);
   await until(() => {
     supervisor.pass();
     return childStatus(db, id) !== "working";
   });
   assert.equal(childStatus(db, id), "exited 3", childLog(db, id));
-  const row = childRecord(db, id);
+  const row = child(db, id);
   assert.equal(row.exit_code, 3);
-  assert.match(fs.readFileSync(row.log_file, "utf8"), /agent says hello/);
+  assert.match(
+    fs.readFileSync(found(row.log_file, "the log"), "utf8"),
+    /agent says hello/,
+  );
   assert.equal(
     fs.readFileSync(path.join(worktree, "edited.txt"), "utf8"),
     "edited",
@@ -239,7 +247,7 @@ test("a resumed child never reads as exited while its message starts it", async 
   assert.equal(sendChild(db, id, "again"), "accepted");
   seen.length = 0;
   supervisor.pass();
-  assert.equal(childRecord(db, id).runs, 2);
+  assert.equal(child(db, id).runs, 2);
   assert.ok(seen.length > 0);
   assert.deepEqual([...new Set(seen)], ["working"]);
 });
@@ -317,8 +325,8 @@ fs.writeFileSync("seen.json", JSON.stringify([process.env.MODEL_KEY, process.env
   );
   // Nothing the server wrote down holds the value.
   assert.doesNotMatch(
-    JSON.stringify(childRecord(db, id)) +
-      fs.readFileSync(childRecord(db, id).log_file, "utf8"),
+    JSON.stringify(child(db, id)) +
+      fs.readFileSync(found(child(db, id).log_file, "the log"), "utf8"),
     /from-the-file/,
   );
 });
@@ -401,7 +409,10 @@ test("an unapproved definition never runs and takes the retry path", (t) => {
   });
   defer(() => supervisor.close());
   assert.equal(childStatus(db, id), "exited -1");
-  assert.match(childRecord(db, id).error, /approve this exact version/);
+  assert.match(
+    found(child(db, id).error, "the error"),
+    /approve this exact version/,
+  );
   assert.equal(fs.existsSync(path.join(worktree, "edited.txt")), false);
 });
 
@@ -416,12 +427,12 @@ test("two passes at once: the one without the pass lock starts nothing", (t) => 
   defer(() => supervisor.close());
   try {
     assert.equal(supervisor.pass(), false);
-    assert.equal(childRecord(db, id).state, "requested");
+    assert.equal(child(db, id).state, "requested");
   } finally {
     held.close();
   }
   assert.equal(supervisor.pass(), true);
-  assert.equal(childRecord(db, id).state, "running");
+  assert.equal(child(db, id).state, "running");
 });
 
 test("a child outlives the tick that started it; the next tick reaps it, resumes it, and records a lost one gone", async (t) => {
@@ -444,11 +455,12 @@ test("a child outlives the tick that started it; the next tick reaps it, resumes
     { encoding: "utf8", timeout: 60_000 },
   );
   assert.equal(first.status, 0, first.stderr);
-  const { pid, session_id } = childRecord(db, id);
+  const { pid: recorded, session_id } = child(db, id);
   assert.equal(session_id, id);
+  const pid = found(recorded, "the pid");
   defer(() => stopProcess(pid));
   // Its child still runs, with its pid and session recorded.
-  assert.equal(childRecord(db, id).state, "running");
+  assert.equal(child(db, id).state, "running");
   process.kill(pid, 0);
 
   // A dead pid and a reused pid, both left `running` by an earlier tick.
@@ -494,7 +506,7 @@ test("a child outlives the tick that started it; the next tick reaps it, resumes
   });
   assert.equal(childStatus(db, id), "exited 0", childLog(db, id));
   assert.match(
-    fs.readFileSync(childRecord(db, id).log_file, "utf8"),
+    fs.readFileSync(found(child(db, id).log_file, "the log"), "utf8"),
     /agent says hello/,
   );
 
@@ -506,7 +518,7 @@ test("a child outlives the tick that started it; the next tick reaps it, resumes
     return childStatus(db, id) !== "working";
   });
   assert.equal(childStatus(db, id), "exited 3", childLog(db, id));
-  assert.equal(childRecord(db, id).runs, 2);
+  assert.equal(child(db, id).runs, 2);
 });
 
 // A fake agent that records its argv, its home variable and its prompt.
@@ -635,5 +647,5 @@ test("a lane review round resumes its task's harness session", async (t) => {
     childLog(db, id),
   );
   assert.equal(seen.home, home);
-  assert.equal(harnessSession(childRecord(db, id)), resume);
+  assert.equal(harnessSession(child(db, id)), resume);
 });
