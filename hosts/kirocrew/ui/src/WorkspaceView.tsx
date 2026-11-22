@@ -193,7 +193,7 @@ export default function WorkspaceView(props: { selected?: string | null; onSelec
         setSelected((current) => pickDefault(next, prefer ?? current))
         // A workspace list remains usable against a backend that predates
         // requests, and in test harnesses that model only the older calls.
-        setProposals(await client.proposals().catch(() => []))
+        void client.proposals().then(setProposals, () => setProposals([]))
       }),
     [attempt, client],
   )
