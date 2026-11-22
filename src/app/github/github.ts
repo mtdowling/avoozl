@@ -325,6 +325,7 @@ export class GitHubClient {
   onNoPerson?: (provider: string, owner: string) => unknown;
   fetch: typeof fetch;
   gitUrl?: string;
+  declare rate?: RateState | null;
   constructor({
     credentials,
     apiUrl = process.env.GITHUB_API_URL || "https://api.github.com",
@@ -951,7 +952,12 @@ export class GitHubClient {
   // `nodes` ({ issueId, blockingIssueId }, GraphQL node IDs) sends the
   // addBlockedBy mutation; without it the REST call names the blocker by
   // database ID. Either is one content write.
-  async addIssueBlocker(value, number, blockerIssueId, nodes) {
+  async addIssueBlocker(
+    value,
+    number,
+    blockerIssueId,
+    nodes?: { issueId?: string; blockingIssueId?: string },
+  ) {
     if (nodes?.issueId && nodes.blockingIssueId) {
       await this.graphql(
         `mutation($input:AddBlockedByInput!){addBlockedBy(input:$input){issue{id}}}`,
