@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // plugin-credentials pc-1.3, pc-1.4 and pc-2.1: every GitHub call runs in
 // one job, the client asks per job and caches per key, a failure never falls
 // back, and a high-risk job runs only under a person's Allow.
@@ -6,6 +5,7 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { PassThrough } from "node:stream";
 import test from "node:test";
 import { TABLES } from "../../api/operation-table.ts";
 import { landingJob } from "../../git/git.ts";
@@ -33,25 +33,43 @@ import {
 } from "../../test/github-credentials.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
 import { snapshot } from "../../test/fixtures.ts";
+import type { Refusal } from "../../test/refusal.ts";
+import { found } from "../../test/view-shapes.ts";
+
+// A refusal with its code.
+type Coded = Refusal & { code?: string };
 
 // One call each high-risk job may make, for the person-only checks.
-const HIGH_CALL = {
+const HIGH_CALL: Record<string, (github: GitHubClient) => Promise<unknown>> = {
   "claim-delete": (github) => github.deleteBranch("acme/api", "avoozl/s/t"),
 };
+const highCall = (job: string, github: GitHubClient) =>
+  found(HIGH_CALL[job], job)(github);
 
 const APP = path.join(import.meta.dirname, "..", "..");
 const ok = (body = {}, status = 200) =>
   new Response(JSON.stringify(body), { status });
 
 // A client over a fake fetch that records each call's path and token.
-function client(credentials, { answer = () => ok() } = {}) {
-  const seen = [];
+function client(
+  credentials: unknown,
+  {
+    answer = () => ok(),
+  }: { answer?: (pathname: string, count: number) => Response } = {},
+) {
+  const seen: { pathname: string; token: unknown }[] = [];
   const github = new GitHubClient({
     credentials,
     apiUrl: "https://api.example.test",
     fetch: async (url, init) => {
-      const { pathname } = new URL(String(url));
-      seen.push({ pathname, token: init.headers.Authorization });
+      const { pathname } = new URL(String(url)),
+        // The client sends a plain headers object.
+        headers = init?.headers,
+        token =
+          headers && !(headers instanceof Headers) && !Array.isArray(headers)
+            ? headers.Authorization
+            : undefined;
+      seen.push({ pathname, token });
       return answer(pathname, seen.length);
     },
   });
@@ -61,11 +79,11 @@ function client(credentials, { answer = () => ok() } = {}) {
 // A provider that counts token calls.
 function counting() {
   const base = fixedCredentials("t"),
-    asked = [];
+    asked: unknown[] = [];
   return {
     ...base,
     asked,
-    async token(input) {
+    async token(input: Parameters<typeof base.token>[0]) {
       asked.push(input);
       return base.token(input);
     },
@@ -77,7 +95,7 @@ function counting() {
 test("a call outside any job fails before any token call, naming the method", async () => {
   const credentials = counting(),
     { github, seen } = client(credentials);
-  await assert.rejects(github.issue("acme/api", 1), (error) => {
+  await assert.rejects(github.issue("acme/api", 1), (error: Refusal) => {
     assert.equal(error.status, 500);
     assert.match(error.message, /GitHub call issue runs outside any job/);
     return true;
@@ -139,9 +157,9 @@ test("every job in JOBS is named somewhere outside the table", () => {
     assert.ok(text.includes(`"${job}"`), `${job} is used`);
 });
 
-test("a landing range that changes .github/workflows lands as land-workflows", () => {
+test("a landing range that changes .github/workflows lands as land-workflows", async () => {
   const root = temporaryDirectory("avoozl-land-job-"),
-    run = (...args) =>
+    run = (...args: string[]) =>
       execFileSync("git", args, { cwd: root, encoding: "utf8" }).trim();
   run("init", "-q", "-b", "main");
   run("config", "user.email", "t@example.com");
@@ -159,7 +177,7 @@ test("a landing range that changes .github/workflows lands as land-workflows", (
   run("add", ".");
   run("commit", "-qm", "ci");
   const workflow = run("rev-parse", "HEAD");
-  return Promise.all([
+  await Promise.all([
     landingJob(root, base, plain).then((job) => assert.equal(job, "land")),
     landingJob(root, base, workflow).then((job) =>
       assert.equal(job, "land-workflows"),
@@ -251,7 +269,7 @@ test("a 401 asks once more and retries once; a second 401 fails", async () => {
   fails = 2;
   await assert.rejects(
     withJob("check-in", () => github.issue("acme/api", 2)),
-    (error) => error.status === 401,
+    (error: Refusal) => error.status === 401,
   );
 });
 
@@ -260,11 +278,12 @@ test("a refusal, a timeout and a bad reply fail with 503, raise one Needs you ro
     store = new Store(path.join(root, "w.sqlite"));
   t.after(() => store.close());
   store.initialize({ ...snapshot(), tasks: [], edges: [] });
-  for (const [config, pattern] of [
+  const failures: [Record<string, unknown>, RegExp][] = [
     [{ refuse: ["respond"] }, /acme does not allow respond/],
     [{ mode: "bad" }, /bad reply/],
     [{ mode: "slow" }, /timed out/],
-  ]) {
+  ];
+  for (const [config, pattern] of failures) {
     const m = credentialsMachine({ plugins: [{ config }] });
     m.approve();
     const credentials = m.credentials(
@@ -279,7 +298,7 @@ test("a refusal, a timeout and a bad reply fail with 503, raise one Needs you ro
         owner: "acme",
         job: "respond",
       }),
-      (error) => {
+      (error: Refusal) => {
         assert.equal(error.status, 503);
         assert.match(error.message, pattern);
         return true;
@@ -289,7 +308,7 @@ test("a refusal, a timeout and a bad reply fail with 503, raise one Needs you ro
   }
   const rows = credentialsNeedsYou(store);
   assert.equal(rows.length, 1, "one row per provider, host, owner and job");
-  assert.match(rows[0].title, /acme-github refused respond for acme/);
+  assert.match(found(rows[0]).title, /acme-github refused respond for acme/);
   // The next success for that key clears it.
   const m = credentialsMachine({ plugins: [{}] });
   m.approve();
@@ -317,7 +336,8 @@ test("a provider's reason is redacted and cut to 500 characters", async (t) => {
   // The plugin's next error quotes the token Avoozl holds and a PAT.
   const error = await credentials
     .token({ repository: "acme/web", owner: "acme", job: "land" })
-    .catch((e) => e);
+    .catch((e: unknown) => e);
+  assert.ok(error instanceof Error);
   assert.match(error.message, /\[redacted\]/);
   assert.ok(!error.message.includes(held.token));
   assert.doesNotMatch(error.message, /ghp_a{10}/);
@@ -384,7 +404,7 @@ test("Settings data marks a job broader than asked", async (t) => {
     owner: "acme",
     job: "land",
   });
-  const [line] = credentials.signIns();
+  const line = found(credentials.signIns()[0]);
   assert.equal(line.provider, "acme-github");
   assert.deepEqual(line.broader, ["land"]);
   assert.deepEqual(line.owners, ["acme"]);
@@ -393,8 +413,8 @@ test("Settings data marks a job broader than asked", async (t) => {
 
 // ---- pc-2.1 ------------------------------------------------------------
 
-const HIGH = Object.keys(JOBS).filter((job) => JOBS[job].risk === "high"),
-  LOW = Object.keys(JOBS).filter((job) => JOBS[job].risk === "low");
+const HIGH = Object.keys(JOBS).filter((job) => JOBS[job]?.risk === "high"),
+  LOW = Object.keys(JOBS).filter((job) => JOBS[job]?.risk === "low");
 
 test("every high-risk job without a grant fails as person-only before a token call, for every provider", async (t) => {
   const m = credentialsMachine({ plugins: [{}] });
@@ -405,8 +425,8 @@ test("every high-risk job without a grant fails as person-only before a token ca
     for (const job of HIGH) {
       const { github, seen } = client(credentials);
       await assert.rejects(
-        withJob(job, () => HIGH_CALL[job](github)),
-        (error) => error.status === 403 && error.code === "person-only",
+        withJob(job, () => highCall(job, github)),
+        (error: Coded) => error.status === 403 && error.code === "person-only",
         job,
       );
       assert.equal(seen.length, 0);
@@ -420,11 +440,12 @@ test("every low-risk job runs without a grant", async () => {
   const credentials = counting(),
     { github } = client(credentials);
   for (const job of LOW)
-    await withJob(job, () =>
-      JOBS[job].owner
+    await withJob(job, () => {
+      const entry = found(JOBS[job], job);
+      return "owner" in entry && entry.owner
         ? github.request("GET", "/orgs/acme/projectsV2/1")
-        : github.repository("acme/api"),
-    );
+        : github.repository("acme/api");
+    });
   assert.equal(credentials.asked.length, LOW.length);
 });
 
@@ -468,17 +489,13 @@ test("github.job.confirm is refused over MCP and a grant serves one step once, f
 
 test("the CLI asks Allow? on a terminal, takes --yes, and refuses without either or with --yes in an agent", async () => {
   const steps = [confirmStep({ job: "claim-delete", target: "acme/api" })],
-    calls = [],
-    localOrRequest = async (name, input) => {
+    calls: string[] = [],
+    localOrRequest = async (name: string, input: Record<string, unknown>) => {
       calls.push(name);
-      return { grants: input.steps.map(() => "g1") };
+      const asked = Array.isArray(input.steps) ? input.steps : [];
+      return { grants: asked.map(() => "g1") };
     },
-    output = {
-      text: "",
-      write(s) {
-        this.text += s;
-      },
-    };
+    output = new PassThrough().setEncoding("utf8");
   assert.deepEqual(
     await confirmHighRisk(steps, {
       yes: true,
@@ -488,13 +505,16 @@ test("the CLI asks Allow? on a terminal, takes --yes, and refuses without either
     }),
     ["g1"],
   );
-  assert.match(output.text, /claim-delete asks GitHub for contents: write/);
+  assert.match(
+    String(output.read() ?? ""),
+    /claim-delete asks GitHub for contents: write/,
+  );
   await assert.rejects(
     confirmHighRisk(steps, {
       env: {},
       localOrRequest,
       output,
-      input: { isTTY: false },
+      input: Object.assign(new PassThrough(), { isTTY: false }),
     }),
     /run in a terminal, or add --yes/,
   );
@@ -507,9 +527,7 @@ test("the CLI asks Allow? on a terminal, takes --yes, and refuses without either
     }),
     /refused inside an agent session/,
   );
-  const { PassThrough } = await import("node:stream"),
-    input = new PassThrough();
-  input.isTTY = true;
+  const input = Object.assign(new PassThrough(), { isTTY: true });
   const asked = confirmHighRisk(steps, {
     env: {},
     localOrRequest,
@@ -529,7 +547,7 @@ test("the tick's path to every high-risk job fails as person-only", async () => 
   const { github } = client(counting());
   for (const job of HIGH)
     await assert.rejects(
-      withJob(job, () => HIGH_CALL[job](github), []),
+      withJob(job, () => highCall(job, github), []),
       /only a person can allow it/,
       job,
     );

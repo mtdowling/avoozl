@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Git plugin sources (design §4.8, Requirement 34.12–34.15). Every repository
 // here is a local file:// repository made in a temporary folder: no network.
 import assert from "node:assert/strict";
@@ -6,7 +5,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import {
   addGitPlugin,
   approvePlugin,
@@ -28,6 +27,29 @@ import {
 import { Operations } from "../../api/operations.ts";
 import { Store } from "../../store/store.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
+import { found } from "../../test/view-shapes.ts";
+
+// A plugin that loaded from its pinned commit: its hash, commit and folder.
+function pinnedPlugin<T extends object>(plugin: T | null | undefined) {
+  assert.ok(
+    plugin && "hash" in plugin && "commit" in plugin && "location" in plugin,
+    "the plugin loaded",
+  );
+  return plugin;
+}
+// plugin.add and plugin.update, and plugins.list.
+interface Added {
+  commit: string;
+  manifest?: unknown;
+}
+interface Listed {
+  plugins: {
+    commit?: string;
+    git?: unknown;
+    update?: { state: string };
+  }[];
+  updateChecks: { enabled: boolean };
+}
 
 const FIXTURE = path.join(
   import.meta.dirname,
@@ -40,10 +62,10 @@ const FIXTURE = path.join(
 
 // The person's git configuration for these tests: an isolated global file,
 // so no real configuration (signing, hooks, templates) leaks in or out.
-function isolateGit(t, root) {
+function isolateGit(t: TestContext, root: string) {
   const global = path.join(root, "gitconfig");
   fs.writeFileSync(global, "");
-  const saved = {
+  const saved: Record<string, string | undefined> = {
     GIT_CONFIG_GLOBAL: process.env.GIT_CONFIG_GLOBAL,
     GIT_CONFIG_NOSYSTEM: process.env.GIT_CONFIG_NOSYSTEM,
   };
@@ -57,7 +79,7 @@ function isolateGit(t, root) {
   return global;
 }
 
-function setup(t) {
+function setup(t: TestContext) {
   const root = temporaryDirectory("avoozl-plugin-git-"),
     repo = path.join(root, "repo"),
     workspaceRoot = path.join(root, "workspace"),
@@ -66,7 +88,7 @@ function setup(t) {
   const gitConfig = isolateGit(t, root);
   fs.mkdirSync(workspaceRoot);
   fs.writeFileSync(stateFile, "{}\n");
-  const git = (...args) =>
+  const git = (...args: string[]) =>
     execFileSync(
       "git",
       ["-c", "user.name=Test", "-c", "user.email=t@example.com", ...args],
@@ -84,7 +106,7 @@ function setup(t) {
   git("tag", "-a", "v1-annotated", "-m", "Annotated");
   const options = { workspaceRoot, settingsFile };
   const url = pathToFileURL(repo).href;
-  const entry = (more = {}) => ({
+  const entry = (more: Record<string, unknown> = {}) => ({
     id: "fake-probe",
     git: url,
     ref: "main",
@@ -97,13 +119,13 @@ function setup(t) {
   return { root, repo, git, options, url, entry, gitRoot, gitConfig };
 }
 
-const approve = (options) => {
-  const plugin = inspectPlugins(options).find((p) => p.id === "fake-probe");
-  return approvePlugin(options, {
-    id: plugin.id,
-    hash: plugin.hash,
-    commit: plugin.commit,
-  });
+const approve = (options: Parameters<typeof inspectPlugins>[0]) => {
+  const plugin = pinnedPlugin(
+    inspectPlugins(options).find((p) => p.id === "fake-probe"),
+  );
+  const { hash, commit } = plugin;
+  assert.ok(typeof hash === "string" && typeof commit === "string");
+  return approvePlugin(options, { id: plugin.id, hash, commit });
 };
 
 test("a git entry names git and ref, never credentials, and a subdir inside", () => {
@@ -119,7 +141,7 @@ test("a git entry names git and ref, never credentials, and a subdir inside", ()
   assert.ok(validateEntry({ ...entry, git: "ssh://git@git.example.com/x" }));
   assert.ok(validateEntry({ ...entry, git: "../plugin-repo" }));
   assert.ok(validateEntry({ ...entry, ref: "a".repeat(40) }));
-  for (const [change, pattern] of [
+  const refused: [Record<string, unknown>, RegExp][] = [
     [{ path: "../x" }, /exactly one of package, path or git/],
     [
       { git: "https://user:pw@git.example.com/x" },
@@ -143,7 +165,8 @@ test("a git entry names git and ref, never credentials, and a subdir inside", ()
     [{ ref: "abc1234" }, /full commit, not a short one/],
     [{ subdir: "../outside" }, /inside the repository/],
     [{ subdir: "/etc" }, /inside the repository/],
-  ])
+  ];
+  for (const [change, pattern] of refused)
     assert.throws(() => validateEntry({ ...entry, ...change }), pattern);
   assert.throws(
     () => validateEntry({ id: "x", path: "../x", ref: "main", contract: 1 }),
@@ -158,7 +181,7 @@ test("a git entry names git and ref, never credentials, and a subdir inside", ()
 test("Add from git pins the ref to a commit, fetches only it, and needs approval", async (t) => {
   const { git, options, entry, gitRoot } = setup(t);
   const head = git("rev-parse", "HEAD");
-  const added = await addGitPlugin(options, { entry: entry() });
+  const added = pinnedPlugin(await addGitPlugin(options, { entry: entry() }));
   assert.equal(added.state, "unapproved");
   assert.equal(added.commit, head);
   assert.equal(added.location, path.join(gitRoot, head, "plugin"));
@@ -170,18 +193,19 @@ test("Add from git pins the ref to a commit, fetches only it, and needs approval
     [head],
   );
   const settings = readPluginSettings(options.settingsFile);
-  assert.equal(settings.pins["fake-probe"].commit, head);
-  assert.equal(settings.plugins[0].ref, "main", "the entry keeps the ref");
+  assert.equal(settings.pins["fake-probe"]?.commit, head);
+  assert.equal(settings.plugins[0]?.ref, "main", "the entry keeps the ref");
 
-  const approved = approve(options);
+  const approved = pinnedPlugin(approve(options));
   assert.equal(approved.state, "approved");
   assert.equal(
-    readPluginSettings(options.settingsFile).approvals["fake-probe"].commit,
+    readPluginSettings(options.settingsFile).approvals["fake-probe"]?.commit,
     head,
   );
   // It runs like any other plugin.
   const session = pluginHost(options).open();
   const reply = await session.call("fake-probe", "rules", "ruleSets", {});
+  assert.ok(reply && typeof reply === "object" && "sets" in reply);
   assert.deepEqual(reply.sets, []);
   await session.close();
 
@@ -190,7 +214,7 @@ test("Add from git pins the ref to a commit, fetches only it, and needs approval
     () =>
       approvePlugin(options, {
         id: "fake-probe",
-        hash: approved.hash,
+        hash: String(approved.hash),
         commit: "0".repeat(40),
       }),
     /Review it again/,
@@ -206,7 +230,9 @@ test("tags, annotated tags and full commits resolve to their commit", async (t) 
   const first = git("rev-parse", "HEAD");
   git("commit", "-q", "--allow-empty", "-m", "Later");
   for (const ref of ["v1", "v1-annotated", first, "refs/tags/v1"]) {
-    const added = await addGitPlugin(options, { entry: entry({ ref }) });
+    const added = pinnedPlugin(
+      await addGitPlugin(options, { entry: entry({ ref }) }),
+    );
     assert.equal(added.commit, first, ref);
     removePlugin(options, { id: "fake-probe" });
   }
@@ -219,23 +245,31 @@ test("tags, annotated tags and full commits resolve to their commit", async (t) 
 
 test("a new commit on the branch needs a new approval, even with the same files", async (t) => {
   const { git, options, entry, gitRoot } = setup(t);
-  const first = (await addGitPlugin(options, { entry: entry() })).commit;
+  const first = pinnedPlugin(
+    await addGitPlugin(options, { entry: entry() }),
+  ).commit;
   approve(options);
   // The tick sees nothing new until a person chooses Update.
   git("commit", "-q", "--allow-empty", "-m", "Same files, new commit");
   const second = git("rev-parse", "HEAD");
-  assert.equal(inspectPlugins(options)[0].state, "approved");
+  assert.equal(inspectPlugins(options)[0]?.state, "approved");
 
-  const updated = await updateGitPlugin(options, { id: "fake-probe" });
+  const updated = pinnedPlugin(
+    await updateGitPlugin(options, { id: "fake-probe" }),
+  );
+  assert.ok("approval" in updated && updated.approval);
   assert.equal(updated.commit, second);
   assert.equal(updated.state, "changed");
-  assert.match(updated.reason, /approve it again/);
-  assert.equal(updated.hash, updated.approval.hash, "same content hash");
-  assert.ok(!fs.existsSync(path.join(gitRoot, first)), "old commit pruned");
+  assert.match(String(updated.reason), /approve it again/);
+  assert.equal(updated.hash, found(updated.approval).hash, "same content hash");
+  assert.ok(
+    !fs.existsSync(path.join(gitRoot, String(first))),
+    "old commit pruned",
+  );
   const session = pluginHost(options).open();
-  assert.equal((await session.use("fake-probe", "rules")).ok, false);
+  assert.equal((await session.use("fake-probe", "rules"))?.ok, false);
   await session.close();
-  assert.equal(approve(options).state, "approved");
+  assert.equal(approve(options)?.state, "approved");
 });
 
 test("the tick never fetches: it reads only the pinned folder", async (t) => {
@@ -259,24 +293,26 @@ test("the tick never fetches: it reads only the pinned folder", async (t) => {
   process.env.PATH = bin;
   try {
     const session = pluginHost(options).open();
-    assert.deepEqual(
-      (await session.call("fake-probe", "rules", "ruleSets", {})).sets,
-      [],
-    );
+    const reply = await session.call("fake-probe", "rules", "ruleSets", {});
+    assert.ok(reply && typeof reply === "object" && "sets" in reply);
+    assert.deepEqual(reply.sets, []);
     await session.close();
   } finally {
     process.env.PATH = savedPath;
   }
   // An entry whose ref changed shows as missing until Update; nothing fetched.
   const settings = readPluginSettings(options.settingsFile);
-  settings.plugins[0].ref = "v1";
+  found(settings.plugins[0]).ref = "v1";
   writePluginSettings(options.settingsFile, settings);
   const before = fs.readdirSync(gitRoot).sort();
-  const [plugin] = inspectPlugins(options);
+  const plugin = found(inspectPlugins(options)[0]);
   assert.equal(plugin.state, "missing");
-  assert.match(plugin.reason, /Not fetched on this machine. Choose Update/);
+  assert.match(
+    String(plugin.reason),
+    /Not fetched on this machine. Choose Update/,
+  );
   const session = pluginHost(options).open();
-  assert.equal((await session.use("fake-probe", "rules")).ok, false);
+  assert.equal((await session.use("fake-probe", "rules"))?.ok, false);
   await session.close();
   assert.deepEqual(fs.readdirSync(gitRoot).sort(), before);
 });
@@ -292,7 +328,7 @@ test("refused: a subdir that leaves the repository, no manifest, unshipped depen
   );
   git("add", ".");
   git("commit", "-q", "-m", "Refusals");
-  for (const [subdir, pattern] of [
+  const refusals: [string, RegExp][] = [
     // Git for Windows checks a symlink out as a file (core.symlinks off).
     [
       "escape",
@@ -303,7 +339,8 @@ test("refused: a subdir that leaves the repository, no manifest, unshipped depen
     ["empty", /has no avoozl-plugin.json in empty/],
     ["missing", /has no folder missing/],
     ["plugin", /does not ship \(left-pad\).*runs no npm install/],
-  ])
+  ];
+  for (const [subdir, pattern] of refusals)
     await assert.rejects(
       addGitPlugin(options, { entry: entry({ subdir }) }),
       pattern,
@@ -338,7 +375,7 @@ test("git hooks and init templates from the person's config never run", async (t
     // Forward slashes: git config reads `\` as an escape.
     `[core]\n\thooksPath = ${hooks.replaceAll("\\", "/")}\n[init]\n\ttemplateDir = ${template.replaceAll("\\", "/")}\n`,
   );
-  const added = await addGitPlugin(options, { entry: entry() });
+  const added = found(await addGitPlugin(options, { entry: entry() }));
   assert.equal(added.state, "unapproved");
   assert.ok(!fs.existsSync(marker), "no hook ran");
 });
@@ -351,15 +388,17 @@ test("plugin.add and plugin.update reach git entries through Operations", async 
     workspaceRoot: options.workspaceRoot,
     pluginSettingsFile: options.settingsFile,
   });
-  const added = await ops.execute("plugin.add", { entry: entry() });
+  const added = await ops.execute<Added>("plugin.add", { entry: entry() });
   assert.equal(added.commit, git("rev-parse", "HEAD"));
   assert.equal(added.manifest, undefined);
   git("commit", "-q", "--allow-empty", "-m", "Next");
-  const updated = await ops.execute("plugin.update", { id: "fake-probe" });
+  const updated = await ops.execute<Added>("plugin.update", {
+    id: "fake-probe",
+  });
   assert.equal(updated.commit, git("rev-parse", "HEAD"));
-  const listed = await ops.execute("plugins.list", {});
-  assert.equal(listed.plugins[0].commit, updated.commit);
-  assert.deepEqual(listed.plugins[0].git, {
+  const listed = await ops.execute<Listed>("plugins.list", {});
+  assert.equal(listed.plugins[0]?.commit, updated.commit);
+  assert.deepEqual(listed.plugins[0]?.git, {
     url: entry().git,
     ref: "main",
     subdir: "plugin",
@@ -367,8 +406,11 @@ test("plugin.add and plugin.update reach git entries through Operations", async 
 });
 
 // Update checks (R34.17): ls-remote only, never a fetch.
-const folders = (dir) => (fs.existsSync(dir) ? fs.readdirSync(dir).sort() : []);
-const checkStore = (t, root) => {
+const checked = (done: Awaited<ReturnType<typeof checkPluginUpdates>>) =>
+  found(done["fake-probe"]);
+const folders = (dir: string) =>
+  fs.existsSync(dir) ? fs.readdirSync(dir).sort() : [];
+const checkStore = (t: TestContext, root: string) => {
   const store = new Store(path.join(root, "workspace.sqlite"));
   t.after(() => store.close());
   return store;
@@ -383,27 +425,30 @@ test("an update check sees a moved branch, fetches nothing, and raises one row",
   const before = folders(gitRoot);
   git("commit", "-q", "--allow-empty", "-m", "Next");
   const head = git("rev-parse", "HEAD");
-  const counted = [];
+  const counted: string[] = [];
   const done = await checkPluginUpdates(store, options, {
-    countGit: (remote) => counted.push(remote),
+    countGit: (remote: string) => counted.push(remote),
   });
-  assert.equal(done["fake-probe"].state, "newer");
-  assert.equal(done["fake-probe"].latest, head);
-  assert.equal(done["fake-probe"].current, pinned);
+  assert.equal(checked(done).state, "newer");
+  assert.equal(checked(done).latest, head);
+  assert.equal(checked(done).current, pinned);
   assert.equal(counted.length, 1);
   // Nothing was fetched or unpacked, and the pin and approval stay.
   assert.deepEqual(folders(gitRoot), before);
-  const plugin = inspectPlugins(options)[0];
+  const plugin = pinnedPlugin(inspectPlugins(options)[0]);
   assert.equal(plugin.commit, pinned);
   assert.equal(plugin.state, "approved");
   // Checked again within a day: no second call, still one row.
   await checkPluginUpdates(store, options, {
-    countGit: (remote) => counted.push(remote),
+    countGit: (remote: string) => counted.push(remote),
   });
   assert.equal(counted.length, 1);
   const rows = updateNeedsYou(store, options);
   assert.equal(rows.length, 1);
-  assert.match(rows[0].title, new RegExp(`new commit ${head.slice(0, 7)}`));
+  assert.match(
+    found(rows[0]).title,
+    new RegExp(`new commit ${head.slice(0, 7)}`),
+  );
   // Update makes the result stale: the row goes once the pin moves.
   await updateGitPlugin(options, { id: "fake-probe" });
   assert.deepEqual(updateNeedsYou(store, options), []);
@@ -415,16 +460,16 @@ test("an update check finds a newer version tag, or nothing newer", async (t) =>
   git("tag", "v1.0.0");
   await addGitPlugin(options, { entry: entry({ ref: "v1.0.0" }) });
   let done = await checkPluginUpdates(store, options);
-  assert.equal(done["fake-probe"].state, "current");
+  assert.equal(checked(done).state, "current");
   assert.deepEqual(updateNeedsYou(store, options), []);
   git("commit", "-q", "--allow-empty", "-m", "Next");
   for (const tag of ["v1.1.0", "v1.2.0", "v2.0.0-beta.1", "1.9.0"])
     git("tag", tag);
   done = await checkPluginUpdates(store, options, { force: true });
-  assert.equal(done["fake-probe"].kind, "tag");
-  assert.equal(done["fake-probe"].latest, "v1.2.0");
+  assert.equal(checked(done).kind, "tag");
+  assert.equal(checked(done).latest, "v1.2.0");
   assert.match(
-    updateNeedsYou(store, options)[0].title,
+    found(updateNeedsYou(store, options)[0]).title,
     /v1\.2\.0 \(was v1\.0\.0\)/,
   );
 });
@@ -435,8 +480,8 @@ test("an update check that cannot reach the remote says so quietly", async (t) =
   await addGitPlugin(options, { entry: entry() });
   fs.renameSync(repo, `${repo}-gone`);
   const done = await checkPluginUpdates(store, options);
-  assert.equal(done["fake-probe"].state, "failed");
-  assert.match(done["fake-probe"].reason, /git ls-remote failed/);
+  assert.equal(checked(done).state, "failed");
+  assert.match(checked(done).reason ?? "", /git ls-remote failed/);
   assert.deepEqual(updateNeedsYou(store, options), []);
 });
 
@@ -451,10 +496,12 @@ test("with update checks off nothing is checked and no row shows", async (t) => 
   setUpdateChecks(options.settingsFile, false);
   assert.equal(readPluginSettings(options.settingsFile).updateChecks, false);
   assert.deepEqual(updateNeedsYou(store, options), []);
-  const seen = [];
-  const handle = startPluginUpdateChecks(store, options, {
-    countGit: (remote) => seen.push(remote),
-  });
+  const seen: string[] = [];
+  const handle = found(
+    startPluginUpdateChecks(store, options, {
+      countGit: (remote: string) => seen.push(remote),
+    }),
+  );
   t.after(() => handle.stop());
   git("commit", "-q", "--allow-empty", "-m", "Again");
   await handle.pass();
@@ -476,9 +523,9 @@ test("Check now and the switch are a person's, through Operations", async (t) =>
   await ops.execute("plugin.add", { entry: entry() });
   git("commit", "-q", "--allow-empty", "-m", "Next");
   await ops.execute("plugin.updates.check", { id: "fake-probe" });
-  const listed = await ops.execute("plugins.list", {});
+  const listed = await ops.execute<Listed>("plugins.list", {});
   assert.equal(listed.updateChecks.enabled, true);
-  assert.equal(listed.plugins[0].update.state, "newer");
+  assert.equal(listed.plugins[0]?.update?.state, "newer");
   assert.equal(updateNeedsYou(store, options).length, 1);
   await assert.rejects(
     ops.execute("plugin.updates.configure", { enabled: false }, undefined, {
@@ -488,7 +535,7 @@ test("Check now and the switch are a person's, through Operations", async (t) =>
   );
   await ops.execute("plugin.updates.configure", { enabled: false });
   assert.equal(
-    (await ops.execute("plugins.list", {})).updateChecks.enabled,
+    (await ops.execute<Listed>("plugins.list", {})).updateChecks.enabled,
     false,
   );
 });

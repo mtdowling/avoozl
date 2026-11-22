@@ -664,7 +664,10 @@ export class RepositorySettings {
       sources?: { label?: string; filename?: string }[];
       baseConfig?: Record<string, unknown>;
       debounceMs?: number;
-      watchFactory?: typeof fs.watch;
+      watchFactory?: (
+        directory: string,
+        listener: (kind: string, name: string | null) => void,
+      ) => { close(): void };
     } = {},
   ) {
     if (!workspaceRoot) fail("Choose a workspace root.");

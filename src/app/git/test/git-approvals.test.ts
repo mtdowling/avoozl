@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Approvals live in git (design §4.42): a commit on main by an approver's
 // author email approves the spec as that commit holds it, whoever committed
 // it. A commit by someone not on the list approves nothing. A deleted
@@ -22,13 +21,32 @@ import { snapshot } from "../../test/fixtures.ts";
 import { specFiles, writeSpec } from "../../test/spec-fixture.ts";
 import { OWNER, specCheckout as repo } from "../../test/spec-checkout.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
+import { normalizeGitHubPolicy } from "../../github/github-policy.ts";
+import { found, storedRow } from "../../test/view-shapes.ts";
+
+// A plan row, for the fields these tests read.
+interface PlanRow {
+  state: string;
+  hash: string;
+  mapping: Record<string, string>;
+}
+const planOf = (store: Store, id: string) =>
+  storedRow<PlanRow>(store, "plans", id);
 
 process.env.XDG_CONFIG_HOME = temporaryDirectory("avoozl-xdg-");
 
 const OTHER = "someone@example.com";
 
 // Commit one spec folder with this author and committer.
-function commitSpec({ root, run }, name, { author, committer, files }) {
+function commitSpec(
+  { root, run }: ReturnType<typeof repo>,
+  name: string,
+  {
+    author,
+    committer,
+    files,
+  }: { author: string; committer: string; files?: Record<string, string> },
+) {
   writeSpec(root, name, files ?? specFiles());
   run(["add", "--", `.kiro/specs/${name}`]);
   run(["commit", "-q", "-m", `Spec ${name}`], {
@@ -53,8 +71,8 @@ test("approvals read and write every spec file under specs.path", async () => {
   fs.writeFileSync(path.join(r.root, folder, "old.md"), "Old\n");
   r.run(["add", "-A"]);
   r.run(["commit", "-q", "-m", "Start"]);
-  const allowed = async (email) => email === OWNER;
-  let [first] = await approvalCommits(r.root, { allowed });
+  const allowed = async (email: string) => email === OWNER;
+  let first = found((await approvalCommits(r.root, { allowed }))[0]);
   assert.equal(first.spec, "lean");
   assert.deepEqual(Object.keys(first.files).sort(), ["old.md", "tasks.md"]);
   // Approve drops old.md and adds notes.md; the commit removes what the
@@ -66,14 +84,14 @@ test("approvals read and write every spec file under specs.path", async () => {
     r.run(["ls-tree", "--name-only", "HEAD", `${folder}/`]).split("\n"),
     [`${folder}/notes.md`, `${folder}/tasks.md`],
   );
-  [first] = await approvalCommits(r.root, { allowed });
+  first = found((await approvalCommits(r.root, { allowed }))[0]);
   assert.deepEqual(first.files, { "notes.md": "Notes\n", "tasks.md": tasks });
 });
 
 test("a merged pull request's merge commit is the approval of the spec it brought", async () => {
   // Nearby input: the branch's own commit, by someone else, is not walked.
   const r = repo(),
-    allowed = async (email) => email === OWNER;
+    allowed = async (email: string) => email === OWNER;
   r.run(["commit", "-q", "--allow-empty", "-m", "Start"]);
   const main = r.run(["branch", "--show-current"]);
   r.run(["checkout", "-q", "-b", "spec/merged"]);
@@ -121,11 +139,11 @@ test("the author decides an approval; the committer neither grants nor blocks it
     repository: { allowedActors: ["octo"] },
     trust: "branch-protection",
   });
-  assert.equal(await byLogin("1+octo@users.noreply.github.com"), true);
-  assert.equal(await byLogin("someone@example.com"), false);
+  assert.equal(await byLogin("1+octo@users.noreply.github.com", null), true);
+  assert.equal(await byLogin("someone@example.com", null), false);
 });
 
-function workspace(settings = {}) {
+function workspace(settings: Record<string, unknown> = {}) {
   const r = repo();
   fs.writeFileSync(
     path.join(r.root, ".avoozl.json"),
@@ -136,21 +154,24 @@ function workspace(settings = {}) {
   r.run(["commit", "-q", "-m", "Start"]);
   return r;
 }
-const open = (root, file) => {
+const open = (root: string, file: string) => {
   const store = new Store(path.join(root, file));
   store.initialize(snapshot());
   return { store, ops: new Operations(store, { workspaceRoot: root }) };
 };
-async function approve(ops, id) {
-  const preview = await ops.execute("plan.preview", { id });
-  return ops.execute("plan.approve", {
+async function approve(ops: Operations, id: string) {
+  const preview = await ops.execute<{
+    reviewedHash: string;
+    expectedRevision: number;
+  }>("plan.preview", { id });
+  return ops.execute<{ approvedBy: string; evidence: string }>("plan.approve", {
     id,
     expectedHash: preview.reviewedHash,
     expectedRevision: preview.expectedRevision,
   });
 }
 // What a rebuild must give back.
-const state = (store) => ({
+const state = (store: Store) => ({
   plans: store
     .list("plans")
     .map((plan) => [plan.id, plan.state, plan.hash])
@@ -190,7 +211,11 @@ test("Approve commits the spec on main as the person; a rebuilt database has the
   assert.match(approved.evidence, new RegExp(head));
   // A second approved spec, with a fact of its own.
   const files = specFiles();
-  files["tasks.md"] = files["tasks.md"].replace("    - Parse");
+  // A one-argument replace puts "undefined" where the line was.
+  files["tasks.md"] = found(files["tasks.md"]).replace(
+    "    - Parse",
+    "undefined",
+  );
   writeSpec(r.root, "intake", files);
   await first.ops.execute("plan.create", { spec: "intake" });
   await approve(first.ops, "intake");
@@ -227,7 +252,10 @@ test("Approve commits the spec on main as the person; a rebuilt database has the
     worktreeRoot: temporaryDirectory("avoozl-wt-"),
     checks: [["true"]],
   });
-  const rebuilt = await second.ops.execute("workspace.rebuild", {});
+  const rebuilt = await second.ops.execute<{
+    approved: string[];
+    drafts: string[];
+  }>("workspace.rebuild", {});
   assert.deepEqual(rebuilt.approved.sort(), ["feature", "intake"]);
   assert.deepEqual(rebuilt.drafts, ["other"]);
   assert.deepEqual(state(second.store), before);
@@ -240,10 +268,13 @@ test("Approve commits the spec on main as the person; a rebuilt database has the
 
 test("an MCP push becomes a GitHub issue at once, or is refused", async () => {
   const { submitItems } = await import("../../intake/intake.ts"),
-    created = [],
+    created: Record<string, unknown>[] = [],
     github = {
       available: () => true,
-      createIssue: async (repository, input) => {
+      createIssue: async (
+        repository: string,
+        input: Record<string, unknown>,
+      ) => {
         created.push({ repository, ...input });
         return { number: 40 + created.length };
       },
@@ -252,7 +283,10 @@ test("an MCP push becomes a GitHub issue at once, or is refused", async () => {
       ["tickets", { id: "tickets", via: "mcp", repository: "o/app" }],
       ["loose", { id: "loose", via: "mcp", repository: "nowhere" }],
     ]),
-    policy = { mode: "single-repo", repositories: { "o/app": {} } },
+    policy = normalizeGitHubPolicy({
+      mode: "single-repo",
+      repositories: { "o/app": { baseBranch: "main" } },
+    }),
     item = {
       id: "T1",
       link: "https://example.com/t/1",
@@ -271,8 +305,8 @@ test("an MCP push becomes a GitHub issue at once, or is refused", async () => {
     { index: 0, id: "T1", result: "issue", issue: "o/app#41" },
   ]);
   // No labels ride along, so the item's words never trigger a rule.
-  assert.equal(created[0].labels, undefined);
-  assert.match(created[0].body, /https:\/\/example\.com\/t\/1/);
+  assert.equal(created[0]?.labels, undefined);
+  assert.match(String(created[0]?.body), /https:\/\/example\.com\/t\/1/);
   await assert.rejects(
     submitItems(sources, policy, github, { source: "loose", items: [item] }),
     /names no GitHub repository/,
@@ -282,9 +316,9 @@ test("an MCP push becomes a GitHub issue at once, or is refused", async () => {
 
 // The tick reads approvals that reach main with no click: a pull request an
 // approver authored and GitHub squash-merged, or a push (§4.42).
-const tickApprovals = (store) =>
+const tickApprovals = (store: Store) =>
   listActivity(store, { kind: "plan.approved", source: "tick" }).items;
-const taskStates = (store, planId) =>
+const taskStates = (store: Store, planId: string) =>
   store
     .read()
     .tasks.filter((task) => task.planId === planId)
@@ -296,10 +330,11 @@ test("the tick adopts an approver's spec commit on main, and nothing else", asyn
     { store, ops } = open(r.root, "workspace.sqlite"),
     tick = () => ops.execute("workspace.tick", {});
   t.after(() => store.close());
-  const queuedAtPublish = [],
+  const queuedAtPublish: unknown[] = [],
     publish = ops.publishApproved.bind(ops);
   ops.publishApproved = () => {
-    const pending = store.getMeta("publish.pending") ?? {};
+    const pending =
+      store.getMeta<Record<string, string>>("publish.pending") ?? {};
     if (Object.keys(pending).length) queuedAtPublish.push(pending);
     return publish();
   };
@@ -317,24 +352,28 @@ test("the tick adopts an approver's spec commit on main, and nothing else", asyn
   // Someone else's spec commit, with the owner as committer.
   commitSpec(r, "foreign", { author: OTHER, committer: OWNER });
   await tick();
-  const merged = store.get("plans", "merged");
+  const merged = planOf(store, "merged");
   assert.equal(merged.state, "approved");
   assert.deepEqual(
     store.list("approvals").map((a) => [a.planId, a.hash, a.approvedBy]),
     [["merged", merged.hash, OWNER]],
   );
-  assert.match(store.list("approvals")[0].evidence, new RegExp(squash));
+  assert.match(
+    String(found(store.list("approvals")[0]).evidence),
+    new RegExp(squash),
+  );
   // The adopted approval was queued for its spec issue (rule 8.1).
   assert.deepEqual(queuedAtPublish, [{ merged: squash }]);
   assert.equal(taskStates(store, "merged").length, 3);
-  assert.equal(store.get("plans", "foreign").state, "draft");
+  assert.equal(planOf(store, "foreign").state, "draft");
   assert.deepEqual(taskStates(store, "foreign"), []);
   // Activity names the commit and the approver, once.
   const rows = tickApprovals(store);
   assert.equal(rows.length, 1);
-  assert.equal(rows[0].targetId, "merged");
-  assert.equal(rows[0].actor, OWNER);
-  assert.match(rows[0].summary, new RegExp(`${OWNER}.*${squash.slice(0, 12)}`));
+  const row = found(rows[0]);
+  assert.equal(row.targetId, "merged");
+  assert.equal(row.actor, OWNER);
+  assert.match(row.summary, new RegExp(`${OWNER}.*${squash.slice(0, 12)}`));
   await tick();
   assert.equal(tickApprovals(store).length, 1);
 
@@ -345,7 +384,7 @@ test("the tick adopts an approver's spec commit on main, and nothing else", asyn
   await tick();
   await ops.execute("plan.save", { id: "merged", expectedHash: merged.hash });
   await tick();
-  const edited = store.get("plans", "merged");
+  const edited = planOf(store, "merged");
   assert.notEqual(edited.hash, merged.hash);
   assert.equal(edited.state, "draft");
   assert.ok(!store.list("approvals").some((a) => a.hash === edited.hash));
@@ -369,7 +408,7 @@ test("the tick adopts an approver's spec commit on main, and nothing else", asyn
     files,
   });
   await tick();
-  const clicked = store.get("plans", "clicked");
+  const clicked = planOf(store, "clicked");
   assert.equal(clicked.state, "approved");
   assert.equal(clicked.hash, edited.hash);
   assert.ok(
@@ -378,7 +417,7 @@ test("the tick adopts an approver's spec commit on main, and nothing else", asyn
       .some((a) => a.planId === "clicked" && a.hash === clicked.hash),
   );
   assert.match(
-    tickApprovals(store)[0].summary,
+    found(tickApprovals(store)[0]).summary,
     new RegExp(pushed.slice(0, 12)),
   );
 });
@@ -402,7 +441,7 @@ test("with specs.branch, approvals and ticks are read and written on that branch
   await ops.execute("plan.create", { spec: "merged" });
   commitSpec(r, "merged", { author: OWNER, committer: OWNER });
   await ops.execute("workspace.tick", {});
-  assert.equal(store.get("plans", "merged").state, "approved");
+  assert.equal(planOf(store, "merged").state, "approved");
   // A tick committed on the specs branch is read there.
   const tasks = path.join(r.root, ".kiro/specs/feature/tasks.md");
   fs.writeFileSync(
@@ -411,9 +450,9 @@ test("with specs.branch, approvals and ticks are read and written on that branch
   );
   r.run(["commit", "-qam", "Tick feature.1.1"]);
   await ops.applyBaseTicks();
-  const id = store.get("plans", "feature").mapping["feature.1.1"];
+  const id = planOf(store, "feature").mapping["feature.1.1"];
   assert.equal(
-    store.read().tasks.find((task) => task.id === id).tickCommit,
+    found(store.read().tasks.find((task) => task.id === id)).tickCommit,
     r.run(["rev-parse", "plans"]),
   );
   assert.equal(r.run(["rev-parse", "main"]), main, "main is untouched");
@@ -421,14 +460,20 @@ test("with specs.branch, approvals and ticks are read and written on that branch
   // the specs.
   r.run(["checkout", "-q", "main"]);
   assert.match(
-    ops.specList().homeErrors.join(" "),
+    ops.specList().homeErrors?.join(" ") ?? "",
     /Specs live on plans, but .+ has main checked out\./,
   );
 });
 
 // One leaf spec of epic launch whose task 1.1 needs `after` (another
 // spec's task) and is ticked when `done`.
-const leafSpec = (title, { after = null, done = false } = {}) => ({
+const leafSpec = (
+  title: string,
+  {
+    after = null,
+    done = false,
+  }: { after?: string | null; done?: boolean } = {},
+) => ({
   "requirements.md": `---\nepic: launch\n---\n# ${title}\n\nThe goal.\n`,
   "design.md": "# Design\n\nOne step.\n",
   "tasks.md": `# Tasks\n\n- [${done ? "x" : " "}] 1 ${title}\n  - [${done ? "x" : " "}] 1.1 Do ${title}\n`,
@@ -454,7 +499,15 @@ const leafSpec = (title, { after = null, done = false } = {}) => ({
 
 // A fake GitHub that answers for one commit `c1`: who merged its pull request
 // and who signed it. `calls` counts the reads.
-function fakeGithub({ mergedBy = null, signer = null, author = "mallory" }) {
+function fakeGithub({
+  mergedBy = null,
+  signer = null,
+  author = "mallory",
+}: {
+  mergedBy?: string | null;
+  signer?: string | null;
+  author?: string;
+}) {
   const calls = { commit: 0 };
   return {
     calls,
@@ -465,7 +518,7 @@ function fakeGithub({ mergedBy = null, signer = null, author = "mallory" }) {
     pullRequest: async () => ({
       merged: true,
       merge_commit_sha: "c1",
-      merged_by: { login: mergedBy },
+      merged_by: { login: mergedBy ?? undefined },
     }),
     commit: async () => {
       calls.commit += 1;
@@ -481,7 +534,10 @@ function fakeGithub({ mergedBy = null, signer = null, author = "mallory" }) {
 test("a spoofed author email approves nothing unless GitHub or branch protection vouches", async () => {
   const spoofed = "acme-owner@users.noreply.github.com",
     repository = { allowedActors: ["acme-owner"] },
-    check = (github, trust) =>
+    check = (
+      github: ReturnType<typeof fakeGithub>,
+      trust: string | undefined,
+    ) =>
       approverCheck({
         repository,
         github,
@@ -515,7 +571,7 @@ test("a spoofed author email approves nothing unless GitHub or branch protection
 test("what GitHub returned for a commit is read back from the evidence file", async () => {
   const root = temporaryDirectory("avoozl-evidence-"),
     first = fakeGithub({ mergedBy: "acme-owner" }),
-    make = (github) =>
+    make = (github: ReturnType<typeof fakeGithub>) =>
       approverCheck({
         repository: { allowedActors: ["acme-owner"] },
         github,
@@ -524,7 +580,7 @@ test("what GitHub returned for a commit is read back from the evidence file", as
       });
   assert.equal(await make(first)("x@example.com", "c1"), true);
   // The approving pull request's number is kept for spec issue publishing.
-  assert.equal(evidenceCache(root).get("c1").pull, 7);
+  assert.equal(evidenceCache(root).get("c1")?.pull, 7);
   const offline = fakeGithub({});
   offline.commitPullRequests =
     offline.pullRequest =

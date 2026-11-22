@@ -202,9 +202,9 @@ ${ghToken === null ? "process.exit(1);" : `await new Promise((r) => setTimeout(r
   };
 }
 
-export const call = (
+export const call = <R>(
   credentials: {
-    token(input: { repository: string; owner: string; job: string }): unknown;
+    token(input: { repository: string; owner: string; job: string }): R;
   },
   repository: string,
   job = "check-in",

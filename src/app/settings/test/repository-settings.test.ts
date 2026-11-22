@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -9,8 +8,43 @@ import { RepositorySettings } from "../repository-settings.ts";
 import { REPOSITORY_CONFIG_SCHEMA_URL } from "../config-schema.ts";
 import { fixture, waitFor } from "../../test/fixtures.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
+import type { Refusal } from "../../test/refusal.ts";
+import { found } from "../../test/view-shapes.ts";
 
-function writeJson(filename, value) {
+// The workspace operation's configuration block.
+interface WorkspaceView {
+  configuration: {
+    version: number;
+    files: { repository: string };
+    repository: {
+      filename: string;
+      exists: boolean;
+      hash: string;
+      error: unknown;
+    };
+    pending: string[];
+    applyRequired: string[];
+    restartRequired: string[];
+    schemaPath: string;
+    sources: { filename: string }[];
+  };
+}
+// configuration.get and configuration.update.
+interface ConfigFile {
+  exists: boolean;
+  hash: string | null;
+  text: string;
+  filename: string;
+  restartRequired?: string[];
+}
+// A repository row as repository.configure returns it.
+interface Configured {
+  root: string;
+  configuration?: unknown;
+  checks?: string[][];
+}
+
+function writeJson(filename: string, value: unknown) {
   fs.mkdirSync(path.dirname(filename), { recursive: true });
   fs.writeFileSync(filename, JSON.stringify(value, null, 2) + "\n");
 }
@@ -61,7 +95,7 @@ test("repository settings preserve unrelated JSON and expose canonical metadata"
     false,
   );
 
-  const workspace = await ops.execute("workspace");
+  const workspace = await ops.execute<WorkspaceView>("workspace");
   assert.equal(workspace.configuration.version, 1);
   assert.equal(workspace.configuration.files.repository, filename);
   assert.equal(workspace.configuration.repository.filename, filename);
@@ -75,7 +109,7 @@ test("repository settings preserve unrelated JSON and expose canonical metadata"
     workspace.configuration.schemaPath,
     /avoozl-config\.schema\.json$/,
   );
-  assert.equal(workspace.configuration.sources.at(-1).filename, filename);
+  assert.equal(workspace.configuration.sources.at(-1)?.filename, filename);
 });
 
 test("repository settings use a file hash to avoid clobbering direct edits", (t) => {
@@ -158,20 +192,23 @@ test("configuration editor reads, formats, and conflict-checks repository and gl
     }),
     ops = new Operations(store, { configuration });
 
-  const emptyRepository = await ops.execute("configuration.get", {
+  const emptyRepository = await ops.execute<ConfigFile>("configuration.get", {
     scope: "repository",
   });
   assert.equal(emptyRepository.exists, false);
   assert.equal(emptyRepository.hash, null);
   assert.equal(emptyRepository.text, '{\n  "version": 1\n}\n');
 
-  const savedRepository = await ops.execute("configuration.update", {
-    scope: "repository",
-    expectedHash: emptyRepository.hash,
-    text: '{"version":1,"conversations":{"autoArchiveCompleted":false}}',
-  });
+  const savedRepository = await ops.execute<ConfigFile>(
+    "configuration.update",
+    {
+      scope: "repository",
+      expectedHash: emptyRepository.hash,
+      text: '{"version":1,"conversations":{"autoArchiveCompleted":false}}',
+    },
+  );
   assert.equal(savedRepository.exists, true);
-  assert.match(savedRepository.hash, /^[a-f0-9]{64}$/);
+  assert.match(savedRepository.hash ?? "", /^[a-f0-9]{64}$/);
   assert.equal(
     savedRepository.text,
     '{\n  "version": 1,\n  "conversations": {\n    "autoArchiveCompleted": false\n  }\n}\n',
@@ -186,7 +223,8 @@ test("configuration editor reads, formats, and conflict-checks repository and gl
       expectedHash: null,
       text: '{"version":1}',
     }),
-    (error) => error.status === 409 && /changed; reload/.test(error.message),
+    (error: Refusal) =>
+      error.status === 409 && /changed; reload/.test(error.message),
   );
   await assert.rejects(
     ops.execute("configuration.update", {
@@ -201,10 +239,10 @@ test("configuration editor reads, formats, and conflict-checks repository and gl
     savedRepository.text,
   );
 
-  const emptyGlobal = await ops.execute("configuration.get", {
+  const emptyGlobal = await ops.execute<ConfigFile>("configuration.get", {
     scope: "global",
   });
-  const savedGlobal = await ops.execute("configuration.update", {
+  const savedGlobal = await ops.execute<ConfigFile>("configuration.update", {
     scope: "global",
     expectedHash: emptyGlobal.hash,
     text: '{"version":1,"name":"Shared defaults"}',
@@ -264,7 +302,7 @@ test("repository settings refuse symbolic and non-regular paths", (t) => {
 test("watcher reloads typed direct edits, leaves privileged desired state inert, and retains last good settings", async (t) => {
   const { root, store } = fixture(t),
     filename = path.join(root, ".avoozl.json"),
-    watch = {},
+    watch: { listener?: (kind: string, name: string | null) => void } = {},
     configuration = new RepositorySettings(store, {
       workspaceRoot: root,
       debounceMs: 10,
@@ -285,9 +323,11 @@ test("watcher reloads typed direct edits, leaves privileged desired state inert,
     },
     conversations: { autoArchiveCompleted: false },
   });
-  watch.listener("rename", ".avoozl.json");
+  found(watch.listener)("rename", ".avoozl.json");
   await waitFor(
-    () => store.getMeta("conversationSettings")?.autoArchiveCompleted === false,
+    () =>
+      store.getMeta<{ autoArchiveCompleted: boolean }>("conversationSettings")
+        ?.autoArchiveCompleted === false,
     { label: "direct repository settings reload" },
   );
   assert.equal(store.get("repositories", "privileged"), null);
@@ -304,7 +344,7 @@ test("watcher reloads typed direct edits, leaves privileged desired state inert,
     },
     conversations: { autoArchiveCompleted: true },
   });
-  watch.listener("change", ".avoozl.json");
+  found(watch.listener)("change", ".avoozl.json");
   await waitFor(() => configuration.metadata().repository.error, {
     label: "invalid settings error",
   });
@@ -312,7 +352,7 @@ test("watcher reloads typed direct edits, leaves privileged desired state inert,
     autoArchiveCompleted: false,
   });
   assert.match(
-    configuration.metadata().repository.error.message,
+    found(configuration.metadata().repository.error).message,
     /secret-like key packs\.github\.apiKey/,
   );
 });
@@ -325,7 +365,7 @@ test("an unknown conversations key is refused, naming the file and the key", (t)
     version: 1,
     conversations: { autoArchiveCompleted: false, driver: { model: null } },
   });
-  const { message } = configuration.reload().repository.error;
+  const { message } = found(configuration.reload().repository.error);
   assert.match(message, /Unknown setting "conversations\.driver"/);
   assert.ok(message.includes(filename), message);
   writeJson(filename, {
@@ -334,7 +374,8 @@ test("an unknown conversations key is refused, naming the file and the key", (t)
   });
   assert.equal(configuration.reload().repository.error, null);
   assert.equal(
-    store.getMeta("conversationSettings").autoArchiveCompleted,
+    store.getMeta<{ autoArchiveCompleted: boolean }>("conversationSettings")
+      ?.autoArchiveCompleted,
     false,
   );
 });
@@ -368,7 +409,7 @@ test("repository conversation settings override and fall back to global defaults
   });
 });
 
-function git(root, args) {
+function git(root: string, args: string[]) {
   return execFileSync("git", args, {
     cwd: root,
     encoding: "utf8",
@@ -376,7 +417,7 @@ function git(root, args) {
   }).trim();
 }
 
-function repository(root) {
+function repository(root: string) {
   fs.mkdirSync(root, { recursive: true });
   git(root, ["init", "-b", "main"]);
   git(root, ["config", "user.name", "Avoozl test"]);
@@ -414,7 +455,7 @@ test("explicit Settings operations persist typed desired state without changing 
       github: new PrivateGitHub(),
     });
 
-  const configured = await ops.execute("repository.configure", {
+  const configured = await ops.execute<Configured>("repository.configure", {
     id: "code",
     root: code,
     baseBranch: "main",
@@ -422,21 +463,24 @@ test("explicit Settings operations persist typed desired state without changing 
   });
   assert.equal(configured.root, fs.realpathSync.native(code));
   assert.equal(configured.configuration, undefined);
-  const updatedRepository = await ops.execute("repository.configure", {
-    id: "code",
-    root: code,
-    baseBranch: "main",
-    checks: [["npm", "run", "test"]],
-  });
+  const updatedRepository = await ops.execute<Configured>(
+    "repository.configure",
+    {
+      id: "code",
+      root: code,
+      baseBranch: "main",
+      checks: [["npm", "run", "test"]],
+    },
+  );
   assert.deepEqual(updatedRepository.checks, [["npm", "run", "test"]]);
 
-  const issue = await ops.execute("github.configure", {
+  const issue = await ops.execute<{ id: string }>("github.configure", {
     repository: "Example/Code",
     repositoryId: "code",
   });
   assert.equal(issue.id, "Example/Code");
 
-  const workspaceRepository = await ops.execute(
+  const workspaceRepository = await ops.execute<Configured>(
     "workspace.repository.configure",
     {
       root: planning,
@@ -471,7 +515,10 @@ test("explicit Settings operations persist typed desired state without changing 
     "planningRepository",
   ]);
 
-  const connected = await ops.execute("github.repository.connect", {
+  const connected = await ops.execute<{
+    execution: { id: string };
+    queue?: unknown;
+  }>("github.repository.connect", {
     repository: "Example/Code",
     repositoryId: "code",
     assignee: "operator",
@@ -518,7 +565,10 @@ test("direct privileged edits are validated and reported as inert apply or resta
 
   const metadata = configuration.reload();
 
-  assert.equal(store.get("repositories", "code").baseBranch, "main");
+  assert.equal(
+    store.get<{ baseBranch: string }>("repositories", "code")?.baseBranch,
+    "main",
+  );
   assert.deepEqual(metadata.applyRequired, ["repositories"]);
   assert.deepEqual(metadata.restartRequired, ["port"]);
   assert.deepEqual(metadata.pending, ["repositories", "port"]);
@@ -602,7 +652,9 @@ test("repository removal clears persisted configuration and records the action",
   store.put("repositories", repository);
   configuration.updateExecutionRepository(repository);
 
-  const removed = await ops.execute("repository.remove", { id: repository.id });
+  const removed = await ops.execute<{ removed: boolean }>("repository.remove", {
+    id: repository.id,
+  });
 
   assert.equal(removed.removed, true);
   assert.equal(store.get("repositories", repository.id), null);
@@ -642,13 +694,14 @@ test("repository removal refuses locks and GitHub connections", async (t) => {
     repositoryId: "authorized",
   });
 
-  for (const [id, message] of [
+  const refusals: [string, RegExp][] = [
     ["locked", /currently locked/],
     ["authorized", /still connected to GitHub/],
-  ])
+  ];
+  for (const [id, message] of refusals)
     await assert.rejects(
       ops.execute("repository.remove", { id }),
-      (error) => error.status === 409 && message.test(error.message),
+      (error: Refusal) => error.status === 409 && message.test(error.message),
     );
 
   for (const id of ["locked", "authorized"])
