@@ -15,6 +15,14 @@ test('a spec is revised with avoozl-spec and reviewed with avoozl-spec-review, b
   assert.match(revise, /on a spec branch for me to approve/)
   const review = runSeed({ kind: 'spec', spec: 'search', review: true })
   assert.match(review, /^Use the avoozl-spec-review skill to review the spec `search`\./)
+  const rework = runSeed({
+    kind: 'spec',
+    spec: 'search',
+    review: false,
+    instruction: 'Address comment c1 on design.md:12.',
+  })
+  assert.match(rework, /Address comment c1 on design\.md:12\./)
+  assert.match(rework, /Change only the spec/)
   assert.match(review, /edit no file/)
 })
 

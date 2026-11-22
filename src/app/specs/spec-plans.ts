@@ -241,6 +241,7 @@ function writeRevision(
   if (spec) plan.files = spec.files;
   plan.title = spec?.title || text.match(/^# (.+)$/m)?.[1] || plan.title;
   plan.state = "draft";
+  if (plan.reviewStatus === "changes-requested") delete plan.reviewStatus;
   plan.updatedAt = new Date().toISOString();
   store.put("plans", plan);
   if (plan.documentId) {

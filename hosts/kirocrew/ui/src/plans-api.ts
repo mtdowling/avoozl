@@ -72,10 +72,63 @@ export interface SpecPlan {
   quality: { canApprove: boolean; counts: Counts; diagnostics: Diagnostic[] }
   disk: { folder: string; exists: boolean; hash: string | null; changed: boolean; critique: Critique | null }
   approvals: { id: string; hash: string; at: string; approvedBy: string }[]
+  review?: PlanReview
   // Earlier revisions, oldest first; a spec revision keeps its files.
   history?: { revision: number; hash: string; files?: Record<string, string> }[]
   // The spec's Links box (R92.4), from stored records only.
   links?: SpecLinks | null
+}
+
+export interface PlanReviewComment {
+  id: string
+  planId: string
+  spec: string
+  revisionHash: string
+  file: string
+  lineStart: number | null
+  body: string
+  state: 'open' | 'resolved'
+  author: string
+  createdAt: string
+  current: boolean
+  resolvedAt?: string
+  resolvedBy?: string
+  resolution?: string
+}
+
+export interface PlanReview {
+  status: string
+  comments: PlanReviewComment[]
+  openCount: number
+  currentOpenCount: number
+  commentSnapshot: string
+  latestRequest: PlanReviewRequest | null
+  activeRequest: PlanReviewRequest | null
+}
+
+export interface PlanReviewRequest {
+  id: string
+  revisionHash: string
+  disposition: 'changes-requested' | 'held'
+  reason: string
+  commentIds: string[]
+  commentSnapshot: string
+  requestedBy: string
+  requestedAt: string
+  current: boolean
+  state?: 'open' | 'closed'
+  closedAt?: string
+  closedBy?: string
+}
+
+export interface ReviewRequestResult {
+  id: string
+  revisionHash: string
+  disposition: 'changes-requested' | 'held'
+  reason: string
+  commentIds: string[]
+  commentSnapshot: string
+  comments: PlanReviewComment[]
 }
 
 // A GitHub link built from validated fields (src/app/tasks/scm-links.ts).
@@ -244,6 +297,13 @@ export function plansClient(api: AppApi) {
     // Store the folder on disk as a draft plan named after it.
     store: (workspaceId: string, spec: string) => run<SpecPlan>(workspaceId, 'plan.create', { spec }),
     reload: (workspaceId: string, id: string, expectedHash: string) => run<SpecPlan>(workspaceId, 'plan.save', { id, expectedHash }),
+    comment: (workspaceId: string, input: { id: string; expectedHash: string; file: string; lineStart?: number; body: string }) =>
+      run<PlanReviewComment>(workspaceId, 'plan.review.comment', input),
+    resolveComment: (workspaceId: string, commentId: string, resolution?: string) => run<PlanReviewComment>(workspaceId, 'plan.review.resolve', { commentId, resolution }),
+    requestChanges: (workspaceId: string, id: string, expectedHash: string, reason?: string) =>
+      run<ReviewRequestResult>(workspaceId, 'plan.review.requestChanges', { id, expectedHash, reason }),
+    holdReview: (workspaceId: string, id: string, expectedHash: string, reason: string) => run<ReviewRequestResult>(workspaceId, 'plan.review.hold', { id, expectedHash, reason }),
+    resumeReview: (workspaceId: string, id: string, expectedHash: string) => run<PlanReview>(workspaceId, 'plan.review.resume', { id, expectedHash }),
     preview,
     // Extra code-fence grammars the workspace names (.avoozl.json
     // highlight.languages), as data for highlight.ts.
@@ -349,6 +409,9 @@ export function approveBlocker(plan: SpecPlan | null): string | null {
   if (plan.disk.changed) return 'The folder changed on disk. Reload it first.'
   if (plan.approvals.some((approval) => approval.hash === plan.hash)) return 'This revision is approved.'
   if (!plan.quality.canApprove) return 'Fix the errors below first.'
+  if (plan.review?.openCount) return `Resolve ${plan.review.openCount} review ${plan.review.openCount === 1 ? 'comment' : 'comments'} first.`
+  if (plan.review?.status === 'held') return 'This spec review is held.'
+  if (plan.review?.status === 'changes-requested') return 'This spec revision has requested changes.'
   return null
 }
 
