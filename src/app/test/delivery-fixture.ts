@@ -10,6 +10,7 @@ import { Operations } from "../api/operations.ts";
 import { Store } from "../store/store.ts";
 import { snapshot } from "./fixtures.ts";
 import { temporaryDirectory } from "./temporary.ts";
+import { storedRow } from "./view-shapes.ts";
 
 export function git(cwd: string, ...args: string[]) {
   return execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
@@ -180,4 +181,11 @@ export async function workerDone(
     as(slot),
   );
   return commit;
+}
+
+// Back-date a binding so it reads as quiet; only the test changes the clock.
+export function age(store: Store, slot: string, minutes: number) {
+  const binding = storedRow(store, "session_bindings", slot),
+    at = new Date(Date.now() - minutes * 60_000).toISOString();
+  store.put("session_bindings", { ...binding, boundAt: at, statusAt: at });
 }
