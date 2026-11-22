@@ -91,6 +91,7 @@ const tools: Record<string, GroupedTool> = {
       ],
       specs: ["plan.specs", "spec folders on disk"],
       get: ["plan.get", "one plan, its revisions and receipts"],
+      review: ["plan.review.get", "one plan's durable review comments"],
       read_spec: ["plan.spec.read", "a spec folder's documents"],
       lint: ["plan.lint", "deterministic checks on a stored revision"],
       preview: ["plan.preview", "the tasks approval would publish"],

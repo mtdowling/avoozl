@@ -12,6 +12,14 @@ import { queuePublish } from "../specs/spec-publication.ts";
 import { crossPlanEpics, epicOfPlan } from "../epics/epics.ts";
 import { epicView, ownership, plansTableView } from "../api/page-views.ts";
 import { approvePlan } from "../specs/spec-approval.ts";
+import {
+  addPlanReviewComment,
+  holdPlanReview,
+  planReview,
+  requestPlanChanges,
+  resumePlanReview,
+  resolvePlanReviewComment,
+} from "../specs/spec-review.ts";
 import { specLinks } from "../tasks/scm-links.ts";
 import {
   checkedItems,
@@ -309,7 +317,88 @@ export const entries = [
         approvals: store
           .list<Approval>("approvals")
           .filter((a) => a.planId === plan.id),
+        review: plan.spec ? planReview(store, plan.id) : null,
       };
+    },
+  },
+
+  {
+    name: "plan.review.get",
+    class: "observe",
+    github: "check-in",
+    policy: routed,
+    handler(this: Operations, { input }: OperationCall) {
+      return planReview(this.store, String(input.id));
+    },
+  },
+
+  {
+    name: "plan.review.comment",
+    class: "protect",
+    github: "check-in",
+    policy: person("Only a person leaves a spec review comment."),
+    handler(this: Operations, { input }: OperationCall) {
+      return addPlanReviewComment(
+        this.store,
+        input,
+        this.operator || "local operator",
+      );
+    },
+  },
+
+  {
+    name: "plan.review.resolve",
+    class: "protect",
+    github: "check-in",
+    policy: person("Only a person resolves a spec review comment."),
+    handler(this: Operations, { input }: OperationCall) {
+      return resolvePlanReviewComment(
+        this.store,
+        input,
+        this.operator || "local operator",
+      );
+    },
+  },
+
+  {
+    name: "plan.review.requestChanges",
+    class: "protect",
+    github: "check-in",
+    policy: person("Only a person requests changes to a spec."),
+    handler(this: Operations, { input }: OperationCall) {
+      return requestPlanChanges(
+        this.store,
+        input,
+        this.operator || "local operator",
+      );
+    },
+  },
+
+  {
+    name: "plan.review.hold",
+    class: "protect",
+    github: "check-in",
+    policy: person("Only a person holds a spec review."),
+    handler(this: Operations, { input }: OperationCall) {
+      return holdPlanReview(
+        this.store,
+        input,
+        this.operator || "local operator",
+      );
+    },
+  },
+
+  {
+    name: "plan.review.resume",
+    class: "protect",
+    github: "check-in",
+    policy: person("Only a person resumes a held spec review."),
+    handler(this: Operations, { input }: OperationCall) {
+      return resumePlanReview(
+        this.store,
+        input,
+        this.operator || "local operator",
+      );
     },
   },
 

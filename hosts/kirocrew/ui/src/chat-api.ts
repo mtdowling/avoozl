@@ -45,7 +45,7 @@ export function itemRef(item: ConflictItem): ItemRef {
 // revised with avoozl-spec or reviewed with avoozl-spec-review, a task is
 // worked with avoozl-work, and a Needs you item is explained with avoozl.
 export type RunTarget =
-  | { kind: 'spec'; spec: string; review: boolean }
+  | { kind: 'spec'; spec: string; review: boolean; instruction?: string }
   | { kind: 'task'; taskId: string }
   | { kind: 'item'; item: ItemRef & { reason?: string } }
   | { kind: 'retro'; scope: string; days: number }
@@ -56,7 +56,9 @@ export function runSeed(target: RunTarget): string {
   if (target.kind === 'spec')
     return target.review
       ? `Use the avoozl-spec-review skill to review the spec \`${target.spec}\`. Post findings only; edit no file.`
-      : `Use the avoozl-spec skill to revise the spec \`${target.spec}\`. Ask me what should change, and leave the change on a spec branch for me to approve.`
+      : target.instruction
+        ? `Use the avoozl-spec skill to revise the spec \`${target.spec}\`. ${target.instruction} Change only the spec, leave the revision on a spec branch, and do not implement it.`
+        : `Use the avoozl-spec skill to revise the spec \`${target.spec}\`. Ask me what should change, and leave the change on a spec branch for me to approve.`
   if (target.kind === 'task') return `Use the avoozl-work skill to work the task \`${target.taskId}\`.`
   const { item } = target
   const ids = [

@@ -18,6 +18,7 @@ import {
 } from "./spec-plans.ts";
 import { refreshEpicMembers } from "../epics/epics.ts";
 import type { Proposal } from "./plan-quality.ts";
+import { assertPlanReviewComplete } from "./spec-review.ts";
 
 // A stored plan row, as approval reads and writes it.
 interface PlanRow {
@@ -102,6 +103,7 @@ function approveEpic(
   },
 ) {
   const now = new Date().toISOString(),
+    review = assertPlanReviewComplete(store, plan.id),
     plans = store.list<PlanRow>("plans").filter((entry) => !entry.deletedAt),
     listed = epicMembers(plan.files).map(
       (name) => plans.find((entry) => entry.spec === name)?.id ?? name,
@@ -119,6 +121,10 @@ function approveEpic(
       spec: plan.spec,
       files: plan.files,
       approval: approvalRecord(approver, approvalCommit),
+      review: {
+        commentSnapshot: review.commentSnapshot,
+        commentIds: review.comments.map((comment) => comment.id),
+      },
       epic: { members: listed },
     };
   store.put("approvals", receipt);
@@ -194,6 +200,7 @@ export function approvePlan(
     if (!plan.spec) fail("Only a spec folder is approved.", 409);
     if (plan.hash !== expectedHash)
       fail("The reviewed document hash changed.", 409);
+    const review = assertPlanReviewComplete(store, plan.id);
     const previous = store
       .list<{ id: string; planId?: string; hash?: string }>("approvals")
       .find((a) => a.planId === id && a.hash === expectedHash);
@@ -589,6 +596,10 @@ export function approvePlan(
       spec,
       files: plan.files,
       approval: approvalRecord(approver, approvalCommit),
+      review: {
+        commentSnapshot: review.commentSnapshot,
+        commentIds: review.comments.map((comment) => comment.id),
+      },
     };
     store.put("approvals", receipt);
     plan.state = "approved";

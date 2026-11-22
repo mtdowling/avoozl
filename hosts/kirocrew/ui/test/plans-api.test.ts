@@ -34,6 +34,17 @@ test('plans client names the workspace on every call', async () => {
   await client.get('ws', 'config')
   await client.store('ws', 'config')
   await client.reload('ws', 'config', hash)
+  await client.comment('ws', {
+    id: 'config',
+    expectedHash: hash,
+    file: 'design.md',
+    lineStart: 3,
+    body: 'Clarify this.',
+  })
+  await client.resolveComment('ws', 'comment-1', 'Addressed.')
+  await client.requestChanges('ws', 'config', hash, 'Revise it.')
+  await client.holdReview('ws', 'config', hash, 'Wait.')
+  await client.resumeReview('ws', 'config', hash)
   assert.ok(calls.every((call) => call.path === COMMAND_PATH))
   assert.deepEqual(
     calls.map((call) => call.body),
@@ -42,6 +53,31 @@ test('plans client names the workspace on every call', async () => {
       { operation: 'plan.get', input: { id: 'config' }, workspaceId: 'ws' },
       { operation: 'plan.create', input: { spec: 'config' }, workspaceId: 'ws' },
       { operation: 'plan.save', input: { id: 'config', expectedHash: hash }, workspaceId: 'ws' },
+      {
+        operation: 'plan.review.comment',
+        input: { id: 'config', expectedHash: hash, file: 'design.md', lineStart: 3, body: 'Clarify this.' },
+        workspaceId: 'ws',
+      },
+      {
+        operation: 'plan.review.resolve',
+        input: { commentId: 'comment-1', resolution: 'Addressed.' },
+        workspaceId: 'ws',
+      },
+      {
+        operation: 'plan.review.requestChanges',
+        input: { id: 'config', expectedHash: hash, reason: 'Revise it.' },
+        workspaceId: 'ws',
+      },
+      {
+        operation: 'plan.review.hold',
+        input: { id: 'config', expectedHash: hash, reason: 'Wait.' },
+        workspaceId: 'ws',
+      },
+      {
+        operation: 'plan.review.resume',
+        input: { id: 'config', expectedHash: hash },
+        workspaceId: 'ws',
+      },
     ],
   )
 })
@@ -119,6 +155,51 @@ test('approve is off until the revision is stored, current, unapproved, and vali
   assert.match(approveBlocker({ ...plan, disk: { ...plan.disk, changed: true } }) ?? '', /changed on disk/)
   assert.match(approveBlocker({ ...plan, approvals: [{ id: 'a1', hash, at: 'then', approvedBy: 'person' }] }) ?? '', /is approved/)
   assert.match(approveBlocker({ ...plan, quality: { ...plan.quality, canApprove: false } }) ?? '', /Fix the errors/)
+  assert.match(
+    approveBlocker({
+      ...plan,
+      review: {
+        status: 'commented',
+        comments: [],
+        openCount: 2,
+        currentOpenCount: 2,
+        commentSnapshot: 'comments',
+        latestRequest: null,
+        activeRequest: null,
+      },
+    }) ?? '',
+    /Resolve 2 review comments/,
+  )
+  assert.match(
+    approveBlocker({
+      ...plan,
+      review: {
+        status: 'held',
+        comments: [],
+        openCount: 0,
+        currentOpenCount: 0,
+        commentSnapshot: 'comments',
+        latestRequest: null,
+        activeRequest: null,
+      },
+    }) ?? '',
+    /review is held/,
+  )
+  assert.match(
+    approveBlocker({
+      ...plan,
+      review: {
+        status: 'changes-requested',
+        comments: [],
+        openCount: 0,
+        currentOpenCount: 0,
+        commentSnapshot: 'comments',
+        latestRequest: null,
+        activeRequest: null,
+      },
+    }) ?? '',
+    /revision has requested changes/,
+  )
   assert.equal(approveBlocker(plan), null)
   const diagnostic: Diagnostic = { id: 'd1', code: 'x', severity: 'error', message: 'm', lineStart: 2 }
   assert.equal(location({ ...diagnostic, file: 'avoozl/manifest.json', lineStart: 4 }), 'avoozl/manifest.json:4')

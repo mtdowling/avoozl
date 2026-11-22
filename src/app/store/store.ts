@@ -144,6 +144,8 @@ const BODY_TABLES = new Set([
   "review_followups",
   "extractions",
   "plan_facts",
+  "plan_review_comments",
+  "plan_review_requests",
   "session_bindings",
   "session_requests",
   "github_responses",
@@ -317,6 +319,8 @@ export class Store {
    CREATE TABLE IF NOT EXISTS review_followups(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS extractions(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS plan_facts(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS plan_review_comments(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS plan_review_requests(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS session_bindings(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS session_requests(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS github_responses(id TEXT PRIMARY KEY,body TEXT NOT NULL);

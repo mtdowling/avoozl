@@ -343,6 +343,15 @@ checks a folder. For the task format and the commit that approves a spec, see
 [Tasks](github-workflow.md#2-tasks) and
 [Approval](github-workflow.md#7-approval).
 
+Open the spec's **Review** tab before approval to leave comments against a file
+and optional line. Comments persist with the spec history and block approval
+until they are resolved. **Request changes** records the exact revision and
+comment snapshot, blocks that revision, then opens a spec-editing chat with
+that scope. Reload the revised folder to return it to review. **Hold** keeps
+the spec blocked across revisions without starting a chat; **Resume review**
+releases that hold. Approve only the revised spec you intend to make
+executable.
+
 ## Deliver
 
 Register the checkout the work changes, with its base branch and its named
