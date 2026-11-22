@@ -13,6 +13,7 @@ import { enqueueSessionRequests } from "../../sessions/session-requests.ts";
 import { contextMachine } from "../../context/test/context-fixture.ts";
 import { writeSpec } from "../../test/spec-fixture.ts";
 import { seedApproval } from "../../test/epic-context-seed.ts";
+import { found } from "../../test/view-shapes.ts";
 import { appStore, gitIn, machine, until } from "./process-machine.ts";
 import type { Store } from "../../store/store.ts";
 import type { SessionBinding } from "../../sessions/session-bindings.ts";
@@ -226,7 +227,7 @@ export async function settle(w: World, slot: string) {
     w.m.supervisor.pass();
     const db = openSupervisorDatabase(w.m.stateDirectory);
     try {
-      return childRecord(db, slot).state === "exited";
+      return found(childRecord(db, slot), "the child").state === "exited";
     } finally {
       db.close();
     }
@@ -236,7 +237,7 @@ export async function settle(w: World, slot: string) {
 export const settings = (w: World, slot: string): ChildSettings => {
   const db = openSupervisorDatabase(w.m.stateDirectory);
   try {
-    return JSON.parse(childRecord(db, slot).settings);
+    return JSON.parse(found(childRecord(db, slot), "the child").settings);
   } finally {
     db.close();
   }

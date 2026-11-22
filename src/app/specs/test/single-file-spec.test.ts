@@ -130,7 +130,7 @@ test("a tick writes the single file's own line", () => {
     SINGLE.replace("- [ ] `c-2`", "- [x] `c-2`"),
     "only the task's mark changes",
   );
-  const read = ticksOf("config", specTasks({ "config.md": text })?.text);
+  const read = ticksOf("config", specTasks({ "config.md": text })?.text ?? "");
   assert.deepEqual([...read.ticked.keys()], ["c-2"]);
 });
 

@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The supervisor pass (R95.1-R95.4, design §4.28): each `avoozl tick` runs it
 // over every `process` child of the machine. Its state is one SQLite file in
 // the machine state folder. A caller (the `process` executor) writes a session
@@ -15,7 +14,8 @@ import path from "node:path";
 import { randomBytes, randomUUID } from "node:crypto";
 import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { DatabaseSync } from "node:sqlite";
+import { DatabaseSync, type SQLInputValue } from "node:sqlite";
+import type { ChildProcess } from "node:child_process";
 import { fail } from "../store/store.ts";
 import { withoutPushCredentials } from "../git/git.ts";
 import { machineAvoozlPaths } from "../settings/host-config.ts";
@@ -72,10 +72,81 @@ const CONTEXT_RELAY = fileURLToPath(
 );
 const stamp = () => new Date().toISOString();
 
+// One `children` row (openSupervisorDatabase).
+export type ChildRow = {
+  session_id: string;
+  role: string;
+  task: string;
+  worktree: string;
+  harness: string;
+  permission_class: string;
+  model: string | null;
+  brief: string;
+  placeholder_values: string;
+  state: string;
+  harness_hash: string | null;
+  pid: number | null;
+  process_started: string | null;
+  log_file: string | null;
+  exit_file: string | null;
+  exit_code: number | null;
+  error: string | null;
+  requested_at: string;
+  updated_at: string;
+  settings: string;
+  runs: number;
+  result: string | null;
+};
+// One `messages` row.
+interface MessageRow {
+  id: number;
+  session_id: string;
+  text: string;
+  state: string;
+  queued_at: string;
+}
+// A lane session's settings (laneSettings).
+interface Lane {
+  home: string;
+  header: string;
+  resume?: string;
+  keepSince?: string;
+}
+// A session's epic context (contextSettings).
+interface ContextSettings {
+  readable: string[];
+  cleanup: string[];
+  mcp: Record<
+    string,
+    { command: string[]; env?: string[]; [key: string]: unknown }
+  >;
+}
+// A child's `settings` column.
+interface ChildSettings {
+  allowCommands?: readonly (readonly string[])[];
+  network?: unknown;
+  readable?: string[];
+  context?: ContextSettings | null;
+  lane?: Lane;
+}
+// A child's `placeholder_values` column.
+type Values = Record<string, unknown> & {
+  tmp?: string;
+  repository_cache_dirs?: string[];
+};
+type StartTime = (pid: number) => string | null;
+const messageOf = (error: unknown) =>
+  error instanceof Error ? error.message : String(error);
+// A value's own fields, or none when it is not an object.
+const fieldsOf = (value: unknown): Record<string, unknown> =>
+  value && typeof value === "object" && !Array.isArray(value)
+    ? Object.fromEntries(Object.entries(value))
+    : {};
+
 // The package.json paths Node reads to find a module's type: each folder
 // above `file` up to the first that has one.
-function packageLookups(file) {
-  const out = [];
+function packageLookups(file: string) {
+  const out: string[] = [];
   for (let dir = path.dirname(file); ; dir = path.dirname(dir)) {
     const candidate = path.join(dir, "package.json");
     out.push(candidate);
@@ -83,7 +154,7 @@ function packageLookups(file) {
   }
 }
 
-export function supervisorPaths(stateDirectory) {
+export function supervisorPaths(stateDirectory: unknown) {
   if (typeof stateDirectory !== "string" || !stateDirectory)
     fail("The machine state directory is required for the supervisor.");
   const root = path.join(path.resolve(stateDirectory), "supervisor");
@@ -97,7 +168,7 @@ export function supervisorPaths(stateDirectory) {
   };
 }
 
-export function openSupervisorDatabase(stateDirectory) {
+export function openSupervisorDatabase(stateDirectory: unknown) {
   const paths = supervisorPaths(stateDirectory);
   fs.mkdirSync(paths.root, { recursive: true, mode: 0o700 });
   const db = new DatabaseSync(paths.database);
@@ -138,7 +209,7 @@ export function openSupervisorDatabase(stateDirectory) {
     db
       .prepare("PRAGMA table_info(children)")
       .all()
-      .map((c) => c.name),
+      .map((c) => String(c.name)),
   );
   if (!columns.has("settings"))
     db.exec(
@@ -152,7 +223,7 @@ export function openSupervisorDatabase(stateDirectory) {
   return db;
 }
 
-const text = (value, name) => {
+const text = (value: unknown, name: string): string => {
   if (typeof value !== "string" || !value.trim())
     fail(`A supervisor request needs ${name}.`);
   return value;
@@ -160,22 +231,26 @@ const text = (value, name) => {
 
 // Queue one session request. Only the `process` executor's requests are
 // taken (R95.2); a Kiro Crew chat never reaches the supervisor.
-export function requestChild(db, request) {
-  if (!request || typeof request !== "object")
+export function requestChild(db: DatabaseSync, given: unknown) {
+  const request = fieldsOf(given);
+  if (!given || typeof given !== "object")
     fail("A supervisor request must be an object.");
   if (request.executor !== "process")
     fail(
       `The supervisor takes only process requests, not ${JSON.stringify(request.executor)}.`,
     );
-  const sessionId = request.sessionId ?? `process-${randomUUID()}`;
+  const sessionId = String(request.sessionId ?? `process-${randomUUID()}`);
   if (!SESSION.test(sessionId))
     fail(`Session ID ${JSON.stringify(sessionId)} is not a process session.`);
-  if (!["read", "write"].includes(request.permissionClass))
+  const permissionClass = String(request.permissionClass);
+  if (!["read", "write"].includes(permissionClass))
     fail("permissionClass must be read or write.");
-  if (typeof request.brief !== "string")
-    fail("A supervisor request needs a brief.");
-  if (request.model !== undefined && request.model !== null)
-    text(request.model, "a model or null");
+  const brief = request.brief;
+  if (typeof brief !== "string") fail("A supervisor request needs a brief.");
+  const model =
+    request.model !== undefined && request.model !== null
+      ? text(request.model, "a model or null")
+      : null;
   const values = request.values ?? {};
   if (!values || typeof values !== "object" || Array.isArray(values))
     fail("Request values must be an object.");
@@ -211,16 +286,16 @@ export function requestChild(db, request) {
       text(request.task, "a task"),
       path.resolve(text(request.worktree, "a worktree")),
       text(request.harness, "a harness"),
-      request.permissionClass,
-      request.model ?? null,
-      request.brief,
+      permissionClass,
+      model,
+      brief,
       JSON.stringify(values),
       JSON.stringify(settings),
       now,
       now,
     );
   } catch (error) {
-    if (/UNIQUE/.test(error.message))
+    if (/UNIQUE/.test(messageOf(error)))
       fail(`Session ${sessionId} was already requested.`, 409);
     throw error;
   }
@@ -229,47 +304,55 @@ export function requestChild(db, request) {
 
 // The harness's own session UUID for a child: the session a review round
 // resumes, else the child's own (simplify §D22.2).
-export function harnessSession(row) {
-  const lane = JSON.parse(row.settings || "{}").lane;
+export function harnessSession(row: {
+  settings?: string | null;
+  session_id: string;
+}) {
+  // The stored settings column.
+  const lane: Lane | undefined = JSON.parse(row.settings || "{}").lane;
   return lane?.resume ?? row.session_id.slice("process-".length);
 }
 
 // A lane session's settings (simplify §D22.2): {home, header, resume?}. The
 // home is the lane's own folder; `resume` names the harness session a
 // review round continues.
-export function laneSettings(value) {
+export function laneSettings(value: unknown): Lane {
+  const { home, header, resume, keepSince } = fieldsOf(value);
   if (
     !value ||
     typeof value !== "object" ||
-    typeof value.home !== "string" ||
-    !path.isAbsolute(value.home) ||
-    typeof value.header !== "string" ||
-    !value.header.trim() ||
-    value.header.length > 200 ||
-    /[\u0000-\u001f]/.test(value.header) ||
-    (value.resume !== undefined &&
-      !/^[0-9a-f-]{36}$/.test(String(value.resume))) ||
-    (value.keepSince !== undefined && Number.isNaN(Date.parse(value.keepSince)))
+    typeof home !== "string" ||
+    !path.isAbsolute(home) ||
+    typeof header !== "string" ||
+    !header.trim() ||
+    header.length > 200 ||
+    /[\u0000-\u001f]/.test(header) ||
+    (resume !== undefined && !/^[0-9a-f-]{36}$/.test(String(resume))) ||
+    (keepSince !== undefined && Number.isNaN(Date.parse(String(keepSince))))
   )
     fail("A request's lane must be {home, header, resume?, keepSince?}.");
   return {
-    home: path.resolve(value.home),
-    header: value.header,
-    ...(value.resume ? { resume: value.resume } : {}),
-    ...(value.keepSince ? { keepSince: value.keepSince } : {}),
+    home: path.resolve(home),
+    header,
+    ...(resume ? { resume: String(resume) } : {}),
+    ...(keepSince ? { keepSince: String(keepSince) } : {}),
   };
 }
 
 // When a lane's next task starts, delete the lane's session files older
 // than its last task's start (simplify §D22.2). Only files under the lane's
 // own home and the harness's session folder there, never another home.
-export function pruneLaneSessions(home, sessions, keepSince) {
+export function pruneLaneSessions(
+  home: string,
+  sessions: string,
+  keepSince: string,
+) {
   const root = path.join(home, sessions),
     before = Date.parse(keepSince),
-    removed = [];
-  const walk = (folder, depth) => {
+    removed: string[] = [];
+  const walk = (folder: string, depth: number) => {
     if (depth > 8) return;
-    let entries;
+    let entries: fs.Dirent[];
     try {
       entries = fs.readdirSync(folder, { withFileTypes: true });
     } catch {
@@ -292,36 +375,50 @@ export function pruneLaneSessions(home, sessions, keepSince) {
 // cleanup: [absolute], mcp: {alias: {command, env, plugin?}}}, or null.
 // Reads are read-only roots for this session; `cleanup` folders are removed
 // when it exits; each MCP alias is served by the broker.
-export function contextSettings(value) {
+export function contextSettings(value: unknown): ContextSettings | null {
   if (value === undefined || value === null) return null;
   if (typeof value !== "object" || Array.isArray(value))
     fail("Request context must be an object.");
-  const mcp = value.mcp ?? {};
+  const given = fieldsOf(value),
+    mcp = given.mcp ?? {};
   if (typeof mcp !== "object" || Array.isArray(mcp))
     fail("Request context.mcp must be an object.");
-  const strings = (list) =>
+  const strings = (list: unknown): list is string[] =>
     Array.isArray(list) && list.every((item) => typeof item === "string");
-  for (const [alias, server] of Object.entries(mcp))
+  const servers: ContextSettings["mcp"] = {};
+  for (const [alias, server] of Object.entries(fieldsOf(mcp))) {
+    const { command, env, ...rest } = fieldsOf(server);
     if (
       !/^[a-z][a-z0-9-]{0,39}$/.test(alias) ||
-      !strings(server?.command) ||
-      !server.command.length ||
-      !strings(server.env ?? [])
+      !strings(command) ||
+      !command.length ||
+      !strings(env ?? [])
     )
       fail(`Request context.mcp.${alias} must be {command, env}.`);
+    servers[alias] = {
+      ...rest,
+      command,
+      ...(env === undefined ? {} : { env: strings(env) ? env : [] }),
+    };
+  }
   return {
-    readable: absolutePaths(value.readable, "context.readable"),
-    cleanup: absolutePaths(value.cleanup, "context.cleanup"),
-    mcp,
+    readable: absolutePaths(given.readable, "context.readable"),
+    cleanup: absolutePaths(given.cleanup, "context.cleanup"),
+    mcp: servers,
   };
 }
 
 // Replace a session's epic context before it resumes (null drops it), so a
 // resume runs with what the gate gave this time.
-export function setChildContext(db, sessionId, context) {
+export function setChildContext(
+  db: DatabaseSync,
+  sessionId: string,
+  context: unknown,
+) {
   const row = childRecord(db, sessionId);
   if (!row) fail(`No supervisor session ${sessionId}.`, 404);
-  const settings = JSON.parse(row.settings || "{}");
+  // The stored settings column.
+  const settings: ChildSettings = JSON.parse(row.settings || "{}");
   settings.context = contextSettings(context);
   db.prepare("UPDATE children SET settings = ? WHERE session_id = ?").run(
     JSON.stringify(settings),
@@ -329,10 +426,11 @@ export function setChildContext(db, sessionId, context) {
   );
 }
 
-export function childRecord(db, sessionId) {
+export function childRecord(db: DatabaseSync, sessionId: string) {
+  // A children row, as openSupervisorDatabase makes the table.
   return db
     .prepare("SELECT * FROM children WHERE session_id = ?")
-    .get(sessionId);
+    .get(sessionId) as ChildRow | undefined;
 }
 
 // The executor status of one child (R93): a request not yet started counts
@@ -359,7 +457,7 @@ export function readChildResult(worktree: string): ChildResult {
   const file = path.join(worktree, RESULT_FILE);
   const linked = linkedOnTheWay(worktree, RESULT_FILE);
   if (linked) return { problem: linked };
-  let stat;
+  let stat: fs.Stats;
   try {
     stat = fs.lstatSync(file);
   } catch {
@@ -369,7 +467,13 @@ export function readChildResult(worktree: string): ChildResult {
     return { problem: "The result file is not a regular file." };
   if (stat.size > RESULT_BYTES)
     return { problem: `The result file is over ${RESULT_BYTES} bytes.` };
-  let value;
+  // The result file's JSON, checked below.
+  let value: {
+    state?: unknown;
+    text?: unknown;
+    report?: unknown;
+    output?: unknown;
+  } | null;
   try {
     value = JSON.parse(readNoFollow(file));
   } catch {
@@ -382,8 +486,8 @@ export function readChildResult(worktree: string): ChildResult {
     Object.keys(value).some(
       (key) => !["state", "text", "report", "output"].includes(key),
     ) ||
-    (value.output !== undefined && !OUTPUT_NAME.test(value.output)) ||
-    !["done", "blocked"].includes(value.state) ||
+    (value.output !== undefined && !OUTPUT_NAME.test(String(value.output))) ||
+    !["done", "blocked"].includes(String(value.state)) ||
     (value.text !== undefined && typeof value.text !== "string") ||
     (value.report !== undefined &&
       (!value.report ||
@@ -395,17 +499,17 @@ export function readChildResult(worktree: string): ChildResult {
         'The result file must be {"state": "done" | "blocked", "text": "...", "report"?: {...}, "output"?: "<file name>"}.',
     };
   return {
-    state: value.state,
-    text: value.text ?? "",
+    state: String(value.state),
+    text: typeof value.text === "string" ? value.text : "",
     ...(value.report ? { report: value.report } : {}),
-    ...(value.output ? { output: value.output } : {}),
+    ...(value.output ? { output: String(value.output) } : {}),
   };
 }
 
 // Why a file under a task folder must not be read, or null (D6, VM5.3):
 // a symbolic link at any level below the folder, or a real path outside it.
 // Nothing of a link's target is read.
-export function linkedOnTheWay(folder, relative) {
+export function linkedOnTheWay(folder: string, relative: string) {
   let at = path.resolve(folder);
   for (const part of relative.split(/[\\/]+/).filter(Boolean)) {
     at = path.join(at, part);
@@ -429,7 +533,7 @@ export function linkedOnTheWay(folder, relative) {
 
 // Read a file without following a link at its last part, which a check
 // before the read cannot rule out.
-function readNoFollow(file) {
+function readNoFollow(file: string) {
   const fd = fs.openSync(
     file,
     fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW ?? 0),
@@ -461,7 +565,7 @@ export function readChildOutput(
   const folder = path.join(worktree, OUTPUT_DIRECTORY);
   const linked = linkedOnTheWay(worktree, path.join(OUTPUT_DIRECTORY, name));
   if (linked) return { problem: linked };
-  let names;
+  let names: string[];
   try {
     if (!fs.lstatSync(folder).isDirectory())
       return { problem: "The output folder is not a folder." };
@@ -485,18 +589,21 @@ export function readChildOutput(
   try {
     return { text, value: validate ? validate(text) : text };
   } catch (error) {
-    return { problem: `The output file is not valid: ${error.message}` };
+    return { problem: `The output file is not valid: ${messageOf(error)}` };
   }
 }
 
 // The finished run's outcome (R96.3, R96.4), or null while it runs. `done`
 // needs exit code 0 and a good file; `blocked` needs a good file; anything
 // else has no state and takes the retry path as `exited <code>`.
-export function childResult(db, sessionId) {
+export function childResult(db: DatabaseSync, sessionId: string) {
   const row = childRecord(db, sessionId);
-  if (!row) fail(`No supervisor session ${sessionId}.`, 404);
+  if (!row) return fail(`No supervisor session ${sessionId}.`, 404);
   if (row.state !== "exited" || queuedMessage(db, sessionId)) return null;
-  const read = row.result ? JSON.parse(row.result) : { problem: row.error };
+  // The stored result column (readChildResult's answer).
+  const read: ChildResult & { problem?: string | null } = row.result
+    ? JSON.parse(row.result)
+    : { problem: row.error };
   const state =
     read.state === "blocked" || (read.state === "done" && row.exit_code === 0)
       ? read.state
@@ -517,29 +624,30 @@ export function childResult(db, sessionId) {
   };
 }
 
-export function childStatus(db, sessionId) {
+export function childStatus(db: DatabaseSync, sessionId: string) {
   const row = childRecord(db, sessionId);
-  if (!row) fail(`No supervisor session ${sessionId}.`, 404);
+  if (!row) return fail(`No supervisor session ${sessionId}.`, 404);
   if (row.state === "requested" || row.state === "running") return "working";
   if (row.state === "exited")
     return queuedMessage(db, sessionId) ? "working" : `exited ${row.exit_code}`;
   return "gone";
 }
 
-const queuedMessage = (db, sessionId) =>
+const queuedMessage = (db: DatabaseSync, sessionId: string) =>
+  // A messages row, as openSupervisorDatabase makes the table.
   db
     .prepare(
       "SELECT * FROM messages WHERE session_id = ? AND state = 'queued' ORDER BY id LIMIT 1",
     )
-    .get(sessionId);
+    .get(sessionId) as MessageRow | undefined;
 
 // Queue a message for a session (R93 send). The supervisor delivers it with
 // the definition's resume argv once the current run exits. A gone or
 // stopped session, or one that never ran, refuses it.
-export function sendChild(db, sessionId, text) {
+export function sendChild(db: DatabaseSync, sessionId: string, text: unknown) {
   if (typeof text !== "string") fail("A message must be text.");
   const row = childRecord(db, sessionId);
-  if (!row) fail(`No supervisor session ${sessionId}.`, 404);
+  if (!row) return fail(`No supervisor session ${sessionId}.`, 404);
   if (
     row.state === "gone" ||
     row.state === "stopped" ||
@@ -558,12 +666,12 @@ export function sendChild(db, sessionId, text) {
 // wrapper then records the exit code. The signal checks the pid's start
 // time first, so a reused pid is never signaled.
 export function stopChild(
-  db,
-  sessionId,
-  { startTime = processStartTime } = {},
+  db: DatabaseSync,
+  sessionId: string,
+  { startTime = processStartTime }: { startTime?: StartTime } = {},
 ) {
   const row = childRecord(db, sessionId);
-  if (!row) fail(`No supervisor session ${sessionId}.`, 404);
+  if (!row) return fail(`No supervisor session ${sessionId}.`, 404);
   db.prepare(
     "UPDATE messages SET state = 'dropped' WHERE session_id = ? AND state = 'queued'",
   ).run(sessionId);
@@ -582,7 +690,7 @@ export function stopChild(
       sameProcess(row.pid, row.process_started, startTime)
     )
       try {
-        process.kill(-row.pid, "SIGTERM");
+        process.kill(-Number(row.pid), "SIGTERM");
       } catch {
         // Already exiting: the wrapper writes the code.
       }
@@ -594,7 +702,7 @@ export function stopChild(
 // be read. A pid with a different start time is another process.
 // shortcut: macOS needs the setuid `ps`, which some sandboxes forbid; then
 // only pid liveness is checked. Read sysctl directly if pid reuse shows up.
-export function processStartTime(pid) {
+export function processStartTime(pid: unknown): string | null {
   try {
     const out =
       process.platform === "win32"
@@ -625,35 +733,50 @@ export function processStartTime(pid) {
   }
 }
 
-function pidAlive(pid) {
-  if (!Number.isInteger(pid) || pid <= 0) return false;
+function pidAlive(pid: unknown): pid is number {
+  if (typeof pid !== "number" || !Number.isInteger(pid) || pid <= 0)
+    return false;
   try {
     process.kill(pid, 0);
     return true;
   } catch (error) {
-    return error.code !== "ESRCH";
+    return !(
+      error instanceof Error &&
+      "code" in error &&
+      error.code === "ESRCH"
+    );
   }
 }
 
 // Whether `pid` is still the process that started at `started`. An unreadable
 // start time keeps the child: a failed observation is never evidence of gone.
-export const processIsSame = (pid, started) => sameProcess(pid, started);
-export function sameProcess(pid, started, startTime = processStartTime) {
+export const processIsSame = (pid: unknown, started: string | null) =>
+  sameProcess(pid, started);
+export function sameProcess(
+  pid: unknown,
+  started: string | null | undefined,
+  startTime: StartTime = processStartTime,
+) {
   if (!pidAlive(pid)) return false;
   if (!started) return true;
   const now = startTime(pid);
   return now === null || now === started;
 }
 
-function readJson(file) {
+function readJson<T>(file: string): T | null {
   try {
+    // A JSON file this supervisor or its wrapper wrote.
     return JSON.parse(fs.readFileSync(file, "utf8"));
   } catch {
     return null;
   }
 }
 
-function update(db, sessionId, fields) {
+function update(
+  db: DatabaseSync,
+  sessionId: string,
+  fields: Record<string, SQLInputValue>,
+) {
   const keys = Object.keys(fields);
   db.prepare(
     `UPDATE children SET ${keys.map((k) => `${k} = ?`).join(", ")},
@@ -665,7 +788,7 @@ function update(db, sessionId, fields) {
 export const GIT_USER_CONFIG = [".gitconfig", path.join(".config", "git")];
 
 // Absolute paths a request names, or [].
-function absolutePaths(value, label) {
+function absolutePaths(value: unknown, label: string): string[] {
   if (value === undefined || value === null) return [];
   if (
     !Array.isArray(value) ||
@@ -676,7 +799,7 @@ function absolutePaths(value, label) {
 }
 
 // `env` without the named variables.
-function withoutNames(env, names) {
+function withoutNames(env: NodeJS.ProcessEnv, names: string[]) {
   const kept = { ...env };
   for (const name of names) delete kept[name];
   return kept;
@@ -684,7 +807,7 @@ function withoutNames(env, names) {
 
 // The worktree's shared git directory, which no write root may cover
 // (R94.4a), or null outside a repository.
-function gitCommonDir(worktree) {
+function gitCommonDir(worktree: string) {
   try {
     const out = execFileSync("git", ["rev-parse", "--git-common-dir"], {
       cwd: worktree,
@@ -698,8 +821,8 @@ function gitCommonDir(worktree) {
   }
 }
 
-function killGroup(pid) {
-  if (process.platform === "win32") return;
+function killGroup(pid: number | null) {
+  if (process.platform === "win32" || !pid) return;
   try {
     process.kill(-pid, "SIGKILL");
   } catch {
@@ -708,9 +831,9 @@ function killGroup(pid) {
 }
 
 // The broker process serving a session's MCP aliases, recorded in its folder.
-const brokerRecord = (folder) => path.join(folder, "broker.json");
+const brokerRecord = (folder: string) => path.join(folder, "broker.json");
 // And its egress proxy process.
-const egressRecord = (folder) => path.join(folder, "egress.json");
+const egressRecord = (folder: string) => path.join(folder, "egress.json");
 
 // One supervisor for one tick: `pass()` records the state of running
 // children, reaps those that ended, starts requested ones and resumes those
@@ -721,14 +844,24 @@ export function openSupervisor({
   configDirectory,
   startTime = processStartTime,
   env = process.env,
+}: {
+  stateDirectory: string;
+  configDirectory: string;
+  startTime?: StartTime;
+  env?: NodeJS.ProcessEnv;
 }) {
   const paths = supervisorPaths(stateDirectory);
   const db = openSupervisorDatabase(stateDirectory);
   // Children this process spawned; others are found again by pid.
-  const own = new Map();
+  const own = new Map<string, ChildProcess>();
   // The epic context MCP broker of a session: its own detached process, since
   // the child outlives this tick. It ends when the run's exit file appears.
-  const openContextMcp = (session, mcp, folder, exitFile) => {
+  const openContextMcp = (
+    session: string,
+    mcp: ContextSettings["mcp"],
+    folder: string,
+    exitFile: string,
+  ) => {
     const sockets = fs.mkdtempSync(path.join(os.tmpdir(), "avz-"));
     fs.chmodSync(sockets, 0o700);
     const socket = path.join(sockets, "mcp.sock"),
@@ -748,7 +881,7 @@ export function openSupervisor({
       { mode: 0o600 },
     );
     const out = fs.openSync(path.join(folder, "broker.log"), "a", 0o600);
-    let broker;
+    let broker: ChildProcess;
     try {
       broker = spawn(process.execPath, [BROKER_MAIN, spec], {
         detached: true,
@@ -762,7 +895,10 @@ export function openSupervisor({
     broker.unref();
     fs.writeFileSync(
       brokerRecord(folder),
-      JSON.stringify({ pid: broker.pid, started: startTime(broker.pid) }),
+      JSON.stringify({
+        pid: broker.pid,
+        started: broker.pid === undefined ? null : startTime(broker.pid),
+      }),
       { mode: 0o600 },
     );
     // The relay connects as the agent starts, so the socket must be there.
@@ -803,36 +939,38 @@ export function openSupervisor({
   };
   // Stop the helper process a session's record names, if it is still that
   // process: its MCP broker or its egress proxy.
-  const endRecorded = (record) => (sessionId) => {
-    const file = record(path.join(paths.children, sessionId)),
-      found = readJson(file);
-    if (found && sameProcess(found.pid, found.started, startTime))
-      try {
-        process.kill(found.pid, "SIGTERM");
-      } catch {}
-    fs.rmSync(file, { force: true });
-  };
+  const endRecorded =
+    (record: (folder: string) => string) => (sessionId: string) => {
+      const file = record(path.join(paths.children, sessionId)),
+        found = readJson<{ pid: number; started: string | null }>(file);
+      if (found && sameProcess(found.pid, found.started, startTime))
+        try {
+          process.kill(found.pid, "SIGTERM");
+        } catch {}
+      fs.rmSync(file, { force: true });
+    };
   const endBroker = endRecorded(brokerRecord);
   const endEgress = endRecorded(egressRecord);
   // A finished session's epic context: its broker, and the folders made for
   // it (the skills copy); and its egress proxy.
-  const endContext = (row) => {
+  const endContext = (row: ChildRow) => {
     endBroker(row.session_id);
     endEgress(row.session_id);
     try {
-      for (const folder of JSON.parse(row.settings || "{}").context?.cleanup ??
-        [])
+      // The stored settings column.
+      const settings: ChildSettings = JSON.parse(row.settings || "{}");
+      for (const folder of settings.context?.cleanup ?? [])
         fs.rmSync(folder, { recursive: true, force: true });
     } catch {}
   };
   let closed = false;
 
-  const start = (row, message = null) => {
+  const start = (row: ChildRow, message: MessageRow | null = null) => {
     const folder = path.join(paths.children, row.session_id);
     const log = path.join(folder, "log");
     const run = (row.runs ?? 0) + 1;
     const exitFile = path.join(folder, `exit-${run}.json`);
-    let hash = null;
+    let hash: string | null = null;
     try {
       const stat = fs.statSync(row.worktree, { throwIfNoEntry: false });
       if (!stat?.isDirectory())
@@ -843,8 +981,9 @@ export function openSupervisor({
       });
       hash = definition.hash;
       // A read-only child that cannot write its result never starts (NK6.1).
-      if (row.permission_class === "read" && readRoleProblem(definition))
-        fail(readRoleProblem(definition), 409);
+      const roleProblem = readRoleProblem(definition);
+      if (row.permission_class === "read" && roleProblem)
+        fail(roleProblem, 409);
       fs.mkdirSync(folder, { recursive: true, mode: 0o700 });
       // Each run writes its own result; one from an earlier run never counts.
       fs.mkdirSync(path.join(row.worktree, ".avoozl"), { recursive: true });
@@ -853,7 +992,8 @@ export function openSupervisor({
         recursive: true,
         force: true,
       });
-      const settings = JSON.parse(row.settings || "{}"),
+      // The stored settings column.
+      const settings: ChildSettings = JSON.parse(row.settings || "{}"),
         lane = settings.lane ?? null;
       const briefFile = path.join(folder, "brief.md");
       // A harness that names no session gets the lane's header as the
@@ -865,12 +1005,13 @@ export function openSupervisor({
           : row.brief,
         { mode: 0o600 },
       );
-      let messageFile = null;
+      let messageFile: string | null = null;
       if (message) {
         messageFile = path.join(folder, `message-${message.id}.md`);
         fs.writeFileSync(messageFile, message.text, { mode: 0o600 });
       }
-      const values = JSON.parse(row.placeholder_values);
+      // The stored placeholder values column.
+      const values: Values = JSON.parse(row.placeholder_values);
       // Epic context (epic-context D6): read-only folders, and MCP servers
       // through the relay when the harness loads a config file for them.
       const context = settings.context ?? null;
@@ -924,15 +1065,17 @@ export function openSupervisor({
         ...(row.permission_class === "read" && definition.resultAllow
           ? fillHarnessArgv(definition.resultAllow, filled)
           : []),
-        ...(contextMcp ? fillHarnessArgv(definition.context.mcp, filled) : []),
+        ...(contextMcp
+          ? fillHarnessArgv(definition.context?.mcp ?? [], filled)
+          : []),
       ];
       // The program as the readiness check finds it (MS5.3), so the two
       // agree; the child runs with the PATH it was found on.
       const machineEnv = readMachineEnv(configDirectory);
       const found = findProgram(argv[0], { env, machineEnv });
-      if (found.problem) fail(found.problem, 409);
+      if (found.file === undefined) fail(found.problem, 409);
       argv[0] = found.file;
-      const promptFile = message ? messageFile : briefFile;
+      const promptFile = (message && messageFile) || briefFile;
       const stdin =
         definition.promptFrom === "stdin" ? ["--stdin", promptFile] : [];
       // The sandbox wraps the agent, not the wrapper, which must still write
@@ -942,7 +1085,7 @@ export function openSupervisor({
         worktree: row.worktree,
         tmp: values.tmp,
         cacheDirs: values.repository_cache_dirs ?? [],
-        gitCommonDir: gitCommonDir(row.worktree),
+        gitCommonDir: gitCommonDir(row.worktree) ?? undefined,
         configDirectory,
       });
       if (values.tmp)
@@ -978,8 +1121,9 @@ export function openSupervisor({
       const confined = confineChild(argv, {
         definition,
         configDirectory,
-        // A lane's home holds its harness's sessions (simplify §D22.2).
-        writeRoots: [
+        // A lane's home holds its harness's sessions (simplify §D22.2);
+        // an unconfined harness has no write roots.
+        writeRoots: access.writeRoots && [
           ...access.writeRoots,
           ...(lane && definition.home ? [lane.home] : []),
         ],
@@ -1055,14 +1199,14 @@ export function openSupervisor({
           }),
           [
             ...Object.values(context?.mcp ?? {}).flatMap(
-              (server) => server.env,
+              (server) => server.env ?? [],
             ),
             ...reach.unset,
           ],
         ),
       });
       const out = fs.openSync(log, "a", 0o600);
-      let child;
+      let child: ChildProcess;
       try {
         child = spawn(
           process.execPath,
@@ -1122,20 +1266,22 @@ export function openSupervisor({
         state: "exited",
         harness_hash: hash,
         exit_code: -1,
-        error: error.message,
+        error: messageOf(error),
       });
     }
   };
 
-  const observe = (row) => {
-    const exit = row.exit_file && readJson(row.exit_file);
+  const observe = (row: ChildRow) => {
+    const exit = row.exit_file
+      ? readJson<{ code?: unknown; error?: string }>(row.exit_file)
+      : null;
     if (exit && Number.isInteger(exit.code)) {
       own.delete(row.session_id);
       endContext(row);
       const read = readChildResult(row.worktree);
       return update(db, row.session_id, {
         state: "exited",
-        exit_code: exit.code,
+        exit_code: Number(exit.code),
         error: exit.error ?? read.problem ?? null,
         result: JSON.stringify(read),
       });
@@ -1163,15 +1309,16 @@ export function openSupervisor({
     const lock = tryLock(paths.lock);
     if (!lock.held) return false;
     try {
+      // Children rows, as openSupervisorDatabase makes the table.
       for (const row of db
         .prepare("SELECT * FROM children WHERE state = 'running'")
-        .all())
+        .all() as ChildRow[])
         observe(row);
       for (const row of db
         .prepare(
           "SELECT * FROM children WHERE state = 'requested' ORDER BY requested_at",
         )
-        .all())
+        .all() as ChildRow[])
         start(row);
       // A message for a session whose run has exited resumes it.
       for (const row of db
@@ -1180,8 +1327,8 @@ export function openSupervisor({
              AND EXISTS (SELECT 1 FROM messages m
                WHERE m.session_id = c.session_id AND m.state = 'queued')`,
         )
-        .all())
-        start(row, queuedMessage(db, row.session_id));
+        .all() as ChildRow[])
+        start(row, queuedMessage(db, row.session_id) ?? null);
       return true;
     } finally {
       lock.close();
@@ -1199,7 +1346,8 @@ export function openSupervisor({
     pass,
     close,
     // Each workspace's result from this tick, for `avoozl status`.
-    record: (results) => recordPasses(db, results),
+    record: (results: Parameters<typeof recordPasses>[1]) =>
+      recordPasses(db, results),
     database: paths.database,
   };
 }

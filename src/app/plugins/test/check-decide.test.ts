@@ -95,10 +95,11 @@ test("pk-1.4: approval queues one approve call per applicable task, and a true t
     }),
     { store, ops } = workspace;
   store.put("plans", { id: "p", spec: "p", state: "approved" });
-  const dispatch: { role: string; task: string; brief: string }[] = decideStep(
-    store,
-    { config: {} },
-  ).dispatch;
+  const dispatch = decideStep(store, { config: {} }).dispatch.map((d) => ({
+    role: d.role,
+    task: d.task,
+    brief: found(d.brief, "the brief"),
+  }));
   assert.deepEqual(
     decides(store)
       .map((r) => [r.taskId, r.at, r.state])

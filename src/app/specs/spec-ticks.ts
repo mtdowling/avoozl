@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // A tick on the base branch completes the task (Requirement 113, design
 // §4.41). Avoozl reads each approved spec's tasks.md as the base branch holds
 // it, never a working branch or an unsaved edit, and compares its `[x]` items
@@ -12,10 +11,11 @@ import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import { git, remoteGit } from "../git/git.ts";
+import { type QueuedTask, taskIds } from "../landing/landing-queue.ts";
 import { commitSubject } from "../landing/landing-config.ts";
 import { recordActivity } from "../store/activity-log.ts";
 import { FINAL_STATUSES } from "../sessions/session-bindings.ts";
-import { checkedItems, specItems } from "./spec-plans.ts";
+import { checkedItems, type SpecItem, specItems } from "./spec-plans.ts";
 import { linkDefinitions, specGroupOf } from "./order.ts";
 import { statusComplete } from "../../query.ts";
 import { specsPath } from "./specs-path.ts";
@@ -27,26 +27,63 @@ import {
   taskFile,
   taskText,
 } from "./spec-tasks.ts";
+import type { Repository } from "../git/git.ts";
+import type { SessionBinding } from "../sessions/session-bindings.ts";
+import type { Store } from "../store/store.ts";
+import type { Task } from "../../types.ts";
 
 const exec = promisify(execFile);
+// A stored plan, as far as ticks read it.
+interface TickPlan {
+  id: string;
+  spec?: string;
+  files?: Record<string, string>;
+  mapping?: Record<string, unknown>;
+}
+// A landing entry: its spec and the tasks it lands.
+interface TickEntry {
+  spec?: unknown;
+  tasks: QueuedTask[];
+}
+// Reads stored plans by spec name: a Store, or a test's fake.
+interface PlanReader {
+  get(table: string, id: unknown): Omit<TickPlan, "id"> | null | undefined;
+}
+// The commit that ticked a line, and when.
+interface TickAt {
+  commit: string | null;
+  at?: string | null;
+}
+// A task list item with its key and ID.
+type Keyed = SpecItem & { key: string; id: string };
+const keyedOf = (items: SpecItem[]) =>
+  items.filter((item): item is Keyed => Boolean(item.key && item.id));
 // The file that holds a spec's tasks, as a path in the checkout at `root`.
 // `files` is the spec's stored files, which name it (spec-tasks.mjs).
-const tasksPath = (root, name, files) =>
-  `${specsPath(root)}/${name}/${taskFile(files)}`;
-const short = (commit) => String(commit ?? "").slice(0, 12);
+const tasksPath = (
+  root: string,
+  name: string,
+  files?: Record<string, string>,
+) => `${specsPath(root)}/${name}/${taskFile(files)}`;
+const short = (commit: string | null | undefined) =>
+  String(commit ?? "").slice(0, 12);
 
 // Task ID -> {key, line} for every item ticked [x], plus each of its
 // sub-items: a ticked parent is done and so are its open children
 // (Requirement 113.6). `present` holds every ID the file names, so an
 // unticked item can be told from a removed one.
-export function ticksOf(name, text) {
+export function ticksOf(name: string, text: string) {
   const items = specItems(name, text),
-    byKey = new Map(items.filter((item) => item.key).map((i) => [i.key, i])),
-    ticked = new Map(),
-    present = new Set(items.filter((item) => item.id).map((item) => item.id));
-  for (const item of items) {
-    if (!item.key) continue;
-    for (let up = item; up; up = up.parent && byKey.get(up.parent.key)) {
+    keyed = keyedOf(items),
+    byKey = new Map(keyed.map((i) => [i.key, i])),
+    ticked = new Map<string, { key: string; line: number }>(),
+    present = new Set(keyed.map((item) => item.id));
+  for (const item of keyed) {
+    for (
+      let up: Keyed | undefined = item;
+      up;
+      up = up.parent?.key ? byKey.get(up.parent.key) : undefined
+    ) {
       if (up.mark !== "x") continue;
       ticked.set(item.id, { key: item.key, line: item.line });
       break;
@@ -64,17 +101,17 @@ export function ticksOf(name, text) {
 // ticked is ticked too, as landings on bases that lacked each other's tick
 // can leave one (workflow rule 3.2).
 export function tickedText(
-  name,
-  text,
-  ids,
+  name: string,
+  text: string,
+  ids: string[],
   file = TASKS_FILE,
-  { groups = false } = {},
+  { groups = false }: { groups?: boolean } = {},
 ) {
   const items = specItems(name, taskText(file, text)),
     lines = text.split("\n"),
-    ticked = [],
-    mark = (item) => {
-      if (item.mark === "x" || !item.key) return;
+    ticked: string[] = [],
+    mark = (item: Keyed) => {
+      if (item.mark === "x") return;
       lines[item.line - 1] = lines[item.line - 1].replace(
         /^(\s*[-*+] \[)[ xX~-](\])/,
         "$1x$2",
@@ -82,16 +119,16 @@ export function tickedText(
       item.mark = "x";
       ticked.push(item.id);
     },
-    keyed = items.filter((item) => item.key);
+    keyed = keyedOf(items);
   for (const item of keyed) if (ids.includes(item.id)) mark(item);
   // Parents of what ticked, until nothing more ticks.
-  const above = new Set();
+  const above = new Set<string | null>();
   for (const item of keyed)
     if (ticked.includes(item.id))
       for (
-        let up = item.parent;
+        let up: SpecItem["parent"] | undefined = item.parent;
         up;
-        up = keyed.find((k) => k.key === up.key)?.parent
+        up = keyed.find((k) => k.key === up?.key)?.parent
       )
         above.add(up.key);
   for (let moved = true; moved; ) {
@@ -117,11 +154,15 @@ export function tickedText(
 // and so on up. Returns the IDs it ticked.
 // shortcut: only a parent on the same specs branch is ticked; a parent
 // elsewhere waits for its own tick commit.
-async function tickParents(dir, spec, seen = new Set([spec])) {
+async function tickParents(
+  dir: string,
+  spec: string,
+  seen = new Set([spec]),
+): Promise<string[]> {
   const folder = path.join(dir, specsPath(dir)),
     // A folder's task file, its whole text and its task text, or null.
-    read = (name) => {
-      const files = {};
+    read = (name: string) => {
+      const files: Record<string, string> = {};
       try {
         for (const file of fs.readdirSync(path.join(folder, name)))
           if (SPEC_TEXT.test(file))
@@ -136,10 +177,10 @@ async function tickParents(dir, spec, seen = new Set([spec])) {
       return found && { ...found, raw: files[found.file] };
     },
     own = read(spec),
-    items = own ? specItems(spec, own.text).filter((item) => item.key) : [];
+    items = own ? keyedOf(specItems(spec, own.text)) : [];
   if (!items.length || items.some((item) => item.mark !== "x")) return [];
-  const ticked = [];
-  let names = [];
+  const ticked: string[] = [];
+  let names: string[] = [];
   try {
     names = fs.readdirSync(folder);
   } catch {}
@@ -149,10 +190,9 @@ async function tickParents(dir, spec, seen = new Set([spec])) {
     const { file, text, raw } = found,
       definitions = linkDefinitions(text),
       lines = text.split("\n"),
-      groups = specItems(name, text)
+      groups = keyedOf(specItems(name, text))
         .filter(
           (item) =>
-            item.key &&
             item.mark !== "x" &&
             specGroupOf(name, item, definitions, lines) === spec,
         )
@@ -171,22 +211,29 @@ async function tickParents(dir, spec, seen = new Set([spec])) {
 }
 
 // The IDs tasks.md names for these task IDs: the plan's mapping, backwards.
-const itemIdsOf = (plan, taskIds) =>
+const itemIdsOf = (
+  plan: Pick<TickPlan, "mapping"> | null | undefined,
+  ids: string[],
+) =>
   Object.entries(plan?.mapping ?? {})
-    .filter(([, taskId]) => taskIds.includes(taskId))
+    .filter(([, taskId]) => typeof taskId === "string" && ids.includes(taskId))
     .map(([id]) => id);
 
-const idsOf = (plan, entry) =>
-  itemIdsOf(
-    plan,
-    entry.tasks.map((t) => t.task),
-  );
+const idsOf = (
+  plan: Pick<TickPlan, "mapping"> | null | undefined,
+  entry: TickEntry,
+) => itemIdsOf(plan, taskIds(entry));
 
-const inCandidate = (repository, candidate, plan) =>
+const inCandidate = (
+  repository: Repository,
+  candidate: string,
+  spec: string,
+  files?: Record<string, string>,
+) =>
   git(repository.root, [
     "cat-file",
     "-e",
-    `${candidate}:${tasksPath(repository.root, plan.spec, plan.files)}`,
+    `${candidate}:${tasksPath(repository.root, spec, files)}`,
   ]).then(
     () => true,
     () => false,
@@ -195,21 +242,27 @@ const inCandidate = (repository, candidate, plan) =>
 // Tick a landing entry's tasks in the landing candidate's worktree, before
 // its merge commit (merge-batch.mjs stackMembers). A spec whose tasks.md is
 // not in this repository is left to `tickPlansRepo`.
-export async function tickEntry(store, dir, entry) {
+export async function tickEntry(
+  store: PlanReader,
+  dir: string,
+  entry: TickEntry,
+) {
   const plan = store.get("plans", entry.spec),
-    relative = plan?.spec && tasksPath(dir, plan.spec, plan.files),
-    file = relative && path.join(dir, relative);
-  if (!file || !fs.existsSync(file)) return;
+    spec = plan?.spec;
+  if (!spec) return;
+  const relative = tasksPath(dir, spec, plan?.files),
+    file = path.join(dir, relative);
+  if (!fs.existsSync(file)) return;
   const { text, ticked } = tickedText(
-    plan.spec,
+    spec,
     fs.readFileSync(file, "utf8"),
     idsOf(plan, entry),
-    taskFile(plan.files),
+    taskFile(plan?.files),
   );
   if (!ticked.length) return;
   fs.writeFileSync(file, text);
   await git(dir, ["add", relative]);
-  await tickParents(dir, plan.spec);
+  await tickParents(dir, spec);
 }
 
 // A spec that lives in a plans repository other than the code repository:
@@ -219,22 +272,36 @@ export async function tickEntry(store, dir, entry) {
 // once the tick is known to be on its done branch (in the candidate, newly
 // committed, or already there), else null: a read or push failed.
 export async function tickPlansRepo(
-  store,
-  { entry, candidate, repository, workspaceRoot, env },
+  store: Store,
+  {
+    entry,
+    candidate,
+    repository,
+    workspaceRoot,
+    env,
+  }: {
+    entry: TickEntry;
+    candidate: string;
+    repository: Repository;
+    workspaceRoot?: string | null;
+    env?: NodeJS.ProcessEnv;
+  },
 ) {
-  const plan = store.get("plans", entry.spec);
-  if (!plan?.spec) return null;
-  if (await inCandidate(repository, candidate, plan)) return { done: true };
+  const plan = store.get<TickPlan>("plans", entry.spec),
+    spec = plan?.spec;
+  if (!plan || !spec) return null;
+  if (await inCandidate(repository, candidate, spec, plan.files))
+    return { done: true };
   const roots = [
-    store.getMeta("workspaceRepository")?.root,
+    store.getMeta<{ root?: string }>("workspaceRepository")?.root,
     ...store
-      .list("repositories")
+      .list<Repository>("repositories")
       .filter((p) => p.planning && p.root)
       .map((p) => p.root),
     workspaceRoot,
   ].filter(
-    (root, i, all) =>
-      root && root !== repository.root && all.indexOf(root) === i,
+    (root, i, all): root is string =>
+      Boolean(root) && root !== repository.root && all.indexOf(root) === i,
   );
   for (const root of roots) {
     const branch = specsBranch(store, workspaceRoot, root);
@@ -242,7 +309,7 @@ export async function tickPlansRepo(
       branch,
       files: [
         {
-          spec: plan.spec,
+          spec,
           ids: idsOf(plan, entry),
           file: taskFile(plan.files),
         },
@@ -250,7 +317,10 @@ export async function tickPlansRepo(
       env,
       // shortcut: the code repository's prefix, since the plans repository
       // has no setting of its own; add one when the two differ.
-      commitPrefix: repository.commitPrefix,
+      commitPrefix:
+        typeof repository.commitPrefix === "string"
+          ? repository.commitPrefix
+          : undefined,
     }).catch(() => null);
     if (out?.commit || out?.found) return { root, branch, ...out, done: true };
   }
@@ -264,7 +334,11 @@ export async function tickPlansRepo(
 // {ticked, commit}; no commit when nothing ticked.
 // Run `fn(dir)` in a temporary detached worktree of `root` at `commit`,
 // removed afterwards.
-async function inDetached(root, commit, fn) {
+async function inDetached<T>(
+  root: string,
+  commit: string,
+  fn: (dir: string) => Promise<T>,
+): Promise<T> {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-tick-"));
   try {
     await git(root, ["worktree", "add", "--detach", "--quiet", dir, commit]);
@@ -280,10 +354,10 @@ async function inDetached(root, commit, fn) {
 // run on the tick. `commit` itself when its tasks.md is not in this
 // repository or the boxes are already ticked.
 export function tickedHead(
-  store,
-  root,
-  entry,
-  commit,
+  store: Store,
+  root: string,
+  entry: TickEntry,
+  commit: string,
   {
     env,
     commitPrefix = "",
@@ -298,10 +372,7 @@ export function tickedHead(
         "commit",
         "--quiet",
         "-m",
-        commitSubject(
-          commitPrefix,
-          `Tick ${entry.tasks.map((t) => t.task).join(", ")}`,
-        ),
+        commitSubject(commitPrefix, `Tick ${taskIds(entry).join(", ")}`),
       ],
       { env },
     );
@@ -315,7 +386,7 @@ export function tickedHead(
 // task list as read on the branch. Pushed once, never forced; a refused push
 // waits for the next read. Returns the IDs it ticked.
 export async function tickOpenGroups(
-  root,
+  root: string,
   {
     branch,
     spec,
@@ -345,7 +416,7 @@ export async function tickOpenGroups(
 }
 
 export async function tickBranch(
-  root,
+  root: string,
   {
     branch,
     files,
@@ -355,7 +426,7 @@ export async function tickBranch(
     commitPrefix = "",
   }: {
     branch: string;
-    files: { spec: string; ids: string[]; file?: string; groups?: unknown }[];
+    files: { spec: string; ids: string[]; file?: string; groups?: boolean }[];
     remote?: string;
     tries?: number;
     env?: NodeJS.ProcessEnv;
@@ -366,7 +437,7 @@ export async function tickBranch(
     await remoteGit(root, ["fetch", "--quiet", remote, branch], { env });
     const base = await git(root, ["rev-parse", "FETCH_HEAD"]);
     const out = await inDetached(root, base, async (dir) => {
-      const ticked = [];
+      const ticked: string[] = [];
       let found = 0;
       for (const { spec, ids, file: name = TASKS_FILE, groups } of files) {
         const relative = `${specsPath(dir)}/${spec}/${name}`,
@@ -418,7 +489,11 @@ export async function tickBranch(
 // remote holds is the shared state: fetch it (once per checkout in
 // `fetched`, one tick's set), then read it. A checkout with no remote reads
 // its own branch. Throws when the branch is not there.
-export async function baseHead(root, branch, { fetched } = {}) {
+export async function baseHead(
+  root: string,
+  branch: string,
+  { fetched }: { fetched?: Set<string> } = {},
+) {
   const remote = `refs/remotes/origin/${branch}`;
   if (!fetched?.has(root)) {
     fetched?.add(root);
@@ -438,7 +513,15 @@ export async function baseHead(root, branch, { fetched } = {}) {
 // The task text of `branch` in the checkout at `root`, as git holds it, with
 // the branch's head; null when the branch or the file is not there. `files`
 // is the spec's stored files, which name its task file (spec-tasks.mjs).
-export async function baseTasks(root, branch, name, { fetched, files } = {}) {
+export async function baseTasks(
+  root: string,
+  branch: string,
+  name: string,
+  {
+    fetched,
+    files,
+  }: { fetched?: Set<string>; files?: Record<string, string> } = {},
+) {
   try {
     const { head, ref } = await baseHead(root, branch, { fetched });
     // Not `git()`: its trim would shift the line numbers.
@@ -457,7 +540,12 @@ export async function baseTasks(root, branch, name, { fetched, files } = {}) {
 // number: for a ticked item, the commit on the base branch that ticked it.
 // First parent only, so a merge (Avoozl's landing, a merged pull request)
 // owns what it brought, as a squash or a direct push does. One `git blame`.
-export async function tickCommits(root, ref, name, files) {
+export async function tickCommits(
+  root: string,
+  ref: string,
+  name: string,
+  files?: Record<string, string>,
+) {
   try {
     const { stdout } = await exec(
         "git",
@@ -471,9 +559,9 @@ export async function tickCommits(root, ref, name, files) {
         ],
         { cwd: root, maxBuffer: 32 * 1024 * 1024 },
       ),
-      times = new Map(),
-      lines = new Map();
-    let current = null;
+      times = new Map<string, number>(),
+      lines = new Map<number, string>();
+    let current: string | null = null;
     for (const row of stdout.split("\n")) {
       const head = /^([0-9a-f]{40}) \d+ (\d+)/.exec(row);
       if (head) {
@@ -483,15 +571,16 @@ export async function tickCommits(root, ref, name, files) {
         times.set(current, Number(row.slice(15)));
     }
     return new Map(
-      [...lines].map(([line, commit]) => [
-        line,
-        {
-          commit,
-          at: times.has(commit)
-            ? new Date(times.get(commit) * 1000).toISOString()
-            : null,
-        },
-      ]),
+      [...lines].map(([line, commit]) => {
+        const time = times.get(commit);
+        return [
+          line,
+          {
+            commit,
+            at: time === undefined ? null : new Date(time * 1000).toISOString(),
+          },
+        ];
+      }),
     );
   } catch {
     return null;
@@ -500,7 +589,15 @@ export async function tickCommits(root, ref, name, files) {
 
 // A task the tick marks done. A validation-gated task is left alone: only
 // checks Avoozl recorded accept it (Requirement 38.4), and no mark can.
-function complete(task, { key, line, branch, found }) {
+function complete(
+  task: Task,
+  {
+    key,
+    line,
+    branch,
+    found,
+  }: { key: string; line: number; branch: string; found: TickAt },
+) {
   const at = found.at ?? new Date().toISOString(),
     commit = found.commit;
   task.status = "accepted";
@@ -526,28 +623,44 @@ function complete(task, { key, line, branch, found }) {
 // it: receipts and Flow look its CI up by it (R101.14, R113.14). It is read
 // once and kept. With `read.land`, a done task with no landing lands at it.
 // Returns the activity lines it wrote.
-export async function applyTicks(store, plan, read) {
+export async function applyTicks(
+  store: Store,
+  plan: TickPlan,
+  read: {
+    branch: string;
+    text: string;
+    head: string;
+    land?: boolean;
+    commits?: () => Promise<Map<number, TickAt> | null>;
+  },
+) {
+  if (!plan.spec) return { done: [], released: [] };
   const { ticked, present } = ticksOf(plan.spec, read.text),
     seenKey = `spec-ticks:${plan.id}`,
-    before = store.getMeta(seenKey),
+    before = store.getMeta<string[]>(seenKey),
     data = store.read(),
     byId = new Map(data.tasks.map((task) => [task.id, task])),
+    // The task a tasks.md ID maps to.
+    taskOf = (tasks: Map<string, Task>, id: string) => {
+      const taskId = plan.mapping?.[id];
+      return typeof taskId === "string" ? tasks.get(taskId) : undefined;
+    },
     // A person's `Built:` line, read when there is one; Avoozl writes none.
     built = checkedItems(plan.spec, read.text),
-    now = [];
+    now: { task: Task; commit: string | null }[] = [];
   // The commit for each tick that will complete a task, and each ticked
   // task's tick commit, read before the write so git stays outside the
   // transaction.
-  const found = new Map(),
-    ticks = new Map(),
-    open = (task) =>
+  const found = new Map<string, TickAt>(),
+    ticks = new Map<string, string | null>(),
+    open = (task: Task) =>
       !statusComplete(data, task.status) &&
       // Avoozl's own landing carried this tick: already known, so no second
       // Activity line and no worker released (Requirement 113.11).
       !task.integration?.commit;
-  let commits;
+  let commits: Map<number, TickAt> | undefined;
   for (const [id, tick] of ticked) {
-    const task = byId.get(plan.mapping?.[id]);
+    const task = taskOf(byId, id);
     if (!task || (task.tickCommit && !open(task))) continue;
     commits ??= (await read.commits?.()) ?? new Map();
     const at = commits.get(tick.line);
@@ -557,7 +670,7 @@ export async function applyTicks(store, plan, read) {
   store.mutate(`Ticks on ${read.branch} for ${plan.spec}`, (next) => {
     const tasks = new Map(next.tasks.map((task) => [task.id, task]));
     for (const [id, tick] of ticked) {
-      const task = tasks.get(plan.mapping?.[id]);
+      const task = taskOf(tasks, id);
       if (!task) continue;
       delete task.untick;
       const commit = /^`?([0-9a-f]{7,40})\b/.exec(
@@ -575,21 +688,25 @@ export async function applyTicks(store, plan, read) {
           commit: ticks.get(id),
           branch: read.branch,
           into: read.branch,
-          at: task.acceptanceEvidence?.at ?? new Date().toISOString(),
+          at:
+            typeof task.acceptanceEvidence?.at === "string"
+              ? task.acceptanceEvidence.at
+              : new Date().toISOString(),
         };
-      if (!found.has(id)) continue;
+      const at = found.get(id);
+      if (!at) continue;
       complete(task, {
         key: tick.key,
         line: tick.line,
         branch: read.branch,
-        found: found.get(id),
+        found: at,
       });
-      now.push({ task, commit: found.get(id).commit });
+      now.push({ task, commit: at.commit });
     }
     // An item that was ticked and is now open, in a task that is done: not
     // reopened silently; it waits in Needs you (Requirement 113.4).
     for (const id of before ?? []) {
-      const task = tasks.get(plan.mapping?.[id]);
+      const task = taskOf(tasks, id);
       if (
         !ticked.has(id) &&
         present.has(id) &&
@@ -600,7 +717,7 @@ export async function applyTicks(store, plan, read) {
     }
   });
   store.setMeta(seenKey, [...ticked.keys()]);
-  const released = [];
+  const released: string[] = [];
   for (const { task, commit } of now) {
     recordActivity(store, {
       source: "tick",
@@ -609,11 +726,11 @@ export async function applyTicks(store, plan, read) {
       targetId: task.id,
       key: `ticked:${task.id}:${commit ?? read.head}`,
     });
-    for (const binding of store.list("session_bindings"))
+    for (const binding of store.list<SessionBinding>("session_bindings"))
       if (
         binding.taskId === task.id &&
         binding.role === "worker" &&
-        !FINAL_STATUSES.has(binding.status)
+        !FINAL_STATUSES.has(binding.status ?? "")
       ) {
         store.put("session_bindings", {
           ...binding,

@@ -507,12 +507,15 @@ test("the supervisor reads the exit code and result file; bad ones take the retr
   const none = await run("no result");
   assert.equal(none.status, "exited 0");
   assert.equal(none.result.state, null);
-  assert.match(none.result.problem, /no result file/);
+  assert.match(found(none.result.problem, "the problem"), /no result file/);
 
   const failing = await run('EXIT:3\nRESULT:{"state": "done"}');
   assert.equal(failing.status, "exited 3");
   assert.equal(failing.result.state, null);
-  assert.match(failing.result.problem, /said done but exited 3/);
+  assert.match(
+    found(failing.result.problem, "the problem"),
+    /said done but exited 3/,
+  );
 
   const blocked = await run(
     'EXIT:1\nRESULT:{"state": "blocked", "text": "Need a key."}',
@@ -522,7 +525,7 @@ test("the supervisor reads the exit code and result file; bad ones take the retr
 
   const bad = await run("RESULT:{nope");
   assert.equal(bad.result.state, null);
-  assert.match(bad.result.problem, /not valid JSON/);
+  assert.match(found(bad.result.problem, "the problem"), /not valid JSON/);
 });
 
 test("a child's result becomes its session report; the text stays data", async (t) => {
@@ -697,7 +700,10 @@ test("a start's own harness wins over its repository's", async (t) => {
   const [binding] = store.list<SessionBinding>("session_bindings");
   const db = openSupervisorDatabase(stateDirectory);
   try {
-    assert.equal(childRecord(db, binding.slot).harness, "fake-cli");
+    assert.equal(
+      found(childRecord(db, binding.slot), "the child").harness,
+      "fake-cli",
+    );
   } finally {
     db.close();
   }
@@ -867,14 +873,14 @@ test("a definition with no resultAllow is refused for a read role and runs a wri
     });
     const db = openSupervisorDatabase(stateDirectory);
     try {
-      return childRecord(db, id);
+      return found(childRecord(db, id), "the child");
     } finally {
       db.close();
     }
   };
   const read = await run("verifier", "read");
   assert.equal(read.exit_code, -1);
-  assert.match(read.error, /fake-cli names no resultAllow/);
+  assert.match(found(read.error, "the error"), /fake-cli names no resultAllow/);
   const write = await run("worker", "write");
   assert.equal(write.exit_code, 0);
   assert.equal(write.error, null);
