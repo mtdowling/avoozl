@@ -463,7 +463,8 @@ export async function publishApproved(
         proof.pushedBy ??
         noreplyLogin(approval?.approvedBy);
       if (!actor)
-        actor = (await github.commit(repository, commit))?.author?.login;
+        actor =
+          (await github.commit(repository, commit))?.author?.login ?? null;
       if (String(actor ?? "").toLowerCase() !== login.toLowerCase()) {
         delete left[planId];
         continue;
