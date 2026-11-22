@@ -1,8 +1,7 @@
-// @ts-nocheck: typing debt
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { Operations } from "../../api/operations.ts";
 import {
   publishApproved,
@@ -14,12 +13,46 @@ import { fixture } from "../../test/fixtures.ts";
 import { FakeGitHub } from "../../test/fake-github.ts";
 import { writeSpec } from "../../test/spec-fixture.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
+import { found, storedRow, type PlanDraft } from "../../test/view-shapes.ts";
+
+// The fake GitHub with the two reads publishing makes typed as present.
+// shortcut: they stay absent until a test sets them, as before; a path that
+// reaches them unset fails the same way it did untyped.
+class PublishingGitHub extends FakeGitHub {
+  declare commit: (
+    repository: string,
+    sha: string,
+  ) => Promise<{ author?: { login?: string } } | null>;
+  declare pullRequest: (
+    repository: string,
+    number: unknown,
+  ) => Promise<{ number?: number; assignees?: { login?: string }[] } | null>;
+}
+// What spec.publish answers.
+interface Published {
+  home: string;
+  existing: boolean;
+  reused?: boolean;
+  number: number;
+}
+// A plan row's context.
+interface PlanRow {
+  id: string;
+  context?: Record<string, unknown>;
+  [key: string]: unknown;
+}
 
 process.env.XDG_CONFIG_HOME ??= temporaryDirectory("avoozl-xdg-");
 
 const REPOSITORY = "example/code";
 
-async function workspace(t, { github = new FakeGitHub(), mode } = {}) {
+async function workspace(
+  t: TestContext,
+  {
+    github = new PublishingGitHub(),
+    mode,
+  }: { github?: PublishingGitHub; mode?: string } = {},
+) {
   const { store } = fixture(t),
     root = temporaryDirectory();
   fs.writeFileSync(
@@ -36,7 +69,6 @@ async function workspace(t, { github = new FakeGitHub(), mode } = {}) {
     github: mode ? github : null,
     operator: "Operator",
     workspaceRoot: root,
-    driver: { settingsFile: path.join(temporaryDirectory(), "driver.json") },
   });
   store.put("repositories", {
     id: "code",
@@ -52,7 +84,7 @@ async function workspace(t, { github = new FakeGitHub(), mode } = {}) {
       allowedActors: ["maintainer"],
     });
   writeSpec(root, "config");
-  const plan = await ops.execute("plan.create", {
+  const plan = await ops.execute<PlanDraft>("plan.create", {
     spec: "config",
     prompt: "Load config",
     context: { repositoryId: "code" },
@@ -60,7 +92,7 @@ async function workspace(t, { github = new FakeGitHub(), mode } = {}) {
   return { store, root, ops, github, plan };
 }
 
-const writes = (github) => ({
+const writes = (github: FakeGitHub) => ({
   created: github.created.length,
   updated: github.updated.length,
   labels: github.labels.length,
@@ -76,7 +108,7 @@ test("approval makes no GitHub write; Publish issue makes one labeled issue once
     expectedHash: w.plan.hash,
     expectedRevision: w.store.read().revision,
   });
-  assert.equal(w.store.get("plans", w.plan.id).state, "approved");
+  assert.equal(storedRow(w.store, "plans", w.plan.id).state, "approved");
   assert.deepEqual(writes(w.github), before);
 
   await assert.rejects(
@@ -85,14 +117,18 @@ test("approval makes no GitHub write; Publish issue makes one labeled issue once
     }),
     /Only a person/,
   );
-  const published = await w.ops.execute("spec.publish", { planId: w.plan.id });
+  const published = await w.ops.execute<Published>("spec.publish", {
+    planId: w.plan.id,
+  });
   assert.equal(published.home, "github");
   assert.equal(published.existing, false);
   assert.equal(w.github.created.length, 1);
-  assert.deepEqual(w.github.created[0].labels, [], "no label");
+  assert.deepEqual(w.github.created[0]?.labels, [], "no label");
   // No label edit after the create.
   assert.equal(w.github.labels.length, before.labels);
-  const again = await w.ops.execute("spec.publish", { planId: w.plan.id });
+  const again = await w.ops.execute<Published>("spec.publish", {
+    planId: w.plan.id,
+  });
   assert.equal(again.existing, true);
   assert.equal(again.number, published.number);
   assert.equal(w.github.created.length, 1);
@@ -108,7 +144,9 @@ test("an issue the workspace already holds for the spec keeps its ownership", as
     repository: REPOSITORY,
     number: 12,
   });
-  const published = await w.ops.execute("spec.publish", { planId: w.plan.id });
+  const published = await w.ops.execute<Published>("spec.publish", {
+    planId: w.plan.id,
+  });
   assert.deepEqual(
     { existing: published.existing, number: published.number },
     { existing: true, number: 12 },
@@ -131,18 +169,18 @@ test("a spec in an epic gets the epic issue and is made under it, both labeled",
   });
   const published = await publishSpec(w.store, {
     github: w.github,
-    workspaceRoot: w.root,
     identity: planningIdentity(w.root),
     planId: w.plan.id,
-    actor: "Operator",
   });
   assert.equal(w.github.created.length, 2);
   for (const issue of w.github.created) assert.deepEqual(issue.labels, []);
   const [epic, spec] = w.github.created;
+  assert.ok(epic && spec);
+  assert.ok("epicNumber" in published);
   assert.equal(published.epicNumber, epic.number);
   assert.deepEqual(w.github.subIssues, [[epic.number, spec.id]]);
   assert.equal(
-    w.store.get("receipts", "github-parent:epic:launch").number,
+    storedRow(w.store, "receipts", "github-parent:epic:launch").number,
     epic.number,
   );
 });
@@ -150,7 +188,7 @@ test("a spec in an epic gets the epic issue and is made under it, both labeled",
 test("a workspace without GitHub cannot make the issues", async (t) => {
   const w = await workspace(t);
   await assert.rejects(
-    w.ops.execute("spec.publish", { planId: w.plan.id }),
+    w.ops.execute<Published>("spec.publish", { planId: w.plan.id }),
     /needs GitHub; run gh auth login/,
   );
 });
@@ -161,11 +199,15 @@ test("a plan's input issue in the spec's home becomes its spec issue", async (t)
     id: 7,
     node_id: "issue-7",
     number: 7,
+    repository: REPOSITORY,
     state: "open",
     labels: [],
+    title: "Issue 7",
+    body: "",
     html_url: "https://example.test/issues/7",
+    assignees: [],
   });
-  const plan = w.store.get("plans", w.plan.id);
+  const plan = storedRow<PlanRow>(w.store, "plans", w.plan.id);
   w.store.put("plans", {
     ...plan,
     context: {
@@ -173,7 +215,9 @@ test("a plan's input issue in the spec's home becomes its spec issue", async (t)
       newPlan: { source: { repository: REPOSITORY, number: 7 } },
     },
   });
-  const published = await w.ops.execute("spec.publish", { planId: w.plan.id });
+  const published = await w.ops.execute<Published>("spec.publish", {
+    planId: w.plan.id,
+  });
   assert.deepEqual(
     { reused: published.reused, number: published.number },
     { reused: true, number: 7 },
@@ -181,14 +225,16 @@ test("a plan's input issue in the spec's home becomes its spec issue", async (t)
   assert.equal(w.github.created.length, 1, "no new issue");
   const added = () => w.github.labels.filter(([kind]) => kind === "add");
   assert.deepEqual(added(), [], "no label");
-  const again = await w.ops.execute("spec.publish", { planId: w.plan.id });
+  const again = await w.ops.execute<Published>("spec.publish", {
+    planId: w.plan.id,
+  });
   assert.equal(again.existing, true);
   assert.equal(added().length, 0);
 });
 
 test("an input issue in another repository is not reused", async (t) => {
   const w = await workspace(t, { mode: "single-repo" });
-  const plan = w.store.get("plans", w.plan.id);
+  const plan = storedRow<PlanRow>(w.store, "plans", w.plan.id);
   w.store.put("plans", {
     ...plan,
     context: {
@@ -196,7 +242,9 @@ test("an input issue in another repository is not reused", async (t) => {
       newPlan: { source: { repository: "example/other", number: 7 } },
     },
   });
-  const published = await w.ops.execute("spec.publish", { planId: w.plan.id });
+  const published = await w.ops.execute<Published>("spec.publish", {
+    planId: w.plan.id,
+  });
   assert.equal(published.reused, undefined);
   assert.equal(w.github.created.length, 1);
   assert.notEqual(published.number, 7);
@@ -204,7 +252,18 @@ test("an input issue in another repository is not reused", async (t) => {
 
 // An approved plan queued for publishing as approval commit `c1`, with the
 // approval evidence `proof` and GitHub signed in as `login`.
-async function queued(t, { proof = {}, login = "maintainer", pull } = {}) {
+async function queued(
+  t: TestContext,
+  {
+    proof = {},
+    login = "maintainer",
+    pull,
+  }: {
+    proof?: Record<string, unknown>;
+    login?: string;
+    pull?: { number: number; assignees: { login: string }[] };
+  } = {},
+) {
   const w = await workspace(t, { mode: "single-repo" });
   await w.ops.execute("plan.approve", {
     id: w.plan.id,
@@ -213,14 +272,16 @@ async function queued(t, { proof = {}, login = "maintainer", pull } = {}) {
   });
   w.github.login = login;
   w.github.pullRequest = async (_repository, number) =>
-    number === pull?.number ? pull : null;
+    number === pull?.number ? (pull ?? null) : null;
   w.github.commit = async () => ({ author: { login: "maintainer" } });
   queuePublish(w.store, w.plan.id, "c1");
   const run = () =>
     publishApproved(w.store, {
       github: w.github,
       identity: planningIdentity(w.root),
-      evidence: { get: (commit) => (commit === "c1" ? proof : undefined) },
+      evidence: {
+        get: (commit: string) => (commit === "c1" ? proof : undefined),
+      },
       homeOf: async () => REPOSITORY,
     });
   return { ...w, run };
@@ -233,8 +294,11 @@ test("the merger of an approving pull request publishes its spec issue with the 
   });
   assert.deepEqual(await w.run(), []);
   assert.equal(w.github.created.length, 1);
-  assert.deepEqual(w.github.created[0].assignees, [{ login: "alice" }]);
-  assert.match(w.github.created[0].body, /^<!-- avoozl-spec:config -->$/m);
+  assert.deepEqual(w.github.created[0]?.assignees, [{ login: "alice" }]);
+  assert.match(
+    w.github.created[0]?.body ?? "",
+    /^<!-- avoozl-spec:config -->$/m,
+  );
   // Published once: the next tick writes nothing.
   assert.deepEqual(await w.run(), []);
   assert.equal(w.github.created.length, 1);
@@ -244,7 +308,7 @@ test("an approval with no pull request publishes an unassigned spec issue", asyn
   const w = await queued(t, { proof: { pushedBy: "maintainer" } });
   await w.run();
   assert.equal(w.github.created.length, 1);
-  assert.deepEqual(w.github.created[0].assignees, []);
+  assert.deepEqual(w.github.created[0]?.assignees, []);
 });
 
 test("a runner that is not the approver makes no issue", async (t) => {
@@ -268,13 +332,20 @@ test("with no evidence the commit author's login decides who publishes", async (
 test("an open issue with the spec's marker is used, not made again", async (t) => {
   const w = await queued(t, { proof: { mergedBy: "maintainer" } });
   w.store.put("repositories", {
-    ...w.store.get("repositories", "code"),
+    ...storedRow(w.store, "repositories", "code"),
     github: REPOSITORY,
   });
   w.github.listIssues = async () => [
     {
+      id: 5,
+      node_id: "issue-5",
       number: 5,
+      repository: REPOSITORY,
       state: "open",
+      labels: [],
+      title: "Spec config",
+      html_url: "https://example.test/issues/5",
+      assignees: [],
       author_association: "OWNER",
       body: "<!-- avoozl-spec:config -->",
     },
@@ -282,7 +353,7 @@ test("an open issue with the spec's marker is used, not made again", async (t) =
   await w.run();
   assert.equal(w.github.created.length, 0);
   assert.equal(
-    w.store.get("receipts", `github-parent:plan:${w.plan.id}`).number,
+    storedRow(w.store, "receipts", `github-parent:plan:${w.plan.id}`).number,
     5,
   );
 });
@@ -305,7 +376,7 @@ test("a failed publish stays queued for the next tick", async (t) => {
 test("a local-only workspace publishes nothing on approval", async (t) => {
   const w = await workspace(t);
   queuePublish(w.store, w.plan.id, "c1");
-  const github = new FakeGitHub();
+  const github = new PublishingGitHub();
   assert.deepEqual(
     await publishApproved(w.store, {
       github,
