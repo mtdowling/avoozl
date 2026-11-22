@@ -1,9 +1,8 @@
-// @ts-nocheck: typing debt
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { Operations } from "../../api/operations.ts";
 import { queryTasks } from "../../../model.ts";
 import {
@@ -21,25 +20,64 @@ import {
   writeSpec,
 } from "../../test/spec-fixture.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
+import type { Refusal } from "../../test/refusal.ts";
+import { found } from "../../test/view-shapes.ts";
 
-const lint = (root, name = "config") =>
+// What plan.create, plan.save and plan.preview answer.
+interface Plan {
+  id: string;
+  hash: string;
+  title?: string;
+  spec?: string;
+  revision?: number;
+  [key: string]: unknown;
+}
+interface Preview {
+  reviewedHash: string;
+  expectedRevision: number;
+  tasks: {
+    taskId: string;
+    authority?: string;
+    issue?: { number: number } | null;
+  }[];
+  baseline: { count: number; taskIds?: string[]; text?: string };
+}
+// plan.specs and plan.get.
+interface Specs {
+  items: {
+    name: string;
+    root?: string;
+    counts: { error: number };
+    plan?: { state: string; changed: boolean } | null;
+    critique: unknown;
+  }[];
+}
+interface PlanRead {
+  disk: { changed: boolean; critique: { current: boolean } | null };
+  quality: { canApprove: boolean };
+}
+type Lint = ReturnType<typeof lintSpec>;
+// The fixture spec's tasks.md.
+const tasksText = () => found(specFiles()["tasks.md"]);
+
+const lint = (root: string, name = "config") =>
   lintSpec({ spec: readSpecFolder(root, name), plan: { id: name } });
-const lineOf = (text, needle) =>
+const lineOf = (text: string, needle: string) =>
   text.slice(0, text.indexOf(needle)).split("\n").length;
-const codes = (result) =>
+const codes = (result: Lint) =>
   result.diagnostics.map((d) => `${d.code} ${d.file}:${d.lineStart}`);
 
 // No machine-wide Avoozl configuration leaks into these workspaces.
 process.env.XDG_CONFIG_HOME = temporaryDirectory("avoozl-xdg-");
 
-function setMode(root, github) {
+function setMode(root: string, github: Record<string, unknown>) {
   fs.writeFileSync(
     path.join(root, ".avoozl.json"),
     JSON.stringify({ version: 1, github }),
   );
 }
 
-function workspace(t) {
+function workspace(t: TestContext) {
   const { root, store } = fixture(t);
   return { root, store, ops: new Operations(store, { workspaceRoot: root }) };
 }
@@ -75,12 +113,9 @@ test("a valid feature spec yields its leaves and manifest edges", () => {
   assert.deepEqual(codes(result), []);
   assert.equal(result.canApprove, true);
   assert.equal(result.type, "feature");
-  const validator = result.proposals.find((p) => p.id === "config.1.2");
+  const validator = found(result.proposals.find((p) => p.id === "config.1.2"));
   assert.deepEqual(validator.requires, ["config.1.1"]);
-  assert.equal(
-    validator.lineStart,
-    lineOf(specFiles()["tasks.md"], "1.2 Validate"),
-  );
+  assert.equal(validator.lineStart, lineOf(tasksText(), "1.2 Validate"));
 });
 
 test("a missing folder is refused", () => {
@@ -114,7 +149,7 @@ test("a leftover avoozl/manifest.json is an error that says to delete it", () =>
   assert.deepEqual(codes(result), [
     "spec.manifest-left avoozl/manifest.json:1",
   ]);
-  assert.match(result.diagnostics[0].message, /Delete .*manifest\.json/);
+  assert.match(found(result.diagnostics[0]).message, /Delete .*manifest\.json/);
   assert.equal(result.canApprove, false);
   // Nothing reads it: it is not part of the revision hash.
   fs.writeFileSync(path.join(directory, "avoozl/manifest.json"), "[]\n");
@@ -168,17 +203,17 @@ test("a bugfix spec's unchanged behavior is acceptance on its fix leaves", () =>
     ];
   assert.deepEqual(codes(result), []);
   const byId = Object.fromEntries(result.proposals.map((p) => [p.id, p]));
-  assert.deepEqual(byId["fix.1.1"].acceptance, [
+  assert.deepEqual(found(byId["fix.1.1"]).acceptance, [
     "A missing file yields defaults.",
     ...clauses,
   ]);
-  assert.deepEqual(byId["fix.1.2"].acceptance.slice(1), clauses);
+  assert.deepEqual(found(byId["fix.1.2"]).acceptance?.slice(1), clauses);
   // A group holds no results of its own.
-  assert.equal(byId["fix.1"].acceptance, undefined);
+  assert.equal(found(byId["fix.1"]).acceptance, undefined);
   // A feature spec gains nothing.
   writeSpec(root, "config");
   assert.deepEqual(
-    lint(root, "config").proposals.find((p) => p.id === "config.1.1")
+    found(lint(root, "config").proposals.find((p) => p.id === "config.1.1"))
       .acceptance,
     ["A missing file yields defaults."],
   );
@@ -195,14 +230,14 @@ test("a missing file names its folder", () => {
     },
   });
   assert.equal(
-    result.diagnostics.find((d) => d.file === "tasks.md").message,
+    found(result.diagnostics.find((d) => d.file === "tasks.md")).message,
     "Add .kiro/specs/config/tasks.md, or a ## Tasks section to the spec's one file.",
   );
 });
 
 test("an item with no ID is refused at its line", () => {
   const root = temporaryDirectory();
-  const text = specFiles()["tasks.md"] + "- [ ] Write the docs\n";
+  const text = tasksText() + "- [ ] Write the docs\n";
   writeSpec(root, "config", { "tasks.md": text, "avoozl/manifest.json": null });
   assert.deepEqual(codes(lint(root)), [
     `task.missing-id tasks.md:${lineOf(text, "Write the docs")}`,
@@ -211,21 +246,21 @@ test("an item with no ID is refused at its line", () => {
 
 test("a repeated ID is refused at its second line", () => {
   const root = temporaryDirectory();
-  const text = specFiles()["tasks.md"] + "- [ ] 1.1 Read it again\n";
+  const text = tasksText() + "- [ ] 1.1 Read it again\n";
   writeSpec(root, "config", { "tasks.md": text, "avoozl/manifest.json": null });
   const result = lint(root);
   assert.deepEqual(codes(result), [
     `task.duplicate-id tasks.md:${lineOf(text, "Read it again")}`,
   ]);
   assert.match(
-    result.diagnostics[0].message,
+    found(result.diagnostics[0]).message,
     new RegExp(`line ${lineOf(text, "1.1 Read the")}`),
   );
 });
 
 test("a task with no Facts bullet is refused at its line", () => {
   const root = temporaryDirectory(),
-    text = specFiles()["tasks.md"] + "- [ ] 2.1 Document it\n";
+    text = tasksText() + "- [ ] 2.1 Document it\n";
   writeSpec(root, "config", { "tasks.md": text, "avoozl/manifest.json": null });
   assert.deepEqual(codes(lint(root)), [
     `done.missing tasks.md:${lineOf(text, "2.1 Document")}`,
@@ -243,7 +278,7 @@ test("an ID owned by another plan is refused", () => {
     },
   });
   assert.deepEqual(codes(result), [
-    `task.duplicate-id tasks.md:${lineOf(specFiles()["tasks.md"], "1.1 Read")}`,
+    `task.duplicate-id tasks.md:${lineOf(tasksText(), "1.1 Read")}`,
   ]);
 });
 
@@ -290,7 +325,7 @@ test("the critique is current only for the hash it names", () => {
       "not json",
       "```",
     ].join("\n");
-  const current = readCritique(text, hash);
+  const current = found(readCritique(text, hash));
   assert.equal(current.current, true);
   assert.deepEqual(
     current.findings.map((f) => [f.kind, f.task, f.line]),
@@ -299,7 +334,7 @@ test("the critique is current only for the hash it names", () => {
       ["unreadable", null, 6],
     ],
   );
-  assert.equal(readCritique(text, "b".repeat(64)).current, false);
+  assert.equal(readCritique(text, "b".repeat(64))?.current, false);
   assert.equal(readCritique(null, hash), null);
 });
 
@@ -307,10 +342,10 @@ test("a spec plan is created, reloaded, and approved by its folder hash", async 
   const { root, store, ops } = workspace(t),
     directory = writeSpec(root, "config");
   await assert.rejects(
-    ops.execute("plan.create", { spec: "absent" }),
-    (error) => error.status === 404,
+    ops.execute<Plan>("plan.create", { spec: "absent" }),
+    (error: Refusal) => error.status === 404,
   );
-  const plan = await ops.execute("plan.create", {
+  const plan = await ops.execute<Plan>("plan.create", {
     spec: "config",
     prompt: "Load config",
   });
@@ -318,14 +353,18 @@ test("a spec plan is created, reloaded, and approved by its folder hash", async 
   assert.equal(plan.title, "Load configuration");
   assert.equal(plan.hash, readSpecFolder(root, "config").hash);
   assert.equal(
-    (await ops.execute("plan.create", { spec: "config" })).revision,
+    (await ops.execute<Plan>("plan.create", { spec: "config" })).revision,
     1,
     "creating the same folder again returns the stored plan",
   );
   // Reloading an unchanged folder writes nothing.
   assert.equal(
-    (await ops.execute("plan.save", { id: "config", expectedHash: plan.hash }))
-      .revision,
+    (
+      await ops.execute<Plan>("plan.save", {
+        id: "config",
+        expectedHash: plan.hash,
+      })
+    ).revision,
     1,
   );
   fs.appendFileSync(path.join(directory, "design.md"), "Edge cases.\n");
@@ -337,31 +376,28 @@ test("a spec plan is created, reloaded, and approved by its folder hash", async 
     }),
     /changed on disk/,
   );
-  const saved = await ops.execute("plan.save", {
+  const saved = await ops.execute<Plan>("plan.save", {
     id: "config",
     expectedHash: plan.hash,
   });
   assert.equal(saved.revision, 2);
-  const preview = await ops.execute("plan.preview", { id: "config" });
+  const preview = await ops.execute<Preview>("plan.preview", { id: "config" });
   assert.equal(preview.reviewedHash, saved.hash);
   assert.deepEqual(
     preview.tasks.map((task) => task.taskId),
     ["config.1", "config.1.1", "config.1.2"],
   );
-  const receipt = await ops.execute("plan.approve", {
+  const receipt = await ops.execute<{ spec: string }>("plan.approve", {
     id: "config",
     expectedHash: saved.hash,
     expectedRevision: preview.expectedRevision,
   });
   assert.equal(receipt.spec, "config");
   const data = store.read(),
-    leaf = data.tasks.find((task) => task.id === "config.1.2");
-  assert.equal(leaf.source.document, "spec:config");
-  assert.equal(
-    leaf.source.lineStart,
-    lineOf(specFiles()["tasks.md"], "1.2 Validate"),
-  );
-  assert.equal(leaf.approvedSource.text, "  - [ ] 1.2 Validate loaded config");
+    leaf = found(data.tasks.find((task) => task.id === "config.1.2"));
+  assert.equal(leaf.source?.document, "spec:config");
+  assert.equal(leaf.source?.lineStart, lineOf(tasksText(), "1.2 Validate"));
+  assert.equal(leaf.approvedSource?.text, "  - [ ] 1.2 Validate loaded config");
   assert.ok(
     data.edges.some(
       (e) =>
@@ -371,18 +407,18 @@ test("a spec plan is created, reloaded, and approved by its folder hash", async 
     ),
   );
   // Approval writes no plan file and queues no Markdown projection.
-  assert.equal(store.db.prepare("SELECT COUNT(*) n FROM outbox").get().n, 0);
+  assert.equal(store.db.prepare("SELECT COUNT(*) n FROM outbox").get()?.n, 0);
   assert.equal(fs.existsSync(path.join(root, "plans")), false);
 });
 
 test("approval is refused while the spec has an error", async (t) => {
   const { root, ops } = workspace(t);
   writeSpec(root, "config", {
-    "tasks.md": specFiles()["tasks.md"] + "- [ ] Write the docs\n",
+    "tasks.md": tasksText() + "- [ ] Write the docs\n",
   });
-  const plan = await ops.execute("plan.create", { spec: "config" });
+  const plan = await ops.execute<Plan>("plan.create", { spec: "config" });
   assert.equal(
-    (await ops.execute("plan.lint", { id: "config" })).canApprove,
+    (await ops.execute<Lint>("plan.lint", { id: "config" })).canApprove,
     false,
   );
   await assert.rejects(
@@ -400,8 +436,8 @@ test("plan.specs lists folders with their diagnostics, critique, and plan", asyn
   writeSpec(root, "config");
   writeSpec(root, "broken", { "tasks.md": null });
   fs.mkdirSync(path.join(root, ".kiro", "specs", "Not_A_Spec"));
-  await ops.execute("plan.create", { spec: "config" });
-  const { items } = await ops.execute("plan.specs");
+  await ops.execute<Plan>("plan.create", { spec: "config" });
+  const { items } = await ops.execute<Specs>("plan.specs");
   assert.deepEqual(
     items.map((item) => [
       item.name,
@@ -413,21 +449,21 @@ test("plan.specs lists folders with their diagnostics, critique, and plan", asyn
       ["config", 0, "draft"],
     ],
   );
-  assert.equal(items[1].plan.changed, false);
-  assert.equal(items[1].critique, null);
+  assert.equal(items[1]?.plan?.changed, false);
+  assert.equal(items[1]?.critique, null);
 });
 
 test("plan.get reports the folder on disk and its critique", async (t) => {
   const { root, ops } = workspace(t),
     directory = writeSpec(root, "config"),
-    plan = await ops.execute("plan.create", { spec: "config" });
+    plan = await ops.execute<Plan>("plan.create", { spec: "config" });
   fs.writeFileSync(
     path.join(directory, "avoozl/critique.md"),
     `Reviewed: .kiro/specs/config/ ${plan.hash}\n\nNo findings.\n`,
   );
-  const read = await ops.execute("plan.get", { id: "config" });
+  const read = await ops.execute<PlanRead>("plan.get", { id: "config" });
   assert.equal(read.disk.changed, false);
-  assert.equal(read.disk.critique.current, true);
+  assert.equal(read.disk.critique?.current, true);
   assert.equal(read.quality.canApprove, true);
 });
 
@@ -438,15 +474,19 @@ test("spec folders live in the planning repository when one is configured", asyn
   store.setMeta("workspaceRepository", { root: planning, directory: "." });
   assert.deepEqual(ops.specRoots(), [planning]);
   assert.equal(
-    (await ops.execute("plan.create", { spec: "config" })).spec,
+    (await ops.execute<Plan>("plan.create", { spec: "config" })).spec,
     "config",
   );
   assert.equal(fs.existsSync(path.join(root, ".kiro")), false);
 });
 
-const approve = async (ops, id = "config", input = {}) => {
-  const preview = await ops.execute("plan.preview", { id });
-  return ops.execute("plan.approve", {
+const approve = async (
+  ops: Operations,
+  id = "config",
+  input: Record<string, unknown> = {},
+) => {
+  const preview = await ops.execute<Preview>("plan.preview", { id });
+  return ops.execute<{ baseline?: string[] }>("plan.approve", {
     id,
     expectedHash: preview.reviewedHash,
     expectedRevision: preview.expectedRevision,
@@ -457,7 +497,7 @@ const approve = async (ops, id = "config", input = {}) => {
 test("re-approval marks only the changed entry for review", async (t) => {
   const { root, ops } = workspace(t),
     directory = writeSpec(root, "config"),
-    plan = await ops.execute("plan.create", { spec: "config" }),
+    plan = await ops.execute<Plan>("plan.create", { spec: "config" }),
     tasksFile = path.join(directory, "tasks.md");
   await approve(ops);
   const ready = () =>
@@ -481,7 +521,10 @@ test("re-approval marks only the changed entry for review", async (t) => {
         "    - An unknown key or a bad type is reported with its path.",
       ),
   );
-  await ops.execute("plan.save", { id: "config", expectedHash: plan.hash });
+  await ops.execute<Plan>("plan.save", {
+    id: "config",
+    expectedHash: plan.hash,
+  });
   // The draft holds every task until it is approved.
   assert.deepEqual(review(), {
     "config.1": true,
@@ -497,11 +540,14 @@ test("re-approval marks only the changed entry for review", async (t) => {
   assert.ok(ready().includes("config.1.1"));
   // Needs you can show what changed: the task text as last reviewed is kept.
   const tasks = ops.read().tasks;
-  const prior = tasks.find((task) => task.id === "config.1.2").reviewPrior;
-  assert.equal(prior.summary ?? null, null);
+  const prior = found(
+    found(tasks.find((task) => task.id === "config.1.2")).reviewPrior,
+  );
+  assert.ok(prior && typeof prior === "object" && "title" in prior);
+  assert.equal("summary" in prior ? (prior.summary ?? null) : null, null);
   assert.ok(prior.title);
   assert.equal(
-    tasks.find((task) => task.id === "config.1.1").reviewPrior,
+    tasks.find((task) => task.id === "config.1.1")?.reviewPrior,
     undefined,
   );
 });
@@ -509,7 +555,7 @@ test("re-approval marks only the changed entry for review", async (t) => {
 test("Kiro's checkbox marks do not change the revision", async (t) => {
   const { root, ops } = workspace(t),
     directory = writeSpec(root, "config"),
-    plan = await ops.execute("plan.create", { spec: "config" }),
+    plan = await ops.execute<Plan>("plan.create", { spec: "config" }),
     tasks = path.join(directory, "tasks.md");
   fs.writeFileSync(
     tasks,
@@ -520,13 +566,13 @@ test("Kiro's checkbox marks do not change the revision", async (t) => {
   );
   assert.equal(readSpecFolder(root, "config").hash, plan.hash);
   assert.equal(
-    (await ops.execute("plan.get", { id: "config" })).disk.changed,
+    (await ops.execute<PlanRead>("plan.get", { id: "config" })).disk.changed,
     false,
   );
   await approve(ops);
   // A mark is not Avoozl state: the approved leaf is not done.
   assert.notEqual(
-    ops.read().tasks.find((task) => task.id === "config.1.1").status,
+    ops.read().tasks.find((task) => task.id === "config.1.1")?.status,
     "done",
   );
 });
@@ -534,7 +580,7 @@ test("Kiro's checkbox marks do not change the revision", async (t) => {
 test("an item nested under an epic is its child; flat items have no parent", () => {
   const root = temporaryDirectory();
   writeSpec(root, "config");
-  const parents = (result) =>
+  const parents = (result: Lint) =>
     Object.fromEntries(result.proposals.map((p) => [p.id, p.parent ?? null]));
   assert.deepEqual(parents(lint(root)), {
     "config.1": null,
@@ -568,7 +614,7 @@ test("an item with sub-items is a package", () => {
 test("approval sets each nested task's parent and re-approval moves it", async (t) => {
   const { root, ops } = workspace(t),
     directory = writeSpec(root, "config"),
-    plan = await ops.execute("plan.create", { spec: "config" });
+    plan = await ops.execute<Plan>("plan.create", { spec: "config" });
   await approve(ops);
   const parents = () =>
     Object.fromEntries(
@@ -589,11 +635,14 @@ test("approval sets each nested task's parent and re-approval moves it", async (
       "- [ ] 1 Load and validate configuration\n  - [ ] 1.1 Read the config file\n- [ ] 1.2 Validate loaded config\n",
     ),
   );
-  await ops.execute("plan.save", { id: "config", expectedHash: plan.hash });
+  await ops.execute<Plan>("plan.save", {
+    id: "config",
+    expectedHash: plan.hash,
+  });
   await approve(ops);
   assert.equal(parents()["config.1.2"], null);
   assert.equal(
-    ops.read().tasks.find((task) => task.id === "config.1.2").needsReview,
+    ops.read().tasks.find((task) => task.id === "config.1.2")?.needsReview,
     true,
   );
 });
@@ -601,7 +650,7 @@ test("approval sets each nested task's parent and re-approval moves it", async (
 test("an approved ID whose item text changed is refused until approved", async (t) => {
   const { root, ops } = workspace(t),
     directory = writeSpec(root, "config"),
-    plan = await ops.execute("plan.create", { spec: "config" }),
+    plan = await ops.execute<Plan>("plan.create", { spec: "config" }),
     tasks = path.join(directory, "tasks.md");
   await approve(ops);
   // Renumbering: 1.2 now names other work.
@@ -611,19 +660,25 @@ test("an approved ID whose item text changed is refused until approved", async (
       .readFileSync(tasks, "utf8")
       .replace("1.2 Validate loaded config", "1.2 Write the config file"),
   );
-  await ops.execute("plan.save", { id: "config", expectedHash: plan.hash });
-  const quality = await ops.execute("plan.lint", { id: "config" });
+  await ops.execute<Plan>("plan.save", {
+    id: "config",
+    expectedHash: plan.hash,
+  });
+  const quality = await ops.execute<Lint>("plan.lint", { id: "config" });
   assert.deepEqual(codes(quality), [
-    `task.changed-text tasks.md:${lineOf(specFiles()["tasks.md"], "1.2 Validate")}`,
+    `task.changed-text tasks.md:${lineOf(tasksText(), "1.2 Validate")}`,
   ]);
-  assert.equal(quality.diagnostics[0].taskId, "config.1.2");
+  assert.equal(found(quality.diagnostics[0]).taskId, "config.1.2");
   await assert.rejects(approve(ops), /task\.changed-text/);
   await approve(ops, "config", { retitled: ["1.2"] });
   assert.equal(
-    ops.read().tasks.find((task) => task.id === "config.1.2").title,
+    ops.read().tasks.find((task) => task.id === "config.1.2")?.title,
     "Write the config file",
   );
-  assert.deepEqual(codes(await ops.execute("plan.lint", { id: "config" })), []);
+  assert.deepEqual(
+    codes(await ops.execute<Lint>("plan.lint", { id: "config" })),
+    [],
+  );
 });
 
 test("single-repo mode reads spec folders from code repositories only", async (t) => {
@@ -645,23 +700,23 @@ test("single-repo mode reads spec folders from code repositories only", async (t
     baseBranch: "main",
     checks: [],
   });
-  const listed = await ops.execute("plan.specs");
+  const listed = await ops.execute<Specs>("plan.specs");
   assert.deepEqual(
     listed.items.map((item) => [item.name, item.root]),
     [["config", app]],
   );
   assert.equal(
-    (await ops.execute("plan.create", { spec: "config" })).spec,
+    (await ops.execute<Plan>("plan.create", { spec: "config" })).spec,
     "config",
   );
   await assert.rejects(
-    ops.execute("plan.create", { spec: "planning-only" }),
-    (error) => error.status === 404,
+    ops.execute<Plan>("plan.create", { spec: "planning-only" }),
+    (error: Refusal) => error.status === 404,
   );
   // The same name in two code repositories is ambiguous.
   writeSpec(lib, "config");
   await assert.rejects(
-    ops.execute("plan.get", { id: "config" }),
+    ops.execute<PlanRead>("plan.get", { id: "config" }),
     /more than one repository/,
   );
 });
@@ -679,10 +734,10 @@ test("plan preview shows each task's authority and issue link", async (t) => {
     baseBranch: "main",
     checks: [],
   });
-  const plan = await ops.execute("plan.create", { spec: "config" });
+  const plan = await ops.execute<Plan>("plan.create", { spec: "config" });
   const owners = async () =>
     Object.fromEntries(
-      (await ops.execute("plan.preview", { id: "config" })).tasks.map(
+      (await ops.execute<Preview>("plan.preview", { id: "config" })).tasks.map(
         (task) => [task.taskId, [task.authority, task.issue?.number ?? null]],
       ),
     );
@@ -698,7 +753,7 @@ test("plan preview shows each task's authority and issue link", async (t) => {
     expectedRevision: store.read().revision,
   });
   store.mutate("Link an issue", (data) => {
-    data.tasks.find((task) => task.id === "config.1.1").github = {
+    found(data.tasks.find((task) => task.id === "config.1.1")).github = {
       number: 4,
       url: "https://github.com/example/app/issues/4",
     };
@@ -714,7 +769,10 @@ test("plans-repo mode needs a planning repository", async (t) => {
     planning = temporaryDirectory();
   writeSpec(root, "config");
   setMode(root, { mode: "plans-repo", planningRepository: "example/plans" });
-  await assert.rejects(ops.execute("plan.specs"), /no planning repository/);
+  await assert.rejects(
+    ops.execute<Specs>("plan.specs"),
+    /no planning repository/,
+  );
   writeSpec(planning, "config");
   store.put("repositories", {
     id: "plans",
@@ -724,7 +782,10 @@ test("plans-repo mode needs a planning repository", async (t) => {
     planning: true,
   });
   assert.deepEqual(ops.specRoots(), [planning]);
-  assert.equal((await ops.execute("plan.specs")).items[0].root, planning);
+  assert.equal(
+    (await ops.execute<Specs>("plan.specs")).items[0]?.root,
+    planning,
+  );
 });
 
 // Regression: Nupp keeps .avoozl.json in its planning checkout with no
@@ -733,12 +794,15 @@ test("plans-repo mode reads the workspace root when it is the planning checkout"
   const { root, ops } = workspace(t);
   writeSpec(root, "config");
   setMode(root, { mode: "plans-repo", planningRepository: "Example/Plans" });
-  const git = (...args) => execFileSync("git", args, { cwd: root });
+  const git = (...args: string[]) => execFileSync("git", args, { cwd: root });
   git("init", "-q");
   git("remote", "add", "origin", "https://github.com/example/other.git");
-  await assert.rejects(ops.execute("plan.specs"), /no planning repository/);
+  await assert.rejects(
+    ops.execute<Specs>("plan.specs"),
+    /no planning repository/,
+  );
   git("remote", "set-url", "origin", "git@github.com:example/plans.git");
-  const listed = await ops.execute("plan.specs");
+  const listed = await ops.execute<Specs>("plan.specs");
   assert.deepEqual(
     listed.items.map((item) => [item.name, item.root]),
     [["config", root]],
@@ -766,20 +830,20 @@ const legacySpec = (ids = ["config-load", "config-check"]) => ({
     ),
   }),
 });
-async function legacyPlan(ops) {
-  const plan = await ops.execute("plan.create", {
+async function legacyPlan(ops: Operations) {
+  const plan = await ops.execute<Plan>("plan.create", {
     id: "config",
     prompt: "Load config",
     text: legacyText,
   });
   await approve(ops);
-  return ops.execute("plan.get", { id: plan.id });
+  return ops.execute<PlanRead>("plan.get", { id: plan.id });
 }
 
 test("a failed approval writes nothing and names repeated errors once", async (t) => {
   const { root, store, ops } = workspace(t);
   writeSpec(root, "config");
-  await ops.execute("plan.create", { spec: "config" });
+  await ops.execute<Plan>("plan.create", { spec: "config" });
   // A broken row already on disk makes the approval's commit fail validation.
   for (const id of ["a", "b", "c"])
     store.db.prepare("INSERT INTO entities VALUES (?,?,?,?)").run(
@@ -798,9 +862,9 @@ test("a failed approval writes nothing and names repeated errors once", async (t
     revision: store.read().revision,
     plan: JSON.stringify(store.get("plans", "config")),
     approvals: store.list("approvals").length,
-    rows: store.db.prepare("SELECT count(*) AS n FROM entities").get().n,
+    rows: store.db.prepare("SELECT count(*) AS n FROM entities").get()?.n,
   };
-  await assert.rejects(approve(ops), (error) => {
+  await assert.rejects(approve(ops), (error: Error) => {
     assert.equal(
       error.message,
       "Dangling edge ×3, e.g. ghost → a",
@@ -813,7 +877,7 @@ test("a failed approval writes nothing and names repeated errors once", async (t
   assert.equal(JSON.stringify(store.get("plans", "config")), before.plan);
   assert.equal(store.list("approvals").length, before.approvals);
   assert.equal(
-    store.db.prepare("SELECT count(*) AS n FROM entities").get().n,
+    store.db.prepare("SELECT count(*) AS n FROM entities").get()?.n,
     before.rows,
   );
 });
@@ -821,15 +885,15 @@ test("a failed approval writes nothing and names repeated errors once", async (t
 test("approval starts checked items as accepted from the approved tasks.md", async (t) => {
   const { root, store, ops } = workspace(t),
     files = specFiles(),
-    marked = files["tasks.md"]
+    marked = found(files["tasks.md"])
       .replace("- [ ] 1.1 Read", "- [x] 1.1 Read")
       .replace(
         "  - [ ] 1.2",
         "    - Built: `abc1234`, receipt `docs/evidence/x.md`.\n  - [-] 1.2",
       ),
     directory = writeSpec(root, "config", { "tasks.md": marked }),
-    plan = await ops.execute("plan.create", { spec: "config" });
-  const preview = await ops.execute("plan.preview", { id: "config" });
+    plan = await ops.execute<Plan>("plan.create", { spec: "config" });
+  const preview = await ops.execute<Preview>("plan.preview", { id: "config" });
   assert.deepEqual(preview.baseline, {
     count: 1,
     taskIds: ["config.1.1"],
@@ -846,21 +910,22 @@ test("approval starts checked items as accepted from the approved tasks.md", asy
   );
   const receipt = await approve(ops, "config", { approvedBy: "owner" });
   assert.deepEqual(receipt.baseline, ["config.1.1"]);
-  const row = (id) => store.read().tasks.find((task) => task.id === id),
+  const row = (id: string) =>
+      found(store.read().tasks.find((task) => task.id === id)),
     leaf = row("config.1.1");
   assert.equal(leaf.status, "accepted");
   const line = lineOf(marked, "1.1 Read");
   assert.equal(
-    leaf.acceptanceEvidence.evidence,
+    leaf.acceptanceEvidence?.evidence,
     `tasks.md line ${line} marks 1.1 [x] at approved revision ${plan.hash}. Built: \`abc1234\`, receipt \`docs/evidence/x.md\`.`,
   );
-  assert.deepEqual(leaf.acceptanceEvidence.baseline, {
+  assert.deepEqual(leaf.acceptanceEvidence?.baseline, {
     file: "tasks.md",
     line,
     mark: "[x]",
     hash: plan.hash,
   });
-  assert.equal(leaf.acceptanceEvidence.acceptedBy, "owner");
+  assert.equal(leaf.acceptanceEvidence?.acceptedBy, "owner");
   assert.equal(row("config.1.2").status, "planned", "[-] keeps its meaning");
   assert.deepEqual(
     queryTasks(ops.read(), { scope: "all", q: "ready:true" })
@@ -873,9 +938,13 @@ test("approval starts checked items as accepted from the approved tasks.md", asy
   // A worker that checks an item off and gets a new revision approved does
   // not accept a task that already exists.
   fs.appendFileSync(path.join(directory, "design.md"), "More.\n");
-  await ops.execute("plan.save", { id: "config", expectedHash: plan.hash });
+  await ops.execute<Plan>("plan.save", {
+    id: "config",
+    expectedHash: plan.hash,
+  });
   assert.equal(
-    (await ops.execute("plan.preview", { id: "config" })).baseline.count,
+    (await ops.execute<Preview>("plan.preview", { id: "config" })).baseline
+      .count,
     0,
   );
   const again = await approve(ops);
@@ -890,9 +959,9 @@ test("a breakdown approval starts checked items planned", async (t) => {
   // a GitHub breakdown's child approval does not).
   const { approvePlan } = await import("../spec-approval.ts");
   writeSpec(root, "other", {
-    "tasks.md": files["tasks.md"].replaceAll("- [ ]", "- [x]"),
+    "tasks.md": found(files["tasks.md"]).replaceAll("- [ ]", "- [x]"),
   });
-  const other = await ops.execute("plan.create", { spec: "other" }),
+  const other = await ops.execute<Plan>("plan.create", { spec: "other" }),
     lint = lintSpec({ spec: readSpecFolder(root, "other"), plan: other });
   assert.deepEqual(codes(lint), []);
   approvePlan(store, {
@@ -927,7 +996,9 @@ test("lettered IDs such as P1 and P2b are namespaced like numbers", async (t) =>
   );
   const { root, store, ops } = workspace(t),
     files = legacySpecFiles(),
-    manifest = JSON.parse(files["avoozl/manifest.json"]);
+    manifest: { tasks: Record<string, unknown> } = JSON.parse(
+      found(files["avoozl/manifest.json"]),
+    );
   manifest.tasks.P1 = {
     kind: "leaf",
     summary: "Run the loader against a real file.",
@@ -936,11 +1007,12 @@ test("lettered IDs such as P1 and P2b are namespaced like numbers", async (t) =>
     checks: ["npm test"],
   };
   writeSpec(root, "config", {
-    "tasks.md": files["tasks.md"] + "- [ ] P1 Proof: config loads end to end\n",
+    "tasks.md":
+      found(files["tasks.md"]) + "- [ ] P1 Proof: config loads end to end\n",
     "avoozl/manifest.json": JSON.stringify(manifest),
   });
   assert.deepEqual(codes(lint(root)), []);
-  await ops.execute("plan.create", { spec: "config" });
+  await ops.execute<Plan>("plan.create", { spec: "config" });
   await approve(ops);
   assert.ok(
     store
@@ -958,21 +1030,24 @@ test("an item's whole line is its title, and one over the limit is refused", () 
     item = `1.2 ${long.trim()}`;
   assert.ok(long.length > 240);
   writeSpec(root, "config", {
-    "tasks.md": files["tasks.md"].replace("1.2 Validate loaded config", item),
+    "tasks.md": found(files["tasks.md"]).replace(
+      "1.2 Validate loaded config",
+      item,
+    ),
   });
   assert.deepEqual(codes(lint(root)), [
-    `task.title-length tasks.md:${lineOf(files["tasks.md"], "1.2 Validate")}`,
+    `task.title-length tasks.md:${lineOf(found(files["tasks.md"]), "1.2 Validate")}`,
   ]);
   const fits =
     "Add the `a, b` reader: it reads every file and reports each problem.";
   writeSpec(root, "fits", {
-    "tasks.md": files["tasks.md"].replace(
+    "tasks.md": found(files["tasks.md"]).replace(
       "1.2 Validate loaded config",
       `1.2 ${fits}`,
     ),
   });
-  const proposal = lint(root, "fits").proposals.find(
-    (p) => p.id === "fits.1.2",
+  const proposal = found(
+    lint(root, "fits").proposals.find((p) => p.id === "fits.1.2"),
   );
   assert.equal(proposal.title, fits);
   assert.equal(proposal.summary, undefined);
