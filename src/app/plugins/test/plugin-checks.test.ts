@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Checks from a plugin (plugin-checks pk-1.1 to pk-1.3): the checks part
 // in the manifest, one check list with the repository's own, running a
 // plugin check as outside code, and the result cache. Real git, the
@@ -7,7 +6,7 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import {
   approvePlugin,
   inspectPlugins,
@@ -41,14 +40,22 @@ import {
   copyPlugin,
   pluginWorkspace,
   taskStage,
+  type Manifest,
+  type PluginCheck as ManifestCheck,
 } from "../../test/plugin-checks-fixture.ts";
+import type { Operations } from "../../api/operations.ts";
+import type { Refusal } from "../../test/refusal.ts";
+import { found, storedRow } from "../../test/view-shapes.ts";
+
+// The parity check of a manifest.
+const parityOf = (m: Manifest) => found(m.checks.parity);
 import { temporaryDirectory } from "../../test/temporary.ts";
 import { loopOn } from "../../test/fixtures.ts";
 
 // The tick starts and lands work only with the server loop on.
 loopOn();
 
-const tick = (ops, slots = []) =>
+const tick = (ops: Operations, slots: string[] = []) =>
   ops.execute("workspace.tick", {
     sessions: slots.map((target) => ({ target, status: "idle" })),
   });
@@ -57,11 +64,13 @@ const api = { "src/api/handler.js": "export const x = 2;\n" };
 test("pk-1.1: the checks part validates, and each bad key is refused naming the plugin, check and key", (t) => {
   const manifest = manifestOf();
   assert.deepEqual(
-    Object.keys(validateChecksPart(manifest, PLUGIN_FIXTURE)).sort(),
+    Object.keys(found(validateChecksPart(manifest, PLUGIN_FIXTURE))).sort(),
     ["license-scan", "parity", "parity-review"],
   );
-  const parity = (edit) => (m) => edit(m.checks.parity);
-  for (const [key, edit] of [
+  const parity = (edit: (c: ManifestCheck) => unknown) => (m: Manifest) => {
+    edit(parityOf(m));
+  };
+  const refusals: [string, (c: ManifestCheck) => unknown][] = [
     ["repos", (c) => (c.repos = [])],
     ["repos", (c) => (c.repos = Array(51).fill("acme/*"))],
     ["paths", (c) => (c.paths = [])],
@@ -74,7 +83,8 @@ test("pk-1.1: the checks part validates, and each bad key is refused naming the 
     ["decideAt", (c) => (c.decideAt = ["approve", "approve"])],
     ["stage", (c) => (c.stage = "later")],
     ["colour", (c) => (c.colour = "red")],
-  ])
+  ];
+  for (const [key, edit] of refusals)
     refused(
       parity(edit),
       new RegExp(`Plugin acme-checks check parity key ${key}\\b`),
@@ -96,7 +106,7 @@ test("pk-1.1: the checks part validates, and each bad key is refused naming the 
     /exactly one step/,
   );
   refused(
-    parity((c) => (c.mcp = manifestOf().checks["parity-review"].mcp)),
+    parity((c) => (c.mcp = found(manifestOf().checks["parity-review"]).mcp)),
     /exactly one step/,
   );
   refused(
@@ -105,7 +115,9 @@ test("pk-1.1: the checks part validates, and each bad key is refused naming the 
     }),
     /decideAt goes with decide/,
   );
-  refused((m) => (m.provides = ["rules"]), /provides must list checks/);
+  refused((m) => {
+    m.provides = ["rules"];
+  }, /provides must list checks/);
   refused((m) => {
     for (let i = 0; i < 20; i++)
       m.checks[`extra-${i}`] = {
@@ -113,24 +125,26 @@ test("pk-1.1: the checks part validates, and each bad key is refused naming the 
         run: ["bin/license-scan.sh"],
       };
   }, /more than 20 checks/);
-  refused((m) => (m.entry = "index.mjs"), /runs no code; remove entry/);
+  refused((m) => {
+    m.entry = "index.mjs";
+  }, /runs no code; remove entry/);
 
   // An invalid part makes the plugin invalid, and it cannot be approved.
   const root = temporaryDirectory("avoozl-pk-invalid-"),
     folder = copyPlugin(path.join(root, "acme-checks"), (m) => {
-      m.checks.parity.timeout = 0;
+      parityOf(m).timeout = 0;
     }),
     settingsFile = path.join(root, "plugins.json"),
     options = { workspaceRoot: root, settingsFile };
   writePluginSettings(settingsFile, {
     plugins: [{ id: "acme-checks", path: folder, contract: 1 }],
   });
-  const [plugin] = inspectPlugins(options);
+  const plugin = found(inspectPlugins(options)[0]);
   assert.equal(plugin.state, "invalid");
-  assert.match(plugin.reason, /check parity key timeout/);
+  assert.match(plugin.reason ?? "", /check parity key timeout/);
   assert.throws(
     () => approvePlugin(options, { id: "acme-checks", hash: "x" }),
-    (error) => error.status === 409,
+    (error: Refusal) => error.status === 409,
   );
 });
 
@@ -147,14 +161,14 @@ test("pk-1.1: an approved plugin carries its checks; an unapproved one has none"
       ["parity-review", "mcp", "task"],
     ],
   );
-  assert.equal(checks[1].plugin.id, "acme-checks");
-  assert.deepEqual(checks[1].env, ["PARITY_TOKEN"]);
+  assert.equal(checks[1]?.plugin.id, "acme-checks");
+  assert.deepEqual(checks[1]?.env, ["PARITY_TOKEN"]);
 });
 
 test("pk-1.2: one check list filters by repository, shadows and holds clashes", (t) => {
   const workspace = pluginWorkspace(t),
     plugins = approvedPluginChecks(workspace.options),
-    names = (repository) =>
+    names = (repository: Parameters<typeof repositoryChecks>[0]) =>
       repositoryChecks(repository, plugins).map((c) => `${c.source}:${c.name}`);
   assert.deepEqual(
     names({ id: "x", github: "acme/api", checks: { test: ["t"] } }),
@@ -209,7 +223,7 @@ test("pk-1.2: one check list filters by repository, shadows and holds clashes", 
     rows.map((row) => row.id),
     ["plugin-check-clash:app:parity", "plugin-check-clash:app:parity-review"],
   );
-  assert.match(rows[0].title, /acme-checks and acme-two/);
+  assert.match(found(rows[0]).title, /acme-checks and acme-two/);
   assert.deepEqual(
     pluginCheckNeedsYou(workspace.store, both).map((r) => r.id),
     rows.map((r) => r.id),
@@ -223,7 +237,7 @@ test("pk-1.2: a task-stage plugin check runs in the check run with its placehold
       taskStage(m);
       delete m.checks["parity-review"];
       delete m.servers;
-      m.checks.parity.env = [
+      parityOf(m).env = [
         "PARITY_TOKEN",
         "GH_TOKEN",
         "SSH_AUTH_SOCK",
@@ -252,21 +266,28 @@ test("pk-1.2: a task-stage plugin check runs in the check run with its placehold
     commit = await workerDone(ops, "a", "w-1", 1, api);
   await tick(ops, ["w-1"]);
   await drainCheckRuns(store);
-  const [run] = checkRuns(store),
-    parity = run.checks.find((c) => c.name === "parity");
+  const run = found(checkRuns(store)[0]),
+    parity = found(run.checks?.find((c) => c.name === "parity"));
   assert.deepEqual(run.selected, ["git status", "parity"]);
   assert.equal(parity.exitCode, 0, parity.tail);
   assert.equal(parity.plugin, "acme-checks");
   const base = git(workspace.checkout, "merge-base", "main", commit);
   assert.match(
-    parity.tail,
+    parity.tail ?? "",
     new RegExp(`repo=acme/api from=${base} to=${commit}`),
   );
-  assert.match(parity.tail, /env PARITY_TOKEN=present/);
+  assert.match(parity.tail ?? "", /env PARITY_TOKEN=present/);
   for (const name of ["GH_TOKEN", "SSH_AUTH_SOCK", "KIROCREW_PROXY_SECRET"])
-    assert.match(parity.tail, new RegExp(`env ${name}=absent`));
+    assert.match(parity.tail ?? "", new RegExp(`env ${name}=absent`));
   await tick(ops, ["w-1"]);
-  assert.equal(store.get("task_deliveries", "a").state, "integrated");
+  assert.equal(
+    storedRow<{ state: string; attempts: { cause?: string }[] }>(
+      store,
+      "task_deliveries",
+      "a",
+    ).state,
+    "integrated",
+  );
 });
 
 test("pk-1.2: paths skip a plugin check, and a failing one fails the writer's attempt", async (t) => {
@@ -281,7 +302,7 @@ test("pk-1.2: paths skip a plugin check, and a failing one fails the writer's at
   await workerDone(ops, "a", "w-1", 1, { "docs/readme.md": "hi\n" });
   await tick(ops, ["w-1"]);
   await drainCheckRuns(store);
-  const [run] = checkRuns(store);
+  const run = found(checkRuns(store)[0]);
   assert.deepEqual(run.selected, ["git status"]);
   assert.deepEqual(run.skipped, [
     { name: "parity", plugin: "acme-checks", filter: "paths" },
@@ -298,29 +319,34 @@ test("pk-1.2: paths skip a plugin check, and a failing one fails the writer's at
   await tick(failing.ops, ["w-1"]);
   await drainCheckRuns(failing.store);
   await tick(failing.ops, ["w-1"]);
-  const delivery = failing.store.get("task_deliveries", "a");
+  const delivery = storedRow<{ state: string; attempts: { cause?: string }[] }>(
+    failing.store,
+    "task_deliveries",
+    "a",
+  );
   assert.equal(delivery.state, "failed");
-  assert.match(delivery.attempts[0].cause, /check `parity` exited 1/);
+  assert.match(delivery.attempts[0]?.cause ?? "", /check `parity` exited 1/);
 });
 
 test("pk-1.2: a local plugin edited after approval does not run", async (t) => {
   const workspace = pluginWorkspace(t),
-    check = workspace.check("parity");
+    check = found(workspace.check("parity"));
   fs.appendFileSync(
     path.join(workspace.folder, "bin", "parity.mjs"),
     "\n// edited\n",
   );
   const result = await runPluginCheck(check, {
     store: workspace.store,
-    repository: workspace.store.get("repositories", "app"),
+    repository: storedRow(workspace.store, "repositories", "app"),
     dir: workspace.checkout,
     commit: git(workspace.checkout, "rev-parse", "HEAD"),
     timeoutMs: 30_000,
   });
   assert.equal(result.exitCode, null);
-  assert.match(result.notRun, /changed after it was approved/);
+  assert.match(result.notRun ?? "", /changed after it was approved/);
   assert.equal(
-    inspectPlugins(workspace.options).find((p) => p.id === "acme-checks").state,
+    inspectPlugins(workspace.options).find((p) => p.id === "acme-checks")
+      ?.state,
     "changed",
   );
 });
@@ -329,8 +355,8 @@ test("pk-1.2: a check whose child listens is stopped, failed and its plugin mark
   const workspace = pluginWorkspace(t, {
     edit: (m) => {
       taskStage(m);
-      m.checks.parity.run = ["bin/listen.mjs"];
-      m.checks.parity.network = true;
+      parityOf(m).run = ["bin/listen.mjs"];
+      parityOf(m).network = true;
     },
     scripts: {
       "bin/listen.mjs": [
@@ -341,7 +367,7 @@ test("pk-1.2: a check whose child listens is stopped, failed and its plugin mark
     },
   });
   const started = Date.now(),
-    result = await runPluginCheck(workspace.check("parity"), {
+    result = await runPluginCheck(found(workspace.check("parity")), {
       store: workspace.store,
       repository: {
         id: "app",
@@ -360,10 +386,10 @@ test("pk-1.2: a check whose child listens is stopped, failed and its plugin mark
     });
   assert.ok(Date.now() - started < 40_000, "stopped well before its timeout");
   assert.equal(result.exitCode, 1);
-  assert.match(result.violation, /opened a network listener/);
-  const [plugin] = inspectPlugins(workspace.options);
+  assert.match(result.violation ?? "", /opened a network listener/);
+  const plugin = found(inspectPlugins(workspace.options)[0]);
   assert.equal(plugin.state, "unapproved");
-  assert.match(plugin.reason, /Marked broken: .*listener/);
+  assert.match(plugin.reason ?? "", /Marked broken: .*listener/);
   assert.deepEqual(
     workspace.store
       .list("flow_records")
@@ -377,14 +403,18 @@ test("pk-1.2: network false runs offline even where the repository's isolation h
   skip: !sandboxKind() && "no process sandbox here",
 }, async (t) => {
   const server = (await import("node:net")).createServer((s) => s.end("hi"));
-  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  await new Promise<void>((resolve) =>
+    server.listen(0, "127.0.0.1", () => resolve()),
+  );
   t.after(() => server.close());
-  const port = server.address().port,
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  const port = address.port,
     workspace = pluginWorkspace(t, {
       edit: (m) => {
         taskStage(m);
-        m.checks.parity.run = ["bin/reach.mjs", String(port)];
-        m.checks.parity.network = false;
+        parityOf(m).run = ["bin/reach.mjs", String(port)];
+        parityOf(m).network = false;
       },
       repository: { isolation: { network: "on" } },
       scripts: {
@@ -392,9 +422,9 @@ test("pk-1.2: network false runs offline even where the repository's isolation h
           "import('node:net').then(({ connect }) => { const s = connect(Number(process.argv[2]), '127.0.0.1'); s.on('data', () => { console.log('reached'); process.exit(0); }); s.on('error', (e) => { console.log('blocked ' + e.code); process.exit(1); }); });\n",
       },
     });
-  const result = await runPluginCheck(workspace.check("parity"), {
+  const result = await runPluginCheck(found(workspace.check("parity")), {
     store: workspace.store,
-    repository: workspace.store.get("repositories", "app"),
+    repository: storedRow(workspace.store, "repositories", "app"),
     dir: workspace.checkout,
     commit: git(workspace.checkout, "rev-parse", "HEAD"),
     timeoutMs: 30_000,
@@ -419,18 +449,17 @@ test("pk-1.2: a merge batch candidate runs the task-stage plugin checks", async 
       branch: "main",
       repository: "acme/api",
       repositoryId: "app",
-      checks: [workspace.check("parity")],
-      intent: () => ({}),
-      scan: async () => [],
+      checks: [found(workspace.check("parity"))],
+      scan: () => [],
       store: workspace.store,
     }),
     verdict = await steps.check(candidate, [], base);
   assert.equal(verdict.ok, false);
   assert.deepEqual(
-    verdict.checks.map((c) => [c.name, c.exitCode]),
+    verdict.checks?.map((c) => [c.name, c.exitCode]),
     [["parity", 1]],
   );
-  assert.match(verdict.checks[0].tail, /schema changed/);
+  assert.match(verdict.checks?.[0]?.tail ?? "", /schema changed/);
 });
 
 test("pk-1.2: every caller of repositoryChecks names its plugin list", () => {
@@ -456,11 +485,11 @@ test("pk-1.2: every caller of repositoryChecks names its plugin list", () => {
 
 // ---- The result cache (pk-1.3) ---------------------------------------
 
-function cacheRepo(t) {
+function cacheRepo(t: TestContext) {
   const workspace = pluginWorkspace(t, {
       edit: (m) => {
         taskStage(m);
-        m.checks.parity.run = ["bin/count.mjs", "{commit}"];
+        parityOf(m).run = ["bin/count.mjs", "{commit}"];
       },
       files: {
         "src/api/a.js": "a\n",
@@ -472,7 +501,7 @@ function cacheRepo(t) {
     }),
     counter = path.join(workspace.root, "count.txt");
   const checkout = workspace.checkout,
-    commit = (files) => {
+    commit = (files: Record<string, string | null>) => {
       for (const [file, text] of Object.entries(files)) {
         fs.mkdirSync(path.dirname(path.join(checkout, file)), {
           recursive: true,
@@ -486,7 +515,11 @@ function cacheRepo(t) {
     },
     runs = () =>
       fs.existsSync(counter) ? fs.readFileSync(counter, "utf8").length : 0,
-    run = (check, at, extra = {}) =>
+    run = (
+      check: Parameters<typeof runPluginCheck>[0],
+      at: string,
+      extra: Record<string, unknown> = {},
+    ) =>
       runPluginCheck(check, {
         store: workspace.store,
         repository: {
@@ -508,7 +541,7 @@ function cacheRepo(t) {
 
 test("pk-1.3: the same content of the matched paths reuses a passed or failed result, marked cached", async (t) => {
   const { workspace, commit, runs, run } = cacheRepo(t),
-    check = workspace.check("parity"),
+    check = found(workspace.check("parity")),
     first = commit({ "src/api/b.js": "b\n" }),
     a = await run(check, first);
   assert.equal(a.exitCode, 0);
@@ -529,7 +562,7 @@ test("pk-1.3: the same content of the matched paths reuses a passed or failed re
   const fresh = await run(check, again, { fresh: true });
   assert.deepEqual([fresh.cached, runs()], [undefined, 3]);
   const key = await contentKey(workspace.checkout, check, { commit: again });
-  assert.equal(cachedResult(workspace.store, key).firstCommit, again);
+  assert.equal(cachedResult(workspace.store, key)?.firstCommit, again);
   // A new plugin version misses.
   assert.notEqual(
     await contentKey(
@@ -543,7 +576,7 @@ test("pk-1.3: the same content of the matched paths reuses a passed or failed re
 
 test("pk-1.3: no paths keys every tracked file, {base} keys the base, and not run is never stored", async (t) => {
   const { workspace, commit } = cacheRepo(t),
-    check = { ...workspace.check("parity"), paths: null },
+    check = { ...found(workspace.check("parity")), paths: null },
     one = commit({ "docs/readme.md": "1\n" }),
     two = commit({ "docs/readme.md": "2\n" });
   assert.notEqual(
@@ -551,7 +584,7 @@ test("pk-1.3: no paths keys every tracked file, {base} keys the base, and not ru
     await contentKey(workspace.checkout, check, { commit: two }),
   );
   const withBase = {
-      ...workspace.check("parity"),
+      ...found(workspace.check("parity")),
       argv: ["bin/count.mjs", "{base}"],
     },
     root = git(workspace.checkout, "rev-list", "--max-parents=0", "HEAD"),
@@ -579,7 +612,7 @@ test("pk-1.3: no paths keys every tracked file, {base} keys the base, and not ru
 test("pk-1.3: the cache keeps at most 5,000 entries and none older than 30 days", (t) => {
   const { workspace } = cacheRepo(t),
     store = workspace.store,
-    check = workspace.check("parity"),
+    check = found(workspace.check("parity")),
     now = Date.parse("2026-11-19T12:00:00Z");
   store.transaction(() => {
     for (let i = 0; i < 5000; i++)

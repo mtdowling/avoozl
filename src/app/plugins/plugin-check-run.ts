@@ -37,6 +37,8 @@ interface Result {
   durationMs?: number;
   violation?: string;
   cached?: { firstCommit?: string; at: string };
+  // The isolation the step ran under.
+  isolation?: unknown;
 }
 // What one run is given (see runPluginCheck).
 interface RunContext {

@@ -1,11 +1,10 @@
-// @ts-nocheck: typing debt
 import { defaultJob, fixedCredentials } from "../../test/github-credentials.ts";
 // GitHub rate-limit handling with fakes: conditional reads that reuse the
 // stored body on a 304, a bounded cache, a pause on 403 and 429, one Needs
 // you row, and a stretched tick when the budget is low. No network.
 import assert from "node:assert/strict";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { GitHubClient } from "../github.ts";
 import {
   CACHE_MAX_AGE_MS,
@@ -24,10 +23,44 @@ import {
 } from "../github-rate.ts";
 import { Store } from "../../store/store.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
+import { snapshot } from "../../test/fixtures.ts";
+import { leaf } from "../../test/delivery-fixture.ts";
+import { found, type TickResult } from "../../test/view-shapes.ts";
+
+// A refusal while GitHub's limit holds.
+type Limited = Error & {
+  status?: number;
+  rateLimited?: { resource?: string; resetAt?: string };
+};
+const limited = (e: Limited) => Boolean(e.rateLimited);
+// What the fake GitHub saw and what it would count.
+interface Log {
+  requests: { path: string; headers: Record<string, string> }[];
+  counted: number;
+  notModified: number;
+}
+// A path's answer: a body, or a function that makes the response.
+type Route =
+  | ((
+      u: URL,
+      headers: Record<string, string>,
+      log: Log,
+    ) => Response | Promise<Response>)
+  | Record<string, unknown>
+  | unknown[];
+// The headers the client sends, as the plain object it builds.
+const headerMap = (init?: RequestInit): Record<string, string> => {
+  const headers = init?.headers;
+  return headers && !(headers instanceof Headers) && !Array.isArray(headers)
+    ? Object.fromEntries(
+        Object.entries(headers).map(([name, value]) => [name, String(value)]),
+      )
+    : {};
+};
 
 const T0 = Date.parse("2026-11-14T18:00:00Z");
 
-function workspace(t) {
+function workspace(t: TestContext) {
   const store = new Store(
     path.join(temporaryDirectory("avoozl-rate-"), "workspace.sqlite"),
   );
@@ -38,11 +71,11 @@ function workspace(t) {
 // A GitHub that answers every GET by path from `routes` (a body), with an
 // ETag that moves when the body does, and 304 for a matching If-None-Match.
 // `counted` is what GitHub would count: every answer but a 304.
-function fakeGitHub(routes) {
-  const log = { requests: [], counted: 0, notModified: 0 };
-  const fetch = async (url, options) => {
-    const u = new URL(url),
-      headers = options.headers,
+function fakeGitHub(routes: Record<string, Route>) {
+  const log: Log = { requests: [], counted: 0, notModified: 0 };
+  const fetch: typeof globalThis.fetch = async (url, options) => {
+    const u = new URL(String(url)),
+      headers = headerMap(options),
       body = routes[u.pathname];
     log.requests.push({ path: u.pathname, headers });
     if (typeof body === "function") return body(u, headers, log);
@@ -67,7 +100,12 @@ function fakeGitHub(routes) {
   return { fetch, log };
 }
 
-function bound(t, store, fetch, now = () => T0) {
+function bound(
+  _t: TestContext,
+  store: Store,
+  fetch: typeof globalThis.fetch,
+  now = () => T0,
+) {
   const github = defaultJob(
     "spec-issues",
     new GitHubClient({
@@ -87,6 +125,7 @@ test("a 304 reuses the stored body and sends both validators", async (t) => {
   assert.deepEqual(await github.listLabels("o/r"), [{ name: "go" }]);
   assert.deepEqual(await github.listLabels("o/r"), [{ name: "go" }]);
   const [first, second] = log.requests.filter((r) => r.path.endsWith("labels"));
+  assert.ok(first && second);
   assert.equal(first.headers["If-None-Match"], undefined);
   assert.match(second.headers["If-None-Match"], /^W\//);
   assert.equal(
@@ -105,7 +144,7 @@ test("a changed answer replaces the stored one, and Link survives a 304", async 
   const store = workspace(t);
   let body = [{ name: "a" }];
   const { fetch, log } = fakeGitHub({
-    "/repos/o/r/issues": (u, headers) => {
+    "/repos/o/r/issues": (_u, headers) => {
       const etag = `"${JSON.stringify(body)}"`;
       if (headers["If-None-Match"] === etag)
         return new Response(null, { status: 304 });
@@ -130,8 +169,8 @@ test("a changed answer replaces the stored one, and Link survives a 304", async 
 test("writes and answers with no validator are never cached", async (t) => {
   const store = workspace(t);
   let posts = 0;
-  const github = bound(t, store, async (url, options) => {
-    if (options.method === "POST") posts += 1;
+  const github = bound(t, store, async (_url, options) => {
+    if (options?.method === "POST") posts += 1;
     return new Response("{}", { status: 200 });
   });
   await github.request("POST", "/repos/o/r/issues", { body: { title: "x" } });
@@ -145,7 +184,7 @@ test("the cache is bounded: oversize skipped, least recently used and old entrie
   const store = workspace(t);
   let clock = T0;
   const cache = new ResponseCache(store, { now: () => clock, maxEntries: 3 }),
-    put = (name, body = "[]") =>
+    put = (name: string, body = "[]") =>
       cache.put(name, { etag: '"' + name + '"', body });
   cache.put("big", { etag: '"x"', body: "x".repeat(CACHE_MAX_BODY + 1) });
   assert.equal(cache.size(), 0);
@@ -170,8 +209,13 @@ test("the cache cap grows with the GitHub issues the workspace tracks", (t) => {
   let clock = T0;
   const cache = new ResponseCache(store, { now: () => clock, maxEntries: 3 });
   // Two tracked issues keep up to CACHE_ENTRIES_PER_ISSUE answers each.
-  store.read = () => ({
-    tasks: [{ github: { number: 1 } }, { github: { number: 2 } }, {}],
+  store.initialize({
+    ...snapshot(),
+    tasks: [
+      leaf("a", { github: { number: 1 } }),
+      leaf("b", { github: { number: 2 } }),
+      leaf("c"),
+    ],
   });
   assert.equal(cache.limit(), 2 * CACHE_ENTRIES_PER_ISSUE);
   for (const name of ["a", "b", "c", "d", "e"]) {
@@ -209,11 +253,11 @@ test("a 403 with no calls left stops every call until the reset, with no retries
       },
       () => clock,
     );
-  await assert.rejects(github.repository("o/r"), (error) => {
+  await assert.rejects(github.repository("o/r"), (error: Limited) => {
     assert.equal(error.status, 429);
-    assert.equal(error.rateLimited.resource, "core");
+    assert.equal(error.rateLimited?.resource, "core");
     assert.equal(
-      error.rateLimited.resetAt,
+      error.rateLimited?.resetAt,
       new Date(reset * 1000).toISOString(),
     );
     assert.match(error.message, RATE_LIMIT_TEXT);
@@ -224,16 +268,15 @@ test("a 403 with no calls left stops every call until the reset, with no retries
   const other = bound(
     t,
     store,
-    async () => (calls += 1),
+    async () => {
+      calls += 1;
+      return new Response("{}");
+    },
     () => clock,
   );
   for (let i = 0; i < 5; i += 1) {
-    await assert.rejects(github.repository("o/r"), (e) =>
-      Boolean(e.rateLimited),
-    );
-    await assert.rejects(other.listLabels("o/r"), (e) =>
-      Boolean(e.rateLimited),
-    );
+    await assert.rejects(github.repository("o/r"), limited);
+    await assert.rejects(other.listLabels("o/r"), limited);
   }
   assert.equal(calls, 1);
   // GraphQL has its own budget and is not held by a spent core budget.
@@ -257,7 +300,7 @@ test("a spent budget on a 200 holds the next call too", async (t) => {
     });
   });
   await github.repository("o/r");
-  await assert.rejects(github.repository("o/r"), (e) => Boolean(e.rateLimited));
+  await assert.rejects(github.repository("o/r"), limited);
   assert.equal(calls, 1);
 });
 
@@ -279,13 +322,13 @@ test("a 429 waits for Retry-After", async (t) => {
     },
     () => clock,
   );
-  await assert.rejects(github.repository("o/r"), (e) => Boolean(e.rateLimited));
+  await assert.rejects(github.repository("o/r"), limited);
   assert.equal(
     rateView(store, T0).limitedUntil,
     new Date(T0 + 90_000).toISOString(),
   );
   clock = T0 + 89_000;
-  await assert.rejects(github.repository("o/r"), (e) => Boolean(e.rateLimited));
+  await assert.rejects(github.repository("o/r"), limited);
   clock = T0 + 91_000;
   await github.repository("o/r");
   assert.equal(calls, 2);
@@ -312,10 +355,8 @@ test("a secondary limit holds every resource for a minute when GitHub names no t
     },
     () => clock,
   );
-  await assert.rejects(github.repository("o/r"), (e) => Boolean(e.rateLimited));
-  await assert.rejects(github.graphql("query{x}", {}, "read"), (e) =>
-    Boolean(e.rateLimited),
-  );
+  await assert.rejects(github.repository("o/r"), limited);
+  await assert.rejects(github.graphql("query{x}", {}, "read"), limited);
   assert.equal(calls, 1);
   clock = T0 + SECONDARY_WAIT_MS + 1;
   await github.graphql("query{x}", {}, "read");
@@ -333,7 +374,7 @@ test("a 403 for permissions is not a rate limit", async (t) => {
           headers: { "x-ratelimit-remaining": "4000" },
         }),
     );
-  await assert.rejects(github.repository("o/r"), (e) => {
+  await assert.rejects(github.repository("o/r"), (e: Limited) => {
     assert.equal(e.status, 403);
     assert.equal(e.rateLimited, undefined);
     return true;
@@ -359,16 +400,15 @@ test("one Needs you row and one notice per window, and the row clears itself", a
         }),
     );
   for (let i = 0; i < 4; i += 1)
-    await assert.rejects(github.repository("o/r"), (e) =>
-      Boolean(e.rateLimited),
-    );
+    await assert.rejects(github.repository("o/r"), limited);
   const rows = rateNeedsYou(store, T0);
   assert.equal(rows.length, 1);
+  const row = found(rows[0]);
   assert.equal(
-    rows[0].title,
+    row.title,
     `GitHub rate limit reached, resumes at ${new Date(reset * 1000).toISOString()}`,
   );
-  assert.match(rows[0].detail, /0 of 5000 core calls left/);
+  assert.match(row.detail, /0 of 5000 core calls left/);
   assert.equal(rateLimitNotices(store, T0).length, 1);
   assert.equal(rateLimitNotices(store, T0 + 1000).length, 0);
   assert.deepEqual(rateNeedsYou(store, reset * 1000 + 1), []);
@@ -377,13 +417,14 @@ test("one Needs you row and one notice per window, and the row clears itself", a
 test("a low budget stretches the tick, a spent one holds it, and a reset frees it", (t) => {
   const store = workspace(t),
     github = bound(t, store, async () => new Response("{}"));
-  const set = (remaining, resetIn = 3600_000) => {
-    github.rate.observe("core", {
+  const rate = found(github.rate);
+  const set = (remaining: number, resetIn = 3600_000) => {
+    rate.observe("core", {
       limit: 5000,
       remaining,
       resetAtMs: T0 + resetIn,
     });
-    github.rate.flush(true);
+    rate.flush();
   };
   set(LOW_REMAINING + 1);
   assert.equal(githubGate(store, T0).skip, false);
@@ -414,12 +455,12 @@ test("the settings view reports the last numbers and the 304 share", async (t) =
     { fetch } = fakeGitHub({ "/repos/o/r": { id: 1 } }),
     github = bound(t, store, fetch);
   for (let i = 0; i < 4; i += 1) await github.repository("o/r");
-  github.rate.flush(true);
+  found(github.rate).flush();
   const view = rateView(store, T0);
   assert.equal(view.calls, 4);
   assert.equal(view.notModified, 3);
   assert.equal(view.notModifiedShare, 0.75);
-  assert.equal(view.resources.core.limit, 5000);
+  assert.equal(view.resources.core?.limit, 5000);
   assert.equal(view.limitedUntil, null);
 });
 
@@ -428,7 +469,7 @@ test("the settings view reports the last numbers and the 304 share", async (t) =
 // so every read is counted); the new path must count fewer, whatever the
 // number of reads.
 test("a quiet tick makes fewer counted calls than the old path", async (t) => {
-  const routes = {
+  const routes: Record<string, Route> = {
     "/repos/o/r": { id: 1, private: true },
     "/repos/o/r/labels": [{ name: "go" }],
     "/repos/o/r/issues": [{ number: 1 }, { number: 2 }],
@@ -437,7 +478,7 @@ test("a quiet tick makes fewer counted calls than the old path", async (t) => {
     "/repos/o/r/commits/abc/check-runs": { check_runs: [] },
     "/repos/o/r/contents/.kiro/specs/x/tasks.md": { content: "" },
   };
-  const tick = async (github) => {
+  const tick = async (github: GitHubClient) => {
     await github.repository("o/r");
     await github.listLabels("o/r");
     await github.listIssues("o/r");
@@ -446,7 +487,7 @@ test("a quiet tick makes fewer counted calls than the old path", async (t) => {
     await github.checkRuns("o/r", "abc");
     await github.request("GET", "/repos/o/r/contents/.kiro/specs/x/tasks.md");
   };
-  const run = async (bind) => {
+  const run = async (bind: boolean) => {
     const { fetch, log } = fakeGitHub(routes),
       github = defaultJob(
         "check-in",
@@ -476,14 +517,14 @@ test("a quiet tick makes fewer counted calls than the old path", async (t) => {
 test("the tick holds every GitHub step while limited, with one row and one notice", async (t) => {
   const { workspace: plans } = await import("../../test/plans-repo-github.ts"),
     w = plans(t),
-    calls = [],
+    calls: string[] = [],
     counted = new Proxy(w.github, {
       get(target, name) {
-        const value = target[name];
+        const value: unknown = Reflect.get(target, name);
         return typeof value === "function" &&
-          !["bind", "available", "signedIn"].includes(name)
-          ? (...args) => {
-              calls.push(name);
+          !["bind", "available", "signedIn"].includes(String(name))
+          ? (...args: unknown[]) => {
+              calls.push(String(name));
               return value.apply(target, args);
             }
           : value;
@@ -491,7 +532,7 @@ test("the tick holds every GitHub step while limited, with one row and one notic
     }),
     { Operations } = await import("../../api/operations.ts"),
     ops = new Operations(w.store, { github: counted, workspaceRoot: w.root }),
-    tick = () => ops.execute("workspace.tick", { sessions: [] }),
+    tick = () => ops.execute<TickResult>("workspace.tick", { sessions: [] }),
     now = Date.now();
   await tick();
   w.store.setMeta("githubRate", {
@@ -506,27 +547,40 @@ test("the tick holds every GitHub step while limited, with one row and one notic
     pause: { resource: "core", scope: "core", until: now + 3600_000, at: now },
   });
   calls.length = 0;
-  const notices = [];
+  const notices: unknown[] = [];
   for (let i = 0; i < 3; i += 1)
     notices.push(
-      ...(await tick()).notify.filter((n) => /rate limit/i.test(n.title)),
+      ...((await tick()).notify ?? []).filter((n) =>
+        /rate limit/i.test(String(n.title)),
+      ),
     );
   assert.deepEqual(calls, []);
   assert.equal(notices.length, 1);
-  const view = await ops.execute("conflicts.view", {}),
+  const view = await ops.execute<{ items: { id: string; title: string }[] }>(
+      "conflicts.view",
+      {},
+    ),
     rows = view.items.filter((item) => item.id === "github-rate-limit");
   assert.equal(rows.length, 1);
-  assert.match(rows[0].title, /^GitHub rate limit reached, resumes at /);
+  assert.match(found(rows[0]).title, /^GitHub rate limit reached, resumes at /);
   // The settings page shows the numbers.
-  const settings = await ops.execute("github.settings.get", {});
-  assert.equal(settings.rate.resources.core.remaining, 0);
+  const settings = await ops.execute<{
+    rate: {
+      resources: Record<string, { remaining: number }>;
+      limitedUntil: string | null;
+    };
+  }>("github.settings.get", {});
+  assert.equal(settings.rate.resources.core?.remaining, 0);
   assert.ok(settings.rate.limitedUntil);
   // After the reset the row is gone.
   w.store.setMeta("githubRate", {
-    ...w.store.getMeta("githubRate"),
+    ...w.store.getMeta<Record<string, unknown>>("githubRate"),
     pause: { resource: "core", scope: "core", until: now - 1000, at: now },
   });
-  const after = await ops.execute("conflicts.view", {});
+  const after = await ops.execute<{ items: { id: string }[] }>(
+    "conflicts.view",
+    {},
+  );
   assert.equal(
     after.items.filter((item) => item.id === "github-rate-limit").length,
     0,
@@ -535,7 +589,11 @@ test("the tick holds every GitHub step while limited, with one row and one notic
 
 // ---- The one max-age cache (github.cacheSeconds) ------------------------
 
-function aged(t, routes, seconds = () => 60) {
+function aged(
+  t: TestContext,
+  routes: Record<string, Route>,
+  seconds = () => 60,
+) {
   const store = workspace(t),
     clock = { now: T0 },
     { fetch, log } = fakeGitHub(routes),
@@ -595,7 +653,7 @@ test("a write makes that repository's answers stale, and the next read revalidat
   await github.repository("o/r");
   assert.equal(log.requests.length, before + 1);
   assert.equal(
-    log.requests.at(-1).headers["If-None-Match"] !== undefined,
+    log.requests.at(-1)?.headers["If-None-Match"] !== undefined,
     true,
   );
 });
@@ -631,14 +689,14 @@ test("while the limit holds, even an old answer is served and an unseen one fail
   });
   await github.repository("o/r");
   clock.now += 3_600_000;
-  github.rate.limit({
+  found(github.rate).limit({
     resource: "core",
     until: clock.now + 600_000,
     reason: "primary",
   });
   const calls = log.requests.length;
   assert.deepEqual(await github.repository("o/r"), { id: 1 });
-  await assert.rejects(github.repository("o/other"), (e) =>
+  await assert.rejects(github.repository("o/other"), (e: Error) =>
     RATE_LIMIT_TEXT.test(e.message),
   );
   assert.equal(log.requests.length, calls);
