@@ -24,7 +24,7 @@ const SERVE_MAIN = fileURLToPath(
 // What page.json records of the running page.
 interface PageRecord {
   pid: number;
-  started: unknown;
+  started: string | null;
   port: number;
 }
 

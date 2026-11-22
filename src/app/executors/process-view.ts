@@ -204,7 +204,7 @@ export function processSessionDetails(
   };
   try {
     for (const slot of slots) {
-      const row: ChildRow | null = childRecord(db, slot);
+      const row = childRecord(db, slot);
       if (!row) continue;
       const definition = definitionOf(row.harness);
       details.set(slot, {
