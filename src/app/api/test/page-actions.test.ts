@@ -1,16 +1,48 @@
-// @ts-nocheck: typing debt
 // The page's task drawer, spec reader, task authoring and Conflicts actions.
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { Operations } from "../operations.ts";
 import { principalAllows } from "../../executors/kirocrew/app-backend.ts";
 import { classifyOperation } from "../operation-table.ts";
 import { fixture, snapshot } from "../../test/fixtures.ts";
 import { writeSpec } from "../../test/spec-fixture.ts";
+import type { Refusal } from "../../test/refusal.ts";
+import {
+  found,
+  storedRow,
+  type GraphView,
+  type PlanDraft,
+  type PlanPreview,
+} from "../../test/view-shapes.ts";
 
-const leaf = (id, extra = {}) => ({
+// A refusal with its code.
+type Coded = Refusal & { code?: string };
+// task.detail, for the fields these tests read.
+interface TaskDetail {
+  task: {
+    title: string;
+    acceptance: string[];
+    wave?: number;
+    needsReview?: boolean;
+  };
+  waitsOn: { id: string; kind: string; satisfied: boolean }[];
+  blocks: { id: string }[];
+  delivery: { sessions: { slot: string }[] };
+  timeline: { text: string }[];
+  locked: { reason: string } | null;
+  conflicts: unknown[];
+}
+// task.change.preview.
+interface ChangePreview {
+  route: string;
+  link?: string;
+  tasks?: unknown;
+  facts: { after: { acceptance: string[] } };
+}
+
+const leaf = (id: string, extra: Record<string, unknown> = {}) => ({
   id,
   title: "Task " + id,
   scope: "catalog",
@@ -22,7 +54,7 @@ const leaf = (id, extra = {}) => ({
   ...extra,
 });
 
-function workspace(t) {
+function workspace(t: TestContext) {
   const { root, store } = fixture(t),
     data = snapshot();
   data.tasks = [
@@ -49,7 +81,7 @@ test("task.detail shows the task, both directions of links, delivery, conflicts 
   await ops.execute("session.bind", { taskId: "b", slot: "slot-b-1" });
   await ops.execute("session.status", { slot: "slot-b-1", status: "working" });
   const before = store.read().revision;
-  const detail = await ops.execute("task.detail", { id: "b" });
+  const detail = await ops.execute<TaskDetail>("task.detail", { id: "b" });
   assert.equal(detail.task.title, "Task b");
   assert.deepEqual(detail.task.acceptance, ["b is observable."]);
   assert.equal(detail.task.wave, 2);
@@ -70,8 +102,8 @@ test("task.detail shows the task, both directions of links, delivery, conflicts 
   );
   assert.equal(detail.locked, null);
   assert.equal(store.read().revision, before, "the read writes nothing");
-  const github = await ops.execute("task.detail", { id: "g" });
-  assert.equal(github.locked.reason, "github");
+  const github = await ops.execute<TaskDetail>("task.detail", { id: "g" });
+  assert.equal(github.locked?.reason, "github");
   // Review is one item per plan in Conflicts, not one per task.
   assert.deepEqual(github.conflicts, []);
   assert.equal(github.task.needsReview, true);
@@ -94,8 +126,10 @@ test("a new task from the page is a draft that waits for review, never ready", a
     },
     revision,
   );
-  const graph = await ops.execute("graph.view", {}),
-    task = graph.tasks.find((entry) => entry.id === "new-task");
+  const graph = await ops.execute<
+      GraphView & { edges: { from: string; to: string; kind: string }[] }
+    >("graph.view", {}),
+    task = found(graph.tasks.find((entry) => entry.id === "new-task"));
   assert.equal(task.ready, false);
   assert.equal(task.state, "waiting");
   assert.equal(task.review, true);
@@ -119,7 +153,7 @@ test("a prerequisite that makes a cycle is refused with its path", async (t) => 
       { id: "a", requires: ["c"] },
       ops.read().revision,
     ),
-    (error) =>
+    (error: Coded) =>
       error.status === 409 &&
       error.code === "cycle" &&
       /a → b → c → a/.test(error.message),
@@ -141,7 +175,8 @@ test("a stale revision is refused, so the page says to reload", async (t) => {
   await ops.execute("task.update", { id: "b", title: "Moved on" }, stale);
   await assert.rejects(
     ops.execute("task.update", { id: "b", title: "Too late" }, stale),
-    (error) => error.status === 409 && /Database changed/.test(error.message),
+    (error: Refusal) =>
+      error.status === 409 && /Database changed/.test(error.message),
   );
 });
 
@@ -149,10 +184,10 @@ test("a GitHub task's edit routes to a change preview that writes nothing", asyn
   const { store, ops } = workspace(t);
   await assert.rejects(
     ops.execute("task.update", { id: "g", title: "Edit" }, ops.read().revision),
-    (error) => error.status === 409 && error.code === "authority-github",
+    (error: Coded) => error.status === 409 && error.code === "authority-github",
   );
   const before = store.read().revision,
-    preview = await ops.execute("task.change.preview", {
+    preview = await ops.execute<ChangePreview>("task.change.preview", {
       id: "g",
       title: "Edit",
     });
@@ -164,15 +199,17 @@ test("a GitHub task's edit routes to a change preview that writes nothing", asyn
 test("an approved spec task's edit previews the tasks.md line and its facts", async (t) => {
   const { root, store, ops } = workspace(t);
   writeSpec(root, "config");
-  const plan = await ops.execute("plan.create", { spec: "config" }),
-    preview = await ops.execute("plan.preview", { id: "config" });
+  const plan = await ops.execute<PlanDraft>("plan.create", { spec: "config" }),
+    preview = await ops.execute<PlanPreview>("plan.preview", { id: "config" });
   await ops.execute("plan.approve", {
     id: "config",
     expectedHash: plan.hash,
     expectedRevision: preview.expectedRevision,
   });
-  const detail = await ops.execute("task.detail", { id: "config.1.2" });
-  assert.equal(detail.locked.reason, "approved-spec");
+  const detail = await ops.execute<TaskDetail>("task.detail", {
+    id: "config.1.2",
+  });
+  assert.equal(detail.locked?.reason, "approved-spec");
   // The spec's Markdown owns the task's text: the page, CLI and MCP all go
   // through task.update, which refuses it and names the file to edit.
   for (const change of [
@@ -187,7 +224,7 @@ test("an approved spec task's edit previews the tasks.md line and its facts", as
         { id: "config.1.2", ...change },
         ops.read().revision,
       ),
-      (error) =>
+      (error: Coded) =>
         error.status === 409 &&
         error.code === "authority-spec" &&
         error.message.includes(".kiro/specs/config/tasks.md"),
@@ -199,14 +236,14 @@ test("an approved spec task's edit previews the tasks.md line and its facts", as
     ops.read().revision,
   );
   assert.equal(
-    ops.read().tasks.find((t) => t.id === "config.1.2").status,
+    found(ops.read().tasks.find((t) => t.id === "config.1.2")).status,
     "deferred",
   );
   const tasksBefore = fs.readFileSync(
     path.join(root, ".kiro/specs/config/tasks.md"),
     "utf8",
   );
-  const change = await ops.execute("task.change.preview", {
+  const change = await ops.execute<ChangePreview>("task.change.preview", {
     id: "config.1.2",
     title: "Validate and report config",
     acceptance: ["Unknown keys are listed."],
@@ -223,19 +260,27 @@ test("an approved spec task's edit previews the tasks.md line and its facts", as
     fs.readFileSync(path.join(root, ".kiro/specs/config/tasks.md"), "utf8"),
     tasksBefore,
   );
-  assert.equal(store.get("plans", "config").hash, plan.hash);
+  assert.equal(
+    storedRow<{ hash: string }>(store, "plans", "config").hash,
+    plan.hash,
+  );
 });
 
 test("plan.spec.read returns a folder's documents and refuses paths out of the specs root", async (t) => {
   const { root, ops } = workspace(t);
   writeSpec(root, "config");
-  const read = await ops.execute("plan.spec.read", { name: "config" });
+  const read = await ops.execute<{ documents: Record<string, string> }>(
+    "plan.spec.read",
+    {
+      name: "config",
+    },
+  );
   assert.deepEqual(Object.keys(read.documents).sort(), [
     "design.md",
     "requirements.md",
     "tasks.md",
   ]);
-  assert.match(read.documents["requirements.md"], /# Load configuration/);
+  assert.match(read.documents["requirements.md"] ?? "", /# Load configuration/);
   for (const name of ["../config", "config/../../x", "/etc", ".."])
     await assert.rejects(ops.execute("plan.spec.read", { name }));
   // A symlinked document that points out of the root reads as missing.
@@ -245,7 +290,12 @@ test("plan.spec.read returns a folder's documents and refuses paths out of the s
   const design = path.join(root, ".kiro/specs/config/design.md");
   fs.rmSync(design);
   fs.symlinkSync(outside, design);
-  const linked = await ops.execute("plan.spec.read", { name: "config" });
+  const linked = await ops.execute<{ documents: Record<string, string> }>(
+    "plan.spec.read",
+    {
+      name: "config",
+    },
+  );
   assert.equal(linked.documents["design.md"], undefined);
 });
 
@@ -258,9 +308,13 @@ test("conflicts.settle marks reviewed, unblocks, settles and dismisses, refusing
       action: "reviewed",
       items: [{ taskId: "c" }],
     }),
-    (error) => error.status === 428,
+    (error: Refusal) => error.status === 428,
   );
-  const reviewed = await ops.execute(
+  const reviewed = await ops.execute<{
+    settled: unknown[];
+    refused: { taskId: string; reason: string }[];
+    revision: number;
+  }>(
     "conflicts.settle",
     { action: "reviewed", items: [{ taskId: "c" }, { taskId: "g" }] },
     ops.read().revision,
@@ -290,15 +344,19 @@ test("conflicts.settle marks reviewed, unblocks, settles and dismisses, refusing
     ops.read().revision,
   );
   // This machine has no loop here; autopilot-settings.test.mjs covers that row.
-  const left = (await ops.execute("conflicts.view", {})).items
+  const left = (
+    await ops.execute<{
+      items: { kind: string; reason: string; tasks?: { id: string }[] }[];
+    }>("conflicts.view", {})
+  ).items
     .filter((item) => item.reason !== "autopilot-off")
     .map((item) => [item.kind, item.tasks?.map((task) => task.id)]);
   assert.deepEqual(left, [["review", ["g"]]]);
-  const d = ops.read().tasks.find((task) => task.id === "d");
+  const d = found(ops.read().tasks.find((task) => task.id === "d"));
   assert.equal(d.decision, undefined);
-  assert.match(d.notes, /choose-format settled .*: Use JSON\./);
+  assert.match(d.notes ?? "", /choose-format settled .*: Use JSON\./);
   assert.equal(
-    ops.read().tasks.find((task) => task.id === "e").status,
+    found(ops.read().tasks.find((task) => task.id === "e")).status,
     "planned",
   );
 });
@@ -363,7 +421,7 @@ test("task origin names where a task came from and the lines to read", async () 
     { id: "x", source: { document: "old.md", key: "k" } },
     data,
   );
-  assert.equal(gone.sources[0].readable, false);
+  assert.equal(gone.sources[0]?.readable, false);
   const spec = taskOrigin(
     {
       id: "1.2",
