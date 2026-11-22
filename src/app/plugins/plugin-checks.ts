@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Checks from a plugin (plugin-checks D1 to D3, PK1, PK2, PK7.1, PK10.1 to
 // PK10.3). A plugin that provides `checks` ships check definitions, their
 // scripts and decide prompts in its own folder, so the plugin's content hash
@@ -10,7 +9,7 @@
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { canonical, fail } from "../store/store.ts";
+import { canonical, fail, type Store } from "../store/store.ts";
 import type { PluginCheck } from "../workspace/repository-checks.ts";
 import { contentBinding } from "../content/content-rules.ts";
 import { pluginCheckConflicts } from "../workspace/repository-checks.ts";
@@ -48,11 +47,84 @@ const PLACEHOLDER = /\{([a-z_]+)(?::([^{}]+))?\}/g;
 const RUN_FILLS = ["commit", "base", "repo"];
 const MCP_FILLS = ["commit", "base", "repo", "diff_path"];
 
-const record = (value) =>
+const record = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
+const messageOf = (error: unknown) =>
+  error instanceof Error ? error.message : String(error);
+
+// One fixed MCP call of a check's step.
+interface McpCall {
+  tool: string;
+  args?: Record<string, unknown>;
+  id?: string;
+}
+// A check's MCP step: a start call, an optional poll, and the result.
+interface McpStep {
+  server: string;
+  start: McpCall;
+  poll?: McpCall & {
+    everySeconds?: number;
+    until: { path: string; in: unknown[] };
+  };
+  result: { path: string; pass: unknown[]; text?: string };
+}
+// A check as a plugin's manifest defines it, once validateChecksPart passed.
+export interface CheckDefinition {
+  repos: string[];
+  paths?: string[];
+  run?: string[];
+  mcp?: McpStep;
+  env?: string[];
+  network?: boolean;
+  timeout?: number;
+  decide?: string;
+  decideAt?: string[];
+  stage?: string;
+}
+// A server alias a checks plugin declares.
+interface ServerDeclaration {
+  about: string;
+}
+// What a checks plugin's manifest declares.
+interface ChecksManifest {
+  checks?: Record<string, CheckDefinition>;
+  servers?: Record<string, ServerDeclaration>;
+}
+// A plugin, as inspectPlugins reports what checks read of it.
+interface CheckedPlugin {
+  id: string;
+  state?: string;
+  version?: string;
+  hash?: string;
+  location?: string | null;
+  commit?: string;
+  entry?: { git?: unknown };
+  provides?: string[];
+  manifest?: ChecksManifest | null;
+  context?: { servers?: Record<string, unknown> } | null;
+}
+// One alias's local MCP server: its command and the names of its env.
+interface Mapping {
+  command?: string[];
+  env: string[];
+}
+// plugins.json, as far as checks read and write it.
+type CheckSettings = {
+  mcp?: Record<string, Record<string, Mapping>>;
+  approvals: Record<string, unknown>;
+  broken?: Record<string, { reason: string; at: string }>;
+  [key: string]: unknown;
+};
+// Where this machine's plugins are declared and approved.
+type Options = { workspaceRoot?: string | null; settingsFile: string };
 
 // A relative file inside the plugin folder: no `..`, not absolute, there.
-function pluginFile(folder, file, where, { ext } = {}) {
+function pluginFile(
+  folder: string,
+  file: unknown,
+  where: string,
+  { ext }: { ext?: string } = {},
+) {
   if (
     typeof file !== "string" ||
     !file.trim() ||
@@ -63,7 +135,7 @@ function pluginFile(folder, file, where, { ext } = {}) {
     fail(`${where} must be a relative path to a file inside the plugin.`);
   if (ext && !file.endsWith(ext)) fail(`${where} must be a ${ext} file.`);
   const full = path.join(folder, file);
-  let stat;
+  let stat: fs.Stats;
   try {
     stat = fs.lstatSync(full);
   } catch {
@@ -73,7 +145,11 @@ function pluginFile(folder, file, where, { ext } = {}) {
   return full;
 }
 
-const globs = (value, where, { required }) => {
+const globs = (
+  value: unknown,
+  where: string,
+  { required }: { required: boolean },
+) => {
   if (value === undefined && !required) return;
   if (
     !Array.isArray(value) ||
@@ -87,9 +163,14 @@ const globs = (value, where, { required }) => {
 };
 
 // Every `{name}` and `{file:NAME}` in a string, checked against `allowed`.
-function placeholders(text, where, allowed, folder) {
+function placeholders(
+  text: unknown,
+  where: string,
+  allowed: string[],
+  folder?: string,
+) {
   for (const [, name, arg] of String(text).matchAll(PLACEHOLDER)) {
-    if (name === "file" && allowed.includes("file")) {
+    if (name === "file" && allowed.includes("file") && folder) {
       if (
         statSize(pluginFile(folder, arg, `${where} {file:${arg}}`)) > MAX_FILE
       )
@@ -102,10 +183,14 @@ function placeholders(text, where, allowed, folder) {
       );
   }
 }
-const statSize = (file) => fs.statSync(file).size;
+const statSize = (file: string) => fs.statSync(file).size;
 
 // Each string inside a JSON value; keys are never filled.
-function eachString(value, visit, where) {
+function eachString(
+  value: unknown,
+  visit: (text: string, where: string) => void,
+  where: string,
+): void {
   if (typeof value === "string") return visit(value, where);
   if (Array.isArray(value))
     return value.forEach((item, i) =>
@@ -116,25 +201,35 @@ function eachString(value, visit, where) {
       eachString(child, visit, `${where}.${key}`);
 }
 
-const replyPath = (value, where) => {
+const replyPath = (value: unknown, where: string) => {
   if (typeof value !== "string" || !REPLY_PATH.test(value))
     fail(`${where} must be $ then .key or [index] parts, with no filter.`);
 };
-const values = (value, where) => {
+const values = (value: unknown, where: string) => {
   if (!Array.isArray(value) || !value.length || value.length > 50)
     fail(`${where} must list 1 to 50 values.`);
 };
 
-function validateMcp(step, where, servers, folder) {
+function validateMcp(
+  step: unknown,
+  where: string,
+  servers: Record<string, unknown>,
+  folder: string,
+) {
   if (!record(step)) fail(`${where} must be an object.`);
   for (const key of Object.keys(step))
     if (!["server", "start", "poll", "result"].includes(key))
       fail(`${where}.${key} is not an MCP step setting.`);
-  if (!Object.hasOwn(servers, step.server))
+  if (typeof step.server !== "string" || !Object.hasOwn(servers, step.server))
     fail(
       `${where}.server names ${step.server}, which servers does not declare.`,
     );
-  const call = (value, label, keys, fills) => {
+  const call = (
+    value: unknown,
+    label: string,
+    keys: string[],
+    fills: string[],
+  ): Record<string, unknown> => {
     if (!record(value)) fail(`${label} must be an object.`);
     for (const key of Object.keys(value))
       if (!keys.includes(key)) fail(`${label}.${key} is not a setting.`);
@@ -147,31 +242,34 @@ function validateMcp(step, where, servers, folder) {
       (text, at) => placeholders(text, at, fills, folder),
       `${label}.args`,
     );
+    return value;
   };
-  call(
+  const start = call(
     step.start,
     `${where}.start`,
     ["tool", "args", "id"],
     [...MCP_FILLS, "file"],
   );
-  if (step.start.id !== undefined)
-    replyPath(step.start.id, `${where}.start.id`);
+  if (start.id !== undefined) replyPath(start.id, `${where}.start.id`);
   if (step.poll !== undefined) {
-    if (step.start.id === undefined)
+    if (start.id === undefined)
       fail(`${where}.start.id is needed when the step polls.`);
-    call(
+    const poll = call(
       step.poll,
       `${where}.poll`,
       ["tool", "args", "everySeconds", "until"],
       [...MCP_FILLS, "id", "file"],
     );
-    const every = step.poll.everySeconds;
+    const every = poll.everySeconds;
     if (
       every !== undefined &&
-      (!Number.isInteger(every) || every < 5 || every > 3600)
+      (typeof every !== "number" ||
+        !Number.isInteger(every) ||
+        every < 5 ||
+        every > 3600)
     )
       fail(`${where}.poll.everySeconds must be a whole number from 5 to 3600.`);
-    const until = step.poll.until;
+    const until = poll.until;
     if (
       !record(until) ||
       Object.keys(until).some((k) => !["path", "in"].includes(k))
@@ -193,13 +291,17 @@ function validateMcp(step, where, servers, folder) {
 
 // The `checks` part of a manifest whose folder is `folder` (PK1, PK10.1).
 // Throws naming the plugin, the check and the key; returns the checks.
-export function validateChecksPart(manifest, folder) {
-  const id = manifest?.id,
-    where = (name, key) =>
+export function validateChecksPart(
+  given: unknown,
+  folder: string,
+): Record<string, CheckDefinition> | null {
+  const manifest = record(given) ? given : {},
+    id = manifest.id,
+    where = (name: string, key?: string) =>
       `Plugin ${id} check ${name}${key ? ` key ${key}` : ""}`;
-  const provides = Array.isArray(manifest?.provides) ? manifest.provides : [];
+  const provides = Array.isArray(manifest.provides) ? manifest.provides : [];
   if (!provides.includes("checks")) {
-    if (manifest?.checks !== undefined || manifest?.servers !== undefined)
+    if (manifest.checks !== undefined || manifest.servers !== undefined)
       fail(
         `Plugin ${id} has checks or servers but provides does not list checks.`,
       );
@@ -228,7 +330,7 @@ export function validateChecksPart(manifest, folder) {
         `Plugin ${id} server ${alias} must be {about}, one line of 1 to 200 characters.`,
       );
   }
-  const used = new Set();
+  const used = new Set<string>();
   for (const [name, check] of Object.entries(checks)) {
     if (!CHECK_NAME.test(name))
       fail(
@@ -257,7 +359,7 @@ export function validateChecksPart(manifest, folder) {
         );
     } else {
       validateMcp(check.mcp, where(name, "mcp"), servers, folder);
-      used.add(check.mcp.server);
+      if (record(check.mcp)) used.add(String(check.mcp.server));
       for (const key of ["network", "env"])
         if (check[key] !== undefined)
           fail(
@@ -275,7 +377,8 @@ export function validateChecksPart(manifest, folder) {
       fail(`${where(name, "network")} must be true or false.`);
     if (
       check.timeout !== undefined &&
-      (!Number.isInteger(check.timeout) ||
+      (typeof check.timeout !== "number" ||
+        !Number.isInteger(check.timeout) ||
         check.timeout < 1 ||
         check.timeout > 7200)
     )
@@ -295,13 +398,14 @@ export function validateChecksPart(manifest, folder) {
           `${where(name, "decideAt")} must list approve and diff, each once.`,
         );
     }
-    if (check.stage !== undefined && !STAGES.includes(check.stage))
+    if (check.stage !== undefined && !STAGES.some((s) => s === check.stage))
       fail(`${where(name, "stage")} must be task, phase or branch.`);
   }
   for (const alias of Object.keys(servers))
     if (!used.has(alias))
       fail(`Plugin ${id} server ${alias} is declared but no check uses it.`);
-  return checks;
+  // The manifest's checks, each checked above.
+  return checks as Record<string, CheckDefinition>;
 }
 
 // ---- This machine's MCP mappings (PK10.2, PK10.3) ----------------------
@@ -309,10 +413,10 @@ export function validateChecksPart(manifest, folder) {
 // One alias's mapping, checked: {command: argv, env: [names]}, no
 // credential in it.
 export function validateMapping(
-  value,
+  value: unknown,
   where = "mapping",
   { commandOptional = false } = {},
-) {
+): Mapping {
   if (!record(value)) fail(`${where} must be {command, env}.`);
   for (const key of Object.keys(value))
     if (!["command", "env"].includes(key))
@@ -347,7 +451,7 @@ export function validateMapping(
 }
 
 // The hash of one plugin's mappings that its approval binds.
-export const mappingHash = (mappings) =>
+export const mappingHash = (mappings: unknown) =>
   createHash("sha256")
     .update(canonical(mappings ?? {}))
     .digest("hex");
@@ -356,7 +460,7 @@ export const mappingHash = (mappings) =>
 // act only (the operation is person-only). A changed mapping leaves the
 // plugin's approval stale until it is approved again.
 export function setMapping(
-  options,
+  options: Options,
   {
     id,
     alias,
@@ -371,15 +475,16 @@ export function setMapping(
     remove?: unknown;
   },
 ) {
-  const plugin = inspectPlugins(options).find((p) => p.id === id);
+  const plugins: CheckedPlugin[] = inspectPlugins(options),
+    plugin = plugins.find((p) => p.id === id);
   if (!plugin) fail(`Plugin ${id} is not declared.`, 404);
   // A context plugin's aliases are in its servers file; its mapping's
   // command is optional and replaces the plugin's (epic-context EC4.3).
   const declared = plugin.manifest?.servers ?? plugin.context?.servers ?? {};
-  if (!Object.hasOwn(declared, alias))
+  if (typeof alias !== "string" || !Object.hasOwn(declared, alias))
     fail(`Plugin ${id} declares no server ${alias}.`, 404);
-  const settings = readPluginSettings(options.settingsFile),
-    own = { ...(settings.mcp?.[id] ?? {}) };
+  const settings: CheckSettings = readPluginSettings(options.settingsFile),
+    own = { ...(settings.mcp?.[plugin.id] ?? {}) };
   if (remove) delete own[alias];
   else
     own[alias] = validateMapping(
@@ -387,8 +492,8 @@ export function setMapping(
       `mcp.${id}.${alias}`,
       { commandOptional: Boolean(plugin.context) },
     );
-  settings.mcp = { ...settings.mcp, [id]: own };
-  if (!Object.keys(own).length) delete settings.mcp[id];
+  settings.mcp = { ...settings.mcp, [plugin.id]: own };
+  if (!Object.keys(own).length) delete settings.mcp[plugin.id];
   writePluginSettings(options.settingsFile, settings);
   return inspectPlugins(options).find((p) => p.id === id);
 }
@@ -398,16 +503,17 @@ export function setMapping(
 // Each check of each approved plugin on this machine, as a check entry:
 // {name, source: "plugin", plugin, repos, paths, argv, step, ...}. `argv`
 // is for display; a run step's real command is resolved at run time.
-export function approvedPluginChecks(options) {
-  const settings = readPluginSettings(options.settingsFile);
-  return inspectPlugins(options)
+export function approvedPluginChecks(options: Options): PluginCheck[] {
+  const settings: CheckSettings = readPluginSettings(options.settingsFile),
+    plugins: CheckedPlugin[] = inspectPlugins(options);
+  return plugins
     .filter(
       (plugin) =>
         plugin.state === "approved" && plugin.provides?.includes("checks"),
     )
     .sort((a, b) => a.id.localeCompare(b.id))
     .flatMap((plugin) =>
-      Object.entries(plugin.manifest.checks)
+      Object.entries(plugin.manifest?.checks ?? {})
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([name, check]) => {
           const mappings = settings.mcp?.[plugin.id] ?? {},
@@ -427,7 +533,11 @@ export function approvedPluginChecks(options) {
             paths: check.paths?.length ? [...check.paths] : null,
             argv: check.run
               ? [...check.run]
-              : ["mcp", check.mcp.server, check.mcp.start.tool],
+              : [
+                  "mcp",
+                  String(check.mcp?.server),
+                  String(check.mcp?.start.tool),
+                ],
             step: check.run ? "run" : "mcp",
             ...(check.mcp
               ? {
@@ -443,7 +553,7 @@ export function approvedPluginChecks(options) {
               ? {
                   decide: check.decide,
                   decidePrompt: fs.readFileSync(
-                    path.join(plugin.location, check.decide),
+                    path.join(String(plugin.location), check.decide),
                     "utf8",
                   ),
                   decideAt: [...(check.decideAt ?? ["diff"])],
@@ -455,9 +565,12 @@ export function approvedPluginChecks(options) {
     );
 }
 
-const loaded = new Map();
+const loaded = new Map<
+  string,
+  { stamp: number; at: number; checks: PluginCheck[] }
+>();
 const LOAD_MS = 2000;
-const mtime = (file) => {
+const mtime = (file: string) => {
   try {
     return fs.statSync(file).mtimeMs;
   } catch {
@@ -468,7 +581,7 @@ const mtime = (file) => {
 // The approved plugin checks of the workspace a store is bound to, loaded
 // once per run or view (at most every 2 seconds). An unbound store, or a
 // plugin setup that cannot be read, has none.
-export function pluginChecksOf(store): PluginCheck[] {
+export function pluginChecksOf(store: Store): PluginCheck[] {
   const binding = contentBinding(store);
   if (!binding?.workspaceRoot) return [];
   const settingsFile = binding.pluginSettingsFile ?? pluginSettingsPath(),
@@ -477,7 +590,7 @@ export function pluginChecksOf(store): PluginCheck[] {
     hit = loaded.get(key);
   if (hit && hit.stamp === stamp && Date.now() - hit.at < LOAD_MS)
     return hit.checks;
-  let checks = [];
+  let checks: PluginCheck[] = [];
   try {
     checks = approvedPluginChecks({
       workspaceRoot: binding.workspaceRoot,
@@ -491,7 +604,7 @@ export function pluginChecksOf(store): PluginCheck[] {
 }
 
 // The plugin options of a store's binding, or null.
-export function pluginOptionsOf(store) {
+export function pluginOptionsOf(store: Store) {
   const binding = contentBinding(store);
   return binding?.workspaceRoot
     ? {
@@ -504,9 +617,14 @@ export function pluginOptionsOf(store) {
 // A check whose plugin opened a listener, or whose server did (PK7.5):
 // the plugin's approval goes and the reason stays until a person approves
 // it again.
-export function markPluginBroken(options, id, reason) {
-  if (!options?.settingsFile) return;
-  const settings = readPluginSettings(options.settingsFile);
+export function markPluginBroken(
+  options: unknown,
+  id: string,
+  reason: unknown,
+) {
+  const file = record(options) ? options.settingsFile : null;
+  if (typeof file !== "string" || !file) return;
+  const settings: CheckSettings = readPluginSettings(file);
   delete settings.approvals[id];
   settings.broken = {
     ...settings.broken,
@@ -515,20 +633,20 @@ export function markPluginBroken(options, id, reason) {
       at: new Date().toISOString(),
     },
   };
-  writePluginSettings(options.settingsFile, settings);
+  writePluginSettings(file, settings);
   loaded.clear();
 }
 
 // Whether a local-folder plugin's files are still the approved ones, just
 // before a run (R83.6, PK7.1): null when they are, else why not. A git
 // plugin sits in a commit-named folder and is not hashed again.
-export function pluginChanged(plugin) {
+export function pluginChanged(plugin: { id: string; [key: string]: unknown }) {
   if (plugin.git) return null;
-  let now;
+  let now: string;
   try {
     now = contentHash(plugin.folder);
   } catch (error) {
-    return `plugin ${plugin.id} cannot be read: ${error.message}`;
+    return `plugin ${plugin.id} cannot be read: ${messageOf(error)}`;
   }
   return now === plugin.hash
     ? null
@@ -538,10 +656,23 @@ export function pluginChanged(plugin) {
 // The Needs you rows plugin checks raise, read from stored records only:
 // two plugins with one check name for a repository (PK2.4). Each row's id
 // names the repository and check, so reading twice shows one row.
-export function pluginCheckNeedsYou(store, plugins = pluginChecksOf(store)) {
-  const items = [];
+export function pluginCheckNeedsYou(
+  store: Store,
+  plugins = pluginChecksOf(store),
+) {
+  const items: {
+    kind: string;
+    reason: string;
+    id: string;
+    taskId: null;
+    authority: string;
+    title: string;
+    detail: string;
+  }[] = [];
   if (!plugins.length) return items;
-  for (const repository of store.list("repositories"))
+  for (const repository of store.list<{ id: string; github?: string | null }>(
+    "repositories",
+  ))
     for (const clash of pluginCheckConflicts(repository, plugins).clashes)
       items.push({
         kind: "needs-human",
@@ -561,17 +692,25 @@ export function pluginCheckNeedsYou(store, plugins = pluginChecksOf(store)) {
 // prompt's full text, the repositories here it applies to and where it is
 // shadowed or clashes, and each server alias with this machine's mapping.
 export function pluginChecksView(
-  store,
+  store: Store,
   {
     id,
     location,
     manifest,
-  }: { id: string; location?: string | null; manifest: unknown },
-  options,
+  }: {
+    id: string;
+    location?: string | null;
+    manifest: unknown;
+  },
+  options: Options,
 ) {
-  if (!manifest?.checks || !location) return null;
-  const settings = readPluginSettings(options.settingsFile),
-    read = (file) => {
+  // A manifest inspectPlugins read and validateChecksPart checked.
+  const { checks, servers } = (
+    record(manifest) ? manifest : {}
+  ) as ChecksManifest;
+  if (!checks || !location) return null;
+  const settings: CheckSettings = readPluginSettings(options.settingsFile),
+    read = (file: string) => {
       try {
         return fs
           .readFileSync(path.join(location, file), "utf8")
@@ -580,21 +719,23 @@ export function pluginChecksView(
         return null;
       }
     },
-    sent = (step) =>
+    sent = (step: McpStep) =>
       Object.fromEntries(
         [...JSON.stringify(step).matchAll(/\{file:([^{}]+)\}/g)].map(
           ([, name]) => [name, read(name)],
         ),
       ),
-    mine = Object.entries(manifest.checks).map(([name, check]) => ({
+    mine = Object.entries(checks).map(([name, check]) => ({
       name,
       repos: check.repos ?? [],
       plugin: { id },
     })),
     others = pluginChecksOf(store).filter((check) => check.plugin.id !== id),
-    repositories = store.list("repositories");
+    repositories = store.list<{ id: string; github?: string | null }>(
+      "repositories",
+    );
   return {
-    checks: Object.entries(manifest.checks).map(([name, check]) => ({
+    checks: Object.entries(checks).map(([name, check]) => ({
       name,
       repos: check.repos ?? [],
       paths: check.paths ?? null,
@@ -607,14 +748,16 @@ export function pluginChecksView(
             env: check.env ?? [],
             network: check.network === true,
           }
-        : {
-            kind: "mcp",
-            server: check.mcp.server,
-            start: check.mcp.start,
-            ...(check.mcp.poll ? { poll: check.mcp.poll } : {}),
-            result: check.mcp.result,
-            files: sent(check.mcp),
-          },
+        : check.mcp
+          ? {
+              kind: "mcp",
+              server: check.mcp.server,
+              start: check.mcp.start,
+              ...(check.mcp.poll ? { poll: check.mcp.poll } : {}),
+              result: check.mcp.result,
+              files: sent(check.mcp),
+            }
+          : null,
       decide: check.decide
         ? {
             file: check.decide,
@@ -644,7 +787,7 @@ export function pluginChecksView(
           ...clash,
         })),
     ),
-    servers: Object.entries(manifest.servers ?? {}).map(([alias, server]) => ({
+    servers: Object.entries(servers ?? {}).map(([alias, server]) => ({
       alias,
       about: server.about,
       mapping: settings.mcp?.[id]?.[alias] ?? null,
