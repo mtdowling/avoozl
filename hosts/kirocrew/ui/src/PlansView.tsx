@@ -2196,21 +2196,22 @@ export default function PlansView(props: {
       setNotice('Resume this review before sending the spec back for changes.')
       return
     }
+    const hasOpenComments = review?.comments.some((comment) => comment.state === 'open')
+    if (hasOpenComments) {
+      void attempt(async () => {
+        const request = await plans.requestChanges(workspace, plan.id, plan.hash)
+        launchRework(next, plan, request)
+        await refreshOpenPlan()
+      })
+      return
+    }
     const active = review?.activeRequest
     if (active?.disposition === 'changes-requested') {
       launchRework(next, plan, { ...active, comments: review?.comments ?? [] })
       return
     }
-    if (!review?.comments.some((comment) => comment.state === 'open')) {
-      pickTab('review')
-      setNotice('Add a review comment or decision summary, then send the spec back for changes.')
-      return
-    }
-    void attempt(async () => {
-      const request = await plans.requestChanges(workspace, plan.id, plan.hash)
-      launchRework(next, plan, request)
-      await refreshOpenPlan()
-    })
+    pickTab('review')
+    setNotice('Add a review comment or decision summary, then send the spec back for changes.')
   }
   const act = (call: (workspaceId: string) => Promise<unknown>) => {
     if (!workspace) return

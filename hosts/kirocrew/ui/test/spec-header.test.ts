@@ -35,6 +35,16 @@ test('a rework handoff clears comments from the active review', () => {
   assert.match(source, /No open review comments\./)
 })
 
+test('new comments create a fresh rework request instead of reusing an active one', () => {
+  const source = readFileSync(new URL('../src/PlansView.tsx', import.meta.url), 'utf8')
+  const sendBack = source.slice(source.indexOf('  const sendBack = '), source.indexOf('  const act = ', source.indexOf('  const sendBack = ')))
+  const newComments = sendBack.indexOf('if (hasOpenComments)')
+  const activeRequest = sendBack.indexOf("if (active?.disposition === 'changes-requested')")
+  assert.ok(newComments >= 0, 'send back checks for newly open comments')
+  assert.ok(activeRequest > newComments, 'new comments are submitted before an old request can be reused')
+  assert.match(sendBack, /if \(hasOpenComments\) \{[\s\S]*plans\.requestChanges\(workspace, plan\.id, plan\.hash\)/)
+})
+
 let harness: Harness, page: Page
 withChrome(chrome, (got) => ({ harness, page } = got), demoHarness)
 
