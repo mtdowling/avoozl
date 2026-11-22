@@ -31,6 +31,11 @@ for checks, their environment, and the sandbox they run in.
 
 ## Turning Autopilot on
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://github.com/mtdowling/avoozl/releases/download/docs-screenshots/settings-autopilot-desktop-dark.png">
+  <img alt="Settings, Autopilot tab: who delivers and who merges" src="https://github.com/mtdowling/avoozl/releases/download/docs-screenshots/settings-autopilot-desktop-light.png" width="800">
+</picture>
+
 Autopilot runs on a machine when two things are set: a `delivery` block in
 the workspace's `.avoozl.json`, and a `loop` in this machine's
 `~/.config/avoozl/config.json` (see [The server loop](#the-server-loop)):
@@ -41,9 +46,10 @@ the workspace's `.avoozl.json`, and a `loop` in this machine's
 }
 ```
 
-**Settings › Autopilot** sets both. The page picks **Off** (you take and land
-tasks yourself) or **Autopilot** (the tick starts and lands them), and asks
-once before either change. Only a person changes it; agents, MCP and the tick
+**Settings › Autopilot** sets both. Under **Who delivers** it picks **Off: you
+deliver** (you take and land tasks yourself) or **Autopilot: Avoozl
+delivers** (the tick starts and lands them), and asks once before either
+change. Only a person changes it; agents, MCP and the tick
 cannot. Picking Autopilot writes the `delivery` block when it is missing and
 writes `loop` to this machine's config, `{"run": ["specs"]}` unless you set
 the page's **Run** and **Every** fields first. Picking Off removes `loop` from
@@ -51,14 +57,16 @@ this machine's config and keeps the `delivery` block, so other machines keep
 running. The page's other settings, such as who merges, show and save while
 Autopilot is off.
 
-When tasks are ready and this machine has no `loop`, **Needs you** says: "Autopilot is off on this machine, so ready tasks wait. Turn it on in
-Settings › Autopilot, or run avoozl next --claim."
+When tasks are ready and this machine has no `loop`, **Needs you** says
+"Autopilot is off on this machine, so ready tasks wait." and offers
+**Settings › Autopilot** or `avoozl next --claim`.
 
 A runner starts a spec's tasks only when the spec issue, and every parent
-spec's issue, is assigned to its own login alone; a spec with no issue runs
-here. See [Spec issues and assignment](github-workflow.md#8-spec-issues-and-assignment).
+spec's issue, is assigned to its own login alone. A spec with no issue runs
+here. See [Spec issues and assignment](github-workflow.md#8-spec-issues-and-assignment)
+for the rule.
 
-A workspace whose `.avoozl.json` still says `"runner": "crew-mode"` starts
+A workspace whose `.avoozl.json` says `"runner": "crew-mode"` starts
 nothing until a person chooses **Let the tick run it** in **Needs you**.
 
 ### The server loop
@@ -90,7 +98,8 @@ no `loop`, the tick still reads and caches, and `avoozl next`, `avoozl land`,
 
 A lane is one long-lived agent session that takes task after task. A
 machine runs `lanes.local` worker lanes (default 3) and `lanes.reviewers`
-reviewer lanes (default 1), set in `~/.config/avoozl/config.json`:
+reviewer lanes (default 1), set in `~/.config/avoozl/config.json`. A `lanes`
+block in `.avoozl.json` counts only when the machine file sets none:
 
 ```json
 {
@@ -105,9 +114,9 @@ reviewer lanes (default 1), set in `~/.config/avoozl/config.json`:
 A task starts only on a free lane of its role. Each lane session carries a
 fixed header, such as `Avoozl · my-workspace · worker 2` or
 `Avoozl · my-workspace · reviewer`. In Kiro Crew every lane chat of a
-workspace sits in the sidebar folder **Avoozl › my-workspace**. Avoozl
-clears a lane chat's conversation before its next task and sets its trust
-mode on every tick, so a lane never waits on a tool approval.
+workspace sits in the sidebar folder **Avoozl › my-workspace**, with no
+project directory: each brief names its worktree. Each tick keeps a lane
+chat's title and trust mode, so a lane never waits on a tool approval.
 
 A process harness such as Claude Code or Codex keeps each lane's sessions in
 `~/.avoozl/lanes/my-workspace/worker-2/` when its harness definition names
@@ -131,7 +140,8 @@ task's session in the same lane. When the lane's next task starts, Avoozl
 deletes the lane's session files older than the previous task, so the
 previous task stays readable until then. A harness signed in through its
 default home, such as a Claude.ai login, does not see that login in a lane
-home; leave `home` out of its definition.
+home; leave `home` out of its definition. `homeFiles` copies named config
+files, never a credential, from your home into each lane home.
 
 `avoozl lanes` lists each lane with its role, state, task, and how to open
 its session:
@@ -141,34 +151,36 @@ avoozl lanes
 ```
 
 When you close a lane's chat, the lane pauses and **Needs you** shows a row
-for it. Press **Resume**, or run `avoozl lane resume worker-2`, and the next
-tick opens a new chat for that lane. The task that was running moves to
-another free lane once.
+for it. The task it ran starts again on another free lane. Press **Resume**,
+or run `avoozl lane resume worker-2`, and the next tick opens a new chat for
+that lane.
 
 ### Kiro Crew setup
 
-A local worker needs nothing more. Its brief names this Avoozl's Node binary
-and CLI file, so it needs neither `avoozl` on its `PATH` nor MCP sharing. The
-other chats need two steps in Kiro Crew, each done once:
+Worker and reviewer chats need nothing more. Each brief names this Avoozl's
+Node binary and CLI file and a report token, and the chat reports with
+`avoozl runner report`, so it needs neither `avoozl` on its `PATH` nor MCP
+sharing. Two other steps in Kiro Crew are each done once, when you need them:
 
-1. Share the MCP server. A worker that opens a pull request, and every
-   reviewer chat, reports with `plans_report`.
-   Kiro Crew names the calling chat only to MCP servers it shares. Open **MCP
-   Management**, find `avoozl:avoozl`, turn on sharing, and press **Approve
-   sharing**. Then restart the gateway from **Settings › About › Restart
-   gateway**. Without this, `plans_report` refuses those chats. A shared server
-   runs outside the chat sandbox, with your access.
-2. Set the chat folder. After the first tick, open the chat folder
-   **Avoozl** › _repository ID_ in the sidebar and set its project directory
-   to the checkout. The worker, reviewer and responder chats open there, and
-   the tick opens none of them until it is set.
+1. Share the MCP server, for a chat that calls `plans_report` itself, such as
+   one working a task through the `avoozl-work` skill. Kiro Crew names the
+   calling chat only to MCP servers it shares. Open **MCP Management**, find
+   `avoozl:avoozl`, turn on sharing, and press **Approve sharing**. Then
+   restart the gateway from **Settings › About › Restart gateway**. Without
+   this, `plans_report` refuses those chats. A shared server runs outside the
+   chat sandbox, with your access.
+2. Set the chat folder, for responder chats that answer discussions. They
+   open in the chat folder **Avoozl** › _repository ID_, and the tick opens
+   none until its project directory is set. **Needs you** names the folder;
+   set its project directory to the checkout in the sidebar.
 
 ## Workers and verification
 
-With the loop on, each minute the tick starts a worker session for each ready
-task, in its own worktree. The worker runs as a Kiro Crew chat or as a process harness such as
-Claude Code or Codex. See [Agents and the CLI](agents.md#roles-and-models) for
-choosing one. Sessions run on this machine.
+With the loop on, each pass of the tick starts a worker session for each
+ready task that has a free worker lane, in its own worktree. The worker runs
+as a Kiro Crew chat or as a process harness such as Claude Code or Codex. See
+[Agents and the CLI](agents.md#roles-and-models) for choosing one. Sessions
+run on this machine.
 
 When a session reports done, Avoozl runs the checks itself on the exact commit
 in a clean worktree, with no model call. It then integrates the commit and
@@ -224,7 +236,8 @@ avoozl runner report 1.2 done
 ```
 
 Commit in the worktree, then report, and Avoozl runs the checks.
-`avoozl take TASK --release` gives the task back.
+`avoozl take TASK --release` gives the task back. It refuses while the
+worktree has uncommitted changes, unless you add `--discard` to drop them.
 
 ## Landing
 
@@ -250,8 +263,9 @@ stays and the tick tries again.
 
 `landing.pr` says how Avoozl opens a `pr` repository's pull requests, and who
 merges them. Set it for the workspace at the top of `.avoozl.json`
-(`"landing": {"pr": "ready"}`), or for one repository in its landing block,
-which wins. Settings shows the workspace's in **Settings › Autopilot**, and a
+(`"landing": {"pr": "ready"}`), or for one repository in
+`github.repositories.<owner/repo>.landing`, which wins. Settings shows the
+workspace's in **Settings › Autopilot**, and a
 repository's on its **Landing** tab, where unset uses the workspace's. Only a
 person changes it; agents, MCP and the tick cannot. It is the only setting for
 who merges.
@@ -276,8 +290,7 @@ With `draft`:
 With `draft` and `ready`:
 
 1. **Ready to merge.** Avoozl waits for the required checks and reviews on the
-   exact head. Then the queue shows **Ready to merge, waiting for you**, and
-   **Needs you** has one row for it.
+   exact head. Then **Needs you** has one row for it.
 2. **Merge.** A person merges it on GitHub, and Avoozl records that merge. Or
    the person presses **Merge** on the row: the next tick checks that exact
    head again and merges it, guarded by the head. If the head moved, nothing
@@ -297,10 +310,12 @@ high-risk confirm, to make the task ready again.
 
 GitHub does not let anyone approve their own pull request, and Avoozl opens
 pull requests as the owner. So **Ready for review** is the release signal, not
-a review approval. The review rule of the base branch still applies as before.
+a review approval. The base branch's own review rule applies unchanged.
 
-The GitHub checks named in the repository's **Required checks** setting
-(**Edit repository › Landing**) are separate from the repository's own checks.
+The GitHub checks named in the repository's **Required checks** setting (the
+**Landing** tab of its **Edit** dialog in **Settings › Repository setup**) are
+separate from the repository's own checks. The same tab sets the **Merge
+method**, `landing.method`: `squash` (the default) or `merge`.
 
 ### Merge batches
 
@@ -310,24 +325,27 @@ on the remote. Waiting tasks are local refs, and only the base branch is
 pushed. A moved base means a new candidate and new checks.
 
 When the checks fail, Avoozl runs them again, finds the task that broke the
-batch, lands the tasks before it, and sends it back. The batch size starts at
-1, grows while batches land, and halves after a failure. `landing.mergeBatch`
-caps it, from 1 to 16. Avoozl adds no trailer or attribution to a landing
-commit; its subject is `Land <task>`.
+batch, lands the tasks before it, and sends it back. That task lands alone
+next time. With `landing.mergeBatch` at `auto`, the default, the batch size
+starts at 1, grows by one while batches land with more tasks waiting, halves
+after a failure, and stays under a ceiling set by the recent failure rate. A
+number from 1 to 16 fixes the size instead. Avoozl adds no trailer or
+attribution to a landing commit; its subject is `Land <task>`.
 
 A repository whose checks enforce a commit-message format can set
 `landing.commitPrefix`, such as `"chore: "`. Every subject Avoozl writes there
 then starts with it: landing commits, the merge-forward commit, tick commits,
 the merge into an integration branch, and landing pull request titles. With no
 prefix, Avoozl keeps its own subjects (`Land KEY`, `Merge main into BRANCH`,
-`Tick IDS`). A worker's own commit, `Avoozl task ID, attempt N`, is not
-prefixed yet.
+`Tick IDS`). The commit Avoozl makes from a process worker's changes,
+`Avoozl task ID, attempt N`, does not carry the prefix.
 
 ### Conflicts
 
 When the base moves and a merge conflicts, or the checks fail, the task goes
 back to its worker chat. After the repository's `conflicts.maxAttempts` rounds
-(default 2) it goes to **Needs you**. **Stop the line** pauses the queue.
+(default 2) it goes to **Needs you**. [Stop the line](flow.md#stop-the-line)
+pauses the queue.
 
 ## Investigate first
 

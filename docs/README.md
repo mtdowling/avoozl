@@ -6,7 +6,7 @@ itself, and lands it. These pages say how to set it up and how each part works.
 ## Start
 
 - [Getting started](getting-started.md): install Avoozl and run a first spec.
-- [Overview](overview.md): where state lives and what each page shows.
+- [Overview](overview.md): where state lives and what each view shows.
 - [Glossary](glossary.md): words that look alike, set apart.
 
 ## Working with Avoozl
@@ -27,7 +27,7 @@ itself, and lands it. These pages say how to set it up and how each part works.
 ## GitHub
 
 - [GitHub](github.md): repository roles and GitHub modes.
-- [Workflow v1](github-workflow.md) defines the spec format and the rules for
+- [Workflow v1](github-workflow.md): the spec format and the rules for
   approvals, assignment, task order, claims and landing.
 - [Workflow scenarios](github-workflow-scenarios.md): each kit case as Given,
   When and Then, with the rules it checks.

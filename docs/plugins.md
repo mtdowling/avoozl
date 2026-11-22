@@ -34,8 +34,7 @@ Avoozl refuses a manifest that lists any other part, naming it: for example
 The examples on this page are the test-only plugins in Avoozl's own test tree.
 `src/app/test/fixtures/plugins/fake-rules/`, `fake-credentials/`,
 `acme-checks/` and `fake-probe/` each provide one part. Read them alongside
-this guide. These fakes are the only plugins tested so far, and no real
-plugin has run live.
+this guide.
 
 ## Plugin manifest
 
@@ -52,10 +51,10 @@ These keys appear in the manifest:
   servers its MCP steps use. See [Checks part](#checks-part).
 - `context` holds the skills, reads and MCP servers of a context part. See
   [Context part](#context-part).
-- `entry` is a `.mjs` or `.js` file inside the folder. A plugin that provides
-  only `checks` or `context` starts no plugin process, so it has no
-  `entry`; Avoozl refuses one that names an entry, and never starts a
-  process for it.
+- `entry` is a `.mjs` or `.js` file inside the folder, for the `rules` part.
+  A plugin without `rules` has no `entry`, and Avoozl refuses one that names
+  it: `checks` and `context` run no plugin process, and `credentials` names
+  its own entry inside its part.
 
 The entry module exports one object per kind, such as `rules`. Each method
 takes `(params, { config })` and returns a JSON value or a promise of one:
@@ -100,6 +99,11 @@ A `plugins` entry declares each plugin, either in the repository's
 
 ### Add plugin in Settings
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://github.com/mtdowling/avoozl/releases/download/docs-screenshots/settings-plugins-desktop-dark.png">
+  <img alt="Settings, Plugins tab: the four Add plugin steps and the installed list" src="https://github.com/mtdowling/avoozl/releases/download/docs-screenshots/settings-plugins-desktop-light.png" width="800">
+</picture>
+
 **Settings > Plugins > Add plugin** walks four steps, with Cancel on each:
 
 1. **Where from**: open Folder, Package or Git and fill it in. Each keeps
@@ -130,15 +134,16 @@ A `plugins` entry declares each plugin, either in the repository's
 ```
 
 `git` is a URL or a local repository path. `ref` is a tag, a branch or a full
-commit, and `subdir` is the plugin's folder inside the repository. **Add from
-git** in Settings (or `avoozl plugins add ID --git URL --ref REF`) resolves
+commit, and `subdir` is the plugin's folder inside the repository. **Add
+plugin** with **Git** in Settings (or `avoozl plugins add ID --git URL --ref REF`) resolves
 `ref` to one commit, fetches only that commit into
 `plugins/git/<id>/<commit>/` beside `plugins.json`, and stores the commit on
 this machine. Git runs as you, with your credential helper or SSH key, so
 private repositories work. Git hooks are off, submodules are skipped, and
 Avoozl runs no `npm install`: commit the plugin ready to run, bundled or with
-`node_modules`. The approval names the commit, so a new commit needs a new
-approval. **Update** (or `avoozl plugins update ID`) resolves `ref` again.
+`node_modules`. The approval names the commit, so each commit needs its own
+approval. **Update from REF** on the plugin's card (or
+`avoozl plugins update ID`) resolves `ref` again.
 Only Add and Update fetch plugin files; the tick reads the pinned folder, and
 the daily [update check](#update-checks) reads ref names only. Avoozl refuses
 a URL with a password or token in it, a `subdir` outside the repository, and
@@ -159,8 +164,8 @@ A git ref that is a full commit is never newer. Something newer shows on the
 plugin's card as a badge, such as **Update available: v1.2.0 (was v1.0.0)**
 or **Update available: new commit abc1234**, and as one Needs you row per
 plugin. The check fetches, unpacks and installs nothing: you choose
-**Update** (or install the package), review, and approve, and nothing new
-loads until you do. A check that fails, such as an unreachable remote, says
+**Update** (or install the package), review, and approve, and the changed
+code loads only after that. A check that fails, such as an unreachable remote, says
 **Couldn't check for updates** on the card and raises no Needs you row.
 
 The check runs on its own timer in the process that runs the tick, never
@@ -313,7 +318,7 @@ export const credentials = {
 };
 ```
 
-### The call and the reply
+### Token call and reply
 
 Avoozl calls `credentials.token` with `{repository, owner, permissions,
 purpose}`. `repository` is `owner/name`, or `null` for a job on an owner
@@ -351,7 +356,7 @@ these permissions:
 | --- | ---- | ----------- | ------------ |
 | `check-in` | low | checks: read, contents: read, issues: read, metadata: read, pull_requests: read, statuses: read | Read issues, pull requests, files and checks |
 | `ci-receipts` | low | actions: read, checks: read, contents: read, metadata: read, pull_requests: read, statuses: read | Read CI runs, checks and their receipts |
-| `rules-read` | low | administration: read, contents: read, metadata: read | Read branch rules and repository settings |
+| `rules-read` | low | administration: read, contents: read, metadata: read, variables: read | Read branch rules and repository settings |
 | `land` | low | checks: read, contents: write, issues: read, metadata: read, pull_requests: write, statuses: write | Land approved work |
 | `land-workflows` | low | checks: read, contents: write, issues: read, metadata: read, pull_requests: write, statuses: write, workflows: write | Land approved work that changes .github/workflows |
 | `spec-branch` | low | contents: write, issues: write, metadata: read, pull_requests: write | Push spec branches and their pull requests |
@@ -361,21 +366,17 @@ these permissions:
 | `integration` | low | checks: read, contents: write, metadata: read, statuses: read | Move an epic's integration branch |
 | `worker-grants` | low | contents: write, issues: write, metadata: read | Open and checkpoint worker branches |
 | `workspace-publish` | low | contents: write, metadata: read, pull_requests: write | Publish a workspace repository |
-| `landing-setup` | high | administration: write, metadata: read, statuses: write, variables: write | Set rulesets, repository settings and variables |
 | `claim-delete` | high | contents: write, metadata: read | Delete a stale claim branch |
 
-A `high` job asks first. Before any provider is asked for its token, the
-page shows one confirm naming the repository (or owner), the action and these
-exact permissions, with **Allow** and **Cancel**; `gh` and `env` too. Set
-up GitHub and landing setup list each write's job and permissions in
-their own confirm. **Allow** lets that one step ask once,
-within 10 minutes; **Cancel** writes nothing and the rest of setup goes on.
-The CLI shows the same lines and asks `Allow? [y/N]`, or takes `--yes`.
-The tick, agents and MCP cannot allow a high job, so there it fails as
-person-only. A provider that refuses a setup step leaves it skipped, with
-what a repository admin does by hand.
+A `high` job asks first, whichever way Avoozl signs in. Before any token is
+asked for, the page shows one confirm naming the repository, the action and
+these exact permissions, with **Allow** and **Cancel**. **Allow** lets that
+one step ask once, within 10 minutes; **Cancel** writes nothing.
+`avoozl claim delete REPOSITORY BRANCH` shows the same lines and asks
+`Allow? [y/N]`, or takes `--yes`. The tick, agents and MCP cannot allow a
+high job, so there it fails as person-only.
 
-### When the provider fails
+### Provider failures
 
 An error, a timeout, a refusal or a bad reply fails that GitHub call, and the
 work waits as it does for any GitHub outage. One Needs you row names the
@@ -396,8 +397,8 @@ host are rewritten to https for that command. Workers and checks get no
 token and no helper.
 
 The helper refuses to answer when the markers Avoozl sets for agent sessions
-are present. For a Kiro Crew chat this is a speed bump, not a sandbox: the
-process sandbox, which keeps `plugins.json`, plugin folders and `gh`'s
+are present. For a Kiro Crew chat this slows a misuse but does not stop it:
+the process sandbox, which keeps `plugins.json`, plugin folders and `gh`'s
 config out of reach, is the barrier.
 
 ## Checks part
@@ -539,7 +540,7 @@ Settings › Plugins shows each check's repositories, paths, step, network,
 timeout, stage and the full text of its prompt and of each file an MCP step
 sends, before you approve. A changed file asks for approval again.
 
-### Which changes a check runs on
+### Check filters
 
 For each change, Avoozl applies the filters in this order, and a filter that
 rules a check out skips the rest: `repos`, `paths`, the decide answer, and
@@ -624,7 +625,7 @@ avoozl plugins approve acme-checks --hash HASH
 The server runs for one check and stops after it, outside the worker
 sandbox, with the check environment basics plus its mapping's `env` names.
 
-### Required by name, never posted
+### Required plugin checks
 
 A repository may name a plugin check in `requiredChecks`. On a machine whose
 approved plugin provides that name, a head counts as checked only when this
@@ -637,7 +638,7 @@ Plugin check results never go to GitHub: no commit status, check run,
 comment or review, under any setting. Pull request text and Activity show a
 plugin check by its name and result only.
 
-### What holds a plugin check
+### Plugin check limits
 
 A plugin check sees only the check environment basics and its own `env`
 names; push and GitHub credentials and the gateway's secrets never reach
@@ -646,8 +647,7 @@ its MCP server: one that does is stopped, failed, and its plugin is marked
 broken until approved again. Approving, mapping a server and **Run it** or
 **Skip it** are a person's acts. The decide call runs read-only and offline
 under a process harness; as a Kiro Crew chat its tool list is its only limit,
-which is a speed bump, not a sandbox.
-
+which slows a misuse but does not sandbox it.
 
 ## Context part
 
@@ -715,7 +715,7 @@ session uses it is in [Epic context](epic-context.md). A complete example is
 
 Each person answers each ask once and maps each alias on their machine:
 
-```text
+```sh
 avoozl plugins answer team-context notesRoot ~/src/acme/team-notes
 avoozl plugins map team-context research --env RESEARCH_TOKEN
 ```

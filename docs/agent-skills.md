@@ -18,23 +18,31 @@ Avoozl tool, so they work without Avoozl running.
 
 ## Runner skills
 
-Five more skills drive Avoozl itself, through the `avoozl` CLI and the
+The runner skills drive Avoozl itself, through the `avoozl` CLI and the
 `plans_*` MCP tools only:
 
 | Skill | What it does |
 | --- | --- |
+| `avoozl` | Plans a goal as a spec, reads tasks and Needs you, and keeps approval, taking a task by hand and retries with the person. |
+| `avoozl-drive` | Runs one `avoozl tick` on each wake of a scheduled chat, reads `avoozl next` and `avoozl status`, and tells the person what needs them. |
 | `avoozl-spec` | Writes or revises a spec folder in the task list format, runs `avoozl spec lint` and `avoozl graph SPEC --write`, and stops at a `spec/<name>` branch for a person to approve. |
 | `avoozl-spec-review` | Reviews a spec for that format and for gaps, flags a branch on origin named for the spec that holds other work, and posts findings without editing. |
 | `avoozl-work` | Claims the next ready task with `avoozl next --claim`, does it on its claim branch, reports it with `avoozl runner report`, and lands it with `avoozl land`. |
-| `avoozl-retro` | Reads `avoozl insights` and `avoozl flow`, names the biggest slowdown with its numbers, proposes up to three settings or spec changes, and saves the report with `retro.save`. Changes nothing else. |
+| `avoozl-retro` | Reads `avoozl insights` and `avoozl flow`, names the biggest slowdown with its numbers, proposes up to three settings or spec changes, and saves the report with `avoozl retro save` or `plans_document` action `save_retro`. Changes nothing else. |
 | `avoozl-investigate` | For a task whose bullets name a findings file: the worker writes the findings before the fix, and the reviewer tries to prove them wrong. |
+
+Two more skills help a person set Avoozl up from a chat. `avoozl-plugin`
+designs, writes and tests a [plugin](plugins.md), and `avoozl-rules` plans a
+[content rule set](content-rules.md) without writing its terms file.
 
 ## Where they come from
 
 Each skill's text is `prompts/skills/<name>.md`. `npm run build:hosts`
-copies it to `hosts/kirocrew/skills/<name>/SKILL.md`, and `npm run
-check:hosts` fails when the copy differs. See [the prompts
-README](../prompts/README.md).
+copies every skill to `hosts/kirocrew/skills/<name>/SKILL.md`. It copies
+`avoozl-answer`, `avoozl-drive`, `avoozl-review` and `avoozl-triage` to
+`hosts/claude-code/skills/` too, beside that host's own `avoozl` skill.
+`npm run check:hosts` fails when a copy differs. See
+[the prompts README](../prompts/README.md#skills-for-any-agent-runner).
 
 ## Kiro Crew and Issue Radar
 

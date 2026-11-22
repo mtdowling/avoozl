@@ -3,8 +3,20 @@
 Person-only operations, such as approving a plan, changing plugins or reading
 content-rule terms, are refused for MCP calls and for app tokens. They do not
 stop code that runs as your user, so Avoozl adds a sandbox around unattended
-sessions. Approving a spec on GitHub is merging its pull request, which no
-Avoozl permission covers.
+sessions.
+
+The `--yes` of a high-risk GitHub step is refused inside an agent session:
+
+```sh
+avoozl claim delete owner/repo avoozl/parser/p-2 --yes
+```
+
+```text
+--yes is a person's answer; it is refused inside an agent session. Run it in your own terminal.
+```
+
+Approving a spec on GitHub is merging its pull request, which no Avoozl
+permission covers.
 
 ## Code running as you
 
@@ -63,7 +75,7 @@ the tick wraps it in:
   `isolation.readable` paths. Your other repositories and documents are not
   readable, and system and toolchain folders outside home stay readable.
 - It writes only to its task folder, its own temp folder and the repository's
-  cache folders. Read-only roles write nowhere.
+  cache folders (`sandbox.writeRoots`). Read-only roles write nowhere.
 - Its network is off. On macOS a repository can name loopback ports instead
   (`localhost:PORT`, for a proxy): `sandbox.network` for roles that may use
   the network, and `sandbox.modelProxy` for the proxy the agent reaches its
@@ -101,8 +113,8 @@ in. Every other bypass value stays refused.
 
 ## File modes
 
-The `.avoozl` folder is created `0700` and the database `0600`. Backups and
-`export --output` files are `0600`. On open, Avoozl tightens an existing
+The `.avoozl` folder is created `0700` and the database `0600`. Backups are
+`0600`. On open, Avoozl tightens an existing
 workspace's folders and database, so a person who shared the folder with a group
 loses that access.
 

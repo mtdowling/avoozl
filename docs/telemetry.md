@@ -5,6 +5,10 @@ points in its own database on this machine. It can also export them to any
 backend that takes OTLP over HTTP JSON, when this machine's owner turns that
 on.
 
+```sh
+avoozl telemetry status
+```
+
 ## Setting up export
 
 **Settings › Workspaces › Telemetry** shows the local store first, then the
@@ -44,7 +48,7 @@ A saved name with no value there holds the export, and Settings shows
 app starts may not inherit a shell's variables, so set them where that
 process reads its environment.
 
-The standard variables still work, and beat what is saved:
+The standard variables beat what is saved:
 
 ```sh
 export OTEL_EXPORTER_OTLP_ENDPOINT=https://otlp.example:4318
@@ -92,7 +96,10 @@ sends:
 
 - **One trace per finished task**: a root span `avoozl.task` from the
   earliest stage start to the finish, with a child span `avoozl.stage.STAGE`
-  for each stage. A task with no stage span on this machine sends nothing.
+  for each stage. Every span carries `repo`, `spec` and `task.id`; the root
+  adds `outcome`, `first_pass` and `attempts`, and a stage span adds `stage`,
+  `role`, `attempt`, `harness`, `model` and `source`. A task with no finished
+  stage span on this machine sends no trace.
 - **Metrics**, all with delta temporality:
 
 | Name | Kind | Attributes |
@@ -100,8 +107,8 @@ sends:
 | `avoozl.task.lead_time` | histogram, seconds | repo, spec, outcome |
 | `avoozl.stage.duration` | histogram, seconds | repo, spec, stage, role |
 | `avoozl.tasks.finished` | sum | repo, spec, outcome, first_pass |
-| `avoozl.tokens` | sum | repo, spec, stage, role, model, direction |
-| `avoozl.credits` | sum | repo, spec, stage, role, model |
+| `avoozl.tokens` | sum | repo, spec, stage, role, harness, model, direction |
+| `avoozl.credits` | sum | repo, spec, stage, role, harness, model |
 | `avoozl.stop_the_line.events` | sum | repo, scope, kind, event |
 
 First-pass rate is `avoozl.tasks.finished` with `first_pass` true over all of
@@ -112,8 +119,8 @@ Histograms use the same bounds in seconds everywhere: 30, 60, 120, 300, 600,
 1800, 3600, 7200, 14400, 28800 and 86400.
 
 A Prometheus-style backend needs cumulative totals. Put a collector in front
-with its `deltatocumulative` processor. Grafana, Honeycomb, Datadog and
-CloudWatch are example backends; Avoozl holds no code for any of them.
+with its `deltatocumulative` processor. Avoozl holds no code for any one
+backend.
 
 ### Never sent
 
@@ -133,7 +140,7 @@ is no use without them.
 | Protocol | `http/json` only; `grpc` and `http/protobuf` need a collector in front |
 | Endpoint | `https`, or `http` to `localhost`, `127.0.0.1` or `[::1]` |
 | Certificates | The system trust store, with no setting that skips it |
-| Redirects | Not followed; a redirect counts as a failure |
+| Redirects | Not followed; a redirect is rejected |
 | Headers | `Content-Type`, `User-Agent: avoozl/VERSION` and the headers in `OTEL_EXPORTER_OTLP_HEADERS` |
 | Timeout | `OTEL_EXPORTER_OTLP_TIMEOUT` milliseconds, default 10 seconds, at most 30 |
 
@@ -193,9 +200,9 @@ Settings shows each status after **Recording locally ·**:
 | `endpoint-not-allowed` | export endpoint not allowed |
 | `bad-headers` | export headers are not written as name=value |
 | `missing-headers` | export waiting for header values |
-| `ready` | export ready, in a process that does not send |
+| `ready` | export ready; the process that runs the tick sends |
 | `sending` | exporting |
-| `backing-off` | export backing off, with the failure: `timeout`, `refused`, `tls`, `dns` or `http STATUS` |
+| `backing-off` | export backing off, with the failure in brackets: `timeout`, `refused`, `tls`, `dns` or `http STATUS` |
 
 The endpoint shows scheme, host and port only. Header values never show. The
 counts start at zero when the process starts, and live only in the process
@@ -206,9 +213,10 @@ counts.
 
 Sending is best effort and never slows delivery. Items wait in memory, at
 most 500, and the oldest goes when the queue is full. A failed request is
-tried again after 1, 2, 4, 8 and 16 seconds, or after `Retry-After`; the
-fifth failure drops it. That covers a network error, a timeout, `429`, `502`,
-`503` and `504`; any other status is rejected and not tried again.
+tried again after 1, 2, 4 and 8 seconds, plus up to a quarter more, or after
+`Retry-After`; the fifth failure drops it. That covers a network error, a
+timeout, `429`, `502`, `503` and `504`. Any other status, a redirect
+included, is rejected and not tried again.
 Items not sent when Avoozl stops, or during a long outage, are lost. Avoozl
 does not send them again from the local tables.
 

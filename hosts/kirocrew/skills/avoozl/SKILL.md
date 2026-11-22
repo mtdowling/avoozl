@@ -42,7 +42,7 @@ Use `avoozl help` to inspect the installed CLI surface before choosing commands.
 
 ## Manual tasks
 
-- A manual task (`"manual": true`) is a step only a
+- A manual task (a title tagged `(**MANUAL**)`) is a step only a
   person does, such as a team review. Never start or mark one done:
   `plans_next` lists it under `needsYou` with reason `manual`. Tell the user
   to open it in the task drawer and press **Mark done**.

@@ -108,8 +108,9 @@ manifest holds `"context": {"repos": ["acme/*"], "skills": "skills",
 `{ask:NAME}`; each person answers it once with
 `avoozl plugins answer ID NAME VALUE`. `mcp/servers.json` maps each alias to
 `{about, command}`, an argument list, with no `env` and no credential; the
-person maps each alias on their machine (`avoozl plugins map ID ALIAS`)
-with the environment variable names the server may read. Each skill is a
+person maps each alias on their machine
+(`avoozl plugins map ID ALIAS --command JSON [--env NAME]...`) with the
+environment variable names the server may read. Each skill is a
 folder with one `SKILL.md` whose front matter holds `name` (the folder
 name) and `description`. A changed file, answer or mapping needs approval
 again. Copy `examples/plugins/team-context/` and read `docs/epic-context.md`.

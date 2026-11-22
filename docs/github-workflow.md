@@ -290,8 +290,9 @@ whoever authors it, and it approves nothing, even when an approver authors it.
   specs branch. Anyone MAY open the pull request. A runner MUST NOT require
   anything of the commit message or the committer, so a squash merge made by
   GitHub counts.
-- **[7.2](github-workflow-scenarios.md#rule-72)** A commit approves only with evidence that an approver stands behind
-  it. The evidence MUST be one of these three:
+- **[7.2](github-workflow-scenarios.md#rule-72)** A commit approves only with
+  evidence that an approver stands behind it. The evidence MUST be one of
+  these:
   - the commit is the merge commit of a pull request whose GitHub `merged_by`
     is an approver;
   - the commit has a GitHub-verified signature, and the account that signed it
@@ -425,7 +426,8 @@ edit.
 
 A runner ranks only the tasks it can claim.
 
-- **[12.1](github-workflow-scenarios.md#rule-121)** A task is ready when all the following conditions hold.
+- **[12.1](github-workflow-scenarios.md#rule-121)** A task is ready when all
+  the following conditions hold.
   - It is an open leaf that a runner may execute (4.1, 18.1).
   - Its spec text is approved (7.3), or its issue revision is authorized
     (11.1).
@@ -788,7 +790,7 @@ when. A scenario runs runners against a repository and shows both.
 | Rules | Why the kit does not check them |
 | --- | --- |
 | 15.4, 16.4 | A runner's waiting time and the commits it writes are not in a case |
-| 1.1, 1.3, 2.1, 5.2, 5.3, 8.1, 9.1, 9.2, 11.1, 11.2, 11.3, 11.4, 12.2, 14.2, 14.4, 14.5, 17.7, 19.1, 19.2 | No case yet |
+| 1.1, 1.3, 2.1, 5.2, 5.3, 8.1, 9.1, 9.2, 11.1, 11.2, 11.3, 11.4, 12.2, 14.2, 14.4, 14.5, 17.7, 19.1, 19.2 | No case |
 
 The kit checks these rules in part:
 

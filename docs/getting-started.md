@@ -1,7 +1,7 @@
 # Getting started
 
-Avoozl needs Node 22.13 or later (for built-in SQLite) and Git, and runs
-inside Kiro Crew 0.12.2 or later or on its own. The GitHub features also need
+Avoozl needs Node 22.18 or later (for type stripping and built-in SQLite)
+and Git, and runs inside Kiro Crew 0.12.2 or later or on its own. The GitHub features also need
 `gh` signed in, or a token.
 
 ```sh
@@ -13,8 +13,9 @@ npm test
 ```
 
 `npm ci` also links a global `avoozl` command to the checkout, as `npm link`
-does. It skips CI and `AVOOZL_NO_GLOBAL_LINK=1`, and a failed link only prints
-how to run `npm link` yourself.
+does. It skips the link under CI, a global install, or
+`AVOOZL_NO_GLOBAL_LINK=1`, and a failed link only prints how to run `npm link`
+yourself.
 
 `npm run build` writes the page bundle and copies the CLI into
 `hosts/kirocrew/bin/lib`. The built page is not committed. `npm run test:changed`
@@ -23,8 +24,9 @@ workspaces and make no network or paid agent calls.
 
 ## Run it in Kiro Crew
 
+After `npm run build`, install the app from the checkout:
+
 ```sh
-npm run build:kirocrew-app
 kirocrew app install "$PWD/hosts/kirocrew"
 ```
 
@@ -37,7 +39,7 @@ grants:
   and no others.
 - `/api/usage/turns` reads the model each of those sessions last ran on.
 - `/api/models` fills the model lists in Settings.
-- `/api/reveal` shows a spec file in the file browser.
+- `/api/reveal` opens a repository's folder in Finder.
 
 An update that adds a grant waits until you approve it. To update, pull, then
 run `npm run build && kirocrew app update avoozl` in the checkout.
@@ -67,8 +69,8 @@ avoozl link
 ```
 
 Without Kiro Crew, a button that opens a chat opens a **Start a session**
-dialog. Start runs the message as a read-only session on a harness approved on
-this machine. Features that need Kiro Crew say "Needs Kiro Crew". See
+dialog. **Start** runs the message as a session of the matching role, on the
+harness **Settings › Models** picks for it. Features that need Kiro Crew say "Needs Kiro Crew". See
 [Workspaces](workspaces.md#standalone-server) for headless machines and the
 other server settings.
 
@@ -93,7 +95,8 @@ the agent's own shell call to a command only a person may run. Load it with:
 claude --plugin-dir /path/to/avoozl/hosts/claude-code
 ```
 
-The hook is a speed bump, not a wall; see [Person-only](person-only.md).
+Code running as you can still reach such a command another way. See
+[Person-only operations](person-only.md) for where Avoozl enforces it.
 
 ## Run the tick on a timer
 
@@ -279,12 +282,12 @@ Each example definition names a `probe`, a one-line prompt such as
 worker gets. That is a model call, so Avoozl keeps the answer until the
 definition or `machine.env` changes and never runs it on its own. A failed
 probe shows the harness's own error, with secrets taken out.
+
 A harness program is looked up on `machine.env`'s `PATH`, then the
 server's, then your login shell's, so one installed for you is found. If it
 is still not found, set `PATH` in `machine.env` or give an absolute path in
 the harness definition. **Settings › Models** and `avoozl status` show a
 harness that cannot start here, and why.
-
 
 ## Approve a harness
 
@@ -351,4 +354,5 @@ nothing, and **Needs you** says so while tasks are ready;
 `avoozl next --claim` and `avoozl land TASK` then run one task at a time. Avoozl
 pushes and merges only after its checks pass. See
 [Landing](github-workflow.md#16-landing) for the rules, [Delivery](delivery.md#the-server-loop)
-for the loop and the commands, and [Avoozl](overview.md) for what each page shows.
+for the loop and the commands, and [Overview](overview.md#views) for what each
+view shows.

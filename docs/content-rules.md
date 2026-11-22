@@ -32,17 +32,26 @@ machine's `~/.config/avoozl/config.json` gives in `contentRules.terms.<id>`. The
 file holds one `rule: regex` per line, with `#` comments, matched per line
 ignoring case. Avoozl refuses a terms file that Git tracks or does not ignore.
 
-- `action` is `block` (the default) or `report`. A block writes nothing and asks
-  you in the Conflicts tab, where you can allow that exact content once with a
-  reason. A session's own write is refused in its call instead, so it can fix
-  the text.
-- `boundaries` narrows a set to some of `plan`, `github`, `brief` and `diff`.
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://github.com/mtdowling/avoozl/releases/download/docs-screenshots/settings-content-desktop-dark.png">
+  <img alt="Settings, Content rules tab: the built-in rule sets" src="https://github.com/mtdowling/avoozl/releases/download/docs-screenshots/settings-content-desktop-light.png" width="800">
+</picture>
+
+- `action` is `block` (the default) or `report`. A block writes nothing and
+  opens a decision in **Needs you**, where **Allow once** lets that exact
+  content through one time with a reason
+  (`avoozl content allow DECISION_ID --reason TEXT` from a terminal). A
+  session's own write is refused in its call instead, so it can fix the text.
+- `boundaries` narrows a set to some of `plan`, `github`, `brief`, `diff`,
+  `intake`, `proposal` and `activity`. A set without `boundaries` covers all
+  of them except `intake`, which a set must name. At `activity` a matching
+  row is saved redacted and opens no decision.
 - `repositories` narrows a set to some registered repositories.
 - A set this machine does not have blocks everything it covers until you add its
   terms file. A findings message names the set, rule and line, never the matched
   text.
-- `.avoozl.json` never holds a rule. It refuses `terms`, `patterns` and `rules`
-  keys.
+- `.avoozl.json` never holds a rule. It refuses `terms`, `patterns`, `rules`,
+  `pattern` and `regex` keys anywhere under `contentRules`.
 
 A plugin can supply a set instead of a terms file. See
 [Writing a plugin](plugins.md#rules-kind).
@@ -66,8 +75,9 @@ those. The release scan reads the same lines for its own terms file.
 ## Pushes and merges
 
 Avoozl installs a `pre-push` hook in each task worktree it prepares, so a
-matching line stops the push. It cannot stop a merge on GitHub, and a required
-commit status would.
+matching added line, commit message or branch name stops the push. The hook
+runs `avoozl content check --push` on this machine only, so it does not stop
+a merge made on GitHub.
 
 ## Posted text
 

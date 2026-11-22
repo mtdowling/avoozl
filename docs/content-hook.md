@@ -23,8 +23,8 @@ The matcher must be `*`, `execute_bash`, `shell` or `@builtin`, or absent, so
 the hook sees shell calls. Other agents with a pre-tool-use command take the
 same command.
 
-There is no new rule format. See
-[Content rules](content-rules.md) for how to write the rules.
+The hook reads the same rule sets as every other boundary. See
+[Content rules](content-rules.md) for how to write them.
 
 ## Checked calls
 
@@ -40,8 +40,8 @@ It checks the text, the labels and the branch name. For `git push` and
 `gh pr create` it also checks the commit messages and added lines the call
 would publish. A body or message file named on the call is read.
 
-A match, or a rule set the repository needs that is unavailable, refuses
-the call with exit code 2. The message names the rule set, the rule id and
+A match, a rule set the repository needs that is unavailable, or a call the
+hook cannot check refuses the call with exit code 2. The message names the rule set, the rule id and
 the place, never the matched text. Text the hook cannot read from the call,
 because it comes from a shell expansion such as `$VAR` or `$(...)`, or from
 a here-document, is refused with the reason. The agent can write the text
@@ -56,6 +56,5 @@ to a file and pass the file instead.
 - It checks calls only. The agent can still read every file its
   operating-system user can read.
 
-Avoozl's own pushes go through a separate pre-push check, not this hook.
-
-Built and tested with fake rules; not run live against a public repository.
+Avoozl's own pushes go through the
+[pre-push hook](content-rules.md#pushes-and-merges), not this hook.

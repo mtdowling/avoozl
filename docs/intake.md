@@ -10,14 +10,16 @@ avoozl intake deliver script Q-17
 ```
 
 A source is anything you script through MCP. `avoozl intake list` and the
-`plans_intake` tool list every item with its source. `avoozl intake deliver SOURCE ID` and
-`avoozl intake plan SOURCE ID` turn an item into work, and only a person runs
-them.
+`plans_intake` tool, action `items`, list every item with its source.
+`avoozl intake view SOURCE ID` shows one item, its route and history.
+`avoozl intake deliver SOURCE ID` and `avoozl intake plan SOURCE ID` turn an
+item into work, and only a person runs them.
 
 ## Script sources
 
-Declare a script's source with `via: mcp`. Put it in this machine's
-`plugins.json` so the name stays off a public repository:
+Declare a script's source with `via: mcp` under `intake.sources`, in
+`.avoozl.json` or in this machine's `plugins.json`. Use `plugins.json` to keep
+the name off a public repository:
 
 ```json [plugins.json]
 {
@@ -66,12 +68,22 @@ line sends the same items:
 avoozl intake submit --source script --file items.json
 ```
 
+A source takes two optional keys besides `via` and `repository`.
+`labelFields` lists item fields that become `<field>:<value>` labels, and
+`assigneeField` names the field that holds the item's assignee. Any other key
+is refused. The source IDs `github`, `local` and `retro` are built in and
+cannot be declared.
+
+An `intake.sources` entry with `via: github` is a GitHub repository whose
+issues may start work. Its items come in as source `github`.
+
 ## Trust
 
 An MCP caller is you, on this computer, but Avoozl cannot tell who wrote an item
 at its source, and a chat may be passing on text it read. So the items are
-listed and never start work by themselves. MCP cannot submit to `github`, and a close it reports holds the item's dependents for you to
-decide.
+listed and never start work by themselves. MCP submits only to a declared
+`via: mcp` source, and a close it reports holds the item's dependents for you
+to decide.
 
 Avoozl writes nothing back to these sources. It deletes a closed item that no
 task holds 30 days after it closed.

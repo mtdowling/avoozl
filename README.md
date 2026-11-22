@@ -1,11 +1,14 @@
 # Avoozl
 
-Avoozl is an open workflow for landing specs and epics on GitHub. Write the
-plan as a task list. Many agents and teammates can work on it at once without
-doing the same task twice. Each task lands in order, after checks pass. You
-choose where people sign off: every PR, only the gates, or never.
+Avoozl lands specs and epics task by task: coding agents write each task,
+Avoozl checks the exact commit itself, and it lands by the repository's
+setting. You choose where people sign off: every pull request, only the gates,
+or never.
 
-Plan in specs. Land in parallel. You keep the final say.
+```sh
+avoozl init ~/plans --name "My plans"
+avoozl status --workspace ~/plans
+```
 
 ## Open workflow
 
@@ -13,7 +16,7 @@ Plan in specs. Land in parallel. You keep the final say.
 rules say how a tool lands an epic task by task from spec files on GitHub, and
 the [workflow kit](workflow-kit/README.md) holds sample repositories that check
 a runner against them. Any tool can follow it. Avoozl is one way to run it,
-through its CLI, MCP server, web app, Kiro Crew plugin and skills.
+through its CLI, MCP server, web page, Kiro Crew app and skills.
 
 - **Parallel work.** Tasks run in [list order](docs/github-workflow.md#3-order),
   and the children of a parallel group start side by side.
@@ -45,7 +48,7 @@ See [Tasks](docs/github-workflow.md#2-tasks) for the format and
 [Landing](docs/github-workflow.md#16-landing) for the tick that marks a task
 done.
 
-## How it works
+## Delivery flow
 
 1. You write a spec: requirements, a design, and a list of tasks. You can
    write it by hand or have an agent draft it for you to review.
@@ -58,10 +61,15 @@ done.
 5. Work that passes lands the way the repository is set up: as a pull request,
    as a push to the base branch, or held until you decide.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://github.com/mtdowling/avoozl/releases/download/docs-screenshots/spec-desktop-dark.png">
+  <img alt="A spec page: its summary, details, task graph and manifest" src="https://github.com/mtdowling/avoozl/releases/download/docs-screenshots/spec-desktop-light.png" width="800">
+</picture>
+
 Specs can be any size. A light spec with one task becomes one pull request. A
 large one becomes ordered tasks across repositories, each checked on its exact
 commit before it lands. Every change starts from a spec you approved, so no
-agent's work lands without a plan a person agreed to. GitHub is optional; a
+agent's work lands without a plan a person agreed to. GitHub is optional: a
 Local only workspace needs only Git.
 
 Git holds the state that matters: specs, approvals, and what landed. The local
@@ -82,7 +90,7 @@ Agents write the code, and people keep the decisions.
 
 ## Requirements
 
-- Node 22.13 or later, for its built-in SQLite
+- Node 22.18 or later, for type stripping and built-in SQLite
 - Git
 - Kiro Crew 0.12.2 or later, to run Avoozl as a Kiro Crew app (optional)
 - `gh` signed in, or a token, for the GitHub features (optional)
@@ -93,7 +101,7 @@ Agents write the code, and people keep the decisions.
 git clone https://github.com/mtdowling/avoozl.git
 cd avoozl
 npm ci
-npm run build:kirocrew-app
+npm run build
 kirocrew app install "$PWD/hosts/kirocrew"
 ```
 
@@ -105,29 +113,27 @@ Open Kiro Crew's App Store, review Avoozl's trust request, and enable it. The
 **Avoozl** page appears in the sidebar. To update, pull and run
 `npm run build && kirocrew app update avoozl` in the checkout.
 
-To run Avoozl without Kiro Crew, build it with `npm run build` and run
-`avoozl tick` on a timer: launchd, systemd or cron, with the lines in
+To run Avoozl without Kiro Crew, run `avoozl tick` on a timer: launchd,
+systemd or cron, with the lines in
 [Getting started](docs/getting-started.md#run-the-tick-on-a-timer), or a chat
 that follows the `avoozl-drive` skill. Each tick is one pass that exits. With
 `serve.enabled` in the machine's `config.json`, the tick also keeps the page
 up on `127.0.0.1`, and `avoozl link` prints a one-time link that signs your
 browser in. Claude Code users can load the plugin in `hosts/claude-code/`.
 
-## Trying it out
+## Create a workspace
 
 A workspace is a directory you own, separate from this checkout. Create one
-on the page under **Add or initialize a workspace**, or from the CLI:
+on the page with **Settings › Workspaces › Add a workspace**, or from the CLI:
 
 ```sh
 avoozl init ~/plans --name "My plans"
 ```
 
 It holds `.avoozl.json` for settings you can commit, `.kiro/specs/` for specs,
-and a local database that is not committed. A new workspace is empty. Add a
-repository with `avoozl repository configure ID --root PATH`, then run
-`avoozl rebuild`.
+and a local database that is not committed. A new workspace is empty.
 
-## Delivering a spec
+## Deliver a spec
 
 Write the spec by hand, or ask a chat to with the `avoozl-spec` skill, then
 approve it. See
@@ -151,28 +157,17 @@ avoozl repository configure code --workspace ~/plans \
 }'
 ```
 
-Each check is a name and a command, run without a shell. Turn delivery on by
-adding a `delivery` object to `.avoozl.json`:
+Each check is a name and a command, run without a shell. The repository's
+`landing` setting, `off` by default, decides what happens to work that
+passes. See [Landing modes](docs/github-workflow.md#17-landing-modes) for each
+value.
 
-```json
-{
-  "delivery": {}
-}
-```
-
-With no GitHub, this workspace drives every spec.
-
-The repository's `landing` setting, `off` by default, decides what happens to
-work that passes. See
-[Landing modes](docs/github-workflow.md#17-landing-modes) for each value.
-
-In Kiro Crew, two one-time steps finish the setup. Share the `avoozl:avoozl`
-server in **MCP Management** and restart the gateway, so agent chats can
-report back. After the first tick, set the project directory of the
-**Avoozl** › _repository_ chat folder to the checkout.
-
-See [delivery.md](docs/delivery.md) for workers, merge batches, conflicts,
-and who merges.
+Then pick **Autopilot** in **Settings › Autopilot**. It writes a `delivery`
+block to `.avoozl.json` and a `loop` to this machine's config, and the tick
+starts and lands ready tasks from then on. See
+[Turning Autopilot on](docs/delivery.md#turning-autopilot-on) for both
+settings, and [Kiro Crew setup](docs/delivery.md#kiro-crew-setup) for the
+one-time Kiro Crew steps that reviewer chats and pull request workers need.
 
 ## Other agents
 
@@ -202,33 +197,13 @@ settings, are refused over MCP. `avoozl help` lists the CLI commands.
 
 ## Documentation
 
-The [docs](docs/README.md) cover the rest:
+The [docs index](docs/README.md) lists every page. Start with these:
 
 - [Getting started](docs/getting-started.md) for setup in more detail
-- [Overview](docs/overview.md) for where state lives and what each page shows
-- [Workspaces](docs/workspaces.md) for settings files, the standalone server,
-  backup, and rebuilding
+- [Overview](docs/overview.md) for where state lives and what each view shows
 - [Workflow v1](docs/github-workflow.md) for the task list format, order,
   approvals, claims and landing
 - [Delivery](docs/delivery.md) for workers, checks, landing, and merge batches
-- [GitHub](docs/github.md) for repository roles and GitHub modes
-- [Flow](docs/flow.md) for Stop the line, Insights and the retro skill
-- [Agents and the CLI](docs/agents.md) for roles and models, MCP tools, and
-  person-only actions
-- [Agent skills](docs/agent-skills.md) for the answer, review and triage skills
-  any agent runner can use on GitHub issues and pull requests
-- [Content rules](docs/content-rules.md) for keeping private terms out of
-  everything Avoozl writes
-- [Repository checks and isolation](docs/checks.md) for check commands and the
-  sandbox they run in
-- [Person-only operations](docs/person-only.md) for what an agent session cannot
-  do
-- [Manual tasks](docs/manual-tasks.md) for steps only a person
-  does
-- [Intake sources](docs/intake.md) for bringing in work from scripts
-- [GitHub rate limit](docs/rate-limit.md) for the cache and write pacing
-- [Writing a plugin](docs/plugins.md) for content rules, GitHub sign-in,
-  checks and epic context
 - [Glossary](docs/glossary.md) for terms that look alike
 
 ## Development

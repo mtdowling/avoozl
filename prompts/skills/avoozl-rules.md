@@ -14,8 +14,8 @@ the user's computer, or come from an approved rules plugin. The full text is in
 
 - **Never write the terms file.** Do not create, edit, or copy any file
   under `.avoozl/local/content-rules/`, and do not save terms through any
-  tool. Suggest lines; the user pastes them into Settings > Content rules
-  (Rule builder or File view) and chooses **Save terms** there.
+  tool. Suggest lines; the user pastes them into **Settings › Content rules**
+  (**Rule builder** or **File view**) and chooses **Save** there.
 - **Terms typed here stay in this chat's transcript.** Say so before the
   user shares any. For truly private terms, ask for made-up stand-ins, or
   ask the user to type the real words straight into the editor.
@@ -87,12 +87,12 @@ reads through percent and HTML escapes and hidden zero-width characters.
 
 ## Block or report
 
-- `block` (the default) writes nothing and opens a decision in Conflicts.
+- `block` (the default) writes nothing and opens a decision in **Needs you**.
   There a person changes the text, or chooses **Allow once** with a reason,
   which lets that exact content through one time. A session's own write is
   refused in its call instead, so it can fix the text.
-- `report` lets the write through and lists the finding in Delivery, with
-  one notice.
+- `report` lets the write through and lists the finding in **In flight**,
+  with one notice.
 - A set whose terms file is missing on this computer blocks everything it
   covers until the file is there.
 

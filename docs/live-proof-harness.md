@@ -7,17 +7,31 @@ writes or restarts your real gateway or home.
 ```sh
 scripts/dev/live-harness.sh start       # set up if needed, then start
 scripts/dev/live-harness.sh stop
+scripts/dev/live-harness.sh restart
 scripts/dev/live-harness.sh status
 scripts/dev/live-harness.sh check       # gateway, both apps, repo, Avoozl page
 scripts/dev/live-harness.sh url         # dashboard URL with the sign-in token
 scripts/dev/live-harness.sh signin      # owner shell, once per home: save a sign-in cookie
 scripts/dev/live-harness.sh browser-state  # Playwright storage state from that cookie
 scripts/dev/live-harness.sh reload-app  # load a new app build
-scripts/dev/live-harness.sh reset       # stop, move old state aside, start clean with `start`
+scripts/dev/live-harness.sh reset       # stop and move old state aside; run start after
 ```
 
 The script is `scripts/dev/live-harness.sh`. It needs `kirocrew`, `gh`,
 `python3` and `curl` on the path, and it is a bash script for Linux and macOS.
+`start` enables Avoozl and Issue Radar and connects the test repository
+(`AVOOZL_HARNESS_REPO`) to Issue Radar.
+
+The script has more commands for a proof's own setup:
+
+- `api METHOD PATH [JSON]` calls any gateway route.
+- `route-avoozl` gives chats a caller identity (see
+  [Caller identity for chats](#caller-identity-for-chats)).
+- `connect-repo [URL]` connects another repository to Issue Radar.
+- `crew-create NAME [JSON]`, `crew-list`, `crew-edit CREW_ID JSON`,
+  `crew-retire CREW_ID`, `crew-settings JSON` and `radar-settings [JSON]`
+  manage the test repository's Issue Radar crews and settings. A crew starts
+  paused unless its JSON sets `enabled` and `unattended`.
 
 `start` is safe to repeat. It installs the app from a copy of the built
 `hosts/kirocrew/` (`AVOOZL_HARNESS_APP_SRC`; run `npm run build` first after
@@ -35,16 +49,18 @@ stops, reinstalls and starts. No owner step is needed once the cookie exists.
 
 `reset` moves `home` (which holds `kiro`), `app` and `cookies.txt` to
 `*.old.<time>` and deletes nothing. `KIRO_HOME` is `<home>/kiro`: Kiro Crew
-writes app agent files such as `avoozl-crew` only to
+writes app agent files such as `avoozl-reviewer` only to
 `<KIROCREW_HOME>/kiro/agents` for a second home, and refuses anywhere else.
 
-Settings (environment):
+The script reads these environment variables:
 
 | Variable | Default |
 |---|---|
 | `AVOOZL_HARNESS_DIR` | `/tmp/avoozl-live-harness` |
 | `AVOOZL_HARNESS_PORT` | `5690` |
 | `AVOOZL_HARNESS_APP_SRC` | `<repo>/hosts/kirocrew` |
+| `AVOOZL_HARNESS_REPO` | a test repository on GitHub |
+| `AVOOZL_HARNESS_AGENT` | `avoozl-crew`, the agent `crew-create` gives a crew |
 
 The script refuses a relative directory, `/`, your home itself, and anything
 under `~/.kiro`, `~/.local/state` or `$KIROCREW_HOME`, checked again after
@@ -61,8 +77,7 @@ caller it verifies as its local owner: on macOS a process that is not
 sandboxed, on Linux one in the gateway's own namespaces. A chat's shell is
 sandboxed, so the gateway answers `403 member_owner_token_refused`. Reading a
 sign-in from `~/.kiro` or the real crew is not an option either: the sandbox
-blocks it, and it would sign in to the real crew. So there is no
-`signin-url.sh`.
+blocks it, and it would sign in to the real crew.
 
 On macOS the sandbox also stops a chat from starting the gateway at all (it
 cannot read `~/.kiro/crew-auth-staging`), so `start` and `restart` are the
@@ -80,10 +95,10 @@ scripts/dev/live-harness.sh signin
 prints no token. The session refreshes for about 30 days and survives
 restarts; `reset` retires it. From then on a chat needs no owner:
 
-- `harness.sh api ...` and every command built on it use the cookie.
-- `harness.sh reload-app` loads a new build in place.
-- `harness.sh browser-state` writes `<harness>/browser-state.json` (mode 600)
-  for Playwright: `browser.newContext({ storageState: "<that file>" })`, then
+- `live-harness.sh api ...` and every command built on it use the cookie.
+- `live-harness.sh reload-app` loads a new build in place.
+- `live-harness.sh browser-state` writes `<harness>/browser-state.json`
+  (mode 600) for Playwright: `browser.newContext({ storageState: "<that file>" })`, then
   open `http://localhost:<port>/apps/avoozl`.
 
 ## Chats click the test crew themselves
@@ -99,9 +114,9 @@ the real Kiro Crew, and real spec approvals stay the owner's own click.
 
 ## Caller identity for chats
 
-Plans tools that need to know the calling chat (review drafts, replies,
-conflict fix, reports) refuse with "no caller identity" unless the gateway
-wraps the `avoozl:avoozl` server. `harness.sh route-avoozl` sets
+Plans tools that need to know the calling chat, such as `plans_report` and
+`plans_post_reply`, refuse a call with no caller identity unless the gateway
+wraps the `avoozl:avoozl` server. `live-harness.sh route-avoozl` sets
 `mcp_gateway.stub_overrides`, restarts, approves the launch the gateway
 refused at boot, and restarts. The override alone is not enough: without the
 approval the gateway leaves `avoozl:avoozl` unwrapped. The log line is
@@ -109,26 +124,26 @@ approval the gateway leaves `avoozl:avoozl` unwrapped. The log line is
 app must also refuse `server/discover`, or the chat never sends `initialize`
 and the gateway never learns the app takes a caller.
 
-Any other gateway route: `harness.sh api GET /api/...`.
+Any other gateway route: `live-harness.sh api GET /api/...`.
 
 ## Limits
 
 - The app backend picks the workspace whose sessions it reads when it starts or
   when the Avoozl page calls it. A workspace made later from the CLI is not read
   until then, so the tick holds with `"held":{"reason":"unobserved"}`. Run
-  `harness.sh restart` after `avoozl init` and `workspace add`.
+  `live-harness.sh restart` after `avoozl init` and `workspace add`.
 - Chats and `gh` use the machine's existing `gh` and Kiro sign-ins. The harness
   has its own dashboard token only.
 - A chat the tick opens in a folder (`Avoozl/<repository>`) gets no checkout
   until the folder has a project directory, and the tick skips it silently.
-  After the first tick made the folder, set it with `harness.sh api PATCH
+  After the first tick made the folder, set it with `live-harness.sh api PATCH
   /api/chat/folders/<folder id> '{"project_dir":"<clone>"}'` (ids are in
   `<harness>/home/folders.json`).
 - A chat the tick opens asks for approval of its first `git` call, and an
-  unattended chat declines it after 3 minutes. Approve the chat with `harness.sh
-  api POST /api/chat/mode '{"slot":"<slot>","mode":"trust"}'`, then send it a
-  message to carry on.
-- It creates no scratch repo and runs no proof.
+  unattended chat declines it after 3 minutes. Approve the chat with
+  `live-harness.sh api POST /api/chat/mode '{"slot":"<slot>","mode":"trust"}'`,
+  then send it a message to carry on.
+- It creates no scratch repository and runs no proof.
 - Reinstalling Avoozl gives the tick cron a new job, which may not read or
   message chats the old job opened. `start` and `restart` reinstall when the
   build changed, so mid-proof load a build with `reload-app` while the harness

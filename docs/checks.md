@@ -39,11 +39,20 @@ Each check has a name and its command arguments, and Avoozl runs it with no
 shell. A check with `paths` runs only when a commit's diff touches one of them.
 Merge batches run every check whose paths any member's change touches, plus
 every check without paths. Records, reruns and bisect steps name a check by its
-name, and `verify.checkTimeouts` sets a check's own timeout by its name.
+name. `flow.verify.checkTimeoutSeconds` (default 1200) bounds each check, and
+`flow.verify.checkTimeouts` sets one check's own timeout by its name. See
+[Verification](flow.md#verification) for both.
 
 Each repository's queued runs execute in one detached check runner. A tick
 starts the runner and returns without waiting for its commands. The runner
 records each result in the workspace database, and a later tick judges it.
+
+A worker can run the same checks in its own worktree first and record the
+pass:
+
+```sh
+avoozl checks run --task TASK
+```
 
 ## Code the repository owns
 
@@ -75,15 +84,13 @@ folders) plus the names a repository lists in `checksEnv`:
 ```
 
 Push and GitHub credentials (`GH_TOKEN`, `GITHUB_TOKEN`, `SSH_AUTH_SOCK` and the
-like) never reach a check, even when listed.
-
-Checks never get a GitHub token or Avoozl's git credential helper
-(`avoozl credential`): their environment drops the helper's variables with
-the other push credentials.
+like) never reach a check, even when listed. Neither do the variables of
+Avoozl's git credential helper, `avoozl credential`.
 
 ## Isolation
 
-Every check runs in the repository's `isolation`. Only a person sets it.
+Every check runs in the repository's `isolation`. Only a person sets it, in
+**Settings › Repository setup**.
 
 ```json [.avoozl.json]
 {
@@ -109,25 +116,25 @@ Every check runs in the repository's `isolation`. Only a person sets it.
 
 - `sandbox` is the default and uses the process sandbox. A check writes only its
   folder, its own temp folder, a per-repository cache folder and `writable`. It
-  reads no credential or Avoozl state folder, plus `readable` where those would
-  hide a file it needs.
+  reads no credential or Avoozl state folder. `readable` lists absolute paths it
+  may also read.
 - `unconfined` applies no isolation. It needs this machine's opt-in,
   `"checks": true` in `harness-unconfined.json` in Avoozl's config folder. A
   machine with no sandbox runs a `sandbox` check unconfined too.
 
 `network` is `off` unless set to `on`. `prepare` runs once per worktree and
 commit before the checks, outside isolation, with the environment allowlist.
-When it fails, no check runs. Each check record names its isolation, and the
-Landing page and the task's timeline show "not sandboxed" for a check that ran
-unconfined.
+When it fails, no check runs. Each check record names its isolation, so a
+check that ran unconfined is on record as unconfined. The isolation form shows
+`unconfined` as **Not sandboxed**.
 
 ## Free disk space
 
 Before Avoozl makes any worktree (a task's, a check run's, a landing candidate's
 or a review session's), the volume that will hold it needs 2 GiB free. With
 less, the work waits instead of failing halfway. A check run stays queued, the
-landing queue holds, a session start is tried again, and Needs you shows one row
-naming the folder and its free space. The row clears once there is room. The
+landing queue holds, a session start is tried again, and **Needs you** shows
+one row naming the folder and its free space. The row clears once there is room. The
 2 GiB floor is fixed.
 
 ## See also

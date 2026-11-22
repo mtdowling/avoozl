@@ -15,9 +15,13 @@ avoozl rebuild --workspace ~/plans
 An epic is a parent spec whose task titles link one spec per part of the
 work, as [linked specs](github-workflow.md) describe. Each linked spec is
 approved and released on its own. Give each spec to the person who runs that
-part by assigning its spec issue to them: their runner starts its tasks, and
-every other runner leaves it alone. A spec with no spec issue is not shared,
-so every machine that holds it runs it.
+part by assigning its spec issue to them alone: their runner starts its
+tasks, and every other runner leaves it alone. A parent spec's issue must name
+the same person. A spec with no spec issue is not shared, so every machine
+that holds it runs it. See
+[Spec issues and assignment](github-workflow.md#8-spec-issues-and-assignment)
+for the rule and [Labels](github-workflow.md#9-labels) for the label filters
+that also narrow it.
 
 A spec can wait on another when a parent spec links both and lists one first.
 See [Linked specs](github-workflow.md#6-linked-specs) for the rules.
@@ -34,7 +38,7 @@ Each person's Avoozl keeps its own database, and git is what they share. The
 database is a cache that every machine builds from the same commits:
 
 | State | Where it lives |
-| ----- | -------------- |
+| --- | --- |
 | Spec text | `.kiro/specs/<name>/` on main |
 | Approval | A commit on main that changes the spec's files, authored by an approver |
 | Task done | The tick in `tasks.md` on the spec's base branch |
@@ -104,10 +108,11 @@ a role, `.avoozl.json` wins. A task names no harness of its own.
 
 The harness names a file on the machine that runs the session, so each
 machine approves its own. See [Agents and the CLI](agents.md#roles-and-models)
-for the roles and the ones that still run as Kiro Crew chats.
+for the roles and their default harnesses.
 
 ## Limits
 
-- A spec with no spec issue shows "Not shared": two machines that both hold
-  it both run it, and only the claim branches keep them off one task.
-- In Local only mode there is no spec issue, so this machine runs every spec.
+- A spec with no spec issue is not shared: two machines that both hold it
+  both run it, and only the claim branches keep them off one task.
+- With `github.mode` set to `local` there is no spec issue, so this machine
+  runs every spec.

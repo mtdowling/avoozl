@@ -12,7 +12,6 @@ npm run check:hosts
 The directory ships beside `src/`, in a checkout and in the installed app. The
 roles are the keys of the `roles` setting, and each file serves these roles:
 
-
 - `reviewer.md` is the `reviewer` role, for review sessions.
 - `responder.md` is the `responder` role.
 - `check-decide.md` is the `checkDecide` role, a plugin check's decide call.
@@ -26,12 +25,17 @@ roles are the keys of the `roles` setting, and each file serves these roles:
 ## Skills for any agent runner
 
 `skills/<name>.md` is a whole skill (front matter and text) that any agent
-runner can read, such as an Issue Radar crew: `avoozl-answer`,
-`avoozl-review` and `avoozl-triage` (see `docs/agent-skills.md`). They
-call no Avoozl tool. `npm run build:hosts` copies each one to
+runner can read. `avoozl-answer`, `avoozl-review` and `avoozl-triage` call no
+Avoozl tool, so an Issue Radar crew can use them; the rest drive Avoozl
+through the `avoozl` CLI and the `plans_*` MCP tools. See
+[docs/agent-skills.md](../docs/agent-skills.md) for what each one does.
+
+`npm run build:hosts` copies each skill to
 `hosts/kirocrew/skills/<name>/SKILL.md`, which the app installs like its other
-skills, and `npm run check:hosts` fails when a copy differs or `app.json`
-does not list it. Do not edit the copies.
+skills. It also copies `avoozl-answer`, `avoozl-drive`, `avoozl-review` and
+`avoozl-triage` to `hosts/claude-code/skills/`, beside that host's `avoozl`
+skill, whose text is `hosts/front-end.md`. `npm run check:hosts` fails when a
+copy differs or `app.json` does not list a skill. Do not edit the copies.
 
 ## Kiro Crew agents
 
@@ -46,6 +50,6 @@ different agents. It runs before `npm test`. Do not edit the generated JSON.
 ## Process harnesses
 
 A role that runs as a process harness (Claude Code, Codex, or another
-harness chosen in Settings > Models) has no agent file. Its brief starts with
-the same prompt file (`processBrief` in `src/app/executors/process.ts`),
+harness chosen in **Settings › Models**) has no agent file. Its brief starts
+with the same prompt file (`processBrief` in `src/app/executors/process.ts`),
 then the task's brief, then how to finish.

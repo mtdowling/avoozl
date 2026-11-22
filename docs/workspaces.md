@@ -3,6 +3,11 @@
 A workspace is a directory you own that holds your specs, your settings, and a
 local database. It is separate from the Avoozl checkout.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://github.com/mtdowling/avoozl/releases/download/docs-screenshots/settings-workspaces-desktop-dark.png">
+  <img alt="Settings, Workspaces tab: the workspace list, notifications and telemetry" src="https://github.com/mtdowling/avoozl/releases/download/docs-screenshots/settings-workspaces-desktop-light.png" width="800">
+</picture>
+
 ```text
 my-plans/
   .avoozl.json                     portable, reviewable policy
@@ -10,15 +15,26 @@ my-plans/
   .kiro/specs/<name>/              specs
 ```
 
-Create one on the Avoozl page under **Add or initialize a workspace** with
-**Initialize new**, or with `avoozl init ~/plans --name "My plans"`.
-**Add existing** opens a directory that already holds a workspace.
+Create one with `avoozl init ~/plans --name "My plans"`, or on the page under
+**Settings › Workspaces** with **Add a workspace**, then **Start new**.
+**Add existing** in the same dialog opens a directory that already holds a
+workspace.
 
-## Example data
+## Repositories
 
-A new workspace has no tasks and no repositories. Add a repository with
-`avoozl repository configure ID --root PATH`, then run `avoozl rebuild` to read
-its specs, ticks, claims and spec issues from git and GitHub.
+A new workspace has no tasks and no repositories. Add a repository, then run
+`avoozl rebuild` to read its specs, ticks, claims and spec issues from git and
+GitHub.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://github.com/mtdowling/avoozl/releases/download/docs-screenshots/settings-repositories-desktop-dark.png">
+  <img alt="Settings, Repository setup tab: one added repository with its folder and landing branch" src="https://github.com/mtdowling/avoozl/releases/download/docs-screenshots/settings-repositories-desktop-light.png" width="800">
+</picture>
+
+```sh
+avoozl repository configure app --root ../app
+avoozl rebuild
+```
 
 ## Settings files
 
@@ -74,10 +90,12 @@ also keeps a WAL file. Back up the spec folders and `.avoozl.json` with it.
 
 ## Rebuilding the database
 
-The database is a cache, and `avoozl rebuild` makes it again from git. On a
-fresh machine, clone the repository, move any old `workspace.sqlite` aside,
-and run `avoozl rebuild`. It:
+The database is a cache, and `avoozl rebuild` makes it again from git and
+GitHub. It fills an empty database only. On a fresh machine, clone the
+repository, move any old `workspace.sqlite` aside, and run `avoozl rebuild`.
+It:
 
 - reads every spec folder
-- approves again each spec whose current text an approver committed on main
-- marks each task done whose tick is on its base branch
+- approves again each spec whose current text an approver committed on its
+  specs branch
+- marks each task done whose box is ticked on its done branch
