@@ -78,7 +78,8 @@ test('a spec row opens the spec in the detail column', () => {
   assert.match(plans, /data-plan-row=\{row\.key\}[\s\S]{0,160}onClick=\{\(\) => props\.onOpen\(row\)\}/)
   assert.match(plans, /<SpecList\s+rows=\{rows\}\s+selected=\{row\?\.key \?\? null\}\s+onOpen=\{open\}/)
   // Opening sets the row at once, with no reload first, and scrolls to it.
-  assert.match(plans, /const open = \(next: PlanRow\) => openPlan\(next\.key\)/)
+  assert.match(plans, /const open = \(next: PlanRow\) => \{\s*openPlan\(next\.key\)/)
+  assert.match(plans, /writeSpecPlace\(pageStorage\(\), workspace, place\)/)
   assert.match(plans, /detailTop\.current\?\.scrollIntoView/)
   // Graph and Delivery buttons filter to the plan; App passes the filter on.
   assert.match(plans, /props\.onScope\?\.\(target, \{ plan: rowPlanKey\(next\) \}\)/)

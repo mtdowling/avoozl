@@ -8,13 +8,13 @@ import { runSeed } from '../src/chat-api.ts'
 import { EMPTY, barRects, burndownPaths, niceMax, stripItems } from '../src/insights-api.ts'
 import { harnessPage } from './browser/harness-page.ts'
 
-test('Insights is first in the nav, and the page opens on it', async () => {
+test('Insights is first in the nav and is the fallback when no tab was saved', async () => {
   assert.deepEqual(
     TABS.map((t) => t.label),
     ['Insights', 'Specs', 'Graph', 'In flight', 'Needs you', 'Activity', 'Settings'],
   )
   const app = (await import('node:fs')).readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8')
-  assert.match(app, /useState<Tab>\('insights'\)/)
+  assert.match(app, /useState<Tab>\(saved\.tab \?\? 'insights'\)/)
 })
 
 test('the strip links each number to its view', () => {

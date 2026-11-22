@@ -54,9 +54,10 @@ import { useDetailTitleRef } from './ListDetail.tsx'
 import { useTitleScrolledOut } from './use-title-scrolled-out.ts'
 import { Modal } from './ui/Modal.tsx'
 import { SpecGraph } from './SpecGraph.tsx'
-import { parseSpecTab, renderText, specTabLink } from './tabs.ts'
+import { parseSpecTab, readSpecPlace, renderText, specTabLink, writeSpecPlace, type SpecPlace } from './tabs.ts'
 import { Tabs } from './ui/Tabs.tsx'
 import { urlBase } from './focus-tree.ts'
+import { pageStorage } from './columns.ts'
 import { DiffBlock } from './DiffBlock.tsx'
 import {
   UNCATEGORIZED,
@@ -1224,11 +1225,7 @@ interface SpecActions {
 // The primary action follows the review loop: import a new or changed folder,
 // approve a clean draft, send a blocked draft back with its review findings,
 // and offer an ordinary edit only after the review loop has finished.
-export function primaryAction(
-  row: Pick<PlanRow, 'status' | 'spec'>,
-  plan: { state: string } | null,
-  blocker: string | null,
-): 'import' | 'approve' | 'send-back' | 'edit' {
+export function primaryAction(row: Pick<PlanRow, 'status' | 'spec'>, plan: { state: string } | null, blocker: string | null): 'import' | 'approve' | 'send-back' | 'edit' {
   if (row.status === 'not imported' || row.status === 'changed') return 'import'
   if (plan?.state === 'draft') return blocker === null ? 'approve' : 'send-back'
   return 'edit'
@@ -1276,7 +1273,9 @@ function SpecHeader(props: { row: PlanRow; plan: SpecPlan | null; actions: SpecA
     import: {
       label: 'Import',
       icon: Download,
-      tooltip: importingChanges ? 'Import the changed files as a new draft revision. Approves and starts nothing.' : 'Store this folder as a draft spec. Approves and starts nothing.',
+      tooltip: importingChanges
+        ? 'Import the changed files as a new draft revision. Approves and starts nothing.'
+        : 'Store this folder as a draft spec. Approves and starts nothing.',
       onClick: actions.onImport ?? actions.onReload,
     },
     approve: { label: 'Approve', icon: ClipboardCheck, tooltip: `Approve revision ${shortHash(plan?.hash)}. Its ready tasks may then start.`, onClick: actions.onApprove },
@@ -2040,24 +2039,31 @@ export default function PlansView(props: {
   const row = table?.items.find((item) => item.key === selected) ?? null
   // The spec's tabs: Overview, Tasks and one per spec document, in the address
   // as the spec id plus tab=T. Back and Forward walk them.
-  const [specAt, setSpecAt] = useState<{ plan: string; tab: string }>({ plan: '', tab: 'overview' })
-  const addressRead = useRef(false)
-  const readAddress = useCallback(() => {
-    const at = parseSpecTab(window.location.search)
-    setSpecAt(at ?? { plan: '', tab: 'overview' })
-    return at?.plan ?? null
-  }, [])
+  const [specAt, setSpecAt] = useState<SpecPlace>({ plan: '', tab: 'overview' })
+  const addressRead = useRef<string | null>(null)
+  const readAddress = useCallback(
+    (restore: boolean) => {
+      const linked = parseSpecTab(window.location.search)
+      const at = linked ?? (restore && workspace ? readSpecPlace(pageStorage(), workspace) : null)
+      setSpecAt(at ?? { plan: '', tab: 'overview' })
+      if (linked && workspace) writeSpecPlace(pageStorage(), workspace, linked)
+      return at?.plan ?? null
+    },
+    [workspace],
+  )
+  const tableMatchesWorkspace = shownWorkspace.current === workspace
   useEffect(() => {
-    if (!table || addressRead.current) return
-    addressRead.current = true
-    const plan = readAddress(),
+    if (!workspace || !table || !tableMatchesWorkspace || addressRead.current === workspace) return
+    addressRead.current = workspace
+    const plan = readAddress(true),
       found = plan && table.items.find((item) => item.planId === plan)
     if (found) setSelected(found.key)
+    else if (plan && !parseSpecTab(window.location.search)) writeSpecPlace(pageStorage(), workspace, null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [table])
+  }, [table, tableMatchesWorkspace, workspace])
   useEffect(() => {
     const onPop = () => {
-      const plan = readAddress()
+      const plan = readAddress(false)
       const found = plan && table?.items.find((item) => item.planId === plan)
       if (found) setSelected(found.key)
     }
@@ -2078,7 +2084,9 @@ export default function PlansView(props: {
   const pickTab = (next: string) => {
     const id = row?.planId
     if (!id || !workspace) return
-    setSpecAt({ plan: id, tab: next })
+    const place = { plan: id, tab: next }
+    setSpecAt(place)
+    writeSpecPlace(pageStorage(), workspace, place)
     goAddress(specTabLink(id, next))
   }
   // A ref chip (Requirement 115.5): its file's tab, then its line once the
@@ -2151,15 +2159,21 @@ export default function PlansView(props: {
     if (selected) detailTop.current?.scrollIntoView?.({ block: 'start' })
   }, [selected])
 
-  const open = (next: PlanRow) => openPlan(next.key)
+  const open = (next: PlanRow) => {
+    openPlan(next.key)
+    if (!workspace || !next.planId) return
+    const place = { plan: next.planId, tab: 'overview' }
+    setSpecAt(place)
+    writeSpecPlace(pageStorage(), workspace, place)
+    goAddress(specTabLink(next.planId, place.tab))
+  }
   const scope = (target: PlanTarget, next: PlanRow) => props.onScope?.(target, { plan: rowPlanKey(next) })
   // Edit plan: a planner chat drafts the change to the spec files; adding a
   // task goes the same way, and comes back as a revision to approve.
   const runInChat = useRunInChat()
   const specName = (next: PlanRow) => next.spec ?? next.planId ?? next.name
   const change = (next: PlanRow) => runInChat({ kind: 'spec', spec: specName(next), review: false, agent: 'kirocrew' })
-  const specFolder = (next: PlanRow) =>
-    table?.root && next.folder ? `${table.root.replace(/\/$/, '')}/${next.folder.replace(/^\/+/, '')}` : (next.folder ?? null)
+  const specFolder = (next: PlanRow) => (table?.root && next.folder ? `${table.root.replace(/\/$/, '')}/${next.folder.replace(/^\/+/, '')}` : (next.folder ?? null))
   const launchRework = (next: PlanRow, currentPlan: SpecPlan, request: ReviewRequestResult) => {
     if (!workspace) return
     runInChat({
@@ -2326,13 +2340,7 @@ export default function PlansView(props: {
               details={<SpecDetailsBox>{specRail}</SpecDetailsBox>}
               review={
                 plan && workspace ? (
-                  <ReviewTab
-                    workspaceId={workspace}
-                    plan={plan}
-                    client={plans}
-                    onChanged={refreshOpenPlan}
-                    onRework={(request) => launchRework(row, plan, request)}
-                  />
+                  <ReviewTab workspaceId={workspace} plan={plan} client={plans} onChanged={refreshOpenPlan} onRework={(request) => launchRework(row, plan, request)} />
                 ) : null
               }
               onTasks={() => pickTab('tasks')}

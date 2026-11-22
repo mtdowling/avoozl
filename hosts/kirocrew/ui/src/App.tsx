@@ -85,9 +85,8 @@ function AvoozlPage() {
   const api = useAppApi()
   const client = useMemo(() => workspaceClient(api), [api])
   const saved = useMemo(() => readPageState(storage()), [])
-  // The page always opens on Insights, its home; the tab is remembered only
-  // while the page stays open.
-  const [tab, setTab] = useState<Tab>('insights')
+  // Return to the section the person was using before they left Avoozl.
+  const [tab, setTab] = useState<Tab>(saved.tab ?? 'insights')
   // Settings starts on Workspaces each visit (settingsTabOnEnter).
   const [settingsTab, setSettingsTab] = useState<SettingsTab>(SETTINGS_HOME)
   // The sub-page the nav shows for Needs you.
@@ -120,8 +119,8 @@ function AvoozlPage() {
   }, [client, takeList])
 
   useEffect(() => {
-    writePageState(storage(), { workspaceId })
-  }, [workspaceId])
+    writePageState(storage(), { workspaceId, tab })
+  }, [workspaceId, tab])
 
   // The link's workspace, once the catalog confirms it exists.
   useEffect(() => {

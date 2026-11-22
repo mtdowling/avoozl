@@ -54,23 +54,25 @@ test('page state round-trips and survives bad or blocked storage', async () => {
   const { PAGE_STATE_KEY, readPageState, writePageState } = await import('../src/workspace-api.ts')
   const store = new Map<string, string>()
   const storage = { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => void store.set(k, v) }
-  writePageState(storage, { workspaceId: 'w1' })
-  assert.deepEqual(readPageState(storage), { workspaceId: 'w1' })
+  writePageState(storage, { workspaceId: 'w1', tab: 'plans' })
+  assert.deepEqual(readPageState(storage), { workspaceId: 'w1', tab: 'plans' })
   store.set(PAGE_STATE_KEY, '{not json')
-  assert.deepEqual(readPageState(storage), { workspaceId: null })
-  assert.deepEqual(readPageState(null), { workspaceId: null })
+  assert.deepEqual(readPageState(storage), { workspaceId: null, tab: null })
+  assert.deepEqual(readPageState(null), { workspaceId: null, tab: null })
   const blocked = {
     setItem: () => {
       throw new Error('QuotaExceededError')
     },
   }
-  assert.doesNotThrow(() => writePageState(blocked, { workspaceId: null }))
+  assert.doesNotThrow(() => writePageState(blocked, { workspaceId: null, tab: null }))
 })
 
-test('a tab saved by any earlier page is not restored, so the page opens on the Dashboard', async () => {
+test('the last valid top-level tab is restored and stale tab names are ignored', async () => {
   const { PAGE_STATE_KEY, readPageState } = await import('../src/workspace-api.ts')
-  for (const tab of ['workspace', 'settings', 'graph']) {
+  for (const tab of ['settings', 'graph']) {
     const storage = { getItem: (k: string) => (k === PAGE_STATE_KEY ? JSON.stringify({ tab, workspaceId: 'w1' }) : null) }
-    assert.deepEqual(readPageState(storage), { workspaceId: 'w1' })
+    assert.deepEqual(readPageState(storage), { workspaceId: 'w1', tab })
   }
+  const stale = { getItem: (k: string) => (k === PAGE_STATE_KEY ? JSON.stringify({ tab: 'workspace', workspaceId: 'w1' }) : null) }
+  assert.deepEqual(readPageState(stale), { workspaceId: 'w1', tab: null })
 })

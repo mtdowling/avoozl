@@ -33,9 +33,16 @@ export function dirtyTabs<F extends object, T extends string>(form: F, saved: F,
 
 // The spec page's tabs in the address: the spec id plus tab=T, and the
 // Overview is the spec id alone.
-interface SpecPlace {
+export interface SpecPlace {
   plan: string
   tab: string
+}
+const validSpecPlace = (value: unknown): SpecPlace | null => {
+  const place = value as Partial<SpecPlace> | null
+  if (!place || typeof place.plan !== 'string' || !place.plan) return null
+  if (typeof place.tab !== 'string') return null
+  if (place.tab !== 'overview' && (!/^[\w./-]{1,64}$/.test(place.tab) || place.tab.includes('..'))) return null
+  return { plan: place.plan, tab: place.tab }
 }
 export function specTabLink(plan: string, tab: string): string {
   const query = new URLSearchParams({ plan })
@@ -46,9 +53,36 @@ export function parseSpecTab(search: string): SpecPlace | null {
   const query = new URLSearchParams(search)
   const plan = query.get('plan'),
     tab = query.get('tab') ?? 'overview'
-  if (!plan) return null
-  if (tab !== 'overview' && (!/^[\w./-]{1,64}$/.test(tab) || tab.includes('..'))) return null
-  return { plan, tab }
+  return validSpecPlace({ plan, tab })
+}
+
+// The last spec and its inner tab, per workspace. The address remains the
+// shareable source of truth when present; this restores the place only when
+// the host returns to Avoozl at its bare app address.
+export const SPEC_PLACE_KEY = 'avoozl.spec-place'
+
+function readSpecPlaces(storage: Pick<Storage, 'getItem'> | null): Record<string, unknown> {
+  try {
+    const value = JSON.parse(storage?.getItem(SPEC_PLACE_KEY) ?? 'null')
+    return value && typeof value === 'object' && !Array.isArray(value) ? value : {}
+  } catch {
+    return {}
+  }
+}
+
+export function readSpecPlace(storage: Pick<Storage, 'getItem'> | null, workspaceId: string): SpecPlace | null {
+  return validSpecPlace(readSpecPlaces(storage)[workspaceId])
+}
+
+export function writeSpecPlace(storage: Pick<Storage, 'getItem' | 'setItem'> | null, workspaceId: string, place: SpecPlace | null): void {
+  try {
+    const places = readSpecPlaces(storage)
+    if (place) places[workspaceId] = place
+    else delete places[workspaceId]
+    storage?.setItem(SPEC_PLACE_KEY, JSON.stringify(places))
+  } catch {
+    // Storage may be full or blocked; the address still keeps the place.
+  }
 }
 
 // A spec file's text as the page renders it: Markdown as is, a JSON file as

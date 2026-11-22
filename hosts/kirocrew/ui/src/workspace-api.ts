@@ -4,6 +4,7 @@
 // Keep this module free of JSX and runtime imports so node can test it directly.
 import type { AppApi } from '@kirocrew/app-sdk'
 import type { Isolation } from './isolation-form.ts'
+import { TABS, type Tab } from './nav-api.ts'
 
 export const COMMAND_PATH = '/apps/avoozl/api/command'
 
@@ -146,21 +147,22 @@ export function pickDefault(list: WorkspaceList, current: string | null): string
   return list.items.find((w) => w.served)?.id ?? list.defaultWorkspace ?? list.items[0]?.id ?? null
 }
 
-// The page's workspace survives a reload in localStorage. A missing, blocked
-// or stale value falls back instead of throwing. The tab does not: the page
-// always opens on the Dashboard, and a tab saved by an older page is ignored.
+// The page's workspace and top-level tab survive leaving Avoozl or reloading
+// it. A missing, blocked or stale value falls back instead of throwing.
 export const PAGE_STATE_KEY = 'avoozl.page'
 
 interface PageState {
   workspaceId: string | null
+  tab: Tab | null
 }
 
 export function readPageState(storage: Pick<Storage, 'getItem'> | null): PageState {
   try {
     const value = JSON.parse(storage?.getItem(PAGE_STATE_KEY) ?? 'null')
-    return { workspaceId: typeof value?.workspaceId === 'string' ? value.workspaceId : null }
+    const tab = TABS.some((entry) => entry.key === value?.tab) ? (value.tab as Tab) : null
+    return { workspaceId: typeof value?.workspaceId === 'string' ? value.workspaceId : null, tab }
   } catch {
-    return { workspaceId: null }
+    return { workspaceId: null, tab: null }
   }
 }
 
