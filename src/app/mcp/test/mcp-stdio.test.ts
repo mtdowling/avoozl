@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // `avoozl mcp` is a plain stdio MCP server per chat (MS10): it serves the
 // named workspace in process, starts nothing and never loops, lists the same
 // tools as the MCP path itself, and its tick tool runs one pass and returns.
@@ -7,7 +6,7 @@ import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { fileURLToPath } from "node:url";
 import { handleMcp } from "../mcp.ts";
 import { initializeWorkspace } from "../../workspace/workspace.ts";
@@ -17,15 +16,34 @@ import { workspaceConfig } from "../../settings/config.ts";
 import { ownMachineEnv } from "../../test/own-machine.ts";
 import { waitFor } from "../../test/fixtures.ts";
 import { loopLockPaths, readRecord } from "../../executors/pass-lock.ts";
+import { found } from "../../test/view-shapes.ts";
+
+// One JSON-RPC reply of `avoozl mcp`, for the fields these tests read.
+interface Reply {
+  id: number;
+  result: {
+    isError?: boolean;
+    tools: { name: string }[];
+    content: { text: string }[];
+  };
+}
+// The tool names a tools/list answer body holds.
+function toolNames(body: unknown): string[] {
+  assert.ok(body && typeof body === "object" && "result" in body);
+  const { result } = body;
+  assert.ok(result && typeof result === "object" && "tools" in result);
+  assert.ok(Array.isArray(result.tools));
+  return result.tools.map((tool: { name: string }) => tool.name);
+}
 
 const CLI = fileURLToPath(new URL("../../../../cli.ts", import.meta.url));
 
-function machine(t) {
+function machine(t: TestContext) {
   const root = fs.realpathSync.native(
     fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-mcp-")),
   );
   const env = ownMachineEnv(root);
-  const run = (args, extra = {}) =>
+  const run = (args: string[], extra: NodeJS.ProcessEnv = {}) =>
     spawnSync(process.execPath, [CLI, ...args], {
       env: { ...env, ...extra },
       encoding: "utf8",
@@ -46,13 +64,18 @@ function machine(t) {
     env,
     run,
     workspace,
-    stateDirectory: path.join(env.XDG_STATE_HOME, "avoozl"),
+    stateDirectory: path.join(found(env.XDG_STATE_HOME), "avoozl"),
   };
 }
 
 // Send these messages through `avoozl mcp ARGS` and return the replies by id.
-function mcp(m, args, messages, extra = {}) {
-  return new Promise((resolve, reject) => {
+function mcp(
+  m: ReturnType<typeof machine>,
+  args: string[],
+  messages: unknown[],
+  extra: NodeJS.ProcessEnv = {},
+) {
+  return new Promise<{ get: (id: number) => Reply }>((resolve, reject) => {
     const child = spawn(process.execPath, [CLI, "mcp", ...args], {
       env: { ...m.env, ...extra },
     });
@@ -63,26 +86,36 @@ function mcp(m, args, messages, extra = {}) {
     child.on("error", reject);
     child.on("exit", () => {
       try {
-        resolve(
-          new Map(
-            out
-              .trim()
-              .split("\n")
-              .filter(Boolean)
-              .map((line) => JSON.parse(line))
-              .map((reply) => [reply.id, reply]),
+        const replies = new Map(
+          out
+            .trim()
+            .split("\n")
+            .filter(Boolean)
+            .map((line): Reply => JSON.parse(line))
+            .map((reply) => [reply.id, reply]),
+        );
+        resolve({ get: (id) => found(replies.get(id), `reply ${id}`) });
+      } catch (error) {
+        reject(
+          Error(
+            `${error instanceof Error ? error.message : String(error)}\n${out}\n${err}`,
           ),
         );
-      } catch (error) {
-        reject(Error(`${error.message}\n${out}\n${err}`));
       }
     });
-    child.stdin.end(messages.map((m) => JSON.stringify(m)).join("\n") + "\n");
+    child.stdin.end(
+      messages.map((message) => JSON.stringify(message)).join("\n") + "\n",
+    );
   });
 }
 
 const list = { jsonrpc: "2.0", id: 1, method: "tools/list", params: {} };
-const call = (id, name, args, meta) => ({
+const call = (
+  id: number,
+  name: string,
+  args: Record<string, unknown>,
+  meta?: Record<string, unknown>,
+) => ({
   jsonrpc: "2.0",
   id,
   method: "tools/call",
@@ -96,9 +129,7 @@ test("avoozl mcp serves the workspace, lists the same tools, and starts no proce
     ["--workspace", m.workspace],
     [list, call(2, "plans_task", { action: "get", input: { id: "none" } })],
   );
-  const expected = (await handleMcp(list, null)).body.result.tools.map(
-    (t) => t.name,
-  );
+  const expected = toolNames((await handleMcp(list, null)).body);
   assert.deepEqual(
     replies.get(1).result.tools.map((t) => t.name),
     expected,
@@ -158,7 +189,9 @@ test("the tick tool runs one pass for the workspace and returns", async (t) => {
   );
   const reply = replies.get(1).result;
   assert.equal(reply.isError, undefined, JSON.stringify(reply));
-  const results = JSON.parse(reply.content[0].text);
+  const results: { root?: string; tick?: string }[] = JSON.parse(
+    reply.content[0].text,
+  );
   assert.deepEqual(
     results.filter((r) => r.root).map((r) => [r.root, r.tick]),
     [[m.workspace, "ran"]],
@@ -167,14 +200,15 @@ test("the tick tool runs one pass for the workspace and returns", async (t) => {
 
 test("--url and AVOOZL_URL are refused naming avoozl mcp", (t) => {
   const m = machine(t);
-  for (const [args, extra] of [
+  const refused: [string[], NodeJS.ProcessEnv][] = [
     [["mcp", "--url", "http://127.0.0.1:9"], {}],
     [["status", "--url", "http://127.0.0.1:9"], {}],
     [["status"], { AVOOZL_URL: "http://127.0.0.1:9" }],
-  ]) {
-    const found = m.run(args, extra);
-    assert.notEqual(found.status, 0, args.join(" "));
-    assert.match(found.stderr, /takes no .*avoozl mcp/, args.join(" "));
+  ];
+  for (const [args, extra] of refused) {
+    const ran = m.run(args, extra);
+    assert.notEqual(ran.status, 0, args.join(" "));
+    assert.match(ran.stderr, /takes no .*avoozl mcp/, args.join(" "));
   }
 });
 
@@ -212,10 +246,11 @@ test("the Kiro Crew cron's tick call runs the pass and returns the chat intents"
   await waitFor(
     () => {
       try {
-        process.kill(holder.pid, 0);
+        process.kill(found(holder?.pid), 0);
         return false;
       } catch (error) {
-        if (error.code === "ESRCH") return true;
+        if (error instanceof Error && "code" in error && error.code === "ESRCH")
+          return true;
         throw error;
       }
     },

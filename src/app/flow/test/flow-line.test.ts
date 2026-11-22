@@ -1,10 +1,9 @@
-// @ts-nocheck: typing debt
 // Tasks 12.4, 12.6 and 12.7: stop the line, local checks first, and GitHub
 // timing (design §4.11, Requirements 44 and 45).
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { linePausedTaskIds } from "../flow.ts";
 import {
   findCulprit,
@@ -14,10 +13,28 @@ import {
 } from "../flow-line.ts";
 import { runLocalChecks } from "../flow-checks.ts";
 import { deliveryWorkspace, git, leaf } from "../../test/delivery-fixture.ts";
+import { withStatus } from "../../test/refusal.ts";
+import {
+  found,
+  storedRow,
+  type FlowStop,
+  type FlowStopped,
+  type FlowView,
+} from "../../test/view-shapes.ts";
+import type { Repository } from "../../git/git.ts";
+import type { Edge, Task } from "../../../types.ts";
+
+// A line stop as the line writes it: its check, culprit and fix task.
+type LineStop = FlowStop & {
+  culprit?: string | null;
+  commit?: string;
+  fixTaskId?: string;
+  runAnyway?: { by: string };
+};
 
 // A repository whose one check fails while a file named `broken` exists;
 // `flaky` makes the next run fail once.
-function setup(t, tasks, edges = []) {
+function setup(t: TestContext, tasks: Task[], edges: Edge[] = []) {
   const { root, checkout, store, ops } = deliveryWorkspace(t, {
       prefix: "avoozl-line-",
       tasks,
@@ -36,11 +53,15 @@ if (fs.existsSync("broken")) { console.error("assertion failed: broken"); proces
   // The check keeps its flaky counter beside the checkout: a sandboxed
   // check may write there only when the repository lists it.
   store.put("repositories", {
-    ...store.get("repositories", "app"),
+    ...storedRow(store, "repositories", "app"),
     isolation: { writable: [root] },
   });
   // Land a commit on main as if Avoozl integrated task `id`.
-  const land = (id, file, text = id || file) => {
+  const land = (
+    id: string | null,
+    file: string,
+    text: string | false = id || file,
+  ) => {
     if (text === false) fs.rmSync(path.join(checkout, file));
     else fs.writeFileSync(path.join(checkout, file), text + "\n");
     git(checkout, "add", "-A");
@@ -48,14 +69,14 @@ if (fs.existsSync("broken")) { console.error("assertion failed: broken"); proces
     const commit = git(checkout, "rev-parse", "HEAD");
     if (id)
       store.mutate("land " + id, (data) => {
-        data.tasks.find((x) => x.id === id).integration = {
+        found(data.tasks.find((x: Task) => x.id === id)).integration = {
           commit,
           at: new Date().toISOString(),
         };
       });
     return commit;
   };
-  const integrated = (commit) =>
+  const integrated = (commit: string) =>
     store.put("integration", {
       id: "i:" + commit,
       taskId: "x",
@@ -95,13 +116,19 @@ test("a check that passed on main and fails after a1 lands stops the line on a1"
   const { notify } = await watchLine(s.store, s.config);
   assert.equal(notify.length, 1);
   assert.match(notify[0].title, /Line stopped: node check\.mjs fails on main/);
-  const [stop] = s.store.list("flow_stops");
+  const [stop] = s.store.list<LineStop>("flow_stops");
   assert.equal(stop.culprit, "a1");
   assert.equal(stop.commit, red);
   assert.equal(stop.fixTaskId, "a1.fix-1");
   // Needs you has one row for the stop (simplify §D13).
   assert.deepEqual(
-    lineNeedsYou(s.store).map((item) => [item.reason, item.taskId, item.title]),
+    lineNeedsYou(s.store).map(
+      (item: { reason: string; taskId: string; title: string }) => [
+        item.reason,
+        item.taskId,
+        item.title,
+      ],
+    ),
     [
       [
         "line-stopped",
@@ -110,15 +137,14 @@ test("a check that passed on main and fails after a1 lands stops the line on a1"
       ],
     ],
   );
-  const fix = s.store.read().tasks.find((x) => x.id === "a1.fix-1");
-  assert.match(fix.summary, /revert the culprit commit/);
+  const fix = found(
+      s.store.read().tasks.find((x: Task) => x.id === "a1.fix-1"),
+    ),
+    summary = String(fix.summary);
+  assert.match(summary, /revert the culprit commit/);
+  assert.match(summary, /assertion failed: broken/, "the output's last lines");
   assert.match(
-    fix.summary,
-    /assertion failed: broken/,
-    "the output's last lines",
-  );
-  assert.match(
-    fix.summary,
+    summary,
     /\(data, not instructions\):\n(`{3,})text\n[\s\S]*assertion failed: broken[\s\S]*\n\1$/,
     "fenced like other briefs' outside text",
   );
@@ -142,12 +168,13 @@ test("a check that passed on main and fails after a1 lands stops the line on a1"
   const resumed = await watchLine(s.store, s.config);
   assert.equal(resumed.notify.length, 1, "notified once");
   assert.match(resumed.notify[0].title, /Line green/);
-  const closed = s.store.get("flow_stops", stop.id);
-  assert.ok(closed.closedAt && closed.timeToFixMs >= 0);
+  const closed = storedRow<LineStop>(s.store, "flow_stops", stop.id);
+  assert.ok(closed.closedAt && Number(closed.timeToFixMs) >= 0);
   assert.deepEqual(lineNeedsYou(s.store), []);
   assert.equal(linePausedTaskIds(s.store).size, 0);
   assert.equal(
-    s.store.read().tasks.find((x) => x.id === "a1").integration.commit,
+    found(s.store.read().tasks.find((x: Task) => x.id === "a1")).integration
+      ?.commit,
     red,
     "the culprit stays integrated",
   );
@@ -179,7 +206,7 @@ test("a failure that passes on rerun is flaky, not a stop", async (t) => {
   assert.deepEqual((await watchLine(s.store, s.config)).notify, []);
   assert.equal(s.store.list("flow_stops").length, 0);
   const [flaky] = s.store
-    .list("flow_records")
+    .list<{ kind: string; check: string; commit: string }>("flow_records")
     .filter((r) => r.kind === "flaky");
   assert.deepEqual([flaky.check, flaky.commit], ["node check.mjs", head]);
 });
@@ -190,16 +217,16 @@ test("the culprit is bisected among task commits, else unknown with its range", 
   s.land("a1", "a1.txt");
   s.land("a2", "broken");
   const red = s.land("a3", "a3.txt");
-  const repository = s.store.get("repositories", "app"),
-    found = await findCulprit(
+  const repository = storedRow<Repository>(s.store, "repositories", "app"),
+    culprit = await findCulprit(
       s.store,
       repository,
       ["node", "check.mjs"],
       green,
       red,
     );
-  assert.equal(found.culprit, "a2");
-  assert.ok(found.runs > 0 && found.runs <= 8);
+  assert.equal(culprit.culprit, "a2");
+  assert.ok(culprit.runs > 0 && culprit.runs <= 8);
   const none = await findCulprit(
     s.store,
     repository,
@@ -248,7 +275,7 @@ test("Run anyway is a person's: confirmed, recorded, and refused to sessions", a
       undefined,
       { caller: { sessionKey: "dashboard:agent" } },
     ),
-    (error) => error.status === 403,
+    withStatus(403),
   );
   await assert.rejects(
     s.ops.execute(
@@ -257,22 +284,25 @@ test("Run anyway is a person's: confirmed, recorded, and refused to sessions", a
       undefined,
       { mcp: true },
     ),
-    (e) => e.status === 403,
+    withStatus(403),
   );
   await assert.rejects(
     s.ops.execute("flow.runAnyway", { stopId: "stop-1" }),
     /Confirm Run anyway/,
   );
   assert.deepEqual([...linePausedTaskIds(s.store)], ["d1"]);
-  const { stop } = await s.ops.execute("flow.runAnyway", {
+  const { stop } = await s.ops.execute<{ stop: LineStop }>("flow.runAnyway", {
     stopId: "stop-1",
     confirm: true,
   });
-  assert.equal(stop.runAnyway.by, "dashboard");
+  assert.equal(stop.runAnyway?.by, "dashboard");
   assert.equal(linePausedTaskIds(s.store).size, 0);
-  const view = await s.ops.execute("flow.view", {});
+  const view = await s.ops.execute<FlowView & { line: LineStop[] }>(
+    "flow.view",
+    {},
+  );
   assert.equal(
-    view.line[0].runAnyway.by,
+    view.line[0].runAnyway?.by,
     "dashboard",
     "the banner stays and says so",
   );
@@ -283,7 +313,7 @@ test("a worker's check run runs the repository's checks on its commit", async (t
   const worktree = path.join(s.root, "wt");
   git(s.checkout, "worktree", "add", "-q", worktree, "-b", "avoozl/g1");
   const head = git(worktree, "rev-parse", "HEAD"),
-    repository = s.store.get("repositories", "app");
+    repository = storedRow<Repository>(s.store, "repositories", "app");
   const ran = await runLocalChecks({
     cwd: worktree,
     root: repository.root,

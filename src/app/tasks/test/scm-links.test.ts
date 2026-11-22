@@ -1,14 +1,36 @@
-// @ts-nocheck: typing debt
 import assert from "node:assert/strict";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { linkSets, specLinks, taskLinks } from "../scm-links.ts";
 import { Operations } from "../../api/operations.ts";
 import { fixture } from "../../test/fixtures.ts";
+import { found } from "../../test/view-shapes.ts";
+
+type TaskLinks = NonNullable<ReturnType<typeof taskLinks>>;
+type SpecLinks = NonNullable<ReturnType<typeof specLinks>>;
+
+// A GitHub that counts every read or write a view could make, then answers
+// nothing.
+function countingGitHub() {
+  const calls: string[] = [],
+    github = new Proxy(
+      {},
+      {
+        get: (_, method) =>
+          method === "then"
+            ? undefined
+            : () => {
+                calls.push(String(method));
+                return method === "available" ? true : null;
+              },
+      },
+    );
+  return { calls, github };
+}
 
 const NOW = Date.parse("2026-11-17T12:00:00Z");
-const iso = (minutes) => new Date(NOW - minutes * 60000).toISOString();
-const sha = (c) => c.repeat(40);
-const task = (id, extra = {}) => ({
+const iso = (minutes: number) => new Date(NOW - minutes * 60000).toISOString();
+const sha = (c: string) => c.repeat(40);
+const task = (id: string, extra = {}) => ({
   id,
   title: id,
   scope: "catalog",
@@ -24,7 +46,7 @@ const task = (id, extra = {}) => ({
 // A seeded workspace with every stored record a link set reads: a spec
 // issue, a working branch, an open pull request with checks, a landed task,
 // a task with no records, and the labeled issue it came from.
-function seed(t) {
+function seed(t: TestContext) {
   const { root, store } = fixture(t),
     data = store.read();
   store.initialize({
@@ -124,10 +146,11 @@ test("link sets come from stored records with URLs built from validated fields",
   const { store } = seed(t),
     { specs, tasks } = linkSets(store, { now: NOW });
 
-  const open = tasks.open;
+  const open = found(tasks.open),
+    openChecks = found(open.checks);
   assert.equal(open.repository, "example/code");
   assert.equal(
-    open.branch.url,
+    open.branch?.url,
     "https://github.com/example/code/tree/avoozl/open",
   );
   assert.deepEqual(open.worktree, {
@@ -135,34 +158,34 @@ test("link sets come from stored records with URLs built from validated fields",
     path: "/work/avoozl-open",
     local: true,
   });
-  assert.equal(open.pr.url, "https://github.com/example/code/pull/11");
-  assert.equal(open.pr.state, "open");
+  assert.equal(open.pr?.url, "https://github.com/example/code/pull/11");
+  assert.equal(open.pr?.state, "open");
   // Check state carries its head and age.
-  assert.equal(open.checks.state, "pass");
-  assert.equal(open.checks.head, sha("a"));
-  assert.equal(open.checks.ageMs, 5 * 60000);
-  assert.equal(open.checks.current, true);
-  assert.equal(open.checks.dot, "pass");
+  assert.equal(openChecks.state, "pass");
+  assert.equal(openChecks.head, sha("a"));
+  assert.equal(openChecks.ageMs, 5 * 60000);
+  assert.equal(openChecks.current, true);
+  assert.equal(openChecks.dot, "pass");
   assert.equal(
-    open.checks.url,
+    openChecks.url,
     "https://github.com/example/code/pull/11/checks",
   );
-  assert.equal(open.issue.url, "https://github.com/example/code/issues/7");
+  assert.equal(open.issue?.url, "https://github.com/example/code/issues/7");
   assert.equal(open.landed, null);
 
-  const landed = tasks.landed;
-  assert.equal(landed.pr.number, 12);
-  assert.equal(landed.pr.state, "merged");
+  const landed = found(tasks.landed);
+  assert.equal(landed.pr?.number, 12);
+  assert.equal(landed.pr?.state, "merged");
   assert.equal(
-    landed.landed.url,
+    landed.landed?.url,
     `https://github.com/example/code/commit/${sha("c")}`,
   );
-  assert.equal(landed.checks.source, "landing");
-  assert.equal(landed.checks.state, "pass");
-  assert.equal(landed.source.url, "https://github.com/example/radar/issues/3");
+  assert.equal(landed.checks?.source, "landing");
+  assert.equal(landed.checks?.state, "pass");
+  assert.equal(landed.source?.url, "https://github.com/example/radar/issues/3");
 
   // Missing records show as none.
-  const bare = tasks.bare;
+  const bare: Record<string, unknown> = found(tasks.bare);
   for (const key of [
     "branch",
     "worktree",
@@ -175,20 +198,20 @@ test("link sets come from stored records with URLs built from validated fields",
     assert.equal(bare[key], null, key);
 
   // A URL from content never becomes a link; an invalid repository is none.
-  const hostile = tasks.hostile;
+  const hostile = found(tasks.hostile);
   assert.equal(hostile.issue, null);
   assert.equal(hostile.source, null);
   const all = JSON.stringify({ specs, tasks });
   assert.ok(!all.includes("evil.example"), "no stored URL is passed through");
 
-  const spec = specs.s;
-  assert.equal(spec.issue.url, "https://github.com/example/specs/issues/40");
+  const spec = found(specs.s);
+  assert.equal(spec.issue?.url, "https://github.com/example/specs/issues/40");
   assert.deepEqual(
     spec.workingBranches.map((b) => b.url),
     ["https://github.com/example/code/tree/avoozl/s/work"],
   );
   assert.deepEqual(
-    spec.pulls.map((p) => [p.number, p.checks.dot]),
+    spec.pulls.map((p) => [p.number, p.checks?.dot]),
     [[11, "pass"]],
   );
   assert.deepEqual(
@@ -208,7 +231,7 @@ test("check state for a head that is no longer current shows as stale", (t) => {
     state: "running",
     commit: sha("d"),
   });
-  const { checks } = taskLinks(store, "open", { now: NOW });
+  const checks = found(found(taskLinks(store, "open", { now: NOW })).checks);
   assert.equal(checks.state, "pass");
   assert.equal(checks.head, sha("a"));
   assert.equal(checks.current, false);
@@ -217,22 +240,9 @@ test("check state for a head that is no longer current shows as stale", (t) => {
 
 test("link sets add no GitHub call: the count is the same with them on", async (t) => {
   const { root, store } = seed(t),
-    calls = [],
-    // Counts every read or write a view could make, then answers nothing.
-    github = new Proxy(
-      {},
-      {
-        get: (_, method) =>
-          method === "then"
-            ? undefined
-            : (...args) => {
-                calls.push(String(method));
-                return method === "available" ? true : null;
-              },
-      },
-    ),
+    { calls, github } = countingGitHub(),
     ops = new Operations(store, { workspaceRoot: root, github });
-  const views = async (withLinks) => {
+  const views = async (withLinks: boolean) => {
     for (const id of ["open", "landed", "bare"]) {
       await ops.execute("task.detail", { id });
       if (withLinks) taskLinks(store, id);
@@ -253,83 +263,67 @@ test("link sets add no GitHub call: the count is the same with them on", async (
 
 test("delivery.view carries each task's link set for In flight chips, with no GitHub call", async (t) => {
   const { root, store } = seed(t),
-    calls = [],
-    github = new Proxy(
-      {},
-      {
-        get: (_, method) =>
-          method === "then"
-            ? undefined
-            : (...args) => {
-                calls.push(String(method));
-                return method === "available" ? true : null;
-              },
-      },
-    ),
+    { calls, github } = countingGitHub(),
     ops = new Operations(store, { workspaceRoot: root, github });
-  const { items } = await ops.execute("delivery.view", {}),
+  const { items } = await ops.execute<{
+      items: { id: string; links: TaskLinks }[];
+    }>("delivery.view", {}),
     byId = new Map(items.map((item) => [item.id, item])),
+    linksOf = (id: string) => found(byId.get(id)).links,
     { tasks } = linkSets(store);
   assert.equal(calls.length, 0);
   for (const id of ["open", "landed"]) {
-    const { links } = byId.get(id);
+    const links = linksOf(id),
+      expected = found(tasks[id]);
     // `now` differs between the two reads; ages are not compared.
     assert.deepEqual(
       { ...links, checks: links.checks && { ...links.checks, ageMs: 0 } },
       {
-        ...tasks[id],
-        checks: tasks[id].checks && { ...tasks[id].checks, ageMs: 0 },
+        ...expected,
+        checks: expected.checks && { ...expected.checks, ageMs: 0 },
       },
     );
   }
-  assert.equal(byId.get("open").links.pr.number, 11);
-  assert.equal(byId.get("open").links.checks.dot, "pass");
-  assert.equal(byId.get("open").links.branch.ref, "avoozl/open");
+  assert.equal(linksOf("open").pr?.number, 11);
+  assert.equal(linksOf("open").checks?.dot, "pass");
+  assert.equal(linksOf("open").branch?.ref, "avoozl/open");
 });
 
 test("task.detail carries the task's link set for the Links box", async (t) => {
   const { root, store } = seed(t),
     ops = new Operations(store, { workspaceRoot: root });
-  const { links } = await ops.execute("task.detail", { id: "open" });
-  const expected = taskLinks(store, "open");
-  assert.equal(links.pr.url, expected.pr.url);
-  assert.equal(links.branch.url, expected.branch.url);
-  assert.equal(links.checks.dot, "pass");
+  const { links } = await ops.execute<{ links: TaskLinks }>("task.detail", {
+    id: "open",
+  });
+  const expected = found(taskLinks(store, "open"));
+  assert.equal(links.pr?.url, expected.pr?.url);
+  assert.equal(links.branch?.url, expected.branch?.url);
+  assert.equal(links.checks?.dot, "pass");
   assert.deepEqual(links.worktree, expected.worktree);
   assert.equal(
-    (await ops.execute("task.detail", { id: "bare" })).links.pr,
+    (await ops.execute<{ links: TaskLinks }>("task.detail", { id: "bare" }))
+      .links.pr,
     null,
   );
 });
 
 test("plan.get carries the spec's link set and makes no GitHub call", async (t) => {
   const { root, store } = seed(t),
-    calls = [],
-    github = new Proxy(
-      {},
-      {
-        get: (_, method) =>
-          method === "then"
-            ? undefined
-            : (...args) => {
-                calls.push(String(method));
-                return method === "available" ? true : null;
-              },
-      },
-    ),
+    { calls, github } = countingGitHub(),
     ops = new Operations(store, { workspaceRoot: root, github });
-  const plan = await ops.execute("plan.get", { id: "s" });
+  const plan = await ops.execute<{ links: SpecLinks }>("plan.get", { id: "s" }),
+    spec = found(specLinks(store, "s"));
   assert.deepEqual(
     { ...plan.links, pulls: undefined },
-    { ...specLinks(store, "s"), pulls: undefined },
+    { ...spec, pulls: undefined },
   );
   // Check ages move with the clock; the pull requests themselves match.
   assert.deepEqual(
     plan.links.pulls.map((p) => p.url),
-    specLinks(store, "s").pulls.map((p) => p.url),
+    spec.pulls.map((p) => p.url),
   );
   assert.equal(
-    plan.links.issue.url,
+    plan.links.issue?.url,
     "https://github.com/example/specs/issues/40",
   );
   assert.deepEqual(calls, []);
