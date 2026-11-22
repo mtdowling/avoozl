@@ -72,7 +72,10 @@ interface CachedAnswer {
   fetched: number;
 }
 // Whose answers: a token's provider and login.
-type Who = { provider?: string; login?: string } | null | undefined;
+type Who =
+  | { provider?: string | null; login?: string | null }
+  | null
+  | undefined;
 type RateStore = Pick<Store, "getMeta" | "setMeta">;
 // A wrapper line: when, and who ran gh.
 interface WrapperCall {

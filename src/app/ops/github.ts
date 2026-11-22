@@ -50,7 +50,9 @@ export const entries = [
       if (!this.github?.available?.())
         return { repository, labels: null, error: "GitHub is not signed in." };
       try {
-        const labels = await this.github.listLabels(repository);
+        const labels = await this.github.listLabels<{ name: string }>(
+          repository,
+        );
         return {
           repository,
           labels: labels

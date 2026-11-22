@@ -62,7 +62,7 @@ type CachedToken = Minted & {
   provider: string | null;
   host: string;
   repository: string | null;
-  owner?: string;
+  owner?: string | null;
   job: string;
   key: string;
   at: number;
@@ -72,7 +72,7 @@ interface Failure {
   key: string;
   provider: string | null;
   host: string;
-  owner?: string;
+  owner?: string | null;
   job: string;
   reason: string;
   clash?: string[] | null;
@@ -84,7 +84,7 @@ interface Made {
   host: string;
   job: string;
   repository: string | null;
-  owner?: string;
+  owner?: string | null;
   login?: string | null;
   granted?: "all" | Permissions;
   broader?: boolean;
@@ -214,7 +214,7 @@ function chooseProvider({
   plugins: CredentialPlugin[];
   settings: PluginSettings;
   host: string;
-  owner: string | undefined;
+  owner: string | null | undefined;
   env: NodeJS.ProcessEnv;
 }): Choice {
   const claims = owner ? claimsFor(plugins, host, owner) : [];
@@ -233,7 +233,7 @@ function chooseProvider({
   return { provider: env.AVOOZL_GITHUB_TOKEN?.trim() ? "env" : "gh" };
 }
 
-function usable(plugin: CredentialPlugin, owner?: string): Choice {
+function usable(plugin: CredentialPlugin, owner?: string | null): Choice {
   if (plugin.state === "approved") return { provider: plugin.id, plugin };
   return {
     provider: plugin.id,
@@ -475,7 +475,7 @@ export function machineCredentials({
       inspected = { ...inspect(), signature };
     return inspected;
   };
-  const choose = (owner?: string) => {
+  const choose = (owner?: string | null) => {
     const { plugins, settings } = current();
     return chooseProvider({
       plugins,
@@ -495,7 +495,7 @@ export function machineCredentials({
       purpose,
     }: {
       repository: string | null;
-      owner?: string;
+      owner?: string | null;
       permissions: ReturnType<typeof jobOf>["permissions"];
       purpose: string;
     },
@@ -564,7 +564,7 @@ export function machineCredentials({
       job,
     }: {
       repository?: string | null;
-      owner?: string;
+      owner?: string | null;
       job: string;
     }) {
       const permissions = jobOf(job).permissions,
@@ -656,8 +656,8 @@ export function machineCredentials({
       return pending;
     },
     // GitHub answered 401 with this token: ask again next time (PC5.4).
-    drop(entry: CachedToken | null | undefined) {
-      if (entry && cache.get(entry.key) === entry) cache.delete(entry.key);
+    drop(entry: { key?: string } | null | undefined) {
+      if (entry?.key && cache.get(entry.key) === entry) cache.delete(entry.key);
     },
     // What Settings shows: the newest token per provider in use (D11), from
     // plugins.json as it is now: an approval shows at once.
@@ -822,14 +822,17 @@ export function credentialsNeedsYou(store: Pick<Store, "getMeta">) {
 // login wait, with one Needs you row per provider and owner.
 export function recordNoPerson(
   store: Pick<Store, "getMeta" | "setMeta">,
-  { provider, owner }: { provider: string; owner?: string },
+  {
+    provider,
+    owner,
+  }: { provider: string | null | undefined; owner?: string | null },
 ) {
   const key = ["person", provider, lower(owner || "")].join("|");
   writeFailures(store, (failures) => {
     if (failures[key]) return false;
     failures[key] = {
       key,
-      provider,
+      provider: provider ?? null,
       host: "",
       owner,
       job: "the person's login",

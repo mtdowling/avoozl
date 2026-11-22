@@ -108,7 +108,10 @@ export function throughClient(fake: Fake) {
       },
     }),
   );
-  fake.createIssue = (value, input) => {
+  fake.createIssue = (
+    value: Parameters<GitHubClient["createIssue"]>[0],
+    input,
+  ) => {
     target = value;
     return client.createIssue(value, input);
   };
