@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // GitHub's REST rate limit, kept out of the way: a bounded cache of GET
 // answers for conditional requests (a 304 does not count against the
 // limit), the last-known x-ratelimit numbers, a pause while limited, and
@@ -16,8 +15,70 @@ import {
 } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
+import type { Store } from "../store/store.ts";
 
 const META = "githubRate";
+// Calls in one bucket from one source or login.
+interface Tally {
+  calls: number;
+  notModified: number;
+  cached: number;
+}
+const FIELDS = ["calls", "notModified", "cached"] as const;
+type Field = (typeof FIELDS)[number];
+// Bucket start -> source or login -> its tally.
+type Usage = Record<string, Record<string, Tally>>;
+// What GitHub last said about one resource.
+interface ResourceEntry {
+  limit: number;
+  remaining: number;
+  resetAt: string;
+  at: number;
+}
+// A hold on calls while limited.
+interface Pause {
+  resource: string;
+  scope: string;
+  until: number;
+  reason: string;
+  at: number;
+  login?: string;
+}
+// One token login's own limit (plugin-credentials PC9.1).
+interface LoginState {
+  resources: Record<string, ResourceEntry>;
+  pause: Pause | null;
+}
+// The rate state this workspace's store keeps.
+interface Rate {
+  resources?: Record<string, ResourceEntry>;
+  pause?: Pause | null;
+  usage?: Usage;
+  logins?: Record<string, LoginState>;
+  loginUsage?: Usage;
+  calls?: number;
+  notModified?: number;
+  lastRunAt?: number;
+  notifiedUntil?: number;
+}
+// One stored GET answer.
+interface CachedAnswer {
+  etag: string | null;
+  lastModified: string | null;
+  body: string;
+  link: string | null;
+  scopes: string | null;
+  at: number;
+  fetched: number;
+}
+// Whose answers: a token's provider and login.
+type Who = { provider?: string; login?: string } | null | undefined;
+type RateStore = Pick<Store, "getMeta" | "setMeta">;
+// A wrapper line: when, and who ran gh.
+interface WrapperCall {
+  at: number;
+  source: string;
+}
 // Under this many calls left in the hour, the tick stretches its GitHub
 // reads (below), so the last calls go to what is waiting.
 export const LOW_REMAINING = 200;
@@ -41,11 +102,11 @@ const PRUNE_EVERY = 50;
 
 // Who asked for a call: a page view, the tick, setup, a forward, a review, or
 // a crew chat through bin/gh-counted. Unmarked code reads as "other".
-const sources = new AsyncLocalStorage();
+const sources = new AsyncLocalStorage<string>();
 export const withSource = <T>(source: string, fn: () => T): T =>
   sources.run(source, fn);
 const currentSource = () => sources.getStore() || "other";
-export const sourceOfOperation = (name) =>
+export const sourceOfOperation = (name: string) =>
   /^tick\b/.test(name)
     ? "tick"
     : /setup/.test(name)
@@ -56,7 +117,7 @@ export const sourceOfOperation = (name) =>
 
 const BUCKET_MS = 5 * 60 * 1000;
 const HOUR_MS = 60 * 60 * 1000;
-const bucketOf = (at) => String(Math.floor(at / BUCKET_MS) * BUCKET_MS);
+const bucketOf = (at: number) => String(Math.floor(at / BUCKET_MS) * BUCKET_MS);
 
 // The file bin/gh-counted appends to, one JSON line per gh run. One login
 // has one limit, so every workspace reads the same file.
@@ -68,7 +129,7 @@ export const countFilePath = () =>
   );
 
 export function recordWrapperCall(
-  source,
+  source: string,
   at = Date.now(),
   file = countFilePath(),
 ) {
@@ -76,27 +137,31 @@ export function recordWrapperCall(
   appendFileSync(file, JSON.stringify({ at, source }) + "\n");
 }
 
-const readLines = (file) => {
+const readLines = (file: string): WrapperCall[] => {
   try {
     return readFileSync(file, "utf8")
       .split("\n")
       .map((line) => {
         try {
-          const row = JSON.parse(line);
-          return Number.isFinite(row?.at) && typeof row.source === "string"
-            ? row
+          // One line bin/gh-counted wrote.
+          const row: { at?: unknown; source?: unknown } | null =
+            JSON.parse(line);
+          return typeof row?.at === "number" &&
+            Number.isFinite(row.at) &&
+            typeof row.source === "string"
+            ? { at: row.at, source: row.source }
             : null;
         } catch {
           return null;
         }
       })
-      .filter(Boolean);
+      .filter((row) => row !== null);
   } catch {
     return [];
   }
 };
 
-const add = (usage, bucket, source, field) => {
+const add = (usage: Usage, bucket: string, source: string, field: Field) => {
   const row = ((usage[bucket] ??= {})[source] ??= {
     calls: 0,
     notModified: 0,
@@ -105,19 +170,30 @@ const add = (usage, bucket, source, field) => {
   row[field] += 1;
 };
 
-export const resourceOf = (pathname) =>
+export const resourceOf = (pathname: string) =>
   pathname.startsWith("/graphql")
     ? "graphql"
     : pathname.startsWith("/search/")
       ? "search"
       : "core";
 
-const iso = (ms) => new Date(ms).toISOString();
+const iso = (ms: number) => new Date(ms).toISOString();
 
 // ---- The answer cache ---------------------------------------------------
 
 export class ResponseCache {
-  constructor(store, { now, maxEntries = CACHE_MAX_ENTRIES } = {}) {
+  store: Pick<Store, "db" | "read">;
+  now: () => number;
+  maxEntries: number;
+  puts: number;
+  ready: boolean;
+  constructor(
+    store: Pick<Store, "db" | "read">,
+    {
+      now,
+      maxEntries = CACHE_MAX_ENTRIES,
+    }: { now?: () => number; maxEntries?: number } = {},
+  ) {
     this.store = store;
     this.now = now || Date.now;
     this.maxEntries = maxEntries;
@@ -148,7 +224,7 @@ export class ResponseCache {
   // One entry per URL, Accept header and login, so a second account never
   // reads the first one's answer. `who` is {provider, login} (PC9.3): a new
   // token for the same login reads the same answers.
-  key(who, accept, href, body) {
+  key(who: Who, accept: string, href: string, body?: string | null) {
     return (
       this.owner(who) +
       accept +
@@ -160,7 +236,7 @@ export class ResponseCache {
     );
   }
 
-  owner(who) {
+  owner(who: Who) {
     return (
       createHash("sha256")
         .update(`${who?.provider ?? ""}|${who?.login ?? ""}`)
@@ -169,13 +245,14 @@ export class ResponseCache {
     );
   }
 
-  get(key) {
+  get(key: string): CachedAnswer | null {
     try {
+      // A github_http_cache row, as #db makes the table.
       const row = this.#db()
         .prepare(
           "SELECT etag,last_modified AS lastModified,body,link,scopes,at,fetched FROM github_http_cache WHERE key=?",
         )
-        .get(key);
+        .get(key) as CachedAnswer | undefined;
       if (!row) return null;
       if (this.now() - row.at > TOUCH_MS)
         this.#db()
@@ -190,8 +267,20 @@ export class ResponseCache {
   // An answer too large is not kept. One with no validator (a GraphQL
   // answer) is kept for the max age only.
   put(
-    key,
-    { etag, lastModified, body, link, scopes },
+    key: string,
+    {
+      etag,
+      lastModified,
+      body,
+      link,
+      scopes,
+    }: {
+      etag?: string | null;
+      lastModified?: string | null;
+      body: string;
+      link?: string | null;
+      scopes?: string | null;
+    },
     { ttlOnly = false } = {},
   ) {
     if ((!ttlOnly && !etag && !lastModified) || body.length > CACHE_MAX_BODY)
@@ -219,7 +308,7 @@ export class ResponseCache {
   }
 
   // GitHub just said the stored answer is still current (a 304).
-  refreshed(key) {
+  refreshed(key: string) {
     try {
       this.#db()
         .prepare("UPDATE github_http_cache SET fetched=?,at=? WHERE key=?")
@@ -232,7 +321,7 @@ export class ResponseCache {
   // A write ran: the answers it may have changed are no longer fresh. They
   // stay, so the next read asks GitHub with their ETag, and a 304 is free.
   // `repo` is "owner/name", or empty for everything this login stored.
-  invalidate(who, repo) {
+  invalidate(who: Who, repo?: string | null) {
     try {
       const own = this.owner(who) + "%";
       if (repo)
@@ -283,7 +372,7 @@ export class ResponseCache {
             "DELETE FROM github_http_cache WHERE key IN (SELECT key FROM github_http_cache ORDER BY at DESC LIMIT -1 OFFSET ?)",
           )
           .run(this.limit()).changes;
-      return old + extra;
+      return Number(old) + Number(extra);
     } catch {
       return 0;
     }
@@ -291,9 +380,10 @@ export class ResponseCache {
 
   size() {
     try {
-      return this.#db()
-        .prepare("SELECT COUNT(*) AS n FROM github_http_cache")
-        .get().n;
+      return Number(
+        this.#db().prepare("SELECT COUNT(*) AS n FROM github_http_cache").get()
+          ?.n,
+      );
     } catch {
       return 0;
     }
@@ -302,9 +392,9 @@ export class ResponseCache {
 
 // ---- The rate state -----------------------------------------------------
 
-export const readRate = (store) => {
+export const readRate = (store: Pick<Store, "getMeta">): Rate => {
   try {
-    return store.getMeta(META) || {};
+    return store.getMeta<Rate>(META) || {};
   } catch {
     return {};
   }
@@ -314,7 +404,21 @@ export const readRate = (store) => {
 // numbers are kept in memory and written to the store at most every two
 // seconds, merged with what another process wrote.
 export class RateState {
-  constructor(store, { now, countFile } = {}) {
+  store: RateStore;
+  countFile: string | null;
+  usage: Usage;
+  now: () => number;
+  resources: Record<string, ResourceEntry>;
+  pause: Pause | null;
+  calls: number;
+  notModified: number;
+  dirty: boolean;
+  logins: Record<string, LoginState>;
+  loginUsage: Usage;
+  constructor(
+    store: RateStore,
+    { now, countFile }: { now?: () => number; countFile?: string | null } = {},
+  ) {
     this.store = store;
     this.countFile = countFile || null;
     this.usage = {};
@@ -330,11 +434,19 @@ export class RateState {
     this.loginUsage = {};
   }
 
-  #login(login) {
+  #login(login: string) {
     return (this.logins[login] ??= { resources: {}, pause: null });
   }
 
-  observe(resource, { limit, remaining, resetAtMs }, login) {
+  observe(
+    resource: string,
+    {
+      limit,
+      remaining,
+      resetAtMs,
+    }: { limit: number; remaining: number; resetAtMs: number },
+    login?: string,
+  ) {
     if (![limit, remaining, resetAtMs].every(Number.isFinite)) return;
     const entry = {
       limit,
@@ -351,7 +463,7 @@ export class RateState {
   }
 
   // A call that went out (a 304 is counted apart), by source and login.
-  count(notModified, source = currentSource(), login) {
+  count(notModified: boolean, source = currentSource(), login?: string) {
     this.calls += 1;
     if (notModified) this.notModified += 1;
     const field = notModified ? "notModified" : "calls";
@@ -376,10 +488,20 @@ export class RateState {
   }
 
   // `scope` "all" is a secondary limit, which holds every resource.
-  limit({ resource, until, reason, login }) {
+  limit({
+    resource,
+    until,
+    reason,
+    login,
+  }: {
+    resource: string;
+    until: number;
+    reason: string;
+    login?: string;
+  }) {
     const at = this.now(),
       end = Math.min(Math.max(until, at + 1000), at + MAX_WAIT_MS),
-      pause = {
+      pause: Pause = {
         resource,
         scope: reason === "primary" ? resource : "all",
         until: end,
@@ -400,7 +522,7 @@ export class RateState {
 
   // The error a call raises while held back, or null when it may go. A
   // limit on one login never holds calls made as another.
-  held(resource, login) {
+  held(resource: string, login?: string) {
     const stored = readRate(this.store),
       pause =
         [
@@ -429,15 +551,20 @@ export class RateState {
       const stored = readRate(this.store),
         resources = { ...(stored.resources || {}) };
       for (const [name, mine] of Object.entries(this.resources))
-        if (!(resources[name]?.at > mine.at)) resources[name] = mine;
-      const live = (pause) => pause && pause.until > this.now(),
+        if (!((resources[name]?.at ?? -Infinity) > mine.at))
+          resources[name] = mine;
+      const live = (pause: Pause | null | undefined): pause is Pause =>
+          Boolean(pause && pause.until > this.now()),
         logins = structuredClone(stored.logins || {});
       for (const [login, mine] of Object.entries(this.logins)) {
         const into = (logins[login] ??= { resources: {}, pause: null });
         for (const [name, entry] of Object.entries(mine.resources))
-          if (!(into.resources[name]?.at > entry.at))
+          if (!((into.resources[name]?.at ?? -Infinity) > entry.at))
             into.resources[name] = entry;
-        if (live(mine.pause) && !(into.pause?.until >= mine.pause.until))
+        if (
+          live(mine.pause) &&
+          !((into.pause?.until ?? -Infinity) >= mine.pause.until)
+        )
           into.pause = mine.pause;
       }
       for (const mine of Object.values(logins))
@@ -449,6 +576,7 @@ export class RateState {
           known.length && known.every((mine) => live(mine.pause))
             ? known
                 .map((mine) => mine.pause)
+                .filter(live)
                 .sort((a, b) => a.until - b.until)[0]
             : null;
       const pauses = [
@@ -470,8 +598,7 @@ export class RateState {
             notModified: 0,
             cached: 0,
           });
-          for (const field of Object.keys(into))
-            into[field] += mine[field] || 0;
+          for (const field of FIELDS) into[field] += mine[field] || 0;
         }
       for (const bucket of Object.keys(loginUsage))
         if (Number(bucket) < this.now() - HOUR_MS - BUCKET_MS)
@@ -483,8 +610,7 @@ export class RateState {
             notModified: 0,
             cached: 0,
           });
-          for (const field of Object.keys(into))
-            into[field] += mine[field] || 0;
+          for (const field of FIELDS) into[field] += mine[field] || 0;
         }
       if (this.countFile) takeWrapperCalls(this.countFile, usage);
       for (const bucket of Object.keys(usage))
@@ -519,7 +645,7 @@ export class RateState {
 }
 
 // Moves the wrapper's lines into `usage` and removes them from the file.
-function takeWrapperCalls(file, usage) {
+function takeWrapperCalls(file: string, usage: Usage) {
   if (!existsSync(file)) return;
   const taken = `${file}.${process.pid}.read`;
   try {
@@ -534,9 +660,15 @@ function takeWrapperCalls(file, usage) {
 
 // What a response's headers say about a refusal: until when to wait, and
 // why, or null when it was not a rate limit (a 403 for permissions).
-export function limitOf(status, headers, message, resource, now) {
+export function limitOf(
+  status: number,
+  headers: { get?: (name: string) => string | null } | null | undefined,
+  message: string | null | undefined,
+  resource: string,
+  now: number,
+) {
   if (status !== 403 && status !== 429) return null;
-  const get = (name) => headers?.get?.(name),
+  const get = (name: string) => headers?.get?.(name),
     retryAfter = Number(get("retry-after")),
     reset = Number(get("x-ratelimit-reset")),
     spent = get("x-ratelimit-remaining") === "0",
@@ -553,13 +685,13 @@ export function limitOf(status, headers, message, resource, now) {
   };
 }
 
-export function rateLimitError(pause) {
-  const error = Error(
-    `GitHub rate limit reached (${pause.resource}); calls resume at ${iso(pause.until)}.`,
+export function rateLimitError(pause: Pick<Pause, "resource" | "until">) {
+  return Object.assign(
+    Error(
+      `GitHub rate limit reached (${pause.resource}); calls resume at ${iso(pause.until)}.`,
+    ),
+    { status: 429, rateLimited: { ...pause, resetAt: iso(pause.until) } },
   );
-  error.status = 429;
-  error.rateLimited = { ...pause, resetAt: iso(pause.until) };
-  return error;
 }
 
 export const RATE_LIMIT_TEXT = /GitHub rate limit reached/;
@@ -569,15 +701,22 @@ export const RATE_LIMIT_TEXT = /GitHub rate limit reached/;
 // Whether this tick may make GitHub calls. Held while limited (until the
 // reset), and while the budget is low, spaced `STRETCH_MS` apart (four
 // times that once under a quarter of the threshold), never past the reset.
+// Whether this tick may call GitHub, and the resource running low if any.
+interface Gate {
+  skip: boolean;
+  reason?: string;
+  until?: number;
+  low: (ResourceEntry & { resource: string; resetMs: number }) | null;
+}
 export function githubGate(
-  store,
+  store: Pick<Store, "getMeta">,
   now = Date.now(),
-): { skip: boolean; low?: boolean; reason?: string; until?: number } {
+): Gate {
   const state = readRate(store),
     pause = state.pause;
   if (pause && pause.until > now)
-    return { skip: true, reason: "limited", until: pause.until };
-  let low = null;
+    return { skip: true, reason: "limited", until: pause.until, low: null };
+  let low: Gate["low"] = null;
   for (const [resource, entry] of Object.entries(state.resources || {})) {
     const resetAt = Date.parse(entry.resetAt);
     if (resetAt > now && entry.remaining < LOW_REMAINING)
@@ -588,12 +727,12 @@ export function githubGate(
     const every =
         low.remaining < LOW_REMAINING / 4 ? STRETCH_MS * 4 : STRETCH_MS,
       next = Math.min(state.lastRunAt + every, low.resetMs);
-    if (now < next) return { skip: true, reason: "low", until: next };
+    if (now < next) return { skip: true, reason: "low", until: next, low };
   }
   return { skip: false, low };
 }
 
-export function markGithubRun(store, now = Date.now()) {
+export function markGithubRun(store: RateStore, now = Date.now()) {
   try {
     store.setMeta(META, { ...readRate(store), lastRunAt: now });
   } catch {
@@ -602,7 +741,7 @@ export function markGithubRun(store, now = Date.now()) {
 }
 
 // One failure notice per limit window, none per call.
-export function rateLimitNotices(store, now = Date.now()) {
+export function rateLimitNotices(store: RateStore, now = Date.now()) {
   const state = readRate(store),
     pause = state.pause;
   if (!pause || pause.until <= now || state.notifiedUntil === pause.until)
@@ -621,7 +760,7 @@ export function rateLimitNotices(store, now = Date.now()) {
   ];
 }
 
-const rateText = (state, pause) => {
+const rateText = (state: Rate, pause: Pause) => {
   const entry = state.resources?.[pause.resource];
   return entry
     ? `${entry.remaining} of ${entry.limit} ${pause.resource} calls were left.`
@@ -630,22 +769,24 @@ const rateText = (state, pause) => {
 
 // The one Needs you row while limited. It is read from the stored reset
 // time, so it clears itself when that time passes.
-export function rateNeedsYou(store, now = Date.now()) {
+export function rateNeedsYou(store: Pick<Store, "getMeta">, now = Date.now()) {
   const state = readRate(store),
     pause = state.pause;
   // One row per limited login while others still work (PC9.1).
   if (!pause || pause.until <= now)
     return Object.entries(state.logins || {})
-      .filter(([, mine]) => mine.pause && mine.pause.until > now)
-      .map(([login, mine]) => ({
+      .flatMap(([login, { pause: mine }]) =>
+        mine && mine.until > now ? [{ login, mine }] : [],
+      )
+      .map(({ login, mine }) => ({
         kind: "needs-human",
         reason: "crew",
         id: `github-rate-limit:${login}`,
         taskId: null,
         authority: "github",
-        title: `GitHub rate limit reached for ${login}, resumes at ${iso(mine.pause.until)}`,
+        title: `GitHub rate limit reached for ${login}, resumes at ${iso(mine.until)}`,
         detail: `Calls made as ${login} wait until then; calls made as other logins go on. Nothing needs doing: this row clears itself.`,
-        openedAt: iso(mine.pause.at),
+        openedAt: iso(mine.at),
       }));
   const entry = state.resources?.[pause.resource];
   return [
@@ -667,10 +808,14 @@ export function rateNeedsYou(store, now = Date.now()) {
 }
 
 // For Settings > GitHub: the last-known numbers.
-export function rateView(store, now = Date.now(), { countFile } = {}) {
+export function rateView(
+  store: Pick<Store, "getMeta">,
+  now = Date.now(),
+  { countFile }: { countFile?: string | null } = {},
+) {
   const state = readRate(store),
     usage = structuredClone(state.usage || {}),
-    bySource = {};
+    bySource: Record<string, Tally> = {};
   // Lines the wrapper wrote that no tick has taken yet.
   if (countFile)
     for (const row of readLines(countFile))
@@ -683,10 +828,10 @@ export function rateView(store, now = Date.now(), { countFile } = {}) {
           notModified: 0,
           cached: 0,
         });
-        for (const field of Object.keys(into)) into[field] += mine[field] || 0;
+        for (const field of FIELDS) into[field] += mine[field] || 0;
       }
   const view = rateViewOf(state, now),
-    byLogin = {};
+    byLogin: Record<string, Tally & { limitedUntil?: string | null }> = {};
   for (const [bucket, row] of Object.entries(state.loginUsage || {}))
     if (Number(bucket) > now - HOUR_MS)
       for (const [login, mine] of Object.entries(row)) {
@@ -696,8 +841,7 @@ export function rateView(store, now = Date.now(), { countFile } = {}) {
           cached: 0,
           limitedUntil: null,
         });
-        for (const field of ["calls", "notModified", "cached"])
-          into[field] += mine[field] || 0;
+        for (const field of FIELDS) into[field] += mine[field] || 0;
       }
   for (const [login, mine] of Object.entries(state.logins || {}))
     if (mine.pause && mine.pause.until > now)
@@ -717,7 +861,7 @@ export function rateView(store, now = Date.now(), { countFile } = {}) {
   };
 }
 
-function rateViewOf(state, now) {
+function rateViewOf(state: Rate, now: number) {
   const calls = state.calls ?? 0,
     pause = state.pause && state.pause.until > now ? state.pause : null;
   return {
