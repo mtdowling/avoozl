@@ -3,7 +3,15 @@
 // ROLE_TABLE row with `process: true` is missing here, so a new role cannot
 // skip the proof. `drives` names the role-table settings the scenario runs;
 // `driven: false` says the proof cannot drive that role and why.
-export const ROWS = Object.freeze([
+// One row: what it drives, its scenario and result, and why a row the
+// proof cannot drive is skipped.
+export type Row = {
+  id: string;
+  drives: string[];
+  scenario: string;
+  result: string;
+} & ({ driven?: true; why?: undefined } | { driven: false; why: string });
+export const ROWS: readonly Row[] = Object.freeze([
   {
     id: "worker",
     drives: ["worker"],

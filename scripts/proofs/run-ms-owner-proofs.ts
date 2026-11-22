@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt, see the commit message
 // The owner's run of the open machine-server proofs (machine-server
 // tasks.md): ms-p2 and ms-p3, which also cover nk-p2, from the owner's own
 // terminal, not from a Kiro Crew chat. It runs what a script can run, stops with
@@ -40,17 +39,33 @@ const ROLES_SCRIPT = path.join(
 const SELF = "scripts/proofs/run-ms-owner-proofs.ts";
 
 // The order they run in: ms-p3 builds on what ms-p2 shows.
-export const PROOF_IDS = Object.freeze(["ms-p2", "ms-p3"]);
+export const PROOF_IDS: readonly string[] = Object.freeze(["ms-p2", "ms-p3"]);
+// A thrown value as text.
+const messageOf = (error: unknown) =>
+  error instanceof Error ? error.message : String(error);
+// One run of the owner's proofs: its options, its root, the scratch
+// repositories it made and the harness binaries it found.
+type Run = Omit<ReturnType<typeof parseOptions>, "root"> & {
+  root: string;
+  made: string[];
+  tools: {
+    claude: string | null;
+    claudeChild: string | null;
+    codex: string | null;
+    claudeVersion: string;
+    codexVersion: string;
+  };
+};
 const SCRATCH_WORD = /(scratch|throwaway|sandbox|proof|test)/i;
 
 // ---- Options -------------------------------------------------------------------
 
 // Why `repo` cannot be a scratch repository for a run, or null when it can.
 // Live, the run also refuses one that has any commit (emptyRepoProblem).
-export function scratchRepoProblem(repo) {
+export function scratchRepoProblem(repo: string | null | undefined) {
   if (!/^[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$/.test(repo ?? ""))
     return `${repo} is not OWNER/NAME.`;
-  const [owner, name] = repo.split("/");
+  const [owner, name] = String(repo).split("/");
   if (
     /^(owner|user|me)$/i.test(owner) ||
     /^(name|repo|scratch\d*)$/i.test(name)
@@ -63,7 +78,7 @@ export function scratchRepoProblem(repo) {
   return null;
 }
 
-export function parseOptions(argv) {
+export function parseOptions(argv: string[]) {
   const { values } = parseArgs({
     args: argv,
     options: {
@@ -109,8 +124,8 @@ export function parseOptions(argv) {
 
 // ---- Small helpers ---------------------------------------------------------------
 
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-const git = (cwd, ...args) =>
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const git = (cwd: string, ...args: string[]) =>
   execFileSync("git", args, {
     cwd,
     encoding: "utf8",
@@ -118,7 +133,7 @@ const git = (cwd, ...args) =>
   }).trim();
 const say = (line = "") => console.log(line);
 
-export function findOnPath(name, searchPath = process.env.PATH ?? "") {
+export function findOnPath(name: string, searchPath = process.env.PATH ?? "") {
   for (const dir of searchPath.split(path.delimiter).filter(Boolean)) {
     const file = path.join(dir, name);
     try {
@@ -129,7 +144,7 @@ export function findOnPath(name, searchPath = process.env.PATH ?? "") {
   return null;
 }
 
-const version = (binary) => {
+const version = (binary: string | null | undefined) => {
   if (!binary) return "not found";
   const run = spawnSync(binary, ["--version"], {
     encoding: "utf8",
@@ -138,8 +153,8 @@ const version = (binary) => {
   return (run.stdout || run.stderr || "").trim().split("\n")[0] || "unknown";
 };
 
-let terminal = null;
-async function prompt(question) {
+let terminal: readline.Interface | null = null;
+async function prompt(question: string) {
   terminal ??= readline.createInterface({
     input: process.stdin,
     output: process.stdout,
@@ -147,11 +162,15 @@ async function prompt(question) {
   return (await terminal.question(question)).trim();
 }
 
-async function yes(question) {
+async function yes(question: string) {
   return /^y(es)?$/i.test(await prompt(`${question} [y/N] `));
 }
 
-async function waitFor(check, minutes, everyMs = 5000) {
+async function waitFor<T>(
+  check: () => T | Promise<T>,
+  minutes: number,
+  everyMs = 5000,
+) {
   const end = Date.now() + minutes * 60_000;
   for (;;) {
     const found = await check();
@@ -160,14 +179,14 @@ async function waitFor(check, minutes, everyMs = 5000) {
   }
 }
 
-const cell = (value) =>
+const cell = (value: unknown) =>
   String(value ?? "")
     .replaceAll("|", "\\|")
     .replace(/\s*\n\s*/g, " ");
 
 // Why the scratch repository cannot take a run now, or null: it must exist
 // and have no commit, so nothing anyone keeps is in it.
-function emptyRepoProblem(repo) {
+function emptyRepoProblem(repo: string) {
   const run = spawnSync("gh", ["api", `repos/${repo}/commits?per_page=1`], {
     encoding: "utf8",
   });
@@ -179,7 +198,7 @@ function emptyRepoProblem(repo) {
 
 // The name of a scratch repository the run makes for proof `id`, next to
 // the owner's other avoozl-scratch-* repositories.
-export function scratchRepoName(login, id, now = new Date()) {
+export function scratchRepoName(login: string, id: string, now = new Date()) {
   const stamp = now
     .toISOString()
     .slice(0, 16)
@@ -191,10 +210,10 @@ export function scratchRepoName(login, id, now = new Date()) {
 // The proof's scratch repository: the flag's, else the one this root made
 // earlier, else a new private one on the gh login. One the run made goes on
 // run.made, for the delete command at the end.
-function scratchRepo(proof, named) {
+function scratchRepo(proof: Proof, named: string | null) {
   if (named) return named;
   const file = path.join(proof.dir, "scratch-repo.json");
-  let repo = fs.existsSync(file)
+  let repo: string | null = fs.existsSync(file)
     ? JSON.parse(fs.readFileSync(file, "utf8")).repo
     : null;
   if (!repo) {
@@ -224,9 +243,16 @@ function scratchRepo(proof, named) {
 // Delete the scratch repositories this run made, by the exact names it
 // recorded in `made`, and nothing else. `gh` runs one gh command and returns
 // spawnSync's result. Returns the lines to print.
-export function deleteScratchRepos(made, gh) {
-  const lines = [];
-  const left = [];
+export function deleteScratchRepos(
+  made: string[],
+  gh: (args: string[]) => {
+    status: number | null;
+    stderr?: string;
+    error?: Error;
+  },
+) {
+  const lines: string[] = [];
+  const left: string[] = [];
   for (const repo of new Set(made)) {
     const done = gh(["repo", "delete", repo, "--yes"]);
     if (done.status === 0)
@@ -249,9 +275,32 @@ export function deleteScratchRepos(made, gh) {
 
 // ---- One proof's record -----------------------------------------------------
 
+// One step's record, and what a step's own part answers.
+interface Step {
+  id: string;
+  title: string;
+  ok: boolean | null;
+  detail: string;
+}
+interface StepResult {
+  ok: boolean;
+  detail?: string;
+}
+
 class Proof {
-  constructor(run, id, title, receipt) {
-    Object.assign(this, { run, id, title, receipt });
+  run: Run;
+  id: string;
+  title: string;
+  receipt: string;
+  dir: string;
+  progressFile: string;
+  progress: { steps: Step[]; runRoot?: string };
+  notes: string[];
+  constructor(run: Run, id: string, title: string, receipt: string) {
+    this.run = run;
+    this.id = id;
+    this.title = title;
+    this.receipt = receipt;
     this.dir = path.join(run.root, id);
     fs.mkdirSync(this.dir, { recursive: true });
     this.progressFile = path.join(this.dir, "progress.json");
@@ -268,7 +317,21 @@ class Proof {
   // One step: say what it is, let a person act, run the script's part, and
   // record the result. A step done in an earlier run is not run again.
   // A `skip` reason records the step as not run, with that reason.
-  async step(id, title, { person = [], run, pause = true, skip } = {}) {
+  async step(
+    id: string,
+    title: string,
+    {
+      person = [],
+      run,
+      pause = true,
+      skip,
+    }: {
+      person?: string[];
+      run?: () => StepResult | Promise<StepResult>;
+      pause?: boolean;
+      skip?: string | false;
+    } = {},
+  ): Promise<Step> {
     const done = this.progress.steps.find((step) => step.id === id);
     if (done) {
       say(
@@ -279,7 +342,7 @@ class Proof {
     say();
     say(`[${this.id}] ${id}: ${title}`);
     if (skip && !this.run.dryRun) {
-      const entry = { id, title, ok: null, detail: skip };
+      const entry: Step = { id, title, ok: null, detail: skip };
       say(`  -> ${skip}`);
       this.progress.steps.push(entry);
       this.save();
@@ -287,7 +350,7 @@ class Proof {
     }
     if (this.run.dryRun) {
       person.forEach((line, index) => say(`  ${index + 1}. ${line}`));
-      const entry = { id, title, ok: null, detail: "dry run: not run" };
+      const entry: Step = { id, title, ok: null, detail: "dry run: not run" };
       this.progress.steps.push(entry);
       return entry;
     }
@@ -296,13 +359,18 @@ class Proof {
       person.forEach((line, index) => say(`  ${index + 1}. ${line}`));
       if (pause) await prompt("  Press Enter when that is done. ");
     }
-    let result = { ok: true };
+    let result: StepResult = { ok: true };
     try {
       result = (await run?.()) ?? { ok: true };
     } catch (error) {
-      result = { ok: false, detail: String(error.message).slice(0, 600) };
+      result = { ok: false, detail: messageOf(error).slice(0, 600) };
     }
-    const entry = { id, title, ok: result.ok, detail: result.detail ?? "" };
+    const entry: Step = {
+      id,
+      title,
+      ok: result.ok,
+      detail: result.detail ?? "",
+    };
     say(`  -> ${entry.ok ? "ok" : "FAIL"} ${entry.detail}`);
     this.progress.steps.push(entry);
     this.save();
@@ -315,14 +383,21 @@ class Proof {
 // A folder under `dir` for one roles run that does not exist yet: `run`,
 // else `run-2`, `run-3` and on. The roles script refuses a root with
 // anything in it, so the runner never makes or writes it.
-export function freshRunRoot(dir) {
+export function freshRunRoot(dir: string) {
   for (let n = 1; ; n += 1) {
     const root = path.join(dir, n === 1 ? "run" : `run-${n}`);
     if (!fs.existsSync(root)) return root;
   }
 }
 
-async function rolesProof(proof, { harness, github, probes }) {
+async function rolesProof(
+  proof: Proof,
+  {
+    harness,
+    github,
+    probes = false,
+  }: { harness: string; github: string | null; probes?: boolean },
+) {
   // The roles run's root: the one this proof's progress names, else a new one.
   const runRoot = () => proof.progress.runRoot ?? path.join(proof.dir, "run");
   const report = () => path.join(runRoot(), "report.json");
@@ -369,7 +444,7 @@ async function rolesProof(proof, { harness, github, probes }) {
           "| Row | Result | Note |",
           "| --- | --- | --- |",
           ...found.rows.map(
-            (row) =>
+            (row: { id: string; state: string; note?: string }) =>
               `| ${cell(row.id)} | ${cell(row.state)} | ${cell(row.note)} |`,
           ),
           "",
@@ -381,7 +456,7 @@ async function rolesProof(proof, { harness, github, probes }) {
         );
         return {
           ok: found.pass,
-          detail: `${found.rows.filter((row) => row.state === "ok").length}/${found.rows.length} rows ok; report ${report()}`,
+          detail: `${found.rows.filter((row: { state: string }) => row.state === "ok").length}/${found.rows.length} rows ok; report ${report()}`,
         };
       },
     },
@@ -430,18 +505,22 @@ async function rolesProof(proof, { harness, github, probes }) {
 // `selfPid`. A headless child (`-p`, `exec`) or one with no terminal is
 // not a session. Nothing else counts: a Kiro Crew kept for other work may
 // stay open, since the run's own home has no Kiro Crew in it.
-export function frontEnds(psLines, selfPid) {
-  const rows = psLines
-    .map((line) => line.trim().match(/^(\d+)\s+(\d+)\s+(\S+)\s+(.*)$/))
-    .filter(Boolean)
-    .map(([, pid, ppid, tty, command]) => ({
-      pid: Number(pid),
-      ppid: Number(ppid),
-      tty,
-      command,
-    }));
+export function frontEnds(psLines: string[], selfPid: number) {
+  const rows = psLines.flatMap((line) => {
+    const match = line.trim().match(/^(\d+)\s+(\d+)\s+(\S+)\s+(.*)$/);
+    return match
+      ? [
+          {
+            pid: Number(match[1]),
+            ppid: Number(match[2]),
+            tty: match[3],
+            command: match[4],
+          },
+        ]
+      : [];
+  });
   const parent = new Map(rows.map((row) => [row.pid, row.ppid]));
-  const ours = (pid) => {
+  const ours = (pid: number) => {
     for (let at = pid; at > 1; at = parent.get(at) ?? 0)
       if (at === selfPid) return true;
     return false;
@@ -474,7 +553,7 @@ export function processLines(
   return ps.stdout.split("\n");
 }
 
-async function frontEndCheck(run) {
+async function frontEndCheck(run: Run) {
   const look = () => frontEnds(processLines(), process.pid);
   let sessions = look();
   if (sessions.length && !run.dryRun) {
@@ -493,7 +572,7 @@ async function frontEndCheck(run) {
 
 // The run's isolated home holds only the proof's harness, and every session
 // ran on `process`, so no Kiro Crew took part.
-async function noKiroCrewCheck(runRoot, report) {
+async function noKiroCrewCheck(runRoot: string, report: string) {
   const { machineAvoozlPaths } = await import(
     "../../src/app/settings/host-config.ts"
   );
@@ -509,7 +588,10 @@ async function noKiroCrewCheck(runRoot, report) {
   const harnesses = fs.existsSync(dir)
     ? fs.readdirSync(dir).filter((name) => name.endsWith(".json"))
     : [];
-  const state = fs.existsSync(report)
+  const state: {
+    bindings?: { executor?: string; id?: string }[];
+    requests?: { executor?: string; id?: string }[];
+  } = fs.existsSync(report)
     ? (JSON.parse(fs.readFileSync(report, "utf8")).state ?? {})
     : {};
   const kirocrew = [
@@ -531,7 +613,7 @@ async function noKiroCrewCheck(runRoot, report) {
 
 // The owner's environment for the roles script, which makes its own home.
 function isolationFreeEnv() {
-  const env = {};
+  const env: NodeJS.ProcessEnv = {};
   for (const [name, value] of Object.entries(process.env))
     if (!/^(KIROCREW_|AVOOZL_|KIRO_SESSION_ID$)/.test(name)) env[name] = value;
   return env;
@@ -539,7 +621,14 @@ function isolationFreeEnv() {
 
 // ---- The run -------------------------------------------------------------------------
 
-const PROOFS = {
+const PROOFS: Record<
+  string,
+  {
+    title: string;
+    receipt: string;
+    go: (proof: Proof, run: Run) => Promise<void>;
+  }
+> = {
   "ms-p2": {
     title: "every role on Claude Code with no front end",
     receipt: "ms-p2-claude-code",
@@ -559,13 +648,15 @@ const PROOFS = {
 };
 
 function platformName() {
-  return (
-    { darwin: "macos", linux: "linux", win32: "windows" }[process.platform] ??
-    process.platform
-  );
+  const names: Record<string, string> = {
+    darwin: "macos",
+    linux: "linux",
+    win32: "windows",
+  };
+  return names[process.platform] ?? process.platform;
 }
 
-function writeReceipt(proof, run) {
+function writeReceipt(proof: Proof, run: Run) {
   const steps = proof.progress.steps;
   const verdict = run.dryRun
     ? "DRY RUN"
@@ -603,14 +694,14 @@ function writeReceipt(proof, run) {
 }
 
 async function main() {
-  let run;
+  let options: ReturnType<typeof parseOptions>;
   try {
-    run = parseOptions(process.argv.slice(2));
+    options = parseOptions(process.argv.slice(2));
   } catch (error) {
-    console.error(error.message);
+    console.error(messageOf(error));
     process.exit(64);
   }
-  if (run.help) {
+  if (options.help) {
     say(
       `Usage: node ${SELF} [--root DIR] [--only ID[,ID]] [--dry-run] [--github-claude OWNER/NAME] [--github-codex OWNER/NAME]`,
     );
@@ -620,10 +711,9 @@ async function main() {
     );
     return;
   }
-  run.root ??= fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-ms-proofs-"));
-  fs.mkdirSync(run.root, { recursive: true });
-  run.root = fs.realpathSync.native(run.root);
-  run.made = [];
+  const made =
+    options.root ?? fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-ms-proofs-"));
+  fs.mkdirSync(made, { recursive: true });
   const home = os.homedir();
   const onPath = { claude: findOnPath("claude"), codex: findOnPath("codex") };
   const claude = claudeBinaries({
@@ -631,14 +721,20 @@ async function main() {
     onPath: onPath.claude,
     home,
   });
-  run.tools = {
-    claude: claude.exportWith,
-    claudeChild: claude.child,
-    codex:
-      process.env.MSR_CODEX || realCodex(onPath.codex, home) || onPath.codex,
+  const codex =
+    process.env.MSR_CODEX || realCodex(onPath.codex, home) || onPath.codex;
+  const run: Run = {
+    ...options,
+    root: fs.realpathSync.native(made),
+    made: [],
+    tools: {
+      claude: claude.exportWith,
+      claudeChild: claude.child,
+      codex,
+      claudeVersion: version(claude.child || claude.exportWith),
+      codexVersion: version(codex),
+    },
   };
-  run.tools.claudeVersion = version(run.tools.claudeChild || run.tools.claude);
-  run.tools.codexVersion = version(run.tools.codex);
   say(`Root: ${run.root}`);
   say(
     `claude: ${onPath.claude ?? "not on PATH"} (child runs ${run.tools.claudeChild ?? "none found"}): ${run.tools.claudeVersion}`,
@@ -666,7 +762,7 @@ async function main() {
       process.exit(1);
     }
   }
-  const results = [];
+  const results: { id: string; verdict: string; file: string }[] = [];
   for (const id of run.proofs) {
     const { title, receipt, go } = PROOFS[id];
     const proof = new Proof(run, id, title, receipt);
@@ -679,12 +775,12 @@ async function main() {
     try {
       await go(proof, run);
     } catch (error) {
-      say(`  ${id} stopped: ${error.message}`);
+      say(`  ${id} stopped: ${messageOf(error)}`);
       proof.progress.steps.push({
         id: "setup",
         title: "The run could not go on",
         ok: false,
-        detail: String(error.message).slice(0, 600),
+        detail: messageOf(error).slice(0, 600),
       });
     }
     results.push({ id, ...writeReceipt(proof, run) });
@@ -695,7 +791,7 @@ async function main() {
     say(`${result.id} ${result.verdict} ${result.file}`);
   if (run.made.length) {
     say();
-    for (const line of deleteScratchRepos(run.made, (args) =>
+    for (const line of deleteScratchRepos(run.made, (args: string[]) =>
       spawnSync("gh", args, { encoding: "utf8" }),
     ))
       say(line);

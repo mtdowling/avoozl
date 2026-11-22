@@ -80,7 +80,10 @@ export function appStore(
 // A scratch folder that goes when the test ends, after each `defer`red
 // cleanup, newest first: Windows cannot remove an open database or a live
 // process's folder.
-export function scratchRoot(t: TestContext, prefix: string): Scratch {
+export function scratchRoot(
+  t: Pick<TestContext, "after">,
+  prefix: string,
+): Scratch {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
   const cleanups: Cleanup[] = [];
   t.after(async () => {
@@ -133,7 +136,7 @@ export function openFakeSupervisor({
 }
 
 export function machine(
-  t: TestContext,
+  t: Pick<TestContext, "after">,
   extra: Record<string, unknown> = {},
   { agent = AGENT } = {},
 ) {

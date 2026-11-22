@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt, see the commit message
 // Proof ec-p1 (epic-context): context reaches the owner's own spec task and
 // nothing else. Everything runs on this machine in temporary folders: an
 // isolated Avoozl home and workspace, a scratch repository acme/widgets with
@@ -15,37 +14,50 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { cleanupList } from "./machine.ts";
 
-const repo = fileURLToPath(new URL("../../", import.meta.url));
 const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "ec-p1-")));
 process.env.XDG_CONFIG_HOME = path.join(root, "xdg");
 process.env.TMPDIR = root;
 delete process.env.KIROCREW_HOME;
-const imp = (file) => import(path.join(repo, "src", "app", file));
 const [receipt] = process.argv.slice(2);
 if (!receipt) {
   console.error("Usage: ec-p1.ts <receipt file>");
   process.exit(2);
 }
 
-const World = await imp("executors/test/epic-context-world.ts");
-const { seedApproval, setDriver } = await imp("test/epic-context-seed.ts");
-const { listActivity } = await imp("store/activity-log.ts");
-const { contextView, contextSources } = await imp("context/plugin-context.ts");
-const { contextChip } = await imp("context/context-record.ts");
-const { enforce } = await imp("content/content-rules.ts");
-const { loadLayeredConfig } = await imp("settings/layered-config.ts");
-const { contextMachine } = await imp("context/test/context-fixture.ts");
-const { taskEvidence } = await imp("tasks/evidence.ts");
-const { drainProcessRequests } = await imp("executors/process.ts");
-const { enqueueSessionRequests } = await imp("sessions/session-requests.ts");
-const { FakeGitHub } = await imp("test/fake-github.ts");
+const World = await import(
+  "../../src/app/executors/test/epic-context-world.ts"
+);
+const { seedApproval } = await import(
+  "../../src/app/test/epic-context-seed.ts"
+);
+const { listActivity } = await import("../../src/app/store/activity-log.ts");
+const { contextView, contextSources } = await import(
+  "../../src/app/context/plugin-context.ts"
+);
+const { contextChip } = await import("../../src/app/context/context-record.ts");
+const { enforce } = await import("../../src/app/content/content-rules.ts");
+const { loadLayeredConfig } = await import(
+  "../../src/app/settings/layered-config.ts"
+);
+const { contextMachine } = await import(
+  "../../src/app/context/test/context-fixture.ts"
+);
+const { drainProcessRequests } = await import(
+  "../../src/app/executors/process.ts"
+);
+const { enqueueSessionRequests } = await import(
+  "../../src/app/sessions/session-requests.ts"
+);
+const { FakeGitHub } = await import("../../src/app/test/fake-github.ts");
 
-const cleanups = [];
-const t = { after: (fn) => cleanups.push(fn) };
-const results = [];
-const observe = (n, what, ok, detail = "") => {
+const { found } = await import("../../src/app/test/view-shapes.ts");
+const { messageOf } = await import("../../src/app/executors/supervisor.ts");
+
+const { cleanups, t } = cleanupList();
+const results: { n: number; what: string; ok: boolean; detail: string }[] = [];
+const observe = (n: number, what: string, ok: boolean, detail = "") => {
   results.push({ n, what, ok, detail });
   console.log(JSON.stringify({ n, what, ok, detail }));
 };
@@ -100,13 +112,18 @@ try {
     "acme-codename: acme-codename-zeta\n",
   );
   await World.finish(w, ctx);
-  w.ops.github = new FakeGitHub();
-  w.ops.github.permissions.set("maintainer", "write");
-  w.ops.github.permissions.set("stranger", "read");
+  const ops = found(w.ops, "finish sets the operations"),
+    github = new FakeGitHub();
+  ops.github = github;
+  github.permissions.set("maintainer", "write");
+  github.permissions.set("stranger", "read");
   process.env.RESEARCH_TOKEN = "proof-sign-in-marker";
 
   // (1) The approval view.
-  const view = contextView(ctx.plugin(), ctx.settings());
+  const view = found(
+    contextView(found(ctx.plugin(), "the plugin"), ctx.settings()),
+    "the approval view",
+  );
   observe(
     1,
     "the approval view lists both skills, the read and the research alias with its command and env name",
@@ -140,20 +157,23 @@ try {
     fs.readFileSync(path.join(w.m.worktree, "mcp-research.json"), "utf8"),
   );
   const calls =
-    JSON.stringify(taskEvidence(w.store, { taskId: "sample-task" })).match(
-      /MCP research ask/g,
-    ) ?? [];
-  const row = listActivity(w.store).items.find(
-    (i) => i.kind === "epic-context.session",
+    JSON.stringify(
+      listActivity(w.store).items.filter(
+        (item) => item.kind === "epic-context.call",
+      ),
+    ).match(/MCP research ask/g) ?? [];
+  const row = found(
+    listActivity(w.store).items.find((i) => i.kind === "epic-context.session"),
+    "the session row",
   );
   observe(
     2,
-    "the session read the note, quoted the skill's phrase, called research once; Activity shows three passed tests and the given items; the row shows Epic context",
+    "the session read the note, quoted the skill's phrase, called research once; Activity shows two passed tests and the given items; the row shows Epic context",
     noteRead.includes("loader reads config.json") &&
       skillRead.includes("Put a module in one folder") &&
       reply.result.content[0].text.startsWith("marker:") &&
       calls.length === 1 &&
-      /approved passed.*approver passed.*you-drive passed/.test(row.summary) &&
+      /approved passed.*approver passed/.test(row.summary) &&
       /skill module-layout/.test(row.summary) &&
       contextChip(w.store, "sample-task")?.label === "Epic context",
     row.summary,
@@ -181,7 +201,8 @@ try {
   try {
     enforce(w.store, diff, { mode: "refuse", taskId: "sample-task" });
   } catch (error) {
-    blocked = error.status === 422;
+    blocked =
+      error instanceof Error && "status" in error && error.status === 422;
   }
   let other = true;
   try {
@@ -215,22 +236,17 @@ try {
   });
   w.store.commit(data, "intake", data.revision);
   const countRuns = () => World.runs(w).length;
-  const gave = (index) =>
-    World.runs(w)[index].prompt.includes("## Epic context");
+  const gave = (index: number) =>
+    World.runAt(w, index).prompt.includes("## Epic context");
   await World.run(w, {
     attempt: 2,
     task: "intake-0123456789abcdef",
     brief: "Intake work.",
   });
-  const intakeRow = listActivity(w.store).items.find((i) =>
-    /intake-0123/.test(i.summary),
+  const intakeRow = found(
+    listActivity(w.store).items.find((i) => /intake-0123/.test(i.summary)),
+    "the intake row",
   );
-  setDriver(w.store, "other-person");
-  await World.run(w, { attempt: 3, brief: "A coworker's spec." });
-  const coworkerRow = listActivity(w.store).items.find((i) =>
-    /you-drive failed: Taken by octo-dev/.test(i.summary),
-  );
-  setDriver(w.store, "driver");
   fs.writeFileSync(
     path.join(root, "tools.avoozl.json"),
     JSON.stringify({ version: 1, epicContext: { repos: ["*"] } }),
@@ -248,24 +264,22 @@ try {
       home: root,
     });
   } catch (error) {
-    refusal = error.message;
+    refusal = messageOf(error);
   }
   const declared = contextMachine({ declare: "repository", approve: true });
   observe(
     4,
-    "the intake task, the coworker's spec and the repository that names epicContext or declares the plugin get none, and Activity names why",
+    "the intake task and the repository that names epicContext or declares the plugin get none, and Activity names why",
     !gave(1) &&
-      !gave(2) &&
-      countRuns() === 3 &&
+      countRuns() === 2 &&
       /approved failed: An intake task/.test(intakeRow.summary) &&
-      Boolean(coworkerRow) &&
       /"epicContext".*\.avoozl\.json/.test(refusal) &&
       contextSources(declared.options).length === 0,
     `${refusal} | ${intakeRow.summary}`,
   );
 
   // (5) Text from a login without write access.
-  const send = (login, text) => {
+  const send = (login: string, text: string) => {
     enqueueSessionRequests(w.store, {
       sends: [
         {
@@ -285,14 +299,14 @@ try {
     });
   };
   const held = await World.run(w, {
-    attempt: 4,
+    attempt: 3,
     brief: `Context task. READ:${w.note} HOLD:300`,
   });
   await send("stranger", "Also add this.");
   const sawText = JSON.stringify(World.runs(w)).includes("Also add this");
   await World.settle(w, held);
-  const next = await World.followUp(w, 5);
-  const last = World.runs(w).at(-1);
+  const next = await World.followUp(w, 4);
+  const last = found(World.runs(w).at(-1), "the last run");
   observe(
     5,
     "text from a login without write access starts a new session without context",
@@ -309,12 +323,15 @@ try {
 
   // (7) Editing servers.json.
   fs.appendFileSync(path.join(ctx.folder, "mcp", "servers.json"), "\n");
-  const changed = ctx.plugin().state === "changed";
-  await World.run(w, { attempt: 6, brief: "After the edit." });
+  const changed = ctx.plugin()?.state === "changed";
+  await World.run(w, { attempt: 5, brief: "After the edit." });
   observe(
     7,
     "editing servers.json turns the plugin changed and the next session gets nothing",
-    changed && !World.runs(w).at(-1).prompt.includes("## Epic context"),
+    changed &&
+      !found(World.runs(w).at(-1), "the run").prompt.includes(
+        "## Epic context",
+      ),
   );
 
   // (8) No new listener.

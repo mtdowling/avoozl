@@ -112,7 +112,10 @@ fs.mkdirSync(".avoozl", { recursive: true });
 fs.writeFileSync(".avoozl/result.json", JSON.stringify({ state: "done", text: "ok" }));
 `;
 
-export function world(t: TestContext, { mcp = true } = {}): World {
+export function world(
+  t: Pick<TestContext, "after">,
+  { mcp = true } = {},
+): World {
   const m = machine(
     t,
     mcp ? { context: { mcp: ["--mcp-config", "{context_mcp}"] } } : {},
@@ -275,7 +278,7 @@ export async function followUp(w: World, attempt: number) {
 // A scratch folder can sit under the real Kiro Crew home, a path the sandbox
 // denies; name another home for the test, so only the folders it makes are
 // judged.
-export function keepKiroCrewHome(t: TestContext, root: string) {
+export function keepKiroCrewHome(t: Pick<TestContext, "after">, root: string) {
   const was = process.env.KIROCREW_HOME;
   process.env.KIROCREW_HOME = path.join(root, "kirocrew-home");
   t.after(() => {

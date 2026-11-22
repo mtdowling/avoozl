@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt, see the commit message
 // Proof ot-p1 (otel-export): a fake OTLP collector on 127.0.0.1 receives the
 // timing of tasks a scratch repository lands. Everything runs on this machine
 // in temporary folders: a bare `origin`, a checkout, an isolated Avoozl home,
@@ -14,47 +13,76 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { cleanupList } from "./machine.ts";
 
-const repo = fileURLToPath(new URL("../../", import.meta.url));
 const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "ot-p1-")));
 process.env.XDG_CONFIG_HOME = path.join(root, "xdg");
 process.env.XDG_STATE_HOME = path.join(root, "state");
 for (const name of Object.keys(process.env))
   if (/^(OTEL_|KIROCREW_|AVOOZL_)/.test(name)) delete process.env[name];
-const imp = (file) => import(path.join(repo, "src", "app", file));
 const [receipt] = process.argv.slice(2);
 if (!receipt) {
   console.error("Usage: ot-p1.ts <receipt file>");
   process.exit(2);
 }
 
-const { digest } = await import(path.join(repo, "src", "model.ts"));
-const { Store } = await imp("store/store.ts");
-const { Operations } = await imp("api/operations.ts");
-const { integrateVerified } = await imp("delivery/delivery.ts");
-const { landDirect } = await imp("landing/direct-landing.ts");
-const { syncSpans, taskTiming, listSpans } = await imp("flow/flow.ts");
-const { startTelemetry } = await imp("telemetry/index.ts");
-const { snapshot, verifiedTask } = await imp("test/fixtures.ts");
-const { startCollector } = await imp("telemetry/test/fake-collector.ts");
+const { digest } = await import("../../src/model.ts");
+const { Store } = await import("../../src/app/store/store.ts");
+const { Operations } = await import("../../src/app/api/operations.ts");
+const { integrateVerified } = await import(
+  "../../src/app/delivery/delivery.ts"
+);
+const { landDirect } = await import("../../src/app/landing/direct-landing.ts");
+const { syncSpans, taskTiming, listSpans } = await import(
+  "../../src/app/flow/flow.ts"
+);
+const { startTelemetry } = await import("../../src/app/telemetry/index.ts");
+const { snapshot, verifiedTask } = await import(
+  "../../src/app/test/fixtures.ts"
+);
+const { startCollector } = await import(
+  "../../src/app/telemetry/test/fake-collector.ts"
+);
 
-const cleanups = [];
-const t = { after: (fn) => cleanups.push(fn) };
-const results = [];
-const observe = (n, what, ok, detail = "") => {
+const { found } = await import("../../src/app/test/view-shapes.ts");
+const { messageOf } = await import("../../src/app/executors/supervisor.ts");
+type Collector = Awaited<ReturnType<typeof startCollector>>;
+type StoreOf = InstanceType<typeof Store>;
+
+// A field of a parsed OTLP body: a list, a text, or a value.
+const isObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+const field = (value: unknown, key: string): unknown =>
+  isObject(value) ? value[key] : undefined;
+const listAt = (value: unknown, key: string): unknown[] => {
+  const found = field(value, key);
+  return Array.isArray(found) ? found : [];
+};
+const textAt = (value: unknown, key: string) => {
+  const found = field(value, key);
+  return typeof found === "string" ? found : undefined;
+};
+
+const { cleanups, t } = cleanupList();
+const results: { n: number; what: string; ok: boolean; detail: string }[] = [];
+const observe = (
+  n: number,
+  what: string,
+  ok: unknown,
+  detail: unknown = "",
+) => {
   results.push({ n, what, ok: Boolean(ok), detail: String(detail) });
   console.log(JSON.stringify({ n, what, ok: Boolean(ok), detail }));
 };
-const git = (cwd, ...args) =>
+const git = (cwd: string, ...args: string[]) =>
   execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Text that must never leave the machine: a task title, its done text, its
 // branch name, its worktree path, a session's text and a token-looking value.
 const CANARY = "CANARY-OTP1";
 const TOKEN = "ghp_CANARYOTP10123456789abcdefghijklmnopq";
-const leaf = (id) => ({
+const leaf = (id: string) => ({
   id,
   title: `${CANARY} title ${id}`,
   scope: "catalog",
@@ -69,7 +97,7 @@ const leaf = (id) => ({
 
 // One scratch workspace: bare origin, checkout, store, machine config and a
 // state folder. `enabled` writes telemetry.enabled into the machine config.
-function world(name, enabled, collector) {
+function world(name: string, enabled: boolean, collector: Collector) {
   const base = path.join(root, name),
     origin = path.join(base, "origin.git"),
     checkout = path.join(base, "app"),
@@ -84,7 +112,7 @@ function world(name, enabled, collector) {
   git(checkout, "add", ".");
   git(checkout, "commit", "-qm", "Start");
   git(checkout, "push", "-q", "origin", "main");
-  const writeConfig = (on) =>
+  const writeConfig = (on: boolean) =>
     fs.writeFileSync(
       path.join(configDirectory, "config.json"),
       JSON.stringify(
@@ -119,7 +147,7 @@ function world(name, enabled, collector) {
     OTEL_EXPORTER_OTLP_HEADERS: `authorization=${TOKEN}`,
     OTEL_EXPORTER_OTLP_TIMEOUT: "1500",
   };
-  const logs = [];
+  const logs: string[] = [];
   const telemetry = startTelemetry({
     store,
     configDirectory,
@@ -159,8 +187,8 @@ function world(name, enabled, collector) {
 // Land one task the way the tick does: a worker session bound and reported
 // done (its commit is the scripted harness's), then integration, the direct
 // landing on origin, and Flow's pass.
-async function land(w, id, startMs) {
-  const at = (m) => new Date(startMs + m * 60_000).toISOString();
+async function land(w: ReturnType<typeof world>, id: string, startMs: number) {
+  const at = (m: number) => new Date(startMs + m * 60_000).toISOString();
   const { commit } = verifiedTask(w, id, `${id}.txt`, {
     binding: () => ({
       source: "tick",
@@ -169,8 +197,15 @@ async function land(w, id, startMs) {
       text: `${CANARY} session text`,
     }),
   });
+  const binding = found(
+    w.store.get<{ id: string; [key: string]: unknown }>(
+      "session_bindings",
+      `slot-${id}`,
+    ),
+    id,
+  );
   w.store.put("session_bindings", {
-    ...w.store.get("session_bindings", `slot-${id}`),
+    ...binding,
     report: { kind: "done", at: at(20), commit },
   });
   syncSpans(w.store, { now: startMs + 21 * 60_000 });
@@ -184,11 +219,12 @@ async function land(w, id, startMs) {
   return { commit, landed };
 }
 
-const rows = (store, sql, ...args) => store.db.prepare(sql).all(...args);
-const finished = (w, id) =>
+const rows = (store: StoreOf, sql: string, ...args: string[]) =>
+  store.db.prepare(sql).all(...args);
+const finished = (w: ReturnType<typeof world>, id: string) =>
   w.store.read().tasks.find((task) => task.id === id)?.integration?.at;
 
-let failed = null;
+let failed: unknown = null;
 try {
   const collector = await startCollector(t);
   // Work starts three hours ago, so each landing (stamped now) ends it.
@@ -218,7 +254,10 @@ try {
     );
     const timing = taskTiming(
       off.store,
-      off.store.read().tasks.find((task) => task.id === id),
+      found(
+        off.store.read().tasks.find((task) => task.id === id),
+        id,
+      ),
     );
     const listed = listSpans(off.store, { taskId: id });
     observe(
@@ -231,7 +270,8 @@ try {
   observe(
     4,
     "off: the status is off",
-    (await off.ops.execute("telemetry.status", {})).status === "off",
+    (await off.ops.execute<{ status?: string }>("telemetry.status", {}))
+      .status === "off",
   );
 
   // 2. Telemetry on: one trace per task, both tasks' metrics, no canary.
@@ -243,11 +283,21 @@ try {
   const traces = collector.requests.filter((r) => r.url === "/v1/traces");
   const metrics = collector.requests.filter((r) => r.url === "/v1/metrics");
   const spans = traces.flatMap((r) =>
-    r.body.resourceSpans.flatMap((rs) => rs.scopeSpans.flatMap((s) => s.spans)),
+    listAt(r.body, "resourceSpans").flatMap((rs) =>
+      listAt(rs, "scopeSpans").flatMap((s) => listAt(s, "spans")),
+    ),
   );
-  const roots = spans.filter((s) => s.name === "avoozl.task");
-  const taskOf = (span) =>
-    span.attributes.find((a) => a.key === "avoozl.task.id")?.value.stringValue;
+  const roots = spans.filter((s) => textAt(s, "name") === "avoozl.task");
+  const taskOf = (span: unknown) =>
+    textAt(
+      field(
+        listAt(span, "attributes").find(
+          (a) => textAt(a, "key") === "avoozl.task.id",
+        ),
+        "value",
+      ),
+      "stringValue",
+    );
   observe(
     5,
     "on: one root span for each task",
@@ -255,41 +305,47 @@ try {
     roots.map(taskOf).join(","),
   );
   for (const root of roots) {
-    const id = taskOf(root);
-    const children = spans.filter((s) => s.parentSpanId === root.spanId);
+    const id = taskOf(root) ?? "";
+    const children = spans.filter(
+      (s) => textAt(s, "parentSpanId") === textAt(root, "spanId"),
+    );
     const stored = rows(
       on.store,
       "SELECT * FROM telemetry_spans WHERE task_id=? AND parent_span_id IS NULL",
       id,
     )[0];
-    const nanos = (iso) => (BigInt(Date.parse(iso)) * 1_000_000n).toString();
+    const nanos = (iso: unknown) =>
+      (BigInt(Date.parse(String(iso))) * 1_000_000n).toString();
     observe(
       6,
       `on: ${id}'s trace holds its stage spans as children`,
-      children.length > 0 && children.every((c) => c.traceId === root.traceId),
-      children.map((c) => c.name).join(","),
+      children.length > 0 &&
+        children.every((c) => textAt(c, "traceId") === textAt(root, "traceId")),
+      children.map((c) => textAt(c, "name")).join(","),
     );
     observe(
       7,
       `on: ${id}'s root times equal the stored root's`,
-      root.startTimeUnixNano === nanos(stored.started_at) &&
-        root.endTimeUnixNano === nanos(stored.ended_at),
+      textAt(root, "startTimeUnixNano") === nanos(stored.started_at) &&
+        textAt(root, "endTimeUnixNano") === nanos(stored.ended_at),
       `${stored.started_at} to ${stored.ended_at}`,
     );
   }
   const names = new Set(
     metrics.flatMap((r) =>
-      r.body.resourceMetrics.flatMap((rm) =>
-        rm.scopeMetrics.flatMap((s) => s.metrics.map((m) => m.name)),
+      listAt(r.body, "resourceMetrics").flatMap((rm) =>
+        listAt(rm, "scopeMetrics").flatMap((s) =>
+          listAt(s, "metrics").map((m) => textAt(m, "name")),
+        ),
       ),
     ),
   );
   const finishedPoints = metrics.flatMap((r) =>
-    r.body.resourceMetrics.flatMap((rm) =>
-      rm.scopeMetrics.flatMap((s) =>
-        s.metrics
-          .filter((m) => m.name === "avoozl.tasks.finished")
-          .flatMap((m) => m.sum.dataPoints),
+    listAt(r.body, "resourceMetrics").flatMap((rm) =>
+      listAt(rm, "scopeMetrics").flatMap((s) =>
+        listAt(s, "metrics")
+          .filter((m) => textAt(m, "name") === "avoozl.tasks.finished")
+          .flatMap((m) => listAt(field(m, "sum"), "dataPoints")),
       ),
     ),
   );
@@ -319,8 +375,7 @@ try {
   collector.behave = () => "hold";
   const before = collector.requests.length;
   const startedAt = Date.now();
-  const point = (await import(path.join(repo, "src/app/telemetry/record.ts")))
-    .point;
+  const point = (await import("../../src/app/telemetry/record.ts")).point;
   point(on.store, {
     id: "proof:pending",
     name: "avoozl.tokens",
@@ -344,13 +399,18 @@ try {
   for (
     let i = 0;
     i < 20 &&
-    (await on.ops.execute("telemetry.status", {})).failure !== "http 503";
+    (await on.ops.execute<{ failure?: string }>("telemetry.status", {}))
+      .failure !== "http 503";
     i++
   ) {
     await sleep(500);
     await on.telemetry.step();
   }
-  const status = await on.ops.execute("telemetry.status", {});
+  const status = await on.ops.execute<{
+    status?: string;
+    failure?: string;
+    endpoint?: string;
+  }>("telemetry.status", {});
   observe(
     12,
     "503: telemetry.status says backing-off with http 503",
@@ -390,11 +450,14 @@ try {
     workspaceRoot: on.base,
     configDirectory: on.configDirectory,
   });
-  let rebuilt = null;
+  let rebuilt: { error?: string; landed?: { task: string }[] } | null = null;
   try {
-    rebuilt = await ops.execute("workspace.rebuild", {});
+    rebuilt = await ops.execute<{ landed?: { task: string }[] }>(
+      "workspace.rebuild",
+      {},
+    );
   } catch (error) {
-    rebuilt = { error: error.message };
+    rebuilt = { error: messageOf(error) };
   }
   const points = rows(fresh, "SELECT COUNT(*) AS n FROM telemetry_points")[0].n;
   const rootsAfter = rows(
@@ -422,7 +485,12 @@ try {
   );
 } catch (error) {
   failed = error;
-  observe(0, "proof ran to the end", false, error.stack);
+  observe(
+    0,
+    "proof ran to the end",
+    false,
+    error instanceof Error ? error.stack : String(error),
+  );
 } finally {
   for (const fn of cleanups.reverse())
     try {
