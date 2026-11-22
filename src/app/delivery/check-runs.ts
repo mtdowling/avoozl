@@ -582,7 +582,7 @@ async function runOne(
   // Flow timing: Avoozl's own check time is the `checks` stage (§4.11).
   recordSpan(store, {
     id: `events:${record.taskId}:${record.attempt}:checks:${startedAt}`,
-    taskId: record.taskId,
+    taskId: task.id,
     attempt: record.attempt,
     role: "checks",
     stage: "checks",

@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Flow (design §4.11, Requirements 43–48): where each task's time goes, and
 // the settings the flow rules read. Timing is always on; there is no setting
 // for it. A span is one stretch of one attempt in one stage, and names the
@@ -15,11 +14,12 @@ import {
 import {
   FINAL_STATUSES,
   listSessionBindings,
+  type SessionBinding,
 } from "../sessions/session-bindings.ts";
 import { taskRepository } from "../../work-model.ts";
 import { inPlan } from "../api/page-views.ts";
 import { fail, type Store } from "../store/store.ts";
-import type { Snapshot } from "../../types.ts";
+import type { Snapshot, Task } from "../../types.ts";
 
 // A session Stop all agents stopped, or tried to.
 export interface StoppedSession {
@@ -59,12 +59,75 @@ export interface Stop {
   sessions?: StoppedSession[];
   timeToFixMs?: number;
   resumedBy?: { by: unknown; at: string };
+  [key: string]: unknown;
 }
 import { STAGES } from "../telemetry/stages.ts";
 import * as telemetry from "../telemetry/record.ts";
 import { listStageSpans } from "../telemetry/sqlite-exporter.ts";
 
 export { STAGES };
+
+// A JSON object: a parsed .avoozl.json or one of its blocks.
+type Obj = Record<string, unknown>;
+// One stored stage span, as listStageSpans reads it.
+export type Span = ReturnType<typeof listStageSpans>[number];
+// A span to record: its stable key as `id`, and its stretch.
+export interface SpanInput {
+  id: string;
+  taskId: string;
+  attempt?: number | null;
+  role?: string | null;
+  stage: string;
+  startedAt: string;
+  endedAt?: string | null;
+  source: string | null;
+  detail?: string | null;
+}
+// The flow settings one repository runs under, defaults filled in.
+export interface FlowSettings {
+  stopTheLine: { scope: string };
+  localChecksFirst: boolean;
+  verify: {
+    checkTimeoutSeconds: number;
+    protectedPaths: readonly string[];
+    checkTimeouts: Readonly<Record<string, number>>;
+  };
+}
+// A task_deliveries row, as far as flow reads it.
+interface FlowDelivery {
+  taskId: string;
+  state?: string;
+  commit?: string;
+  updatedAt?: string;
+  retriedAt?: string;
+  verifications?: {
+    outcome?: string;
+    commit?: string;
+    slot?: string;
+    at?: string;
+  }[];
+  attempts?: {
+    attempt?: number;
+    at?: string;
+    outcome?: string;
+    prompts?: unknown;
+    skills?: unknown;
+  }[];
+}
+// A tool row a session's transcript holds (F90).
+interface ToolRow {
+  role?: string;
+  ts?: string;
+  meta?: { tool_call_id?: unknown; kind?: string; input?: unknown };
+}
+// One task's timing, as taskTiming computes it.
+export type Timing = ReturnType<typeof taskTiming>;
+// Lookups readyAt keeps across calls on the same data.
+interface ReadyMemo {
+  byId?: Map<string, Task>;
+  blockers?: Map<string, string[]>;
+  approvals?: { planId?: string; at?: string }[];
+}
 // Active time in flow efficiency; the rest is waiting on someone else.
 const ACTIVE = new Set([
   "coding",
@@ -92,21 +155,23 @@ export const FLOW_DEFAULTS = Object.freeze({
   }),
 });
 const SCOPES = Object.freeze(["dependents", "repo", "all"]);
-const record = (value) =>
+const record = (value: unknown): value is Obj =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
 
 // The settings Settings > Flow edits, each with how it is checked.
-const FLOW_KEYS = Object.freeze({
-  "stopTheLine.scope": (v) =>
-    SCOPES.includes(v) || `one of ${SCOPES.join(", ")}`,
-  localChecksFirst: (v) => typeof v === "boolean" || "true or false",
-  "verify.checkTimeoutSeconds": (v) =>
-    (Number.isInteger(v) && v >= 1 && v <= 86400) || "a whole number 1–86400",
-});
+const FLOW_KEYS: Readonly<Record<string, (v: unknown) => true | string>> =
+  Object.freeze({
+    "stopTheLine.scope": (v) =>
+      SCOPES.some((scope) => scope === v) || `one of ${SCOPES.join(", ")}`,
+    localChecksFirst: (v) => typeof v === "boolean" || "true or false",
+    "verify.checkTimeoutSeconds": (v) =>
+      (typeof v === "number" && Number.isInteger(v) && v >= 1 && v <= 86400) ||
+      "a whole number 1–86400",
+  });
 
 // `verify.protectedPaths`: at most 50 path globs. `verify.checkTimeouts`: a
 // check's command to its own timeout in seconds.
-function verifyProblem(inner, value) {
+function verifyProblem(inner: string, value: unknown) {
   if (inner === "protectedPaths")
     return Array.isArray(value) &&
       value.length <= 50 &&
@@ -118,7 +183,12 @@ function verifyProblem(inner, value) {
     Object.keys(value).length <= 100 &&
     Object.entries(value).every(
       ([k, v]) =>
-        k && k.length <= 500 && Number.isInteger(v) && v >= 1 && v <= 86400,
+        k &&
+        k.length <= 500 &&
+        typeof v === "number" &&
+        Number.isInteger(v) &&
+        v >= 1 &&
+        v <= 86400,
     )
   )
     return null;
@@ -135,17 +205,18 @@ export const FLOW_PATHS = Object.freeze([
 // Check one `flow` object (the workspace's or one repository's) and return
 // it with only the keys it sets. Throws naming the key, so the tick keeps its
 // last valid policy and Settings refuses the save (R48.7, R47.8).
-export function flowSection(value, where = "flow") {
+export function flowSection(value: unknown, where = "flow"): Obj {
   if (value === undefined) return {};
   if (!record(value)) throw Error(`${where} must be an object.`);
   const groups = { stopTheLine: 1, verify: 1 };
   for (const key of Object.keys(value)) {
     if (key === "localChecksFirst") continue;
     if (!(key in groups)) throw Error(`${where}.${key} is not a flow setting.`);
-    if (!record(value[key])) throw Error(`${where}.${key} must be an object.`);
-    for (const inner of Object.keys(value[key])) {
+    const group = value[key];
+    if (!record(group)) throw Error(`${where}.${key} must be an object.`);
+    for (const inner of Object.keys(group)) {
       if (key === "verify" && VERIFY_LISTS.has(inner)) {
-        const problem = verifyProblem(inner, value.verify[inner]);
+        const problem = verifyProblem(inner, group[inner]);
         if (problem)
           throw Error(`${where}.verify.${inner} must be ${problem}.`);
         continue;
@@ -163,22 +234,25 @@ export function flowSection(value, where = "flow") {
   return structuredClone(value);
 }
 
-function readKey(value, key) {
+function readKey(value: unknown, key: string) {
   return key
     .split(".")
-    .reduce((v, part) => (record(v) ? v[part] : undefined), value);
+    .reduce<unknown>((v, part) => (record(v) ? v[part] : undefined), value);
 }
 
-function merged(...layers) {
-  const out = structuredClone(FLOW_DEFAULTS);
-  for (const layer of layers)
-    for (const key of Object.keys(FLOW_KEYS)) {
-      const v = readKey(layer, key);
-      if (v === undefined) continue;
-      const [group, inner] = key.split(".");
-      if (inner) out[group] = { ...out[group], [inner]: v };
-      else out[group] = v;
-    }
+// The defaults with each layer's settings on top; flowSection checked them.
+function merged(...layers: Obj[]): FlowSettings {
+  const out: FlowSettings = structuredClone(FLOW_DEFAULTS);
+  for (const layer of layers) {
+    const scope = readKey(layer, "stopTheLine.scope"),
+      first = readKey(layer, "localChecksFirst"),
+      timeout = readKey(layer, "verify.checkTimeoutSeconds");
+    if (typeof scope === "string")
+      out.stopTheLine = { ...out.stopTheLine, scope };
+    if (typeof first === "boolean") out.localChecksFirst = first;
+    if (typeof timeout === "number")
+      out.verify = { ...out.verify, checkTimeoutSeconds: timeout };
+  }
   for (const layer of layers) {
     // A repository adds protected paths; it never removes the workspace's.
     const guarded = readKey(layer, "verify.protectedPaths"),
@@ -187,13 +261,18 @@ function merged(...layers) {
       out.verify = {
         ...out.verify,
         protectedPaths: [
-          ...new Set([...out.verify.protectedPaths, ...guarded]),
+          ...new Set([...out.verify.protectedPaths, ...guarded.map(String)]),
         ],
       };
     if (record(timeouts))
       out.verify = {
         ...out.verify,
-        checkTimeouts: { ...out.verify.checkTimeouts, ...timeouts },
+        checkTimeouts: {
+          ...out.verify.checkTimeouts,
+          ...Object.fromEntries(
+            Object.entries(timeouts).map(([k, v]) => [k, Number(v)]),
+          ),
+        },
       };
   }
   return out;
@@ -202,11 +281,12 @@ function merged(...layers) {
 // `.avoozl.json`'s flow settings: the workspace's, each repository's override
 // (`repositories.<id>.flow`), and a reader for one repository. A missing key
 // means its default.
-export function flowPolicy(config) {
-  const workspace = flowSection(config?.flow, "flow"),
-    repositories = {};
+export function flowPolicy(config: unknown) {
+  const given = record(config) ? config : {},
+    workspace = flowSection(given.flow, "flow"),
+    repositories: Record<string, Obj> = {};
   for (const [id, repository] of Object.entries(
-    record(config?.repositories) ? config.repositories : {},
+    record(given.repositories) ? given.repositories : {},
   ))
     if (record(repository) && repository.flow !== undefined)
       repositories[id] = flowSection(
@@ -217,8 +297,8 @@ export function flowPolicy(config) {
   return {
     workspace: base,
     set: { workspace, repositories },
-    for: (repository) =>
-      repositories[repository]
+    for: (repository: string | null | undefined): FlowSettings =>
+      repository && repositories[repository]
         ? merged(workspace, repositories[repository])
         : base,
   };
@@ -227,13 +307,15 @@ export function flowPolicy(config) {
 // ------------------------------------------------------------------- spans
 
 // Every stage span, oldest first, from the local telemetry table.
-export const listSpans = (store, { taskId } = {}) =>
-  listStageSpans(store.db, { taskId });
+export const listSpans = (
+  store: Pick<Store, "db">,
+  { taskId }: { taskId?: string } = {},
+) => listStageSpans(store.db, { taskId });
 
 // The repository and spec a task's spans carry, so every span of one task
 // names one trace. A value the recording API would refuse is left out.
 const SPEC_NAME = /^[A-Za-z0-9._-]{1,128}$/;
-export function traceFields(store, taskId) {
+export function traceFields(store: Store, taskId: string) {
   const task = store.read().tasks.find((t) => t.id === taskId),
     repo = taskRepository(task),
     spec = task?.planId;
@@ -245,9 +327,10 @@ export function traceFields(store, taskId) {
 
 // Record or replace one stage span through the recording API; `id` is the
 // span's stable key. Returns false when nothing changed.
-export function recordSpan(store, span) {
-  if (!STAGES.includes(span.stage)) fail(`Unknown flow stage ${span.stage}.`);
-  if (!SOURCES.includes(span.source))
+export function recordSpan(store: Store, span: SpanInput) {
+  if (!STAGES.some((stage) => stage === span.stage))
+    fail(`Unknown flow stage ${span.stage}.`);
+  if (!SOURCES.some((source) => source === span.source))
     fail(`Unknown span source ${span.source}.`);
   return telemetry.span(store, {
     key: span.id,
@@ -267,7 +350,7 @@ export function recordSpan(store, span) {
 // that just closed a `resumed` one (OT8.7), with its scope and kind and never
 // its check or reason.
 export function putStop(store: Store, stop: Stop) {
-  const before = store.get("flow_stops", stop.id);
+  const before = store.get<Stop>("flow_stops", stop.id);
   store.put("flow_stops", stop);
   const event = !before
     ? "pulled"
@@ -295,7 +378,7 @@ export function putStop(store: Store, stop: Stop) {
 // Record each finished task's root span and task points once (OT3.4).
 // A task with no stage span on this machine records nothing, so a database
 // that predates the tables does not record its whole history at once.
-function finishTasks(store, data) {
+function finishTasks(store: Store, data: Snapshot) {
   const done = telemetry.finishedTasks(store);
   for (const task of data.tasks) {
     const end = finishedAt(task);
@@ -318,7 +401,11 @@ function finishTasks(store, data) {
 
 // A check or command name, kept only when it passes the content rules at the
 // `brief` boundary (R43.6); a match or an unavailable set drops it.
-function spanDetail(store, text, repository = null) {
+function spanDetail(
+  store: Store,
+  text: unknown,
+  repository: string | null = null,
+) {
   if (typeof text !== "string" || !text.trim()) return null;
   const value = text.trim().slice(0, 120);
   if (!contentBinding(store)?.workspaceRoot) return value;
@@ -337,7 +424,7 @@ function spanDetail(store, text, repository = null) {
 
 // The command's first words: the program and, when it has one, its
 // subcommand. Never its arguments.
-export function commandName(command) {
+export function commandName(command: unknown) {
   const words = String(command || "")
     .trim()
     .split(/\s+/)
@@ -347,15 +434,33 @@ export function commandName(command) {
   return sub && /^[a-z][a-z0-9:_-]*$/.test(sub) ? `${program} ${sub}` : program;
 }
 
-const spanId = (source, taskId, attempt, role, stage, at) =>
-  `${source}:${taskId}:${attempt ?? 0}:${role || "-"}:${stage}:${at}`;
+const spanId = (
+  source: string,
+  taskId: string,
+  attempt: number | null | undefined,
+  role: string | null | undefined,
+  stage: string,
+  at: string | undefined,
+) => `${source}:${taskId}:${attempt ?? 0}:${role || "-"}:${stage}:${at}`;
 
-const openSpans = (store, taskId, attempt, role) =>
+const openSpans = (
+  store: Store,
+  taskId: string,
+  attempt: number | null | undefined,
+  role: string,
+) =>
   listSpans(store, { taskId }).filter(
     (s) => s.attempt === attempt && s.role === role && !s.endedAt,
   );
 
-function closeOpen(store, taskId, attempt, role, at, { except = null } = {}) {
+function closeOpen(
+  store: Store,
+  taskId: string,
+  attempt: number | null | undefined,
+  role: string,
+  at: string,
+  { except = null }: { except?: ((span: Span) => boolean) | null } = {},
+) {
   for (const span of openSpans(store, taskId, attempt, role))
     if (!except || !except(span))
       recordSpan(store, {
@@ -365,13 +470,13 @@ function closeOpen(store, taskId, attempt, role, at, { except = null } = {}) {
 }
 
 const BLOCKING_EDGES = new Set(["requires", "sequence"]);
-const workerStage = (attempt) => (attempt > 1 ? "rework" : "coding");
-const firstStage = (binding) => workerStage(binding.attempt);
-const isRunner = (b) =>
+const workerStage = (attempt: number) => (attempt > 1 ? "rework" : "coding");
+const firstStage = (binding: SessionBinding) => workerStage(binding.attempt);
+const isRunner = (b: SessionBinding) =>
   b.role === "worker" && ["tick", "conductor"].includes(b.source);
 
 // The first stretch of a worker attempt, from its binding (events).
-function ensureWorkerStart(store, binding) {
+function ensureWorkerStart(store: Store, binding: SessionBinding) {
   const spans = listSpans(store, { taskId: binding.taskId }).filter(
     (s) => s.attempt === binding.attempt && s.role === "worker",
   );
@@ -396,12 +501,16 @@ function ensureWorkerStart(store, binding) {
 
 // plans_report, as it is taken: phase markers, waiting on a question, and
 // the end of an attempt (R43.3, R43.5). Called after the report is stored.
-export function flowOnReport(store, binding, report) {
+export function flowOnReport(
+  store: Store,
+  binding: SessionBinding | null | undefined,
+  report: { kind?: string; at?: string; phase?: string } | null | undefined,
+) {
   if (!binding || !report?.at) return;
   const at = report.at,
     { taskId, attempt } = binding;
   if (binding.role !== "worker") {
-    if (["done", "blocked"].includes(report.kind))
+    if (report.kind === "done" || report.kind === "blocked")
       closeOpen(store, taskId, attempt, binding.role, at);
     return;
   }
@@ -415,7 +524,7 @@ export function flowOnReport(store, binding, report) {
         s.role === "worker" &&
         s.source === "tool-calls",
     ),
-    put = (stage, source, detail = null) =>
+    put = (stage: string, source: string, detail: string | null = null) =>
       recordSpan(store, {
         id: spanId(source, taskId, attempt, "worker", stage, at),
         taskId,
@@ -463,35 +572,47 @@ export function flowOnReport(store, binding, report) {
 // when the one before it was recorded failed or a person retried it.
 // `memo` holds the task, edge and approval lookups across calls on the same
 // data, so one tick builds them once instead of once per binding.
-export function readyAt(store, data, task, attempt, memo = {}) {
+export function readyAt(
+  store: Store,
+  data: Snapshot,
+  task: Task,
+  attempt: number,
+  memo: ReadyMemo = {},
+): string | null {
   if (attempt > 1) {
-    const delivery = store.get("task_deliveries", task.id),
+    const delivery = store.get<FlowDelivery>("task_deliveries", task.id),
       before = delivery?.attempts?.find((a) => a.attempt === attempt - 1);
     return (
       [before?.at, delivery?.retriedAt].filter(Boolean).sort().at(-1) || null
     );
   }
-  memo.byId ??= new Map(data.tasks.map((t) => [t.id, t]));
+  const byId = (memo.byId ??= new Map(data.tasks.map((t) => [t.id, t])));
   if (!memo.blockers) {
-    memo.blockers = new Map();
+    const found = new Map<string, string[]>();
     for (const e of data.edges)
-      if (BLOCKING_EDGES.has(e.kind)) {
-        if (!memo.blockers.has(e.to)) memo.blockers.set(e.to, []);
-        memo.blockers.get(e.to).push(e.from);
-      }
+      if (BLOCKING_EDGES.has(e.kind))
+        found.set(e.to, [...(found.get(e.to) ?? []), e.from]);
+    memo.blockers = found;
   }
   const blockers = (memo.blockers.get(task.id) || [])
-    .map((id) => memo.byId.get(id))
-    .filter(Boolean)
-    .map((t) => finishedAt(t) || t.childrenComplete?.at || t.acceptedAt || null)
-    .filter(Boolean)
+    .map((id) => byId.get(id))
+    .filter((t) => t !== undefined)
+    .map((t) => {
+      const children = record(t.childrenComplete)
+        ? t.childrenComplete.at
+        : null;
+      return finishedAt(t) || children || t.acceptedAt || null;
+    })
+    .filter((at): at is string => typeof at === "string" && Boolean(at))
     .sort();
-  if (blockers.length) return blockers.at(-1);
+  if (blockers.length) return blockers.at(-1) ?? null;
   if (!task.planId) return null;
-  memo.approvals ??= listOr(store, "approvals");
+  memo.approvals ??= listOr<{ planId?: string; at?: string }>(
+    store,
+    "approvals",
+  );
   const approvals = memo.approvals
-    .filter((a) => a.planId === task.planId && a.at)
-    .map((a) => a.at)
+    .flatMap((a) => (a.planId === task.planId && a.at ? [a.at] : []))
     .sort();
   return approvals[0] || null;
 }
@@ -500,18 +621,14 @@ export function readyAt(store, data, task, attempt, memo = {}) {
 // start, verifier and review sessions, merge, and closing spans at the event
 // that ends them. Writes only what changed; an open span stays open across a
 // restart and closes here at its ending event (R43.8).
-export function syncSpans(store, { now = Date.now() } = {}) {
+export function syncSpans(store: Store, { now = Date.now() } = {}) {
   const at = new Date(now).toISOString(),
     bindings = listSessionBindings(store),
     spans = listSpans(store),
-    byTask = new Map();
-  for (const span of spans) {
-    if (!byTask.has(span.taskId)) byTask.set(span.taskId, []);
-    byTask.get(span.taskId).push(span);
-  }
-  const own = (taskId) => byTask.get(taskId) || [];
-  let data = null;
-  const memo = {};
+    byTask = spansByTask(spans);
+  const own = (taskId: string) => byTask.get(taskId) || [];
+  let data: Snapshot | null = null;
+  const memo: ReadyMemo = {};
   for (const binding of bindings) {
     const { taskId, attempt } = binding;
     if (isRunner(binding)) {
@@ -519,10 +636,10 @@ export function syncSpans(store, { now = Date.now() } = {}) {
       if (
         !own(taskId).some((s) => s.stage === "queued" && s.attempt === attempt)
       ) {
-        data ||= store.read();
-        memo.byId ??= new Map(data.tasks.map((t) => [t.id, t]));
-        const task = memo.byId.get(taskId),
-          from = task && readyAt(store, data, task, attempt, memo);
+        const read = (data ||= store.read()),
+          byId = (memo.byId ??= new Map(read.tasks.map((t) => [t.id, t]))),
+          task = byId.get(taskId),
+          from = task && readyAt(store, read, task, attempt, memo);
         if (from && from < binding.boundAt)
           recordSpan(store, {
             id: spanId("events", taskId, attempt, null, "queued", from),
@@ -551,12 +668,12 @@ export function syncSpans(store, { now = Date.now() } = {}) {
               endedAt:
                 span.startedAt > next.boundAt ? span.startedAt : next.boundAt,
             });
-      if (FINAL_STATUSES.has(binding.status) && !binding.report?.kind)
+      const report = binding.report;
+      if (FINAL_STATUSES.has(binding.status ?? "") && !report?.kind)
         closeOpen(store, taskId, attempt, "worker", binding.statusAt || at);
-      if (["done", "blocked"].includes(binding.report?.kind))
-        closeOpen(store, taskId, attempt, "worker", binding.report.at, {
-          except: (s) =>
-            s.stage === "waiting" && binding.report.kind === "blocked",
+      if (report?.at && (report.kind === "done" || report.kind === "blocked"))
+        closeOpen(store, taskId, attempt, "worker", report.at, {
+          except: (s) => s.stage === "waiting" && report.kind === "blocked",
         });
       continue;
     }
@@ -571,12 +688,14 @@ export function syncSpans(store, { now = Date.now() } = {}) {
         binding.boundAt,
       ),
       end =
-        binding.report && ["done", "blocked"].includes(binding.report.kind)
-          ? binding.report.at
-          : FINAL_STATUSES.has(binding.status) || binding.status === "gone"
+        binding.report &&
+        ["done", "blocked"].includes(binding.report.kind ?? "")
+          ? (binding.report.at ?? null)
+          : FINAL_STATUSES.has(binding.status ?? "") ||
+              binding.status === "gone"
             ? binding.statusAt || at
             : null;
-    const span = {
+    const span: SpanInput = {
       id,
       taskId,
       attempt,
@@ -585,27 +704,34 @@ export function syncSpans(store, { now = Date.now() } = {}) {
       startedAt: binding.boundAt,
       endedAt: end,
       source: "events",
-      detail: stage === "review" ? binding.role.slice("review:".length) : null,
+      detail: binding.role.slice("review:".length),
     };
     const seen = spans.find((s) => s.id === id);
     if (!seen || seen.endedAt !== end) recordSpan(store, span);
   }
   // merge: from the last approval of the delivered commit to integration.
-  for (const delivery of store.list("task_deliveries")) {
+  for (const delivery of store.list<FlowDelivery>("task_deliveries")) {
     const accepted = (delivery.verifications || []).filter(
       (v) => v.outcome === "accepted" && v.commit === delivery.commit,
     );
     if (
-      !["verified", "integrated"].includes(delivery.state) ||
+      !["verified", "integrated"].includes(delivery.state ?? "") ||
       !accepted.length
     )
       continue;
     // From the last approving verdict as it was reported, not as the
     // tick recorded it.
-    const start = accepted
-        .map((v) => store.get("session_bindings", v.slot)?.report?.at || v.at)
-        .sort()
-        .at(-1),
+    const start =
+        accepted
+          .map(
+            (v) =>
+              store.get<SessionBinding>("session_bindings", v.slot)?.report
+                ?.at ||
+              v.at ||
+              "",
+          )
+          .sort()
+          .at(-1) ?? "",
       end =
         delivery.state === "integrated" ? integratedAt(store, delivery) : null,
       id = spanId("events", delivery.taskId, null, null, "merge", start),
@@ -624,9 +750,17 @@ export function syncSpans(store, { now = Date.now() } = {}) {
   finishTasks(store, store.read());
 }
 
-function integratedAt(store, delivery) {
+function integratedAt(store: Store, delivery: FlowDelivery) {
   const task = store.read().tasks.find((t) => t.id === delivery.taskId);
   return task?.integration?.at || delivery.updatedAt || null;
+}
+
+// Spans grouped by their task.
+function spansByTask(spans: Span[]) {
+  const byTask = new Map<string, Span[]>();
+  for (const span of spans)
+    byTask.set(span.taskId, [...(byTask.get(span.taskId) ?? []), span]);
+  return byTask;
 }
 
 // Tool rows a tick-opened worker session left (F90, F91): kind, the
@@ -634,10 +768,13 @@ function integratedAt(store, delivery) {
 // declared check is `tests`, any other shell call `commands`, the rest
 // `coding` (R43.4). Rows already seen (by tool call id) are skipped, so the
 // incremental read may hand back the same rows twice.
-export function toolStage(row, checks = []) {
+export function toolStage(
+  row: ToolRow | null | undefined,
+  checks: string[] = [],
+) {
   const kind = row?.meta?.kind;
   if (kind !== "execute") return { stage: "coding", detail: null };
-  const command = commandText(row.meta.input);
+  const command = commandText(row?.meta?.input);
   const check = checks.find(
     (c) =>
       command &&
@@ -647,28 +784,30 @@ export function toolStage(row, checks = []) {
   return { stage: "commands", detail: commandName(command) };
 }
 
-function commandText(input) {
+function commandText(input: unknown): string {
   if (typeof input === "string") return input;
   if (record(input)) {
     for (const key of ["command", "cmd", "script"])
-      if (typeof input[key] === "string") return input[key];
+      if (typeof input[key] === "string") return String(input[key]);
     if (Array.isArray(input.args)) return input.args.join(" ");
   }
   return "";
 }
 
 export function ingestToolRows(
-  store,
-  binding,
-  rows,
+  store: Store,
+  binding: SessionBinding,
+  rows: unknown,
   { checks = [] }: { checks?: unknown[] } = {},
 ) {
   if (!isRunner(binding) || binding.attempt > 1 || !Array.isArray(rows))
     return 0;
-  const tools = rows
-    .filter(
-      (r) =>
-        r?.role === "tool" && typeof r.ts === "string" && r.meta?.tool_call_id,
+  // The transcript's rows, as Kiro Crew returns them; only tool rows count.
+  const tools = (rows as (ToolRow | null)[])
+    .flatMap((r) =>
+      r?.role === "tool" && typeof r.ts === "string" && r.meta?.tool_call_id
+        ? [{ ...r, ts: r.ts, meta: r.meta }]
+        : [],
     )
     .sort((a, b) => (a.ts < b.ts ? -1 : a.ts > b.ts ? 1 : 0));
   if (!tools.length) return 0;
@@ -683,7 +822,7 @@ export function ingestToolRows(
     seen = new Set(
       mine()
         .filter((s) => s.source === "tool-calls")
-        .map((s) => s.id.split("#").at(-1)),
+        .map((s) => s.id.split("#").at(-1) ?? ""),
     );
   let added = 0;
   store.transaction(() => {
@@ -712,7 +851,7 @@ export function ingestToolRows(
             ...span,
             endedAt: span.startedAt > row.ts ? span.startedAt : row.ts,
           });
-      const { stage, detail } = toolStage(row, checks);
+      const { stage, detail } = toolStage(row, checks.map(String));
       recordSpan(store, {
         id: `tool-calls:${taskId}:${attempt}:worker:${row.ts}#${key}`,
         taskId,
@@ -726,15 +865,14 @@ export function ingestToolRows(
       added += 1;
     }
     // Rows read after the attempt ended close at its report.
-    if (["done", "blocked"].includes(binding.report?.kind))
+    const report = binding.report,
+      ended = report?.at;
+    if (ended && (report.kind === "done" || report.kind === "blocked"))
       for (const span of mine())
         if (span.source === "tool-calls" && !span.endedAt)
           recordSpan(store, {
             ...span,
-            endedAt:
-              span.startedAt > binding.report.at
-                ? span.startedAt
-                : binding.report.at,
+            endedAt: span.startedAt > ended ? span.startedAt : ended,
           });
   });
   return added;
@@ -743,13 +881,15 @@ export function ingestToolRows(
 // Whether Avoozl can read this session's tool calls: only sessions the
 // tick opened on this machine (F91, F94). Crew Mode and remote sessions get
 // a brief that asks for phase markers instead (R43.5).
-export const toolCallsReadable = (binding) =>
-  binding?.source === "tick" && !binding?.crew;
+export const toolCallsReadable = (
+  binding: Pick<SessionBinding, "source" | "crew"> | null | undefined,
+) => binding?.source === "tick" && !binding?.crew;
 
 // ----------------------------------------------------------------- metrics
 
-const ms = (a, b) => Math.max(0, Date.parse(b) - Date.parse(a));
-const median = (values) => {
+const ms = (a: string | undefined, b: string | undefined) =>
+  Math.max(0, Date.parse(b ?? "") - Date.parse(a ?? ""));
+const median = (values: number[]) => {
   if (!values.length) return null;
   const sorted = [...values].sort((a, b) => a - b),
     mid = Math.floor(sorted.length / 2);
@@ -757,7 +897,7 @@ const median = (values) => {
 };
 
 // When a task finished: integrated, or marked done by a person.
-export function finishedAt(task) {
+export function finishedAt(task: Task | null | undefined): string | null {
   return (
     task?.integration?.at ||
     // A manual leaf finishes when a person marks it done (R61.15). A
@@ -772,15 +912,25 @@ export function finishedAt(task) {
 // One task's timing: lead time, time per stage, sources, and whether any of
 // it is coarse (not from tool calls or GitHub timestamps).
 export function taskTiming(
-  store,
-  task,
-  { spans = null, now = Date.now(), deliveries = null } = {},
+  store: Store,
+  task: Task,
+  {
+    spans = null,
+    now = Date.now(),
+    deliveries = null,
+  }: {
+    spans?: Span[] | null;
+    now?: number;
+    deliveries?: Map<string, FlowDelivery> | null;
+  } = {},
 ) {
   const own = spans || listSpans(store, { taskId: task.id }),
     end = finishedAt(task),
     until = end || new Date(now).toISOString(),
-    stages = Object.fromEntries(STAGES.map((s) => [s, 0]));
-  let first = null;
+    stages: Record<string, number> = Object.fromEntries(
+      STAGES.map((s) => [s, 0]),
+    );
+  let first: string | null = null;
   for (const span of own) {
     const stop = span.endedAt && span.endedAt < until ? span.endedAt : until;
     if (span.startedAt >= stop) continue;
@@ -791,7 +941,7 @@ export function taskTiming(
     active = [...ACTIVE].reduce((sum, s) => sum + stages[s], 0),
     delivery = deliveries
       ? deliveries.get(task.id)
-      : store.get("task_deliveries", task.id),
+      : store.get<FlowDelivery>("task_deliveries", task.id),
     workerSpans = own.filter((s) => s.role === "worker");
   return {
     taskId: task.id,
@@ -818,14 +968,29 @@ export function taskTiming(
 
 // Agent tasks that passed the first time, of those finished; a manual leaf
 // is a person's step and is left out (R61.15).
-function firstPassRate(timings) {
+function firstPassRate(timings: Timing[]) {
   const agent = timings.filter((t) => !t.manual);
   return agent.length
     ? agent.filter((t) => t.firstPass).length / agent.length
     : null;
 }
 
-function windowMetrics(timings, stops, culprits, size) {
+// One window's metrics; time to fix is set after.
+interface WindowMetrics {
+  tasks: number;
+  size?: number;
+  leadTimeMs: number | null;
+  flowEfficiency: number | null;
+  firstPassRate: number | null;
+  changeFailureRate: number | null;
+  integrationsPerDay: number | null;
+  timeToFixMs?: number | null;
+}
+function windowMetrics(
+  timings: Timing[],
+  culprits: Set<string>,
+  size: number,
+): WindowMetrics {
   const finished = timings.length;
   if (!finished)
     return {
@@ -838,7 +1003,7 @@ function windowMetrics(timings, stops, culprits, size) {
     };
   const lead = timings.reduce((s, t) => s + t.leadMs, 0),
     active = timings.reduce((s, t) => s + t.activeMs, 0),
-    times = timings.map((t) => Date.parse(t.finishedAt)),
+    times = timings.map((t) => Date.parse(t.finishedAt ?? "")),
     days = Math.max(1, (Math.max(...times) - Math.min(...times)) / 86_400_000);
   return {
     tasks: finished,
@@ -855,9 +1020,9 @@ function windowMetrics(timings, stops, culprits, size) {
 // Who pulled a stop, as Flow's Line stops list says it: the person's name,
 // or for an agent session its role and task when Avoozl bound it ("worker
 // for a1"), else "agent chat <slot>". An automatic stop has none.
-function stopWho(store, stop) {
+function stopWho(store: Store, stop: Stop) {
   if (!stop.manual || !stop.by) return null;
-  if (stop.by.kind !== "agent") return stop.by.name;
+  if (stop.by.kind !== "agent") return stop.by.name ?? null;
   const slot = String(stop.by.name).split(":").pop(),
     bound = listSessionBindings(store).find((b) => b.slot === slot);
   return bound?.taskId
@@ -865,32 +1030,35 @@ function stopWho(store, stop) {
     : `agent chat ${slot}`;
 }
 
-const timeToFix = (stops) =>
+const timeToFix = (stops: Stop[]) =>
   median(
-    stops.filter((s) => s.closedAt).map((s) => ms(s.openedAt, s.closedAt)),
+    stops.flatMap((s) => (s.closedAt ? [ms(s.openedAt, s.closedAt)] : [])),
   );
 
 // The biggest bottleneck (theory of constraints): the waiting or rework
 // stage with the most time in the window, with its share of lead time and
 // the repository where it is largest.
-export function bottleneck(timings) {
+export function bottleneck(timings: Timing[]) {
   const lead = timings.reduce((s, t) => s + t.leadMs, 0);
   if (!lead) return null;
-  let best = null;
+  let best: { stage: string; totalMs: number } | null = null;
   for (const stage of ["queued", "ci-wait", "review", "waiting", "rework"]) {
     const total = timings.reduce((s, t) => s + t.stages[stage], 0);
     if (total > 0 && (!best || total > best.totalMs))
       best = { stage, totalMs: total };
   }
   if (!best) return null;
-  const perRepo = new Map();
+  const { stage } = best,
+    perRepo = new Map<string | null, number>();
   for (const t of timings)
     perRepo.set(
       t.repository,
-      (perRepo.get(t.repository) || 0) + t.stages[best.stage],
+      (perRepo.get(t.repository) || 0) + (t.stages[stage] ?? 0),
     );
-  const repository = [...perRepo.entries()].sort((a, b) => b[1] - a[1])[0][0],
-    medianMs = median(timings.map((t) => t.stages[best.stage]).filter(Boolean));
+  const repository =
+      [...perRepo.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null,
+    medianMs =
+      median(timings.map((t) => t.stages[stage] ?? 0).filter(Boolean)) ?? 0;
   return {
     ...best,
     share: best.totalMs / lead,
@@ -906,7 +1074,7 @@ export const listOr = <T = Record<string, unknown>>(
   table: string,
 ): T[] => {
   try {
-    return store.list(table);
+    return store.list<T>(table);
   } catch {
     return [];
   }
@@ -916,24 +1084,25 @@ export const listOr = <T = Record<string, unknown>>(
 // never stored as truth (§4.11). Filters: repository, epic (across plans),
 // plan and phase (inside the plan), window (last N finished tasks, default
 // 20), stage (bars only).
-export function flowView(store, data, input = {}, { now = Date.now() } = {}) {
-  const size =
-      Number.isInteger(input.window) && input.window > 0
-        ? Math.min(input.window, 500)
+export function flowView(
+  store: Store,
+  data: Snapshot,
+  input: Obj = {},
+  { now = Date.now() } = {},
+) {
+  const window = input.window,
+    size =
+      typeof window === "number" && Number.isInteger(window) && window > 0
+        ? Math.min(window, 500)
         : 20,
-    spans = listSpans(store),
-    byTask = new Map(),
+    byTask = spansByTask(listSpans(store)),
     deliveries = new Map(
-      listOr(store, "task_deliveries").map((d) => [d.taskId, d]),
+      listOr<FlowDelivery>(store, "task_deliveries").map((d) => [d.taskId, d]),
     );
-  for (const span of spans) {
-    if (!byTask.has(span.taskId)) byTask.set(span.taskId, []);
-    byTask.get(span.taskId).push(span);
-  }
-  const stops = listOr(store, "flow_stops").sort((a, b) =>
-      a.openedAt < b.openedAt ? 1 : -1,
+  const stops = listOr<Stop>(store, "flow_stops").sort((a, b) =>
+      (a.openedAt ?? "") < (b.openedAt ?? "") ? 1 : -1,
     ),
-    culprits = new Set(stops.map((s) => s.culprit).filter(Boolean)),
+    culprits = new Set(stops.flatMap((s) => (s.culprit ? [s.culprit] : []))),
     manualIds = new Set(
       data.tasks.filter((t) => t.manual === true).map((t) => t.id),
     ),
@@ -950,32 +1119,34 @@ export function flowView(store, data, input = {}, { now = Date.now() } = {}) {
     ),
     finished = timings
       .filter((t) => t.finishedAt)
-      .sort((a, b) => (a.finishedAt < b.finishedAt ? 1 : -1)),
+      .sort((a, b) => ((a.finishedAt ?? "") < (b.finishedAt ?? "") ? 1 : -1)),
     current = finished.slice(0, size),
     previous = finished.slice(size, size * 2),
     since = current.at(-1)?.startedAt || null,
-    stopsIn = (list) => {
+    stopsIn = (list: Timing[]) => {
       if (!list.length) return [];
-      const from = list.map((t) => t.startedAt).sort()[0],
-        to = list[0].finishedAt;
+      const from = list.map((t) => t.startedAt ?? "").sort()[0] ?? "",
+        to = list[0]?.finishedAt ?? "";
       return stops.filter(
         (s) => s.closedAt && s.closedAt >= from && s.closedAt <= to,
       );
     },
-    metrics = windowMetrics(current, stops, culprits, size),
-    before = windowMetrics(previous, stops, culprits, size),
-    records = listOr(store, "flow_records");
+    metrics = windowMetrics(current, culprits, size),
+    before = windowMetrics(previous, culprits, size),
+    records = listOr<{ kind?: string }>(store, "flow_records");
   // Time to fix skips a stop a manual leaf caused (R61.15).
-  const agentStops = (list) => list.filter((s) => !manualIds.has(s.culprit));
+  const agentStops = (list: Stop[]) =>
+    list.filter((s) => !manualIds.has(s.culprit ?? ""));
   metrics.timeToFixMs = timeToFix(
     agentStops(stopsIn(current).length ? stopsIn(current) : stops),
   );
   before.timeToFixMs = previous.length
     ? timeToFix(agentStops(stopsIn(previous)))
     : null;
-  const shown = (
-    input.stage ? timings.filter((t) => t.stages[input.stage] > 0) : timings
-  ).sort((a, b) => ((b.startedAt || "") < (a.startedAt || "") ? -1 : 1));
+  const stage = typeof input.stage === "string" ? input.stage : null,
+    shown = (
+      stage ? timings.filter((t) => (t.stages[stage] ?? 0) > 0) : timings
+    ).sort((a, b) => ((b.startedAt || "") < (a.startedAt || "") ? -1 : 1));
   return {
     window: { size, since },
     metrics,
@@ -991,23 +1162,29 @@ export function flowView(store, data, input = {}, { now = Date.now() } = {}) {
     },
     stages: [...STAGES],
     repositories: [
-      ...new Set(data.tasks.map(taskRepository).filter(Boolean)),
+      ...new Set(data.tasks.flatMap((t) => taskRepository(t) ?? [])),
     ].sort(),
     epics: crossPlanEpics(data).map((e) => ({
       id: e.id,
       title: e.title || e.id,
     })),
-    plans: [...new Set(data.tasks.map((t) => t.planId).filter(Boolean))]
-      .map((id) => ({ id, title: store.get("plans", id)?.title || id }))
+    plans: [...new Set(data.tasks.flatMap((t) => t.planId ?? []))]
+      .map((id) => ({
+        id,
+        title: store.get<{ title?: string }>("plans", id)?.title || id,
+      }))
       .sort((a, b) => a.title.localeCompare(b.title)),
-    phases: flowPhases(data, input.plan),
+    phases: flowPhases(
+      data,
+      typeof input.plan === "string" ? input.plan : null,
+    ),
   };
 }
 
 // The phases of one plan, for the Phase filter; none until a plan is picked.
-function flowPhases(data, planId) {
+function flowPhases(data: Snapshot, planId: string | null) {
   if (!planId) return [];
-  const seen = new Map();
+  const seen = new Map<string, { id: string; title: unknown }>();
   for (const task of data.tasks)
     if (task.planId === planId && task.phase && !seen.has(task.phase.id))
       seen.set(task.phase.id, { id: task.phase.id, title: task.phase.title });
@@ -1018,7 +1195,7 @@ function flowPhases(data, planId) {
 // ISO week, from tasks finished in that bucket: median lead time, flow
 // efficiency, first-pass rate, time per stage; time to fix from stops
 // closed in it.
-export function bucketOf(iso, unit) {
+export function bucketOf(iso: string, unit: string) {
   const day = iso.slice(0, 10);
   if (unit !== "week") return day;
   const d = new Date(day + "T00:00:00Z"),
@@ -1027,9 +1204,12 @@ export function bucketOf(iso, unit) {
   return d.toISOString().slice(0, 10);
 }
 
-function flowSeries(timings, stops, unit = "day") {
-  const buckets = new Map(),
-    get = (key) => {
+function flowSeries(timings: Timing[], stops: Stop[], unit = "day") {
+  const buckets = new Map<
+      string,
+      { key: string; tasks: Timing[]; fixes: number[]; opened: number }
+    >(),
+    get = (key: string) => {
       if (!buckets.has(key))
         buckets.set(key, {
           key,
@@ -1037,12 +1217,12 @@ function flowSeries(timings, stops, unit = "day") {
           fixes: [],
           opened: 0,
         });
-      return buckets.get(key);
+      return buckets.get(key) ?? fail(`No bucket ${key}.`);
     };
   for (const t of timings)
     if (t.finishedAt) get(bucketOf(t.finishedAt, unit)).tasks.push(t);
   for (const s of stops) {
-    get(bucketOf(s.openedAt, unit)).opened += 1;
+    get(bucketOf(s.openedAt ?? "", unit)).opened += 1;
     if (s.closedAt)
       get(bucketOf(s.closedAt, unit)).fixes.push(ms(s.openedAt, s.closedAt));
   }
@@ -1054,7 +1234,7 @@ function flowSeries(timings, stops, unit = "day") {
         stages = Object.fromEntries(
           STAGES.map((s) => [
             s,
-            tasks.reduce((sum, t) => sum + t.stages[s], 0),
+            tasks.reduce((sum, t) => sum + (t.stages[s] ?? 0), 0),
           ]),
         );
       return {
@@ -1072,11 +1252,13 @@ function flowSeries(timings, stops, unit = "day") {
 }
 
 // One task's Timing fold in the drawer (R48.4).
-export function taskFlow(store, task, { now = Date.now() } = {}) {
+export function taskFlow(store: Store, task: Task, { now = Date.now() } = {}) {
   const spans = listSpans(store, { taskId: task.id });
   if (!spans.length) return null;
   // Which prompt and skill versions each attempt ran on (R68.12).
-  const versions = (store.get("task_deliveries", task.id)?.attempts || [])
+  const versions = (
+    store.get<FlowDelivery>("task_deliveries", task.id)?.attempts || []
+  )
     .filter((a) => a.prompts || a.skills)
     .map((a) => ({
       attempt: a.attempt,
@@ -1108,14 +1290,14 @@ export function taskFlow(store, task, { now = Date.now() } = {}) {
 export const openStops = (store: Pick<Store, "list">): Stop[] =>
   listOr<Stop>(store, "flow_stops")
     .filter((s) => !s.closedAt)
-    .sort((a, b) => (a.openedAt < b.openedAt ? 1 : -1));
+    .sort((a, b) => ((a.openedAt ?? "") < (b.openedAt ?? "") ? 1 : -1));
 
 // A task's transitive dependents along blocking edges.
 export function dependentsOf(
   data: Pick<Snapshot, "edges">,
   id: string,
 ): Set<string> {
-  const out = new Set(),
+  const out = new Set<string>(),
     next = [id];
   while (next.length) {
     const from = next.pop();
@@ -1143,8 +1325,10 @@ export function stopScope(
   // A pulled stop (R64.5) pauses everything in its scope, fix tasks too.
   if (stop.manual) {
     if (stop.scope === "all") return new Set(data.tasks.map((t) => t.id));
-    if (stop.scope === "task")
-      return new Set([stop.taskId, ...dependentsOf(data, stop.taskId)]);
+    if (stop.scope === "task") {
+      const taskId = stop.taskId ?? "";
+      return new Set([taskId, ...dependentsOf(data, taskId)]);
+    }
     return new Set(
       data.tasks
         .filter((t) =>
@@ -1156,11 +1340,11 @@ export function stopScope(
     );
   }
   const fixes = new Set(
-    listOr(store, "flow_stops")
-      .map((s) => s.fixTaskId)
-      .filter(Boolean),
+    listOr<Stop>(store, "flow_stops").flatMap((s) =>
+      s.fixTaskId ? [s.fixTaskId] : [],
+    ),
   );
-  let ids;
+  let ids: Set<string>;
   if (stop.scope === "all") ids = new Set(data.tasks.map((t) => t.id));
   else if (stop.scope === "dependents" && stop.culprit)
     ids = dependentsOf(data, stop.culprit);
@@ -1177,8 +1361,8 @@ export function stopScope(
 
 // Tasks no new dispatch may start while the line is stopped; Run anyway
 // lifts a stop's pause while the stop stays open (R44.10).
-export function linePausedTaskIds(store, data = store.read()) {
-  const out = new Set();
+export function linePausedTaskIds(store: Store, data: Snapshot = store.read()) {
+  const out = new Set<string>();
   for (const stop of openStops(store))
     if (!stop.runAnyway)
       for (const id of stopScope(store, data, stop)) out.add(id);
@@ -1186,17 +1370,17 @@ export function linePausedTaskIds(store, data = store.read()) {
 }
 
 // Fix tasks go first in line for the next free slot (R44.7).
-export const lineFirstIds = (store) =>
+export const lineFirstIds = (store: Pick<Store, "list">) =>
   openStops(store)
     .map((s) => s.fixTaskId)
     .filter((id): id is string => Boolean(id));
 
 // The workspace's `.avoozl.json`, for a read outside the tick; an absent or
 // invalid file reads as {}, so its flow settings are the defaults.
-function readFlowConfig(workspaceRoot) {
+function readFlowConfig(workspaceRoot: string | null | undefined): unknown {
   try {
     const value = JSON.parse(
-      fs.readFileSync(path.join(workspaceRoot, ".avoozl.json"), "utf8"),
+      fs.readFileSync(path.join(workspaceRoot ?? "", ".avoozl.json"), "utf8"),
     );
     flowPolicy(value);
     return value;
@@ -1205,5 +1389,5 @@ function readFlowConfig(workspaceRoot) {
   }
 }
 
-export const readFlowPolicy = (workspaceRoot) =>
+export const readFlowPolicy = (workspaceRoot: string | null | undefined) =>
   flowPolicy(readFlowConfig(workspaceRoot));

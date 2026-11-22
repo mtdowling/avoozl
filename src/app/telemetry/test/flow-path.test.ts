@@ -191,7 +191,12 @@ test("Flow's pass records each finished task's root once, with its first-pass re
   );
   // Flow's timing reads the same spans.
   assert.equal(
-    taskTiming(store, { id: "a", integration: { at: at(60) } }).leadMs,
+    taskTiming(store, {
+      id: "a",
+      title: "a",
+      status: "accepted",
+      integration: { at: at(60) },
+    }).leadMs,
     60 * 60_000,
   );
 });

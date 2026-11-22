@@ -1409,7 +1409,13 @@ export function activityView(store, data, { limit = 50 } = {}) {
 // Whether a task belongs to a plan: its stored plan ID, or, for a spec
 // folder, a source reference inside that folder. Both are links a person or
 // an approval recorded; nothing is matched by title.
-export function inPlan(task, { plan = null, spec = null } = {}) {
+export function inPlan(
+  task,
+  {
+    plan = null,
+    spec = null,
+  }: { plan?: string | null; spec?: string | null } = {},
+) {
   if (plan && task.planId === plan) return true;
   if (!spec) return false;
   const folder = `${DEFAULT_SPECS_PATH}/${spec}/`;
