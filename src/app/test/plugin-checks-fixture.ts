@@ -39,11 +39,11 @@ export const manifestOf = (): Manifest =>
   );
 // The example plugin's manifest, for the parts these helpers touch; a test
 // may edit any other part.
-interface PluginCheck {
+export interface PluginCheck {
   stage?: string;
   decide?: unknown;
   decideAt?: unknown;
-  network?: boolean;
+  network?: unknown;
   // An MCP step: its server and fixed tool calls.
   mcp?: {
     server: string;

@@ -36,6 +36,8 @@ export interface CheckRecord {
   isolation?: unknown;
   durationMs?: number;
   tail?: string;
+  // A plugin check's plugin id.
+  plugin?: string;
 }
 // The repository flow settings these rules read (flow.ts readFlowPolicy).
 interface FlowVerify {
