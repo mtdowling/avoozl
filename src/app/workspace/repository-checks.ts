@@ -130,7 +130,7 @@ export const repositoryName = (
 ) => String(repository?.github || repository?.id || "").toLowerCase();
 
 const appliesTo = (
-  check: PluginCheck,
+  check: Pick<PluginCheck, "repos">,
   repository: CheckedRepository | null | undefined,
 ) =>
   check.repos.some((glob) =>
@@ -140,13 +140,12 @@ const appliesTo = (
 // Plugin checks against one repository (plugin-checks D3, PK2.3, PK2.4):
 // those whose `repos` match, minus a name the repository's own checks
 // use (shadowed) and a name two plugins define (a clash, both held).
-export function pluginCheckConflicts(
-  repository: CheckedRepository | null | undefined,
-  plugins: PluginCheck[] = [],
-) {
+export function pluginCheckConflicts<
+  C extends Pick<PluginCheck, "name" | "repos" | "plugin">,
+>(repository: CheckedRepository | null | undefined, plugins: C[] = []) {
   const names = new Set(ownChecks(repository).map((check) => check.name)),
     mine = plugins.filter((check) => appliesTo(check, repository)),
-    owners = new Map<string, PluginCheck[]>();
+    owners = new Map<string, C[]>();
   for (const check of mine)
     owners.set(check.name, [...(owners.get(check.name) ?? []), check]);
   return {
