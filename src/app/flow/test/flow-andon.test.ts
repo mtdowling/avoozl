@@ -1,11 +1,10 @@
-// @ts-nocheck: typing debt
 // Task 24.1: pull the Andon cord (design §4.11, Requirement 64). A person
 // or an agent session stops new dispatch in a scope with a reason; only a
 // person resumes it, and nothing else closes it.
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { linePausedTaskIds, openStops } from "../flow.ts";
 import { blockedNaming, watchLine } from "../flow-line.ts";
 import { Operations } from "../../api/operations.ts";
@@ -13,11 +12,20 @@ import { Store } from "../../store/store.ts";
 import { snapshot } from "../../test/fixtures.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
 import { leaf as fixtureLeaf } from "../../test/delivery-fixture.ts";
+import { withStatus, type Refusal } from "../../test/refusal.ts";
+import {
+  found,
+  storedRow,
+  type FlowStopped,
+  type FlowView,
+} from "../../test/view-shapes.ts";
+import type { NotificationRow } from "../../tick/notifications.ts";
+import type { Task } from "../../../types.ts";
 
-const leaf = (id, extra = {}) =>
+const leaf = (id: string, extra: Partial<Task> = {}) =>
   fixtureLeaf(id, { repository: "r1", ...extra });
 
-function setup(t) {
+function setup(t: TestContext) {
   const root = temporaryDirectory("avoozl-andon-"),
     store = new Store(path.join(root, "workspace.sqlite"));
   t.after(() => store.close());
@@ -49,11 +57,11 @@ function setup(t) {
   return { root, store, ops };
 }
 
-const paused = (store) => [...linePausedTaskIds(store)].sort();
+const paused = (store: Store) => [...linePausedTaskIds(store)].sort();
 
 test("a person pulls the cord for each scope, and dispatch pauses there", async (t) => {
   const { store, ops } = setup(t);
-  const { stop } = await ops.execute("flow.stop", {
+  const { stop } = await ops.execute<FlowStopped>("flow.stop", {
     scope: "task",
     taskId: "a1",
     reason: "bad base",
@@ -66,22 +74,26 @@ test("a person pulls the cord for each scope, and dispatch pauses there", async 
   assert.deepEqual(paused(store), ["a1", "a2"]);
   await ops.execute("flow.resume", { stopId: stop.id });
 
-  await ops.execute("flow.stop", {
+  await ops.execute<FlowStopped>("flow.stop", {
     scope: "repo",
     repository: "r2",
     reason: "x",
   });
   assert.deepEqual(paused(store), ["b1"]);
-  await ops.execute("flow.stop", { scope: "spec", spec: "s1", reason: "y" });
+  await ops.execute<FlowStopped>("flow.stop", {
+    scope: "spec",
+    spec: "s1",
+    reason: "y",
+  });
   assert.deepEqual(paused(store), ["a1", "a2", "b1"]);
-  await ops.execute("flow.stop", { scope: "all", reason: "z" });
+  await ops.execute<FlowStopped>("flow.stop", { scope: "all", reason: "z" });
   assert.deepEqual(
     paused(store),
     ["a1", "a2", "a3", "b1", "sample-task"].filter((id) =>
-      store.read().tasks.some((t) => t.id === id),
+      store.read().tasks.some((t: Task) => t.id === id),
     ),
   );
-  const view = await ops.execute("flow.view", {});
+  const view = await ops.execute<FlowView>("flow.view", {});
   const pulled = view.line.filter((s) => s.manual);
   assert.equal(pulled.length, 3);
   assert.ok(pulled.every((s) => s.reason && s.by && s.openedAt && s.scope));
@@ -89,7 +101,7 @@ test("a person pulls the cord for each scope, and dispatch pauses there", async 
 
 test("a bad pull is refused by name and records nothing", async (t) => {
   const { store, ops } = setup(t);
-  for (const [input, pattern] of [
+  const refused: [Record<string, unknown>, RegExp][] = [
     [{ scope: "all" }, /reason/i],
     [{ scope: "all", reason: "   " }, /reason/i],
     [{ scope: "all", reason: "two\nlines" }, /one line/i],
@@ -99,8 +111,9 @@ test("a bad pull is refused by name and records nothing", async (t) => {
     [{ scope: "spec", spec: "s9", reason: "x" }, /s9/],
     [{ scope: "task", taskId: "t9", reason: "x" }, /t9/],
     [{ scope: "all", reason: "secretword here" }, /names/],
-  ])
-    await assert.rejects(ops.execute("flow.stop", input), (error) => {
+  ];
+  for (const [input, pattern] of refused)
+    await assert.rejects(ops.execute("flow.stop", input), (error: Refusal) => {
       assert.match(error.message, pattern, JSON.stringify(input));
       assert.doesNotMatch(error.message, /secretword/);
       return true;
@@ -111,7 +124,7 @@ test("a bad pull is refused by name and records nothing", async (t) => {
 test("an agent session may pull but only a person resumes", async (t) => {
   const { store, ops } = setup(t);
   const mcp = { caller: { sessionKey: "chat-7" }, mcp: true };
-  const { stop } = await ops.execute(
+  const { stop } = await ops.execute<FlowStopped>(
     "flow.stop",
     { scope: "repo", repository: "r2", reason: "broken base" },
     undefined,
@@ -121,8 +134,11 @@ test("an agent session may pull but only a person resumes", async (t) => {
   // Flow names it plainly: an unbound chat by its slot, a bound one by role
   // and task (owner review of the Line stops list).
   const who = async () =>
-    (await ops.execute("flow.view", {})).stops.find((s) => s.id === stop.id)
-      .who;
+    found(
+      (await ops.execute<FlowView>("flow.view", {})).stops.find(
+        (s) => s.id === stop.id,
+      ),
+    ).who;
   assert.equal(await who(), "agent chat chat-7");
   store.put("session_bindings", {
     id: "chat-7",
@@ -134,31 +150,31 @@ test("an agent session may pull but only a person resumes", async (t) => {
   assert.equal(await who(), "worker for b1");
   assert.equal(
     store
-      .list("app_notifications")
+      .list<NotificationRow>("app_notifications")
       .filter((n) => /Line stopped/.test(n.payload.title)).length,
     1,
   );
   await assert.rejects(
     ops.execute("flow.resume", { stopId: stop.id }, undefined, mcp),
-    (error) => error.status === 403,
+    withStatus(403),
   );
   await assert.rejects(
     ops.execute("flow.resume", { stopId: stop.id }, undefined, { mcp: true }),
-    (error) => error.status === 403,
+    withStatus(403),
   );
   await assert.rejects(
     ops.execute("flow.runAnyway", { stopId: stop.id, confirm: true }),
     /Resume/,
   );
-  const { stop: resumed } = await ops.execute(
+  const { stop: resumed } = await ops.execute<FlowStopped>(
     "flow.resume",
     { stopId: stop.id },
     undefined,
     { local: true },
   );
   assert.ok(resumed.closedAt);
-  assert.equal(resumed.resumedBy.by, "cli");
-  assert.ok(resumed.timeToFixMs >= 0);
+  assert.equal(resumed.resumedBy?.by, "cli");
+  assert.ok(Number(resumed.timeToFixMs) >= 0);
   assert.deepEqual(paused(store), []);
   await assert.rejects(
     ops.execute("flow.resume", { stopId: stop.id }),
@@ -168,7 +184,7 @@ test("an agent session may pull but only a person resumes", async (t) => {
 
 test("a pulled stop never resumes by itself, and Resume leaves automatic stops alone", async (t) => {
   const { store, ops } = setup(t);
-  const { stop } = await ops.execute("flow.stop", {
+  const { stop } = await ops.execute<FlowStopped>("flow.stop", {
     scope: "repo",
     repository: "r1",
     reason: "looking at it",
@@ -185,23 +201,23 @@ test("a pulled stop never resumes by itself, and Resume leaves automatic stops a
   });
   await watchLine(store, {});
   blockedNaming(store, {});
-  assert.ok(openStops(store).some((s) => s.id === stop.id));
+  assert.ok(openStops(store).some((s: { id: string }) => s.id === stop.id));
   await assert.rejects(
     ops.execute("flow.resume", { stopId: "stop-auto" }),
     /automatic/i,
   );
-  assert.equal(store.get("flow_stops", "stop-auto").closedAt, null);
+  assert.equal(storedRow(store, "flow_stops", "stop-auto").closedAt, null);
 });
 
 test("Flow and the retro see each pull", async (t) => {
   const { store, ops } = setup(t);
-  const { stop } = await ops.execute("flow.stop", {
+  const { stop } = await ops.execute<FlowStopped>("flow.stop", {
     scope: "all",
     reason: "check it",
   });
   await ops.execute("flow.resume", { stopId: stop.id });
-  const view = await ops.execute("flow.view", {});
-  const listed = view.stops.find((s) => s.id === stop.id);
+  const view = await ops.execute<FlowView>("flow.view", {});
+  const listed = found(view.stops.find((s) => s.id === stop.id));
   assert.equal(listed.manual, true);
   assert.equal(listed.reason, "check it");
   assert.ok(view.series.day.some((b) => b.stops >= 1));
@@ -213,13 +229,16 @@ test("the CLI pulls and resumes as the person at the command line", async () => 
     cli = path.join(import.meta.dirname, "..", "..", "..", "..", "cli.ts"),
     root = temporaryDirectory("avoozl-andon-cli-");
   initializeWorkspace(root);
-  const env = { ...process.env, XDG_CONFIG_HOME: path.join(root, "config") };
+  const env: NodeJS.ProcessEnv = {
+    ...process.env,
+    XDG_CONFIG_HOME: path.join(root, "config"),
+  };
   for (const name of Object.keys(env))
     if (/^AVOOZL_/.test(name)) delete env[name];
   // A person's terminal, not an agent session (R83.1).
   delete env.KIROCREW_SPAWNED;
   delete env.KIRO_SESSION_ID;
-  const run = (...args) =>
+  const run = (...args: string[]): FlowStopped =>
     JSON.parse(
       execFileSync(process.execPath, [cli, ...args, "--workspace", root], {
         env,
@@ -236,18 +255,18 @@ test("the CLI pulls and resumes as the person at the command line", async () => 
   );
   assert.deepEqual(stop.by, { kind: "person", name: "cli" });
   const { stop: resumed } = run("flow", "resume", stop.id);
-  assert.equal(resumed.resumedBy.by, "cli");
+  assert.equal(resumed.resumedBy?.by, "cli");
 });
 
 test("a blocked report stops the line only when a dependent names its blocker", (t) => {
   const { store } = setup(t);
   store.mutate("integrate a1", (data) => {
-    data.tasks.find((x) => x.id === "a1").integration = {
+    found(data.tasks.find((x: Task) => x.id === "a1")).integration = {
       commit: "a".repeat(40),
       at: "2026-11-12T00:00:00Z",
     };
   });
-  const blocked = (taskId, text) =>
+  const blocked = (taskId: string, text: string) =>
     store.put("session_bindings", {
       id: "w-" + taskId,
       slot: "w-" + taskId,
@@ -266,7 +285,7 @@ test("a blocked report stops the line only when a dependent names its blocker", 
   blocked("a2", "a1 broke the build");
   blockedNaming(store, {});
   assert.deepEqual(
-    openStops(store).map((s) => s.culprit),
+    openStops(store).map((s: { culprit?: string }) => s.culprit),
     ["a1"],
   );
 });

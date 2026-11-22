@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // plugin-credentials pc-3.1: Avoozl's own network git signs in through
 // `avoozl credential`, the same provider and job table as the API. A fake
 // smart-HTTP remote on 127.0.0.1 checks Basic auth and runs git http-backend.
@@ -7,7 +6,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { checkEnvironment, remoteGit, withoutPushCredentials } from "../git.ts";
 import { sandboxEnv } from "../../executors/sandbox.ts";
 import { credentialAnswer } from "../../github/credential-helper.ts";
@@ -25,19 +24,23 @@ import {
   serveGit,
 } from "../../test/git-http.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
+import { found } from "../../test/view-shapes.ts";
 
 const APP = path.join(import.meta.dirname, "..", "..");
-const run = (cwd, ...args) =>
+const run = (cwd: string, ...args: string[]) =>
   execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
 
 // Bare repositories under `root/remotes`, served by git http-backend. A
 // request's token is recorded by repository path; `accept(token, path)`
 // decides 401 or not. GET /api/user names a built-in token's login.
-async function smartHttp(root, accept) {
+async function smartHttp(
+  root: string,
+  accept: (token: string, repo: string) => boolean,
+) {
   const project = path.join(root, "remotes"),
-    seen = [];
+    seen: { repo: string; token: string }[] = [];
   const server = http.createServer((req, res) => {
-    const url = new URL(req.url, "http://x");
+    const url = new URL(req.url ?? "/", "http://x");
     if (url.pathname === "/api/user") {
       res.writeHead(200, { "content-type": "application/json" });
       return res.end(JSON.stringify({ login: "env-person" }));
@@ -48,11 +51,13 @@ async function smartHttp(root, accept) {
     seen.push({ repo, token });
     serveGit(req, res, project);
   });
-  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
-  return { server, seen, port: server.address().port, project };
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  return { server, seen, port: address.port, project };
 }
 
-function bare(project, repo) {
+function bare(project: string, repo: string) {
   const dir = path.join(project, `${repo}.git`);
   fs.mkdirSync(dir, { recursive: true });
   run(dir, "init", "-q", "--bare", "-b", "main");
@@ -60,7 +65,7 @@ function bare(project, repo) {
   return dir;
 }
 
-async function setup(t) {
+async function setup(t: TestContext) {
   const root = temporaryDirectory("avoozl-remote-git-"),
     fake = await smartHttp(root, (token, repo) =>
       repo.startsWith("acme/")
@@ -81,7 +86,7 @@ async function setup(t) {
       KIROCREW_SPAWNED: "",
       KIRO_SESSION_ID: "",
     },
-    saved = {};
+    saved: Record<string, string | undefined> = {};
   for (const [key, value] of Object.entries(env)) {
     saved[key] = process.env[key];
     process.env[key] = value;
@@ -105,6 +110,7 @@ async function setup(t) {
   });
   const options = { workspaceRoot: null, settingsFile },
     plugin = inspectPlugins(options)[0];
+  assert.ok("hash" in plugin, "the plugin loads");
   approvePlugin(options, {
     id: plugin.id,
     version: plugin.version,
@@ -151,12 +157,12 @@ test("push and fetch sign in with the provider's token for that repository; anot
     ),
     "Person <person@example.com> | Person <person@example.com>",
   );
-  assert.ok(byRepo["acme/api"].every((s) => s.token.startsWith("fake.")));
-  assert.ok(byRepo["octo/tools"].every((s) => s.token === "env-token"));
+  const acme = found(byRepo["acme/api"]),
+    octo = found(byRepo["octo/tools"]);
+  assert.ok(acme.every((s) => s.token.startsWith("fake.")));
+  assert.ok(octo.every((s) => s.token === "env-token"));
   // Separate tokens for land and check-in on acme/api.
-  assert.ok(
-    new Set(byRepo["acme/api"].map((s) => s.token.split(".")[1])).size >= 2,
-  );
+  assert.ok(new Set(acme.map((s) => s.token.split(".")[1])).size >= 2);
 });
 
 test("a pre-push hook and git's environment never hold the token", async (t) => {
@@ -191,7 +197,7 @@ test("the helper answers only its host, repository and https, never in an agent,
     credentials = {
       token: async () => ({ token: "t0k" }),
     },
-    ask = (request, extra = {}) =>
+    ask = (request: Record<string, string>, extra = {}) =>
       credentialAnswer(
         "get",
         {
@@ -244,8 +250,9 @@ test("no network git call in src/app runs outside remoteGit", () => {
       .split("\n")
       .filter((f) => /\.(mjs|ts)$/.test(f) && !f.includes("/test/")),
     // Plugin fetches keep the person's own git (R34.13).
-    exempt = (f) => f.endsWith("plugin-git.ts") || f.endsWith("git/git.ts"),
-    found = [];
+    exempt = (f: string) =>
+      f.endsWith("plugin-git.ts") || f.endsWith("git/git.ts"),
+    unwrapped: string[] = [];
   for (const file of files) {
     if (exempt(file)) continue;
     const text = fs.readFileSync(path.join(APP, "..", "..", file), "utf8");
@@ -257,9 +264,9 @@ test("no network git call in src/app runs outside remoteGit", () => {
           text.slice(Math.max(0, m.index - 40), m.index + 5),
         )
       )
-        found.push(`${file}: ${m[2]}`);
+        unwrapped.push(`${file}: ${m[2]}`);
   }
-  assert.deepEqual(found, []);
+  assert.deepEqual(unwrapped, []);
   const all = files
     .filter((f) => !exempt(f))
     .map((f) => fs.readFileSync(path.join(APP, "..", "..", f), "utf8"))

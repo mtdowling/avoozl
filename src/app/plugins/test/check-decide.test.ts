@@ -1,10 +1,9 @@
-// @ts-nocheck: typing debt
 // The decide prompt (plugin-checks pk-1.4, D5, PK3): a read-only model call
 // answers whether one plugin check is needed for one task. The tick only
 // queues and dispatches; a bound session answers; bad answers count as
 // needed; a person can flip one until the task's next commit.
 import assert from "node:assert/strict";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import {
   decideAnswer,
   decideId,
@@ -25,12 +24,36 @@ import {
 } from "../../test/delivery-fixture.ts";
 import { pluginWorkspace } from "../../test/plugin-checks-fixture.ts";
 import { loopOn } from "../../test/fixtures.ts";
+import { found, storedRow } from "../../test/view-shapes.ts";
+import type { Operations } from "../../api/operations.ts";
+import type { Store } from "../../store/store.ts";
+
+// One decide call's record.
+interface DecideRecord {
+  id: string;
+  kind: string;
+  taskId: string;
+  at: string;
+  state: string;
+  commit?: string;
+  input?: string;
+  cause?: string;
+}
+// A task's plugin check fields, as task.get and task.detail show them.
+interface PluginChecks {
+  results: { name: string; result: string; filter?: string }[];
+  decides: { reason: string }[];
+}
 
 // The tick starts and lands work only with the server loop on.
 loopOn();
 
 // Only parity, at task stage, with its decide prompt at `decideAt`.
-const decideWorkspace = (t, decideAt = ["diff"], extra = {}) =>
+const decideWorkspace = (
+  t: TestContext,
+  decideAt = ["diff"],
+  extra: Parameters<typeof pluginWorkspace>[1] = {},
+) =>
   pluginWorkspace(t, {
     edit: (m) => {
       delete m.checks["parity-review"];
@@ -40,17 +63,24 @@ const decideWorkspace = (t, decideAt = ["diff"], extra = {}) =>
     },
     ...extra,
   });
-const tick = (ops, slots = []) =>
+const tick = (ops: Operations, slots: string[] = []) =>
   ops.execute("workspace.tick", {
     cron: true,
     sessions: slots.map((target) => ({ target, status: "idle" })),
   });
 const api = { "src/api/handler.js": "export const x = 2;\n" };
-const decides = (store) =>
-  store.list("flow_records").filter((r) => r.kind === "check-decide");
+const decides = (store: Store) =>
+  store
+    .list<DecideRecord>("flow_records")
+    .filter((r) => r.kind === "check-decide");
 
 // Answer a queued call as its bound session would.
-async function answer(ops, record, input, slot = `d-${record.id.length}`) {
+async function answer(
+  ops: Operations,
+  record: { id: string },
+  input: Record<string, unknown>,
+  slot = `d-${record.id.length}`,
+) {
   await bind(ops, record.id, slot, "check-decide", 1);
   return ops.execute("check.decide.submit", input, undefined, as(slot));
 }
@@ -65,7 +95,10 @@ test("pk-1.4: approval queues one approve call per applicable task, and a true t
     }),
     { store, ops } = workspace;
   store.put("plans", { id: "p", spec: "p", state: "approved" });
-  const { dispatch } = decideStep(store, { config: {} });
+  const dispatch: { role: string; task: string; brief: string }[] = decideStep(
+    store,
+    { config: {} },
+  ).dispatch;
   assert.deepEqual(
     decides(store)
       .map((r) => [r.taskId, r.at, r.state])
@@ -87,20 +120,23 @@ test("pk-1.4: approval queues one approve call per applicable task, and a true t
   // A second tick queues nothing more.
   decideStep(store, { config: {} });
   assert.equal(decides(store).length, 2);
-  const first = decides(store).find((r) => r.taskId === "a");
+  const first = found(decides(store).find((r) => r.taskId === "a"));
   await answer(ops, first, { needed: true, reason: "It changes a handler." });
-  assert.deepEqual(decideAnswer(store, "a", workspace.check("parity"), null), {
-    state: "needed",
-    reason: "It changes a handler.",
-    at: "approve",
-  });
+  assert.deepEqual(
+    decideAnswer(store, "a", found(workspace.check("parity")), null),
+    {
+      state: "needed",
+      reason: "It changes a handler.",
+      at: "approve",
+    },
+  );
   // The run asks no diff call and runs the check.
   await workerDone(ops, "a", "w-1", 1, api);
   await tick(ops, ["w-1"]);
   await drainCheckRuns(store);
   const [run] = checkRuns(store);
   assert.equal(run.state, "finished");
-  assert.ok(run.selected.includes("parity"));
+  assert.ok(run.selected?.includes("parity"));
   assert.equal(
     decides(store).filter((r) => r.taskId === "a" && r.at === "diff").length,
     0,
@@ -118,7 +154,7 @@ test("pk-1.4: a done report queues one diff call; the run waits while Deciding, 
   assert.equal(waiting.waiting, "deciding: parity");
   const [call] = decides(store);
   assert.deepEqual([call.at, call.commit], ["diff", commit]);
-  assert.match(call.input, /^diff --git a\/src\/api\/handler\.js/m);
+  assert.match(call.input ?? "", /^diff --git a\/src\/api\/handler\.js/m);
   // A second pass asks no second call.
   await drainCheckRuns(store);
   assert.equal(decides(store).length, 1);
@@ -139,10 +175,12 @@ test("pk-1.4: a done report queues one diff call; the run waits while Deciding, 
     },
   ]);
   await tick(ops, ["w-1"]);
-  assert.equal(store.get("task_deliveries", "a").state, "integrated");
+  assert.equal(storedRow(store, "task_deliveries", "a").state, "integrated");
   // avoozl show and the MCP task read (task.get) and the page return the
   // same plugin check fields (PK8.2).
-  const shown = await ops.execute("task.get", { id: "a" });
+  const shown = await ops.execute<{ pluginChecks: PluginChecks }>("task.get", {
+    id: "a",
+  });
   assert.deepEqual(
     shown.pluginChecks.results.map((r) => [r.name, r.result, r.filter]),
     [["parity", "skipped", "decide"]],
@@ -151,7 +189,10 @@ test("pk-1.4: a done report queues one diff call; the run waits while Deciding, 
     shown.pluginChecks.decides[0].reason,
     "Only an internal helper.",
   );
-  const page = await ops.execute("task.detail", { id: "a" });
+  const page = await ops.execute<{ task: { pluginChecks: PluginChecks } }>(
+    "task.detail",
+    { id: "a" },
+  );
   assert.deepEqual(page.task.pluginChecks, shown.pluginChecks);
   // The answer stays in this workspace's database only.
   assert.doesNotMatch(
@@ -163,7 +204,7 @@ test("pk-1.4: a done report queues one diff call; the run waits while Deciding, 
 test("pk-1.4: bad output, a failed call, a timeout, no answer and a large input count as needed", async (t) => {
   const workspace = decideWorkspace(t),
     { store, ops } = workspace,
-    check = workspace.check("parity"),
+    check = found(workspace.check("parity")),
     task = { id: "a", title: "Task a" };
   const one = queueDecide(store, {
     task,
@@ -180,7 +221,7 @@ test("pk-1.4: bad output, a failed call, a timeout, no answer and a large input 
   assert.deepEqual(
     [
       decideAnswer(store, "a", check, "c1").state,
-      store.get("flow_records", one.id).cause,
+      storedRow<DecideRecord>(store, "flow_records", one.id).cause,
     ],
     ["needed", "bad output"],
   );
@@ -203,7 +244,7 @@ test("pk-1.4: bad output, a failed call, a timeout, no answer and a large input 
   });
   decideStep(store, { config: {} });
   assert.equal(
-    store.get("flow_records", three.id).cause,
+    storedRow<DecideRecord>(store, "flow_records", three.id).cause,
     "no answer in 10 minutes",
   );
   const big = queueDecide(store, {
@@ -227,7 +268,7 @@ test("pk-1.4: bad output, a failed call, a timeout, no answer and a large input 
 test("pk-1.4: Run it and Skip it are a person's, and a new commit drops the flip", async (t) => {
   const workspace = decideWorkspace(t),
     { store, ops } = workspace,
-    check = workspace.check("parity");
+    check = found(workspace.check("parity"));
   assert.equal(OPERATIONS.get("check.decide.flip").policy.kind, "person");
   await assert.rejects(
     ops.execute(
@@ -248,12 +289,13 @@ test("pk-1.4: Run it and Skip it are a person's, and a new commit drops the flip
   assert.equal(decideAnswer(store, "a", check, commit).state, "skip");
   assert.equal(decideAnswer(store, "a", check, "f".repeat(40)).state, "none");
   // The role reads only its snapshot, offline, with one small answer file.
-  const row = ROLE_TABLE.checkDecide;
+  const row = ROLE_TABLE.checkDecide,
+    output = found(row.output);
   assert.deepEqual(
-    [row.access, row.folder, row.offline, row.output.limit, row.hands],
+    [row.access, row.folder, row.offline, output.limit, row.hands],
     ["read", "snapshot", true, 1024, "decide"],
   );
-  assert.throws(() => row.output.validate('{"needed": "no", "reason": "x"}'));
+  assert.throws(() => output.validate('{"needed": "no", "reason": "x"}'));
   assert.equal(
     decideId("a", check, "approve"),
     "check-decide:a:acme-checks:parity:approve",

@@ -1,9 +1,8 @@
-// @ts-nocheck: typing debt
 // Epics span plans, phases sit inside plans (Requirement 59, design §6.9):
 // the spec reader's epic folders and validation codes, phases from the
 // manifest and tasks.md headings, two-sided membership, and the reads.
 import assert from "node:assert/strict";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { crossPlanEpics } from "../epics.ts";
 import { Operations } from "../../api/operations.ts";
 import { Store } from "../../store/store.ts";
@@ -16,10 +15,24 @@ import {
 import { fixture } from "../../test/fixtures.ts";
 import { writeSpec } from "../../test/spec-fixture.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
+import {
+  found,
+  type PlanDraft,
+  type PlanPreview,
+} from "../../test/view-shapes.ts";
+import type { Task } from "../../../types.ts";
+
+// One spec's plan folder: its front matter, tasks.md body, and manifest.
+interface PlanFolder {
+  front?: string;
+  tasks: string;
+  entries: Record<string, unknown>;
+  extra?: Record<string, unknown>;
+}
 
 process.env.XDG_CONFIG_HOME = temporaryDirectory("avoozl-xdg-");
 
-function workspace(t) {
+function workspace(t: TestContext) {
   const { root, store } = fixture(t);
   return { root, store, ops: new Operations(store, { workspaceRoot: root }) };
 }
@@ -33,11 +46,15 @@ const leaf = (extra = {}) => ({
   ...extra,
 });
 
-const requirements = (title, front = "") =>
+const requirements = (title: string, front = "") =>
   `${front ? `---\n${front}\n---\n` : ""}# ${title}\n\nThe goal.\n`;
 
 // A plan folder with the given tasks.md body and manifest entries.
-function plan(root, name, { front = "", tasks, entries, extra = {} }) {
+function plan(
+  root: string,
+  name: string,
+  { front = "", tasks, entries, extra = {} }: PlanFolder,
+) {
   writeSpec(root, name, {
     "requirements.md": requirements(`Plan ${name}`, front),
     "tasks.md": `# Tasks\n\n${tasks}`,
@@ -50,7 +67,12 @@ function plan(root, name, { front = "", tasks, entries, extra = {} }) {
 }
 
 // An epic folder listing `members` (spec names), in order.
-function epic(root, name, members, entryExtra = {}) {
+function epic(
+  root: string,
+  name: string,
+  members: string[],
+  entryExtra: Record<string, unknown> = {},
+) {
   writeSpec(root, name, {
     "requirements.md": `# Epic ${name}\n\nRewrite the runtime.\n\n## What done means\n\nEvery member plan is done.\n`,
     "design.md": "# Design\n\nAlpha, then beta.\n",
@@ -71,13 +93,14 @@ function epic(root, name, members, entryExtra = {}) {
   });
 }
 
-const lint = (ops, name) =>
+const lint = (ops: Operations, name: string) =>
   lintSpec({
-    spec: readSpecFolder(ops.workspaceRoot, name),
+    spec: readSpecFolder(found(ops.workspaceRoot), name),
     plan: { id: name },
     namespace: ops.specNamespace(),
   });
-const codes = (quality) => quality.diagnostics.map((d) => [d.code, d.severity]);
+const codes = (quality: ReturnType<typeof lintSpec>) =>
+  quality.diagnostics.map((d) => [d.code, d.severity]);
 
 test("front-matter names an epic beside a category; a bad name is a problem", () => {
   const block = frontMatter(
@@ -88,9 +111,9 @@ test("front-matter names an epic beside a category; a bad name is a problem", ()
   assert.equal(block.epicLine, 3);
   const bad = frontMatter("---\nepic: Not A Folder\n---\n# T\n");
   assert.equal(bad.epic, null);
-  assert.match(bad.problem.message, /spec folder name/);
+  assert.match(bad.problem?.message ?? "", /spec folder name/);
   assert.match(
-    frontMatter("---\nepic: a\nepic: b\n---\n").problem.message,
+    frontMatter("---\nepic: a\nepic: b\n---\n").problem?.message ?? "",
     /twice/,
   );
 });
@@ -116,9 +139,11 @@ test("phases come from the nearest heading, else No phase", () => {
   );
 });
 
-async function approve(ops, name) {
-  const created = await ops.execute("plan.create", { spec: name });
-  const preview = await ops.execute("plan.preview", { id: created.id });
+async function approve(ops: Operations, name: string) {
+  const created = await ops.execute<PlanDraft>("plan.create", { spec: name });
+  const preview = await ops.execute<PlanPreview>("plan.preview", {
+    id: created.id,
+  });
   return ops.execute("plan.approve", {
     id: created.id,
     expectedHash: created.hash,
@@ -141,7 +166,9 @@ test("a task names no epic, and its phase is {id, title}", async (t) => {
     epic: null,
     phase: { id: "w1", title: "W1" },
   });
-  const task = ops.read().tasks.find((entry) => entry.id === "sample-task");
+  const sample = () =>
+    found(ops.read().tasks.find((entry: Task) => entry.id === "sample-task"));
+  const task = sample();
   assert.deepEqual(
     [task.epic, task.phase],
     [undefined, { id: "w1", title: "W1" }],
@@ -151,10 +178,7 @@ test("a task names no epic, and its phase is {id, title}", async (t) => {
     /phase is/,
   );
   await ops.execute("task.update", { id: "sample-task", phase: null });
-  assert.equal(
-    ops.read().tasks.find((entry) => entry.id === "sample-task").phase,
-    undefined,
-  );
+  assert.equal(sample().phase, undefined);
   // An archive may say why; an unarchive clears it.
   await assert.rejects(
     ops.execute("task.archive", { id: "sample-task", reason: "two\nlines" }),
@@ -164,20 +188,13 @@ test("a task names no epic, and its phase is {id, title}", async (t) => {
     id: "sample-task",
     reason: "plan removed",
   });
-  assert.equal(
-    ops.read().tasks.find((entry) => entry.id === "sample-task").archivedReason,
-    "plan removed",
-  );
+  assert.equal(sample().archivedReason, "plan removed");
   await ops.execute("task.unarchive", { id: "sample-task" });
-  assert.equal(
-    ops.read().tasks.find((entry) => entry.id === "sample-task").archivedReason,
-    undefined,
-  );
+  assert.equal(sample().archivedReason, undefined);
   // A long title imported before the limit does not block another field.
   ops.store.mutate("Long title", (data) => {
-    data.tasks.find((entry) => entry.id === "sample-task").title = "x".repeat(
-      300,
-    );
+    found(data.tasks.find((entry: Task) => entry.id === "sample-task")).title =
+      "x".repeat(300);
   });
   await ops.execute("task.update", {
     id: "sample-task",
@@ -191,9 +208,9 @@ test("a task names no epic, and its phase is {id, title}", async (t) => {
 
 // Epic rows from before Requirement 59 and tasks that name them, written
 // as an older Avoozl left them: no planId, and no commit to give one.
-function writeLegacy(store) {
+function writeLegacy(store: Store) {
   const data = structuredClone(store.read()),
-    task = (id, epic, extra = {}) => ({
+    task = (id: string, epic: string, extra = {}) => ({
       id,
       title: `Task ${id}`,
       scope: "catalog",
@@ -232,9 +249,12 @@ function writeLegacy(store) {
   store.write(data);
 }
 
-const owners = (store) =>
+const owners = (store: Store) =>
   Object.fromEntries(
-    store.read().epics.map((epic) => [epic.id, [epic.kind, epic.planId]]),
+    (store.read().epics ?? []).map((epic) => [
+      epic.id,
+      [epic.kind, epic.planId],
+    ]),
   );
 
 test("an epic from before Requirement 59 gets its plan on open, once", async (t) => {
@@ -244,7 +264,7 @@ test("an epic from before Requirement 59 gets its plan on open, once", async (t)
   await approve(ops, "alpha");
   await approve(ops, "beta");
   writeLegacy(store);
-  const before = store.read().revision;
+  const before = found(store.read().revision);
   store.close();
 
   const opened = new Store(store.filename);
@@ -255,10 +275,15 @@ test("an epic from before Requirement 59 gets its plan on open, once", async (t)
     mixed: ["doc", "mixed"],
     unnamed: ["doc", "unnamed"],
   });
-  const w1 = opened.read().epics.find((epic) => epic.id === "W1");
+  const w1 = found(
+    (opened.read().epics ?? []).find((epic) => epic.id === "W1"),
+  );
   assert.equal(w1.color, "#a7b8ff", "the row keeps what it had");
   assert.equal(opened.read().revision, before + 1);
-  assert.match(opened.read().changelog[0].summary, /Requirement 59/);
+  assert.match(
+    String(found(opened.read().changelog?.[0]).summary),
+    /Requirement 59/,
+  );
   assert.equal(
     crossPlanEpics(opened.read()).length,
     0,

@@ -62,6 +62,31 @@ export interface TickResult {
   [key: string]: unknown;
 }
 
+// A line stop as flow.stop, flow.resume and flow.view answer it.
+export interface FlowStop {
+  id: string;
+  scope: string;
+  manual?: boolean;
+  full?: boolean;
+  reason?: string;
+  by?: unknown;
+  who?: string;
+  openedAt?: string;
+  closedAt?: string | null;
+  resumedBy?: { by?: string };
+  timeToFixMs?: number;
+  [key: string]: unknown;
+}
+// What flow.stop and flow.resume answer.
+export type FlowStopped = { stop: FlowStop };
+// flow.view, as far as tests read it.
+export interface FlowView {
+  line: FlowStop[];
+  stops: FlowStop[];
+  series: { day: { stops: number }[] };
+  [key: string]: unknown;
+}
+
 // A plan as plan.create returns it, and plan.preview's revision to approve at.
 export interface PlanDraft {
   id: string;
