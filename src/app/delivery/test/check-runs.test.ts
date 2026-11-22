@@ -1,11 +1,10 @@
-// @ts-nocheck: typing debt
 // Checks in code (design §5.2 Checks): a command-only bar is checked by
 // Avoozl itself in a clean detached worktree. One
 // test per rule; each lists the nearby inputs it checks.
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { checkRuns, drainCheckRuns, outputTail } from "../check-runs.ts";
 import { startCheckRunners } from "../check-runner.ts";
 import { listSpans } from "../../flow/flow.ts";
@@ -16,13 +15,43 @@ import {
   workerDone,
 } from "../../test/delivery-fixture.ts";
 import { loopOn } from "../../test/fixtures.ts";
+import { found, storedRow, type TickResult } from "../../test/view-shapes.ts";
+import type { Operations } from "../../api/operations.ts";
+import type { Store } from "../../store/store.ts";
+import type { Task } from "../../../types.ts";
+
+// A task's delivery record, for the fields these tests read.
+interface Delivery {
+  id: string;
+  state: string;
+  commit?: string;
+  attempts: { outcome: string; cause?: string }[];
+  verifications: {
+    role?: string;
+    by?: string;
+    outcome?: string;
+    commit?: string;
+    cause?: string;
+    attempt?: number;
+    checks: { tail: string }[];
+  }[];
+  [key: string]: unknown;
+}
+const delivered = (store: Store) =>
+  storedRow<Delivery>(store, "task_deliveries", "a");
 
 // The tick starts and lands work only with the server loop on.
 loopOn();
 
 const node = process.execPath;
 
-const setup = (t, { tasks = [leaf("a")], checks = [["git", "status"]] } = {}) =>
+const setup = (
+  t: TestContext,
+  {
+    tasks = [leaf("a")],
+    checks = [["git", "status"]],
+  }: { tasks?: Task[]; checks?: string[][] } = {},
+) =>
   deliveryWorkspace(t, {
     prefix: "avoozl-checkrun-",
     tasks,
@@ -30,12 +59,12 @@ const setup = (t, { tasks = [leaf("a")], checks = [["git", "status"]] } = {}) =>
   });
 
 // The script cron's tick: a roster (even empty) marks it.
-const tick = (ops, slots = []) =>
-  ops.execute("workspace.tick", {
+const tick = (ops: Operations, slots: string[] = []) =>
+  ops.execute<TickResult>("workspace.tick", {
     sessions: slots.map((target) => ({ target, status: "idle" })),
   });
 
-const worktrees = (checkout) =>
+const worktrees = (checkout: string) =>
   git(checkout, "worktree", "list", "--porcelain")
     .split("\n")
     .filter((line) => line.startsWith("worktree "));
@@ -66,16 +95,17 @@ test("a command-only bar opens no verifier chat: Avoozl runs the checks at the e
   assert.equal(checkRuns(store).length, 1, "one run per commit");
   const before = worktrees(checkout).length;
   await drainCheckRuns(store);
-  const [run] = checkRuns(store);
+  const [run] = checkRuns(store),
+    ranChecks = found(run.checks);
   assert.equal(run.state, "finished");
   assert.equal(run.head, commit);
-  assert.equal(run.checks[0].exitCode, 0);
-  assert.match(run.checks[0].tail, /ok from checks/);
+  assert.equal(ranChecks[0].exitCode, 0);
+  assert.match(ranChecks[0].tail ?? "", /ok from checks/);
   assert.equal(worktrees(checkout).length, before, "the worktree is removed");
   await tick(ops, ["w-1"]);
-  const delivery = store.get("task_deliveries", "a");
+  const delivery = delivered(store);
   assert.equal(delivery.state, "integrated");
-  const entry = delivery.verifications.at(-1);
+  const entry = found(delivery.verifications.at(-1));
   assert.deepEqual(
     [entry.role, entry.by, entry.outcome, entry.commit],
     [undefined, "avoozl", "accepted", commit],
@@ -112,9 +142,10 @@ test("the detached runner finishes checks after the tick path returns", async (t
   )
     await new Promise((resolve) => setTimeout(resolve, 50));
 
-  const [run] = checkRuns(store);
+  const [run] = checkRuns(store),
+    ranChecks = found(run.checks);
   assert.equal(run.state, "finished");
-  assert.match(run.checks[0].tail, /detached check done/);
+  assert.match(ranChecks[0].tail ?? "", /detached check done/);
 });
 
 test("a failing check fails the writer's attempt, with a short redacted tail", async (t) => {
@@ -128,13 +159,13 @@ test("a failing check fails the writer's attempt, with a short redacted tail", a
   await tick(ops, ["w-1"]);
   await drainCheckRuns(store);
   const retried = await tick(ops, ["w-1"]);
-  const delivery = store.get("task_deliveries", "a");
+  const delivery = delivered(store);
   assert.equal(delivery.state, "failed");
   assert.match(
-    delivery.attempts[0].cause,
+    delivery.attempts[0].cause ?? "",
     /checks failed: check `.+` exited 3/,
   );
-  const tail = delivery.verifications.at(-1).checks[0].tail;
+  const tail = found(delivery.verifications.at(-1)).checks[0].tail;
   assert.equal(tail.split("\n").length, 20);
   assert.doesNotMatch(tail, /line 0\b/);
   assert.doesNotMatch(tail, /ghp_/);
@@ -159,17 +190,18 @@ test("a check that times out or cannot start is the checking's failure, not the 
   await workerDone(ops, "a", "w-1");
   await tick(ops, ["w-1"]);
   await drainCheckRuns(store, { timeoutMs: 300 });
-  const [run] = checkRuns(store);
-  assert.equal(run.checks[0].exitCode, null);
-  assert.match(run.checks[0].notRun, /timed out/);
-  assert.equal(run.checks[1].exitCode, null);
-  assert.ok(run.checks[1].notRun);
+  const [run] = checkRuns(store),
+    ranChecks = found(run.checks);
+  assert.equal(ranChecks[0].exitCode, null);
+  assert.match(ranChecks[0].notRun ?? "", /timed out/);
+  assert.equal(ranChecks[1].exitCode, null);
+  assert.ok(ranChecks[1].notRun);
   await tick(ops, ["w-1"]);
-  let delivery = store.get("task_deliveries", "a");
+  let delivery = delivered(store);
   assert.equal(delivery.state, "done", "the writer's attempt stands");
   assert.equal(delivery.attempts[0].outcome, "done");
   assert.match(
-    delivery.verifications.at(-1).cause,
+    found(delivery.verifications.at(-1)).cause ?? "",
     /checks not run: .+timed out/,
   );
   assert.deepEqual(
@@ -184,7 +216,7 @@ test("a check that times out or cannot start is the checking's failure, not the 
   );
   await drainCheckRuns(store, { timeoutMs: 300 });
   await tick(ops, ["w-1"]);
-  delivery = store.get("task_deliveries", "a");
+  delivery = delivered(store);
   assert.equal(delivery.state, "decision", "past the retry bound");
   assert.equal(checkRuns(store).length, 2);
 });
@@ -197,33 +229,34 @@ test("a run at the wrong commit runs nothing, and a stale run judges nothing", a
   await ops.execute("workspace.tick", {});
   const missing = "0".repeat(40);
   store.put("task_deliveries", {
-    ...store.get("task_deliveries", "a"),
+    ...delivered(store),
     commit: missing,
   });
   await tick(ops, ["w-1"]);
   await drainCheckRuns(store);
-  const [run] = checkRuns(store);
+  const [run] = checkRuns(store),
+    ranChecks = found(run.checks);
   assert.equal(run.commit, missing);
-  assert.ok(run.checks.every((c) => c.exitCode === null && c.notRun));
-  assert.match(run.checks[0].notRun, /no worktree at 000000000000/);
+  assert.ok(ranChecks.every((c) => c.exitCode === null && c.notRun));
+  assert.match(ranChecks[0].notRun ?? "", /no worktree at 000000000000/);
   await tick(ops, ["w-1"]);
-  assert.equal(store.get("task_deliveries", "a").attempts[0].outcome, "done");
+  assert.equal(delivered(store).attempts[0].outcome, "done");
   assert.match(
-    store.get("task_deliveries", "a").verifications.at(-1).cause,
+    found(delivered(store).verifications.at(-1)).cause ?? "",
     /checks not run/,
   );
 
   // The queued run is for the old commit; the delivery moved on.
   const [second] = checkRuns(store).filter((r) => r.state === "queued");
   store.put("task_deliveries", {
-    ...store.get("task_deliveries", "a"),
+    ...delivered(store),
     commit,
   });
   await drainCheckRuns(store);
   await tick(ops, ["w-1"]);
-  const delivery = store.get("task_deliveries", "a");
-  const stale = delivery.verifications.find(
-    (v) => v.attempt === second.attempt,
+  const delivery = delivered(store);
+  const stale = found(
+    delivery.verifications.find((v) => v.attempt === second.attempt),
   );
   assert.equal(stale.commit, missing, "history on the old commit");
   assert.equal(delivery.state, "done", "nothing judged on the new commit");
