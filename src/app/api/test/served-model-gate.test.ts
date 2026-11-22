@@ -37,8 +37,8 @@ interface Binding {
 }
 // A delivery.view card's sessions and review rounds.
 interface ServedCard {
-  sessions: { slot: string; model?: string; served: unknown }[];
-  rounds: { verdicts: { role: string; served?: string }[] }[];
+  sessions: { slot: string; model?: string | null; served: unknown }[];
+  rounds: { verdicts: { role: string; served?: string | null }[] }[];
 }
 const delivery = (store: Store) =>
   storedRow<Delivery>(store, "task_deliveries", "w1");

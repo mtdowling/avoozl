@@ -1300,7 +1300,11 @@ function graphOrder(data) {
 // order. Within one rank, a task that unblocks more open tasks goes first
 // (R86.2). The page's Up next list sorts by the same comparator (graph.view
 // `order`), so the two never disagree.
-export function dispatchOrder(data, first = [], order = graphOrder(data)) {
+export function dispatchOrder(
+  data,
+  first: string[] = [],
+  order = graphOrder(data),
+) {
   const head = new Map(first.map((id, i) => [id, i])),
     pin = (task) => (head.has(task.id) ? head.get(task.id) : first.length),
     rank = (task) => task.rank ?? task.labelRank ?? 1000,

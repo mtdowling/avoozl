@@ -22,6 +22,22 @@ type Plan = {
   deletedAt?: string;
   archivedAt?: string;
 };
+// A draft task as the Graph draws it.
+export interface DraftTask {
+  id: string;
+  spec: string;
+  phase: Proposal["phase"];
+  repository: string | null;
+  [key: string]: unknown;
+}
+// An edge into a draft task.
+interface DraftEdge {
+  from: string;
+  to: string;
+  kind: string;
+  condition: unknown;
+  [key: string]: unknown;
+}
 const KIND_LIST = ["requires", "sequence", "supports"] as const;
 
 const BLOCKING = new Set(["requires", "sequence"]);
@@ -39,7 +55,7 @@ export function draftGraph(
   const stored = new Set(data.tasks.map((task) => task.id)),
     specs: { name: string; title: string; status: string; count: number }[] =
       [],
-    tasks: Record<string, unknown>[] = [],
+    tasks: DraftTask[] = [],
     pending: Proposal[] = [];
   for (const { name, spec } of folders) {
     const plan =
@@ -104,7 +120,7 @@ export function draftGraph(
   const drafts = new Set(pending.map((proposal) => proposal.id)),
     approved = new Set(data.tasks.map((task) => task.id)),
     known = (id: string) => drafts.has(id) || approved.has(id),
-    edges: Record<string, unknown>[] = [];
+    edges: DraftEdge[] = [];
   for (const proposal of pending)
     for (const kind of KIND_LIST)
       for (const ref of (proposal[kind] as string[] | undefined) || []) {

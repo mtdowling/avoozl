@@ -44,7 +44,7 @@ interface Item {
 interface Attempt {
   slot?: string;
   crew?: string;
-  status?: string;
+  status?: string | null;
   executor?: string;
   process?: unknown;
   crewUnreachable?: boolean;
