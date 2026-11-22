@@ -131,48 +131,6 @@ export interface ReviewRequestResult {
   comments: PlanReviewComment[]
 }
 
-function reviewExcerpt(text: string, lineStart: number | null): string {
-  const lines = text.split('\n')
-  const start = lineStart === null ? 0 : Math.max(0, lineStart - 4)
-  const end = lineStart === null ? Math.min(lines.length, 40) : Math.min(lines.length, lineStart + 3)
-  const shown = lines.slice(start, end).map((line, index) => `${start + index + 1} | ${line}`)
-  if (end < lines.length) shown.push(`… ${lines.length - end} more lines`)
-  return shown.join('\n')
-}
-
-// The exact review handoff for a spec-writing chat. It names the workspace
-// and folder so a worker never has to search for the right checkout, carries
-// the durable findings, and includes nearby current text so each requested
-// change is actionable before the worker opens a file.
-export function reviewReworkInstruction(request: ReviewRequestResult, context: { workspaceId: string; folder: string | null; files: Record<string, string> }): string {
-  const requested = new Set(request.commentIds)
-  const comments = request.comments.filter((comment) => requested.has(comment.id))
-  const findings = comments.flatMap((comment) => {
-    const location = `${comment.file}${comment.lineStart ? `:${comment.lineStart}` : ''}`
-    const revision = comment.revisionHash === request.revisionHash ? '' : ` (reviewed revision ${comment.revisionHash.slice(0, 12)})`
-    const current = context.files[comment.file]
-    return [
-      `- [${comment.id}] ${location}${revision}: ${comment.body}`,
-      ...(typeof current === 'string'
-        ? [
-            `  Current ${comment.file} text:\n${reviewExcerpt(current, comment.lineStart)
-              .split('\n')
-              .map((line) => `    ${line}`)
-              .join('\n')}`,
-          ]
-        : []),
-    ]
-  })
-  return [
-    `Revise exactly the changes requested for spec revision ${request.revisionHash}.`,
-    `Avoozl workspace: ${context.workspaceId}.`,
-    ...(context.folder ? [`Use this exact spec folder; do not search for another copy: ${context.folder}`] : []),
-    ...(request.reason ? [`Reviewer note: ${request.reason}`] : []),
-    ...(findings.length ? ['Required review findings:', ...findings] : []),
-    `Review snapshot: ${request.commentSnapshot}.`,
-  ].join('\n')
-}
-
 // A GitHub link built from validated fields (src/app/tasks/scm-links.ts).
 export interface ScmLink {
   kind: 'issue' | 'pull' | 'branch' | 'commit'

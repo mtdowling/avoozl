@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
-import { runLaunch, runSeed } from '../src/chat-api.ts'
+import { runSeed } from '../src/chat-api.ts'
 
 const source = (name: string) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
 
@@ -30,17 +30,6 @@ test('a task is worked with avoozl-work, by its ID', () => {
   assert.equal(runSeed({ kind: 'task', taskId: 's-1' }), 'Use the avoozl-work skill to work the task `s-1`.')
 })
 
-test('a spec-writing chat can require the write-capable Kiro Crew agent', () => {
-  const launch = runLaunch({ kind: 'spec', spec: 'search', review: false, agent: 'kirocrew' })
-  assert.equal(launch.agent, 'kirocrew')
-  assert.equal(launch.autoSend, true)
-  assert.match(launch.message, /revise the spec `search`/)
-  assert.deepEqual(runLaunch({ kind: 'task', taskId: 's-1' }), {
-    message: 'Use the avoozl-work skill to work the task `s-1`.',
-    autoSend: true,
-  })
-})
-
 test('a Needs you item is explained with avoozl, by its kind, reason, task, id and session', () => {
   const seed = runSeed({ kind: 'item', item: { kind: 'needs-human', reason: 'stale-claim', taskId: 's-1', id: 'stale-claim:o/app:avoozl/search/s-1', slot: 'chat-2' } })
   assert.match(
@@ -53,8 +42,8 @@ test('a Needs you item is explained with avoozl, by its kind, reason, task, id a
 })
 
 test('each place sends its seed through the chat launcher, sent at once', () => {
-  assert.match(source('ui/controls.tsx'), /openChat\(runLaunch\(target\)\)/)
-  assert.match(source('PlansView.tsx'), /runInChat\(\{ kind: 'spec', spec: specName\(next\), review: false, agent: 'kirocrew' \}\)/)
+  assert.match(source('ui/controls.tsx'), /openChat\(\{ message: runSeed\(target\), autoSend: true \}\)/)
+  assert.match(source('PlansView.tsx'), /runInChat\(\{ kind: 'spec', spec: specName\(next\), review: false \}\)/)
   assert.match(source('TaskDrawer.tsx'), /runInChat\(\{ kind: 'task', taskId: task\.id \}\)/)
   assert.match(source('ConflictsView.tsx'), /runInChat\(\{ kind: 'item', item: \{ \.\.\.itemRef\(current\), reason: current\.reason \} \}\)/)
   // On the standalone page the launch opens the Start a session dialog.

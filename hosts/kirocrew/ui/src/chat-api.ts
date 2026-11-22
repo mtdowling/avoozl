@@ -45,7 +45,7 @@ export function itemRef(item: ConflictItem): ItemRef {
 // revised with avoozl-spec or reviewed with avoozl-spec-review, a task is
 // worked with avoozl-work, and a Needs you item is explained with avoozl.
 export type RunTarget =
-  | { kind: 'spec'; spec: string; review: boolean; instruction?: string; agent?: string }
+  | { kind: 'spec'; spec: string; review: boolean; instruction?: string }
   | { kind: 'task'; taskId: string }
   | { kind: 'item'; item: ItemRef & { reason?: string } }
   | { kind: 'retro'; scope: string; days: number }
@@ -69,14 +69,6 @@ export function runSeed(target: RunTarget): string {
     ...(item.slot ? [`session \`${item.slot}\``] : []),
   ]
   return `Use the avoozl skill to look at the Needs you item with ${ids.join(', ')}. Explain why it needs me and what each choice would do, then recommend one. Change nothing until I say.`
-}
-
-export function runLaunch(target: RunTarget): { message: string; autoSend: true; agent?: string } {
-  return {
-    message: runSeed(target),
-    autoSend: true,
-    ...(target.kind === 'spec' && target.agent ? { agent: target.agent } : {}),
-  }
 }
 
 interface ActivityItem {

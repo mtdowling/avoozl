@@ -21,12 +21,11 @@ interface Plan {
       body: string;
       state: string;
       current: boolean;
-      resolution?: string;
     }[];
   };
 }
 
-test("sending a spec back consumes its comments and the next revision can be approved", async (t) => {
+test("spec review comments block approval and survive a changes request", async (t) => {
   const { root, store } = fixture(t),
     ops = new Operations(store, { workspaceRoot: root });
   writeSpec(root, "config");
@@ -63,7 +62,6 @@ test("sending a spec back consumes its comments and the next revision can be app
     revisionHash: string;
     commentIds: string[];
     commentSnapshot: string;
-    comments: { id: string; state: string }[];
   }>("plan.review.requestChanges", {
     id: plan.id,
     expectedHash: plan.hash,
@@ -72,36 +70,14 @@ test("sending a spec back consumes its comments and the next revision can be app
   assert.equal(request.revisionHash, plan.hash);
   assert.deepEqual(request.commentIds, [comment.id]);
   assert.equal(request.commentSnapshot, reviewed.review.commentSnapshot);
-  assert.deepEqual(
-    request.comments.map((item) => [item.id, item.state]),
-    [[comment.id, "open"]],
-  );
-  const storedComment = store.get<{
-    state: string;
-    resolution?: string;
-    resolvedAt?: string;
-    resolvedBy?: string;
-  }>("plan_review_comments", comment.id);
-  assert.equal(storedComment?.state, "resolved");
-  assert.equal(storedComment?.resolution, "Sent back for changes.");
 
-  // A request created before automatic resolution still consumes its comments.
-  if (storedComment) {
-    storedComment.state = "open";
-    delete storedComment.resolution;
-    delete storedComment.resolvedAt;
-    delete storedComment.resolvedBy;
-    store.put("plan_review_comments", { id: comment.id, ...storedComment });
-  }
-
+  await ops.execute("plan.review.resolve", {
+    commentId: comment.id,
+    resolution: "The revised design now names the retry boundary.",
+  });
   const unchanged = await ops.execute<Plan>("plan.get", { id: plan.id });
   assert.equal(unchanged.review.openCount, 0);
   assert.equal(unchanged.review.status, "changes-requested");
-  assert.equal(unchanged.review.comments[0].state, "resolved");
-  assert.equal(
-    unchanged.review.comments[0].resolution,
-    "Sent back for changes.",
-  );
   assert.equal(
     unchanged.review.activeRequest?.disposition,
     "changes-requested",
