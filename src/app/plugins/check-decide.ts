@@ -64,7 +64,21 @@ const taskText = (task) =>
 // call already asked is left as it is.
 export function queueDecide(
   store,
-  { task, check, at, commit = null, input, now = Date.now() },
+  {
+    task,
+    check,
+    at,
+    commit = null,
+    input,
+    now = Date.now(),
+  }: {
+    task: { id: string };
+    check: { name: string; plugin: { id: string } };
+    at: string;
+    commit?: string | null;
+    input: unknown;
+    now?: number;
+  },
 ) {
   const id = decideId(task.id, check, at, commit),
     known = store.get("flow_records", id);
@@ -247,7 +261,15 @@ export function decideSnapshot(store, request) {
 // that will never answer, and dispatch one session per queued call.
 export function decideStep(
   store,
-  { config, plugins = pluginChecksOf(store), now = Date.now() } = {},
+  {
+    config,
+    plugins = pluginChecksOf(store),
+    now = Date.now(),
+  }: {
+    config?: unknown;
+    plugins?: ReturnType<typeof pluginChecksOf>;
+    now?: number;
+  } = {},
 ) {
   if (!plugins.some((check) => check.decide)) return { dispatch: [] };
   const data = store.read(),

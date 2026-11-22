@@ -2223,7 +2223,7 @@ function githubTarget(method, args) {
 }
 
 const guarded = new WeakSet();
-export function guardGitHub(github, store) {
+export function guardGitHub<T>(github: T, store): T {
   if (!github || typeof github !== "object" || guarded.has(github))
     return github;
   const proxy = new Proxy(github, {

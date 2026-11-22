@@ -651,7 +651,10 @@ test("P28 (3), (7): a GitHub issue write and a reply naming a fake term", async 
   const { guardGitHub } = await import("../content/content-rules.ts");
   const client = guardGitHub(
     {
-      createIssue: async (_c: string, input: { title: string }) => {
+      createIssue: async (
+        _c: string,
+        input: { title: string; body?: string },
+      ) => {
         created.push(input.title);
         return { number: created.length };
       },

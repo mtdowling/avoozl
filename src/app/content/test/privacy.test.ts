@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The privacy scan (task 56.11, Requirement 102.16-102.25, design §4.32.4):
 // no public write or outgoing push names this machine, a host, an internal
 // domain or a home path, and a refusal comes before the first write. Every
@@ -7,7 +6,7 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import {
   allowOnce,
   bindContentRules,
@@ -17,18 +16,23 @@ import {
 
 import { Store } from "../../store/store.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
+import type { Refusal } from "../../test/refusal.ts";
+
+// The fake client's write calls, each answering a made-up issue.
+type Write = (...args: unknown[]) => Promise<unknown>;
+type Writer = Record<string, Write>;
+// A refusal the content screen throws.
+type Blocked = Refusal & { contentBlocked?: boolean };
 
 process.env.XDG_CONFIG_HOME = temporaryDirectory("avoozl-xdg-");
-process.env.GIT_CONFIG_GLOBAL = path.join(
-  process.env.XDG_CONFIG_HOME,
-  "gitconfig",
-);
-fs.writeFileSync(process.env.GIT_CONFIG_GLOBAL, "");
+const gitConfig = path.join(process.env.XDG_CONFIG_HOME, "gitconfig");
+process.env.GIT_CONFIG_GLOBAL = gitConfig;
+fs.writeFileSync(gitConfig, "");
 
 const MACHINE = { hostname: "Velvetbox-Q7.example", username: "pemberly" },
   PRIVATE_NAME = "zorblat";
 
-function workspace(t) {
+function workspace(t: TestContext) {
   const root = temporaryDirectory("avoozl-privacy-"),
     configFile = path.join(root, "machine", "config.json"),
     store = new Store(path.join(root, "workspace.sqlite"));
@@ -63,12 +67,12 @@ function workspace(t) {
 }
 
 // A fake GitHub client that records every write it receives.
-function fakeGitHub(store) {
-  const writes = [];
+function fakeGitHub(store: Store) {
+  const writes: string[] = [];
   const record =
-    (name) =>
-    async (...args) => (writes.push(name), { number: 1, id: 1 });
-  const client = Object.fromEntries(
+    (name: string): Write =>
+    async () => (writes.push(name), { number: 1, id: 1 });
+  const client: Writer = Object.fromEntries(
     [
       "createIssue",
       "updateIssue",
@@ -84,7 +88,10 @@ function fakeGitHub(store) {
 
 // Each public field, as the call that writes it with `value` inside.
 const REPO = { id: "example/code", owner: "example", repo: "code" };
-const PUBLIC_FIELDS = {
+const PUBLIC_FIELDS: Record<
+  string,
+  (g: Writer, v: string) => Promise<unknown>
+> = {
   "issue title": (g, v) =>
     g.createIssue(REPO, { title: `Ship ${v}`, body: "" }),
   "issue body": (g, v) =>
@@ -128,7 +135,7 @@ const PUBLIC_FIELDS = {
     }),
 };
 
-const INTERNAL = {
+const INTERNAL: Record<string, string> = {
   hostname: "Velvetbox-Q7",
   "full hostname": "Velvetbox-Q7.example",
   username: "pemberly",
@@ -171,7 +178,7 @@ test("a made-up hostname, username and private name in every public field is ref
     const value = INTERNAL[kind];
     await assert.rejects(
       PUBLIC_FIELDS[field](github, value),
-      (error) =>
+      (error: Blocked) =>
         error.contentBlocked === true &&
         !error.message.includes(value) &&
         !error.message.includes("pemberly"),
@@ -216,10 +223,10 @@ test("a false hit is allowed once with a reason, then blocks again", async (t) =
   assert.equal(writes.length, 1);
 });
 
-const git = (cwd, ...args) =>
+const git = (cwd: string, ...args: string[]) =>
   execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
 
-function repository(root) {
+function repository(root: string) {
   const repo = path.join(root, "code");
   fs.mkdirSync(repo);
   git(repo, "init", "-q", "-b", "main");
@@ -231,7 +238,13 @@ function repository(root) {
   return repo;
 }
 
-function commit(repo, branch, file, text, message) {
+function commit(
+  repo: string,
+  branch: string,
+  file: string,
+  text: string,
+  message: string,
+) {
   git(repo, "checkout", "-q", "-B", branch, "main");
   fs.writeFileSync(path.join(repo, file), text);
   git(repo, "add", ".");
@@ -242,7 +255,7 @@ test("an outgoing range is refused for its ref name, commit message or added lin
   const { root, store } = workspace(t),
     repo = repository(root),
     checkout = { id: "code", root: repo, baseBranch: "main" },
-    push = (taskId) =>
+    push = (taskId: string) =>
       enforceDiff(store, {
         repository: checkout,
         head: "HEAD",
@@ -261,7 +274,7 @@ test("an outgoing range is refused for its ref name, commit message or added lin
     commit(repo, branch, "b.txt", text, message);
     assert.throws(
       () => push(name.replace(/\s/g, "-")),
-      (error) =>
+      (error: Refusal) =>
         error.status === 422 &&
         !error.message.includes("pemberly") &&
         !error.message.includes(PRIVATE_NAME),

@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // One graph builder (simplify sim-2.3, §D8): graphOf and its text and
 // Mermaid printers, and the same output from graph.view and plans_graph.
 import assert from "node:assert/strict";
@@ -25,6 +24,12 @@ import {
 } from "../spec-plans.ts";
 import { fixture } from "../../test/fixtures.ts";
 import { writeSpec } from "../../test/spec-fixture.ts";
+import { found, type GraphView } from "../../test/view-shapes.ts";
+
+// graph.view's printed scope, and spec.lint's and spec.graph.write's answers.
+type Printed = { text: string; mermaid: string };
+type Linted = { specs: { diagnostics: { code: string }[] }[] };
+type Wrote = { changed: boolean };
 
 const PARSER = [
   "## Phase 1: Tokens",
@@ -45,7 +50,7 @@ const PARSER = [
   "  - Signed",
   "",
 ].join("\n");
-const STATES = {
+const STATES: Record<string, string> = {
   "p-1": "landed",
   "p-2.1": "claimed",
   "p-2.2": "ready",
@@ -140,25 +145,26 @@ test("graph.view and plans_graph give the CLI's text and Mermaid for one scope",
     ops = new Operations(store, { workspaceRoot: root });
   writeSpec(root, "parser", { "tasks.md": PARSER });
   createSpecPlan(store, { id: "parser" }, readSpecFolder(root, "parser"));
-  const view = await ops.execute("graph.view", { spec: "parser" });
+  const view = await ops.execute<Printed>("graph.view", { spec: "parser" });
   assert.match(view.text, /^parser /);
   assert.match(view.text, /p-2\.2 {2}Recover after an unknown token/);
   assert.match(view.mermaid, /^flowchart TD/);
   const reply = await handleMcp(
-      {
-        jsonrpc: "2.0",
-        id: 1,
-        method: "tools/call",
-        params: {
-          name: "plans_graph",
-          arguments: { input: { spec: "parser" } },
-        },
+    {
+      jsonrpc: "2.0",
+      id: 1,
+      method: "tools/call",
+      params: {
+        name: "plans_graph",
+        arguments: { input: { spec: "parser" } },
       },
-      ops,
-    ),
-    tool = reply.body.result.structuredContent;
-  assert.equal(tool.text, view.text);
-  assert.equal(tool.mermaid, view.mermaid);
+    },
+    ops,
+  );
+  // The tool answers the view's own text and Mermaid.
+  assert.partialDeepStrictEqual(reply.body, {
+    result: { structuredContent: { text: view.text, mermaid: view.mermaid } },
+  });
   fs.rmSync(path.join(root, ".kiro"), { recursive: true, force: true });
 });
 
@@ -190,8 +196,8 @@ test("a draft spec's items are drafts, and a task no spec lists is its own spec 
       ["issue-7", "ready"],
     ],
   );
-  assert.equal(graph.specs.at(-2).draft, true);
-  assert.equal(graph.specs.at(-1).issue, true);
+  assert.equal(found(graph.specs.at(-2)).draft, true);
+  assert.equal(found(graph.specs.at(-1)).issue, true);
 });
 
 test("graph.view draws its nodes in graphOf's order: spec items in list order, then labeled issues", async (t) => {
@@ -199,7 +205,7 @@ test("graph.view draws its nodes in graphOf's order: spec items in list order, t
     ops = new Operations(store, { workspaceRoot: root });
   writeSpec(root, "parser", { "tasks.md": PARSER });
   createSpecPlan(store, { id: "parser" }, readSpecFolder(root, "parser"));
-  const task = (id, extra = {}) => ({
+  const task = (id: string, extra = {}) => ({
     id,
     title: id,
     status: "planned",
@@ -215,7 +221,7 @@ test("graph.view draws its nodes in graphOf's order: spec items in list order, t
       task("p-1", { planId: "parser" }),
     );
   });
-  const view = await ops.execute("graph.view", {});
+  const view = await ops.execute<GraphView>("graph.view", {});
   // The fixture's own task is listed by no spec, like issue-7.
   assert.deepEqual(
     view.tasks.map((t) => t.id),
@@ -225,7 +231,7 @@ test("graph.view draws its nodes in graphOf's order: spec items in list order, t
 });
 
 // The graph block (sim-2.4, §D9).
-const graphCodes = (text) =>
+const graphCodes = (text: string) =>
   lintSpec({
     spec: { name: "parser", exists: true, files: { "tasks.md": text } },
   })
@@ -258,7 +264,7 @@ test("lint checks the graph block: none is clean, a stale one or bad markers are
     ["graph.markers"],
   );
   // The task parser skips the block's lines.
-  const ids = (text) =>
+  const ids = (text: string) =>
     parseSpec({
       name: "parser",
       exists: true,
@@ -273,18 +279,20 @@ test("spec.graph.write writes the block, and spec.lint then passes", async (t) =
   writeSpec(root, "parser", { "tasks.md": PARSER });
   const file = path.join(root, ".kiro", "specs", "parser", "tasks.md");
   fs.appendFileSync(file, `\n${GRAPH_START}\nold\n${GRAPH_END}\n`);
-  const stale = await ops.execute("spec.lint", { spec: "parser" });
+  const stale = await ops.execute<Linted>("spec.lint", { spec: "parser" });
   assert.ok(stale.specs[0].diagnostics.some((d) => d.code === "graph.stale"));
-  const wrote = await ops.execute("spec.graph.write", { spec: "parser" });
+  const wrote = await ops.execute<Wrote>("spec.graph.write", {
+    spec: "parser",
+  });
   assert.equal(wrote.changed, true);
   assert.equal(fs.readFileSync(file, "utf8"), withGraphBlock("parser", PARSER));
-  const clean = await ops.execute("spec.lint", { spec: "parser" });
+  const clean = await ops.execute<Linted>("spec.lint", { spec: "parser" });
   assert.deepEqual(
     clean.specs[0].diagnostics.filter((d) => d.code.startsWith("graph.")),
     [],
   );
   assert.equal(
-    (await ops.execute("spec.graph.write", { spec: "parser" })).changed,
+    (await ops.execute<Wrote>("spec.graph.write", { spec: "parser" })).changed,
     false,
   );
 });
