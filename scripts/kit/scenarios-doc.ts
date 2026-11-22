@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt, see the commit message
 // Writes docs/github-workflow-scenarios.md from the workflow kit's cases:
 //
 //   node scripts/kit/scenarios-doc.ts          write the page
@@ -11,6 +10,15 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { probesOf, readCases } from "../../workflow-kit/load.ts";
+import type { Case } from "../../workflow-kit/load.ts";
+
+// One step of a scenario.
+type Step = NonNullable<Case["steps"]>[number];
+// A probe's value as entries, or as a list; none when it is neither.
+const entriesOf = (value: unknown) =>
+  value && typeof value === "object" ? Object.entries(value) : [];
+const listOf = (value: unknown): unknown[] =>
+  Array.isArray(value) ? value : [];
 
 const root = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -21,8 +29,8 @@ const PAGE = "docs/github-workflow-scenarios.md";
 // GitHub's anchor for a heading: lower case, punctuation dropped, spaces to
 // hyphens, and `-1`, `-2` for a repeated heading.
 function slugger() {
-  const seen = new Map();
-  return (text) => {
+  const seen = new Map<string, number>();
+  return (text: string) => {
     const slug = text
         .toLowerCase()
         .replace(/[^a-z0-9 _-]/g, "")
@@ -35,22 +43,22 @@ function slugger() {
 
 // The rule numbers of the workflow page, and the anchor of the section each
 // belongs to.
-export function ruleSections(workflow) {
+export function ruleSections(workflow: string) {
   const slug = slugger(),
-    sections = new Map();
+    sections = new Map<string, string>();
   for (const match of workflow.matchAll(/^## (\d+)\. (.+)$/gm))
     sections.set(match[1], slug(`${match[1]}. ${match[2]}`));
   return sections;
 }
 
-export const ruleAnchor = (rule) => `rule-${rule.replace(".", "")}`;
+export const ruleAnchor = (rule: string) => `rule-${rule.replace(".", "")}`;
 
-const code = (value) =>
+const code = (value: unknown) =>
   `\`${typeof value === "string" ? value : JSON.stringify(value)}\``;
-const list = (items) => items.map(code).join(", ");
+const list = (items: unknown) => listOf(items).map(code).join(", ");
 
 // A step's sentence, from its `do` and arguments.
-const SENTENCE = {
+const SENTENCE: Record<string, (step: Step) => string> = {
   next: () => "reads the ready tasks",
   claim: (step) =>
     step.task ? `claims ${code(step.task)}` : "claims the first ready task",
@@ -62,19 +70,19 @@ const SENTENCE = {
       ? `pushes a change to ${code(step.branch)}`
       : `pushes work to the claim branch of ${code(step.task)}`,
   land: (step) =>
-    `lands ${code(step.task)}${step.interrupt ? `, interrupted ${step.interrupt.replace("-", " ")}` : ""}`,
+    `lands ${code(step.task)}${step.interrupt ? `, interrupted ${String(step.interrupt).replace("-", " ")}` : ""}`,
   recover: (step) => `recovers ${code(step.task)} after an interruption`,
   mergePr: (step) => `merges the pull request of ${code(step.task)}`,
   deleteBranch: (step) =>
     `deletes the claim branch of ${code(step.task ?? step.branch)}`,
 };
 
-const stepLine = (step, index) => {
+const stepLine = (step: Step, index: number) => {
   const { runner, do: action, expect, pause } = step,
     text = `${code(runner)} ${SENTENCE[action](step)}`,
     notes = [
       expect &&
-        `expects ${Object.entries(expect)
+        `expects ${entriesOf(expect)
           .map(([k, v]) => `${k} ${code(v)}`)
           .join(", ")}`,
       pause && "then waits",
@@ -83,58 +91,61 @@ const stepLine = (step, index) => {
 };
 
 // What each probe of a scenario's `then` says, as a sentence.
-const THEN = {
+const THEN: Record<string, (value: unknown) => string[]> = {
   leaseHolder: (value) =>
-    Object.entries(value).map(
+    entriesOf(value).map(
       ([task, who]) =>
         `The newest lease of ${code(task)} is ${who ? `${code(who)}'s` : "no one's"}.`,
     ),
   leases: (value) =>
-    Object.entries(value).map(([task, generations]) =>
-      generations.length
+    entriesOf(value).map(([task, generations]) =>
+      listOf(generations).length
         ? `${code(task)} has the lease generations ${list(generations)}.`
         : `${code(task)} has no lease.`,
     ),
   claims: (value) =>
-    Object.entries(value).map(([who, task]) =>
+    entriesOf(value).map(([who, task]) =>
       task
         ? `${code(who)} holds ${code(task)}.`
         : `${code(who)} holds no task.`,
     ),
   rejectedPushes: (value) => [
-    value.length
+    listOf(value).length
       ? `GitHub rejects the pushes of ${list(value)}.`
       : "GitHub rejects no push.",
   ],
   ticked: (value) => [
-    value.length
+    listOf(value).length
       ? `The done branches tick ${list(value)}.`
       : "The done branches tick no task.",
   ],
   branches: (value) => [
-    value.length
+    listOf(value).length
       ? `Origin holds the claim branches ${list(value)}.`
       : "Origin holds no claim branch.",
   ],
   pullRequests: (value) =>
-    Object.entries(value).map(
-      ([head, pull]) =>
-        `The pull request from ${code(head)} is ${pull.state}${pull.mergedBy ? `, merged by ${code(pull.mergedBy)}${pull.verified ? " with a verified signature" : ""}` : ""}.`,
-    ),
+    entriesOf(value).map(([head, found]) => {
+      const pull: { state?: unknown; mergedBy?: unknown; verified?: unknown } =
+        found && typeof found === "object" ? found : {};
+      return `The pull request from ${code(head)} is ${pull.state}${pull.mergedBy ? `, merged by ${code(pull.mergedBy)}${pull.verified ? " with a verified signature" : ""}` : ""}.`;
+    }),
   ready: (value) => [
-    value.length ? `The ready tasks are ${list(value)}.` : "No task is ready.",
+    listOf(value).length
+      ? `The ready tasks are ${list(value)}.`
+      : "No task is ready.",
   ],
 };
 
-const taskLines = (text) =>
+const taskLines = (text: string) =>
   text
     .split("\n")
     .filter((line) => /^\s*- \[[ x~-]\] /.test(line) && !/^\s{2,}/.test(line));
 
 // The sections of one case.
-function givenOf(testCase) {
-  const out = [],
-    { runner, origin = {} } = testCase;
+function givenOf(testCase: Case) {
+  const out: string[] = [],
+    { runner = {}, origin = {} } = testCase;
   if (testCase.runners)
     for (const [name, login] of Object.entries(testCase.runners))
       out.push(`Runner ${code(name)} acts as ${code(login)}.`);
@@ -160,7 +171,7 @@ function givenOf(testCase) {
     out.push(`The issue of spec ${code(spec)} is assigned to ${list(who)}.`);
   for (const spec of testCase.stops ?? [])
     out.push(`The issue of spec ${code(spec)} has a stop label.`);
-  const extras = [
+  const extras: [string, unknown][] = [
     ["writers", testCase.writers],
     ["approvers", testCase.approvers],
     ["approvalTrust", testCase.approvalTrust],
@@ -184,8 +195,8 @@ function givenOf(testCase) {
   return out;
 }
 
-function specBlocks(testCase) {
-  const blocks = [];
+function specBlocks(testCase: Case) {
+  const blocks: string[] = [];
   for (const [file, text] of Object.entries(testCase.files).sort())
     if (file.endsWith("tasks.md") && taskLines(text).length)
       blocks.push(
@@ -198,8 +209,8 @@ function specBlocks(testCase) {
   return blocks;
 }
 
-function thenOf(testCase) {
-  const out = [];
+function thenOf(testCase: Case) {
+  const out: string[] = [];
   for (const [probe, value] of Object.entries(probesOf(testCase))) {
     const lines = THEN[probe]?.(value) ?? [
       `Probe ${code(probe)} is ${code(value)}.`,
@@ -214,26 +225,24 @@ function thenOf(testCase) {
   return out;
 }
 
-const WHEN_PROBES = (testCase) =>
+const WHEN_PROBES = (testCase: Case) =>
   `The runner answers ${list(Object.keys(probesOf(testCase)))}.`;
 
-export function renderScenarios(cases, workflow) {
+export function renderScenarios(cases: Case[], workflow: string) {
   const sections = ruleSections(workflow),
     slug = slugger(),
-    anchors = new Map(),
-    ruleCases = new Map(),
+    anchors = new Map<string, string>(),
+    ruleCases = new Map<string, Case[]>(),
     scenarios = cases.filter((item) => item.steps),
     snapshots = cases.filter((item) => !item.steps),
-    first = scenarios.find((item) => item.then.claims);
+    first = scenarios.find((item) => item.then?.claims);
   // Anchors follow the order the headings are written in.
   for (const testCase of [...scenarios, ...snapshots])
     anchors.set(testCase.name, slug(testCase.title));
   for (const testCase of cases)
-    for (const rule of testCase.rules) {
-      if (!ruleCases.has(rule)) ruleCases.set(rule, []);
-      ruleCases.get(rule).push(testCase);
-    }
-  const link = (rule) =>
+    for (const rule of testCase.rules ?? [])
+      ruleCases.set(rule, [...(ruleCases.get(rule) ?? []), testCase]);
+  const link = (rule: string) =>
     `[${rule}](github-workflow.md#${sections.get(rule.split(".")[0])})`;
   const out = [
     "# Workflow scenarios",
@@ -247,8 +256,8 @@ export function renderScenarios(cases, workflow) {
     "```json",
     JSON.stringify(
       {
-        steps: first.steps.slice(0, 4).map(({ expect, ...rest }) => rest),
-        then: { claims: first.then.claims },
+        steps: first?.steps?.slice(0, 4).map(({ expect, ...rest }) => rest),
+        then: { claims: first?.then?.claims },
       },
       null,
       2,
@@ -261,12 +270,12 @@ export function renderScenarios(cases, workflow) {
     "",
     "## Scenarios",
   ];
-  const render = (testCase) => {
+  const render = (testCase: Case) => {
     out.push(
       "",
       `### ${testCase.title}`,
       "",
-      `Rules: ${testCase.rules.map(link).join(", ")}. Case: ${code(testCase.name)}.`,
+      `Rules: ${(testCase.rules ?? []).map(link).join(", ")}. Case: ${code(testCase.name)}.`,
       "",
       "Given",
       "",
@@ -290,7 +299,7 @@ export function renderScenarios(cases, workflow) {
   });
   for (const rule of byRule) {
     out.push("", `### Rule ${rule}`, "");
-    for (const testCase of ruleCases.get(rule))
+    for (const testCase of ruleCases.get(rule) ?? [])
       out.push(`- [${testCase.title}](#${anchors.get(testCase.name)})`);
   }
   return `${out.join("\n")}\n`;

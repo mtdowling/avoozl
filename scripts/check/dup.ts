@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt, see the commit message
 // Copy/paste check with jscpd, configured in .jscpd.json.
 //
 //   node scripts/check/dup.ts              whole repo; fails when duplicated lines
@@ -29,10 +28,26 @@ const inner = createRequire(require.resolve("jscpd"));
 const { getFilesToDetect } = inner("@jscpd/finder");
 const { getDefaultOptions } = inner("@jscpd/core");
 
+// One side of a clone, and a clone, as jscpd reports them.
+interface Side {
+  sourceId: string;
+  start: { line: number };
+  end: { line: number };
+}
+interface Clone {
+  duplicationA: Side;
+  duplicationB: Side;
+}
+// jscpd's answer: the clones and its totals.
+interface Detection {
+  clones: Clone[];
+  statistic: { total: { lines: number; sources: number } } | null;
+}
+
 const args = process.argv.slice(2);
-const flag = (name) =>
+const flag = (name: string) =>
   args.includes(name) ? args[args.indexOf(name) + 1] : null;
-const git = (...a) =>
+const git = (...a: string[]) =>
   execFileSync("git", a, { encoding: "utf8", maxBuffer: 1 << 28 });
 
 const root = git("rev-parse", "--show-toplevel").trim();
@@ -40,7 +55,10 @@ process.chdir(root);
 const config = JSON.parse(fs.readFileSync(".jscpd.json", "utf8"));
 const BASELINE = "scripts/check/dup-baseline.json";
 
-const detect = (paths, extra = {}) =>
+const detect = (
+  paths: string[],
+  extra: Record<string, unknown> = {},
+): Promise<Detection> =>
   jscpd.detectClonesAndStatistic({
     ...config,
     ...extra,
@@ -53,12 +71,15 @@ const detect = (paths, extra = {}) =>
 // explicit list: jscpd pairs each copy with the copy it saw first, so a
 // fixed order gives the same count on every system.
 const scannedFiles = () =>
-  new Map(
+  new Map<string, string>(
     getFilesToDetect({ ...getDefaultOptions(), ...config, path: ["."] })
-      .map((f) => [f.path.replace(/^\.\//, ""), f.content])
-      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
+      .map((f: { path: string; content: string }): [string, string] => [
+        f.path.replace(/^\.\//, ""),
+        f.content,
+      ])
+      .sort(([a]: [string], [b]: [string]) => (a < b ? -1 : a > b ? 1 : 0)),
   );
-const detectFiles = (files) =>
+const detectFiles = (files: string[]): Promise<Detection> | Detection =>
   files.length
     ? detect(files, { gitignore: false, ignore: [] })
     : { clones: [], statistic: null };
@@ -67,22 +88,22 @@ const detectFiles = (files) =>
 // used: jscpd 4 sometimes reports an end line far past the copy on one side,
 // and sometimes an end line before the start on one side (a negative span),
 // which is no size at all and is left out rather than subtracted.
-const span = (d) => d.end.line - d.start.line;
-const linesOf = (c) => {
+const span = (d: Side) => d.end.line - d.start.line;
+const linesOf = (c: Clone) => {
   const sides = [span(c.duplicationA), span(c.duplicationB)].filter(
     (lines) => lines >= 0,
   );
   return sides.length ? Math.min(...sides) : 0;
 };
-const site = (d) => `${d.sourceId}:${d.start.line}-${d.end.line}`;
-const describe = (c) =>
+const site = (d: Side) => `${d.sourceId}:${d.start.line}-${d.end.line}`;
+const describe = (c: Clone) =>
   `${linesOf(c)} lines  ${site(c.duplicationA)}  ${site(c.duplicationB)}`;
-const round = (n) => Math.round(n * 100) / 100;
+const round = (n: number) => Math.round(n * 100) / 100;
 
 async function whole() {
   const started = Date.now();
   const { clones, statistic } = await detectFiles([...scannedFiles().keys()]);
-  const t = statistic.total;
+  const t = statistic?.total ?? { lines: 0, sources: 0 };
   const lines = clones.reduce((sum, c) => sum + linesOf(c), 0);
   const now = {
     duplicatedLines: lines,
@@ -129,8 +150,8 @@ async function whole() {
 
 // Changed paths since the merge base, in the working tree, with untracked
 // files. Maps each path to its path at the base (null when it is new).
-function changes(mergeBase) {
-  const out = new Map();
+function changes(mergeBase: string) {
+  const out = new Map<string, string | null>();
   const fields = git("diff", "--name-status", "-M", "-z", mergeBase).split(
     "\0",
   );
@@ -160,12 +181,12 @@ function changes(mergeBase) {
 // missed here; the whole-repo run on main still counts them.
 const MIN_CHARS = 120,
   MIN_LINES = 3;
-function windows(text) {
+function windows(text: string | undefined = "") {
   const lines = text
     .split("\n")
     .map((l) => l.replace(/\s+/g, ""))
     .filter(Boolean);
-  const out = new Set();
+  const out = new Set<string>();
   for (let i = 0; i < lines.length; i++) {
     let run = "",
       k = i;
@@ -177,13 +198,13 @@ function windows(text) {
 }
 
 // Reads many blobs at REF with one git process.
-function blobsAt(ref, files) {
+function blobsAt(ref: string, files: string[]) {
   const run = spawnSync("git", ["cat-file", "--batch"], {
     input: files.map((f) => `${ref}:${f}\n`).join(""),
     maxBuffer: 1 << 28,
   });
   const buf = run.stdout,
-    out = new Map();
+    out = new Map<string, Buffer>();
   let at = 0;
   for (const file of files) {
     const nl = buf.indexOf(10, at);
@@ -198,8 +219,8 @@ function blobsAt(ref, files) {
 }
 
 // Duplicated lines per file pair, for the clones that touch a changed file.
-function byPair(clones, changed) {
-  const pairs = new Map();
+function byPair(clones: Clone[], changed: Set<string>) {
+  const pairs = new Map<string, { lines: number; clones: Clone[] }>();
   for (const c of clones) {
     const a = c.duplicationA.sourceId,
       b = c.duplicationB.sourceId;
@@ -225,7 +246,7 @@ async function changedOnly() {
     return 0;
   }
 
-  const wanted = new Set();
+  const wanted = new Set<string>();
   for (const f of changed) for (const w of windows(text.get(f))) wanted.add(w);
   const candidates = [...text.keys()].filter((f) => {
     if (changed.has(f)) return true;
@@ -237,11 +258,14 @@ async function changedOnly() {
 
   // The same files at the merge base, under their current names.
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-dup-"));
-  let before;
+  let before: ReturnType<typeof byPair>;
   try {
     const old = candidates.map((f) => (moved.has(f) ? moved.get(f) : f));
-    const blobs = blobsAt(mergeBase, old.filter(Boolean));
-    const present = [];
+    const blobs = blobsAt(
+      mergeBase,
+      old.filter((file): file is string => Boolean(file)),
+    );
+    const present: string[] = [];
     candidates.forEach((f, i) => {
       const blob = old[i] && blobs.get(old[i]);
       if (!blob) return;
