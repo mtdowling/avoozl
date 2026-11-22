@@ -1,11 +1,10 @@
-// @ts-nocheck: typing debt
 // Task 31.1: Stop all agents (design §4.11, Requirement 64.12-64.16). A
 // person's full stop pauses everything, stops each running session Avoozl
 // opened, keeps worktrees, and marks each attempt "Interrupted by stop";
 // Resume starts each again on the same worktree, agent and model.
 import assert from "node:assert/strict";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { openStops } from "../flow.ts";
 import {
   INTERRUPTED,
@@ -21,11 +20,43 @@ import { Store } from "../../store/store.ts";
 import { snapshot } from "../../test/fixtures.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
 import { leaf as fixtureLeaf } from "../../test/delivery-fixture.ts";
+import { withStatus } from "../../test/refusal.ts";
+import { found, storedRow } from "../../test/view-shapes.ts";
+import type { SessionBinding } from "../../sessions/session-bindings.ts";
+import type { NotificationRow } from "../../tick/notifications.ts";
+import type { Task } from "../../../types.ts";
 
-const leaf = (id, extra = {}) =>
+// A binding a full stop marked, and a task's delivery record.
+type Bound = SessionBinding & { interrupted?: { stop: string } };
+interface Delivery {
+  state: string;
+  attempts: { attempt: number; outcome: string; cause?: string }[];
+}
+// What flow.stop answers for a full stop.
+interface Stopped {
+  stop: {
+    id: string;
+    full: boolean;
+    scope: string;
+    manual: boolean;
+    by: unknown;
+    sessions: {
+      slot: string;
+      stopped: boolean;
+      model?: string;
+      error?: string;
+    }[];
+  };
+}
+
+const leaf = (id: string, extra: Partial<Task> = {}) =>
   fixtureLeaf(id, { repository: "r1", ...extra });
 
-const binding = (slot, taskId, extra = {}) => ({
+const binding = (
+  slot: string,
+  taskId: string,
+  extra: Record<string, unknown> = {},
+) => ({
   id: slot,
   slot,
   taskId,
@@ -38,10 +69,10 @@ const binding = (slot, taskId, extra = {}) => ({
   ...extra,
 });
 
-function setup(t, { refuse = new Set() } = {}) {
+function setup(t: TestContext, { refuse = new Set<string>() } = {}) {
   const root = temporaryDirectory("avoozl-full-stop-"),
     store = new Store(path.join(root, "workspace.sqlite")),
-    stopped = [];
+    stopped: string[] = [];
   t.after(() => store.close());
   store.initialize({
     ...snapshot(),
@@ -81,7 +112,7 @@ function setup(t, { refuse = new Set() } = {}) {
   store.put("session_bindings", binding("s-b1", "b1"));
   const ops = new Operations(store, {
     workspaceRoot: root,
-    sessionStopper: async (slot) => {
+    sessionStopper: async (slot: string) => {
       if (refuse.has(slot))
         throw Error("Kiro Crew refused the session stop (404).");
       stopped.push(slot);
@@ -93,7 +124,7 @@ function setup(t, { refuse = new Set() } = {}) {
 test("only a person stops all agents, and only where sessions can be stopped", async (t) => {
   const { store, ops, stopped } = setup(t);
   assert.match(
-    mcpRefusal("flow.stop", { full: true, reason: "x" }),
+    mcpRefusal("flow.stop", { full: true, reason: "x" }) ?? "",
     /Only a person stops all agents/,
   );
   assert.equal(mcpRefusal("flow.stop", { scope: "all", reason: "x" }), null);
@@ -104,7 +135,7 @@ test("only a person stops all agents, and only where sessions can be stopped", a
   ])
     await assert.rejects(
       ops.execute("flow.stop", { full: true, reason: "x" }, undefined, context),
-      (error) => error.status === 403 && /Only a person/.test(error.message),
+      withStatus(403, /Only a person/),
     );
   // The CLI without the app backend has no session stopper.
   const local = new Operations(store, {});
@@ -112,16 +143,19 @@ test("only a person stops all agents, and only where sessions can be stopped", a
     local.execute("flow.stop", { full: true, reason: "x" }, undefined, {
       local: true,
     }),
-    (error) => error.status === 409 && /Avoozl page/.test(error.message),
+    withStatus(409, /Avoozl page/),
   );
   assert.equal(openStops(store).length, 0);
   assert.deepEqual(stopped, []);
-  assert.equal(store.get("session_bindings", "s-a1").interrupted, undefined);
+  assert.equal(
+    storedRow<Bound>(store, "session_bindings", "s-a1").interrupted,
+    undefined,
+  );
 });
 
 test("a full stop stops each running chat Avoozl opened and marks it interrupted", async (t) => {
   const { store, ops, stopped } = setup(t, { refuse: new Set(["s-b1"]) });
-  const { stop } = await ops.execute("flow.stop", {
+  const { stop } = await ops.execute<Stopped>("flow.stop", {
     full: true,
     reason: "runaway agents",
   });
@@ -135,20 +169,26 @@ test("a full stop stops each running chat Avoozl opened and marks it interrupted
   assert.equal(bySlot["s-a1"].stopped, true);
   assert.equal(bySlot["s-a1"].model, "model-a1");
   assert.equal(bySlot["s-b1"].stopped, false);
-  assert.match(bySlot["s-b1"].error, /refused/);
+  assert.match(bySlot["s-b1"].error ?? "", /refused/);
 
-  const a1 = store.get("session_bindings", "s-a1");
-  assert.equal(a1.interrupted.stop, stop.id);
+  const a1 = storedRow<Bound>(store, "session_bindings", "s-a1");
+  assert.equal(a1.interrupted?.stop, stop.id);
   assert.equal(liveAttempt(a1), false);
   assert.equal(
-    store.get("session_bindings", "s-a2-v").interrupted.stop,
+    storedRow<Bound>(store, "session_bindings", "s-a2-v").interrupted?.stop,
     stop.id,
   );
   // Refused and not Avoozl's: left alone.
-  assert.equal(store.get("session_bindings", "s-b1").interrupted, undefined);
-  assert.equal(store.get("session_bindings", "s-a3").interrupted, undefined);
+  assert.equal(
+    storedRow<Bound>(store, "session_bindings", "s-b1").interrupted,
+    undefined,
+  );
+  assert.equal(
+    storedRow<Bound>(store, "session_bindings", "s-a3").interrupted,
+    undefined,
+  );
 
-  const delivery = store.get("task_deliveries", "a1");
+  const delivery = storedRow<Delivery>(store, "task_deliveries", "a1");
   assert.equal(delivery.state, "interrupted");
   assert.deepEqual(
     delivery.attempts.map((a) => [a.attempt, a.outcome, a.cause]),
@@ -157,7 +197,7 @@ test("a full stop stops each running chat Avoozl opened and marks it interrupted
   assert.equal(store.get("task_deliveries", "b1"), null);
   assert.ok(
     store
-      .list("app_notifications")
+      .list<NotificationRow>("app_notifications")
       .some((n) => /All agents stopped/.test(n.payload.title)),
   );
 
@@ -169,10 +209,15 @@ test("a full stop stops each running chat Avoozl opened and marks it interrupted
     now: Date.parse("2026-11-14T00:00:00Z"),
   });
   assert.ok(!messages.some((m) => m.slot === "s-a1"));
-  assert.equal(store.get("task_deliveries", "a1").state, "interrupted");
+  assert.equal(
+    storedRow<Delivery>(store, "task_deliveries", "a1").state,
+    "interrupted",
+  );
   assert.deepEqual(planReadyDispatches(store, policy), []);
   assert.deepEqual(planReviewDispatches(store, policy), []);
-  const view = await ops.execute("flow.view", {});
+  const view = await ops.execute<{
+    stops: { id: string; full?: boolean; sessions: unknown[] }[];
+  }>("flow.view", {});
   assert.ok(
     view.stops.some(
       (s) => s.id === stop.id && s.full && s.sessions.length === 3,
@@ -189,16 +234,19 @@ test("Resume starts each interrupted task again on the same branch and model", a
     path: "/tmp/wt-a1",
     branch: "avoozl/a1",
   });
-  const { stop } = await ops.execute("flow.stop", {
+  const { stop } = await ops.execute<Stopped>("flow.stop", {
     full: true,
     reason: "pause",
   });
   await assert.rejects(
     ops.execute("flow.resume", { stopId: stop.id }, undefined, { mcp: true }),
-    (error) => error.status === 403,
+    withStatus(403),
   );
   await ops.execute("flow.resume", { stopId: stop.id });
-  assert.equal(store.get("task_deliveries", "a1").state, "failed");
+  assert.equal(
+    storedRow<Delivery>(store, "task_deliveries", "a1").state,
+    "failed",
+  );
   const policy = deliveryPolicy({
     lanes: { local: 5 },
     delivery: { retries: 0 },
@@ -210,14 +258,15 @@ test("Resume starts each interrupted task again on the same branch and model", a
   assert.ok(dispatch, "a1 is dispatched again");
   assert.equal(dispatch.attempt, 2);
   assert.equal(dispatch.model, "model-a1");
-  assert.match(dispatch.brief, /Resume in \/tmp\/wt-a1/);
-  assert.match(dispatch.brief, /Interrupted by stop/);
-  assert.match(dispatch.brief, /git status/);
+  const brief = found(dispatch.brief, "the brief");
+  assert.match(brief, /Resume in \/tmp\/wt-a1/);
+  assert.match(brief, /Interrupted by stop/);
+  assert.match(brief, /git status/);
   // The interrupted attempt spent no retry: retries 0 still allows it.
   assert.ok(
-    !store
-      .get("task_deliveries", "a1")
-      .attempts.some((a) => a.outcome === "failed"),
+    !storedRow<Delivery>(store, "task_deliveries", "a1").attempts.some(
+      (a) => a.outcome === "failed",
+    ),
   );
   // The review session opens again once the stop is resumed.
   assert.ok(planReviewDispatches(store, policy).some((d) => d.task === "a2"));

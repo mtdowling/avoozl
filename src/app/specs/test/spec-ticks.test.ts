@@ -1,20 +1,29 @@
-// @ts-nocheck: typing debt
 // A tick on the base branch completes the task (Requirement 113).
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { Operations } from "../../api/operations.ts";
 import { lintSpec } from "../spec-plans.ts";
 import { ticksOf } from "../spec-ticks.ts";
 import { fixture } from "../../test/fixtures.ts";
 import { writeSpec } from "../../test/spec-fixture.ts";
+import {
+  found,
+  storedRow,
+  type ConflictsView,
+  type PlanPreview,
+} from "../../test/view-shapes.ts";
+import type { ActivityRow } from "../../store/activity-log.ts";
+import type { Task } from "../../../types.ts";
 
-async function setup(t) {
+type Activity = { items: ActivityRow[] };
+
+async function setup(t: TestContext) {
   const { root, store } = fixture(t),
     ops = new Operations(store, { workspaceRoot: root }),
-    git = (...args) =>
+    git = (...args: string[]) =>
       execFileSync("git", args, { cwd: root, encoding: "utf8" }).trim(),
     directory = writeSpec(root, "config"),
     tasksFile = path.join(directory, "tasks.md"),
@@ -23,7 +32,10 @@ async function setup(t) {
   git("config", "user.email", "test@example.com");
   git("config", "user.name", "Test");
   await ops.execute("plan.create", { spec: "config" });
-  const preview = await ops.execute("plan.preview", { id: "config" });
+  const preview = await ops.execute<PlanPreview & { reviewedHash: string }>(
+    "plan.preview",
+    { id: "config" },
+  );
   await ops.execute("plan.approve", {
     id: "config",
     expectedHash: preview.reviewedHash,
@@ -31,18 +43,22 @@ async function setup(t) {
     approvedBy: "owner",
   });
   // The approval is the commit that adds the spec.
-  const tick = (...keys) => {
+  const tick = (...keys: string[]) => {
     let text = fs.readFileSync(tasksFile, "utf8");
     for (const key of keys)
       text = text.replace(`- [ ] ${key} `, `- [x] ${key} `);
     fs.writeFileSync(tasksFile, text);
   };
-  const commit = (message) => {
+  const commit = (message: string) => {
     git("add", ".kiro");
     git("commit", "-q", "-m", message);
     return git("rev-parse", "HEAD");
   };
-  const task = (id) => store.read().tasks.find((row) => row.id === id);
+  const task = (id: string) =>
+    found(
+      store.read().tasks.find((row: Task) => row.id === id),
+      `task ${id}`,
+    );
   return {
     root,
     store,
@@ -53,7 +69,7 @@ async function setup(t) {
     task,
     original,
     tasksFile,
-    hash: () => store.get("plans", "config").hash,
+    hash: () => storedRow(store, "plans", "config").hash,
   };
 }
 
@@ -69,9 +85,18 @@ test("a tick on main completes the task with no re-approval and an unchanged has
   await ops.applyBaseTicks();
   const row = task("config.1.1");
   assert.equal(row.status, "accepted");
-  assert.equal(row.integration.commit, sha, "the landing commit is the tick's");
-  assert.equal(row.acceptanceEvidence.baseline.commit, sha);
-  assert.match(row.acceptanceEvidence.evidence, /marks 1\.1 \[x\] on main/);
+  assert.equal(
+    row.integration?.commit,
+    sha,
+    "the landing commit is the tick's",
+  );
+  assert.partialDeepStrictEqual(row.acceptanceEvidence, {
+    baseline: { commit: sha },
+  });
+  assert.match(
+    String(row.acceptanceEvidence?.evidence),
+    /marks 1\.1 \[x\] on main/,
+  );
   assert.equal(task("config.1.2").status, "planned", "only the ticked task");
   assert.equal(hash(), before, "a tick is not a new revision");
   assert.equal(store.list("approvals").length, approvals);
@@ -81,8 +106,10 @@ test("a tick on main completes the task with no re-approval and an unchanged has
     "the folder hashes the same",
   );
   assert.notEqual(fs.readFileSync(tasksFile, "utf8"), original);
-  const line = (await ops.execute("activity.list", {})).items.find(
-    (item) => item.kind === "task.ticked",
+  const line = found(
+    (await ops.execute<Activity>("activity.list", {})).items.find(
+      (item) => item.kind === "task.ticked",
+    ),
   );
   assert.match(line.summary, /config\.1\.1 is done: ticked .* on main/);
 });
@@ -127,8 +154,8 @@ test("a tick of an in-flight task releases its worker session", async (t) => {
   commit("Tick 1.1");
   await ops.applyBaseTicks();
   assert.equal(task("config.1.1").status, "accepted", "done wins");
-  assert.equal(store.get("session_bindings", "slot-1").status, "closed");
-  const kinds = (await ops.execute("activity.list", {})).items.map(
+  assert.equal(storedRow(store, "session_bindings", "slot-1").status, "closed");
+  const kinds = (await ops.execute<Activity>("activity.list", {})).items.map(
     (item) => item.kind,
   );
   assert.ok(kinds.includes("worker.released"));
@@ -160,13 +187,13 @@ test("an untick of a done task waits in Needs you; Keep done and Reopen settle i
   assert.equal(task("config.1.1").status, "accepted", "not reopened silently");
   const items = () =>
     ops
-      .execute("conflicts.view", {})
+      .execute<ConflictsView>("conflicts.view", {})
       .then((view) => view.items.filter((item) => item.kind === "untick"));
   assert.deepEqual((await items()).map((item) => item.taskId).sort(), [
     "config.1.1",
     "config.1.2",
   ]);
-  const settle = (action, taskId) =>
+  const settle = (action: string, taskId: string) =>
     ops.execute(
       "conflicts.settle",
       { action, items: [{ taskId }] },
@@ -198,10 +225,12 @@ test("lint names a ticked item that has no task ID", () => {
     },
     plan: { id: "config" },
   });
-  const found = diagnostics.find((d) => d.code === "task.ticked-unknown-id");
-  assert.equal(found.file, "tasks.md");
-  assert.equal(found.lineStart, 3);
-  assert.equal(found.severity, "error");
+  const diagnostic = found(
+    diagnostics.find((d) => d.code === "task.ticked-unknown-id"),
+  );
+  assert.equal(diagnostic.file, "tasks.md");
+  assert.equal(diagnostic.lineStart, 3);
+  assert.equal(diagnostic.severity, "error");
 });
 
 test("ticksOf reads [x] only, with sub-items of a ticked parent", () => {

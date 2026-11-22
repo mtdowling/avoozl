@@ -1,11 +1,10 @@
-// @ts-nocheck: typing debt
 // rc-16.1: the integration branch in the manifest and its checks (RC16.1,
 // design D21), with a fake GitHub. Nothing here reaches the network, and the
 // fake has no method that creates a branch.
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import {
   branchNameProblem,
   checkIntegrationBranch,
@@ -21,11 +20,21 @@ import {
   writeSpec,
 } from "../../test/spec-fixture.ts";
 
+import { withStatus } from "../../test/refusal.ts";
+import { found } from "../../test/view-shapes.ts";
+
 const REPO = "example/code";
+// `branches` maps a name to `{ protected }`; `def` is the default branch,
+// `fail` a reason the repository read fails.
+interface FakeOptions {
+  branches?: Record<string, { protected: boolean }>;
+  def?: string;
+  fail?: string | null;
+}
 
 // `branches` maps a name to `{ protected }`; a name not in it answers 404.
-function fake({ branches = {}, def = "main", fail = null } = {}) {
-  const calls = [];
+function fake({ branches = {}, def = "main", fail = null }: FakeOptions = {}) {
+  const calls: string[] = [];
   return {
     calls,
     available: () => true,
@@ -33,7 +42,7 @@ function fake({ branches = {}, def = "main", fail = null } = {}) {
       fail
         ? Promise.reject(Error(fail))
         : Promise.resolve({ default_branch: def }),
-    branch: (_repository, name) => {
+    branch: (_repository: string, name: string) => {
       calls.push(name);
       return name in branches
         ? Promise.resolve({ name, ...branches[name] })
@@ -42,8 +51,11 @@ function fake({ branches = {}, def = "main", fail = null } = {}) {
   };
 }
 const settings = (extra = {}) => ({ baseBranch: "main", ...extra });
-const check = (github, branch, entry = settings()) =>
-  checkIntegrationBranch(github, REPO, branch, entry);
+const check = (
+  github: ReturnType<typeof fake>,
+  branch: string,
+  entry = settings(),
+) => checkIntegrationBranch(github, REPO, branch, entry);
 
 test("an existing protected branch that differs from the default is ready", async () => {
   const github = fake({ branches: { "rewrite/x": { protected: true } } });
@@ -55,7 +67,7 @@ test("an existing protected branch that differs from the default is ready", asyn
 });
 
 test("each failure names its reason: missing, unprotected, default", async () => {
-  const cases = [
+  const cases: [ReturnType<typeof fake>, string, string[], RegExp][] = [
     [fake(), "rewrite/x", ["exists", "protected"], /does not exist/],
     [
       fake({ branches: { "rewrite/x": { protected: false } } }),
@@ -77,7 +89,7 @@ test("each failure names its reason: missing, unprotected, default", async () =>
     assert.equal(result.ready, false);
     assert.throws(
       () => requireIntegrationBranch(result),
-      (error) => error.status === 409 && text.test(error.message),
+      withStatus(409, text),
     );
   }
 });
@@ -111,7 +123,8 @@ test("a bad name is refused before GitHub is read", async () => {
     "a//b",
     undefined,
   ]) {
-    const result = await check(github, name);
+    // An absent name reaches the check as an empty one.
+    const result = await check(github, name ?? "");
     assert.deepEqual(
       result.missing,
       ["name", "not-default", "exists", "protected"],
@@ -127,7 +140,7 @@ test("a bad name is refused before GitHub is read", async () => {
 test("a GitHub read that fails is reported and guesses nothing", async () => {
   const result = await check(fake({ fail: "boom" }), "rewrite/x");
   assert.equal(result.ready, false);
-  assert.match(result.error, /boom/);
+  assert.match(result.error ?? "", /boom/);
   assert.deepEqual(result.missing, ["not-default", "exists", "protected"]);
 });
 
@@ -136,9 +149,9 @@ test("a non-404 branch read error is not read as a missing branch", async () => 
   github.branch = () =>
     Promise.reject(Object.assign(Error("rate limit"), { status: 403 }));
   const result = await check(github, "rewrite/x");
-  assert.match(result.error, /rate limit/);
+  assert.match(result.error ?? "", /rate limit/);
   assert.doesNotMatch(
-    result.items.find((i) => i.id === "exists").detail,
+    found(result.items.find((i) => i.id === "exists")).detail,
     /does not exist/,
   );
 });
@@ -164,7 +177,7 @@ test("the manifest fields: absent changes nothing, present is checked", () => {
     assert.throws(() => integrationOf(bad), Error, JSON.stringify(bad));
 });
 
-function lintWith(t, extra) {
+function lintWith(t: TestContext, extra: Record<string, unknown>) {
   const { root } = fixture(t),
     manifest = JSON.parse(legacySpecFiles()["avoozl/manifest.json"]);
   writeSpec(root, "config", {
@@ -176,7 +189,7 @@ function lintWith(t, extra) {
   });
 }
 
-function operations(t, github) {
+function operations(t: TestContext, github: ReturnType<typeof fake>) {
   const { root, store } = fixture(t);
   fs.writeFileSync(
     path.join(root, ".avoozl.json"),
@@ -196,17 +209,20 @@ test("radar.integrationbranch returns the check, refuses a branch that is not re
   const github = fake({ branches: { "rewrite/x": { protected: true } } }),
     ops = operations(t, github),
     before = ops.read().revision;
-  const result = await ops.execute("radar.integrationbranch", {
-    repository: REPO,
-    branch: "rewrite/x",
-  });
+  const result = await ops.execute<{ ready: boolean }>(
+    "radar.integrationbranch",
+    {
+      repository: REPO,
+      branch: "rewrite/x",
+    },
+  );
   assert.equal(result.ready, true);
   await assert.rejects(
     ops.execute("radar.integrationbranch", {
       repository: REPO,
       branch: "main",
     }),
-    (error) => error.status === 409 && /default branch/.test(error.message),
+    withStatus(409, /default branch/),
   );
   await assert.rejects(
     ops.execute("radar.integrationbranch", {
@@ -217,7 +233,7 @@ test("radar.integrationbranch returns the check, refuses a branch that is not re
   );
   await assert.rejects(
     ops.execute("radar.integrationbranch", {}),
-    (error) => error.status === 400,
+    withStatus(400),
   );
   assert.equal(ops.read().revision, before);
 });

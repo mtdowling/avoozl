@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 import assert from "node:assert/strict";
 import { execFileSync, spawn } from "node:child_process";
 import fs from "node:fs";
@@ -17,29 +16,31 @@ const UNLISTED = new Set(["help"]);
 // tests start and drive them.
 const LONG_RUNNING = new Set(["app-backend", "start", "mcp"]);
 // Command paths of the same kind; none now.
-const LONG_RUNNING_PATHS = new Set();
+const LONG_RUNNING_PATHS = new Set<string>();
 // What a crash looks like, as opposed to a refusal a person can act on.
 const CRASH =
   /\n\s+at .+:\d+:\d+|TypeError|ReferenceError|SyntaxError|RangeError|is not a function|Cannot read prop|cannot be bound to SQLite|argument must be of type|fetch failed|Unhandled/;
 
 // An isolated machine: no real workspace, host, or GitHub is reachable.
-function machineEnvironment(machine) {
+function machineEnvironment(machine: string) {
   const env = { ...process.env };
   for (const key of Object.keys(env))
     if (/^AVOOZL(_|$)/.test(key)) delete env[key];
+  const home = path.join(machine, "home"),
+    config = path.join(machine, "config");
   Object.assign(env, {
-    HOME: path.join(machine, "home"),
-    XDG_CONFIG_HOME: path.join(machine, "config"),
+    HOME: home,
+    XDG_CONFIG_HOME: config,
     XDG_STATE_HOME: path.join(machine, "state"),
     GH_TOKEN: "fake-token",
     GITHUB_TOKEN: "fake-token",
     // A closed loopback port: every GitHub call fails fast, none leaves.
     GITHUB_API_URL: "http://127.0.0.1:9",
   });
-  fs.mkdirSync(env.HOME, { recursive: true });
-  fs.mkdirSync(path.join(env.XDG_CONFIG_HOME, "avoozl"), { recursive: true });
+  fs.mkdirSync(home, { recursive: true });
+  fs.mkdirSync(path.join(config, "avoozl"), { recursive: true });
   fs.writeFileSync(
-    path.join(env.XDG_CONFIG_HOME, "avoozl", "config.json"),
+    path.join(config, "avoozl", "config.json"),
     JSON.stringify({ version: 1, port: 0, workspaces: {} }),
   );
   return env;
@@ -47,12 +48,12 @@ function machineEnvironment(machine) {
 
 // Command paths `avoozl help all` names: the leading lowercase words of each
 // `avoozl ...` usage line, with `a|b` alternatives split apart.
-function helpPaths(help) {
-  const paths = [];
+function helpPaths(help: string) {
+  const paths: string[][] = [];
   for (const line of help.split("\n").slice(1)) {
     if (!/^ {2}avoozl [a-z]/.test(line)) continue;
     for (const entry of line.trim().slice("avoozl ".length).split(" | ")) {
-      const words = [];
+      const words: string[][] = [];
       for (const token of entry.split(/\s+/)) {
         if (!/^[a-z][a-z|-]*$/.test(token)) break;
         words.push(token.split("|"));
@@ -69,8 +70,15 @@ function helpPaths(help) {
 
 // stdin is /dev/null, so stdio servers and hooks see end of input at once.
 // The working folder is the test machine, so a stray path lands there.
-function run(args, env) {
-  return new Promise((resolve) => {
+// What one CLI run did.
+interface Ran {
+  code: number | null;
+  signal: NodeJS.Signals | null;
+  stdout: string;
+  stderr: string;
+}
+function run(args: string[], env: NodeJS.ProcessEnv) {
+  return new Promise<Ran>((resolve) => {
     const child = spawn(process.execPath, [cli, ...args], {
         env,
         cwd: env.HOME,
@@ -89,8 +97,8 @@ function run(args, env) {
 }
 
 // Run `jobs` with at most `limit` in flight.
-async function pool(jobs, limit) {
-  const results = [];
+async function pool<T>(jobs: (() => Promise<T>)[], limit: number) {
+  const results: T[] = [];
   let next = 0;
   await Promise.all(
     Array.from({ length: limit }, async () => {
@@ -141,14 +149,15 @@ test("every CLI command and subcommand runs without crashing", {
 
   // Each top-level command gets its own copy of the workspace, so
   // commands run side by side without sharing a database.
-  const workspaces = new Map();
-  const workspaceFor = (command) => {
+  const workspaces = new Map<string, string>();
+  const workspaceFor = (command: string) => {
     if (!workspaces.has(command)) {
       const copy = path.join(machine, "ws-" + command);
       fs.cpSync(template, copy, { recursive: true });
       workspaces.set(command, copy);
+      return copy;
     }
-    return workspaces.get(command);
+    return String(workspaces.get(command));
   };
   const runs = paths
     .filter(
@@ -164,7 +173,13 @@ test("every CLI command and subcommand runs without crashing", {
   const failures = (
     await pool(runs, Math.max(2, Math.min(8, os.availableParallelism())))
   )
-    .filter((r) => r.signal || ![0, 1].includes(r.code) || CRASH.test(r.stderr))
+    .filter(
+      (r) =>
+        r.signal ||
+        r.code === null ||
+        ![0, 1].includes(r.code) ||
+        CRASH.test(r.stderr),
+    )
     .map(
       (r) =>
         `avoozl ${r.args.slice(0, -2).join(" ")} -> ${r.signal || r.code}: ${r.stderr.slice(0, 300)}`,

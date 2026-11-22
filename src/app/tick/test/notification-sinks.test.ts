@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Notifications without Kiro Crew (without-kirocrew nk-6.1, NK7.1, NK7.6 to
 // NK7.9): the headless tick delivers to this machine's sinks, each sink keeps
 // its own record, a backlog is one notice, and a failing sink backs off.
@@ -17,6 +16,8 @@ import {
   deliverNotifications,
   queueNotifications,
   waitingNotifications,
+  type NotificationPayload,
+  type NotificationRow,
 } from "../notifications.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
 
@@ -34,26 +35,26 @@ function scratch() {
   };
 }
 
-const notice = (n, channel = "decision") => ({
+const notice = (n: number, channel = "decision") => ({
   channel,
   task: `task-${n}`,
   title: `Decide ${n}`,
   text: `Synthetic decision ${n}.`,
 });
 
-const sink = (id, { fail = false } = {}) => {
-  const got = [];
+const sink = (id: string, { fail = false } = {}) => {
+  const got: NotificationPayload[] = [];
   return {
     id,
     got,
-    push: async (payload) => {
+    push: async (payload: NotificationPayload) => {
       if (fail) throw Error(`${id} is down`);
       got.push(payload);
     },
   };
 };
 
-async function withStore(db, use) {
+async function withStore<T>(db: string, use: (store: Store) => T) {
   const store = new Store(db);
   try {
     return await use(store);
@@ -74,7 +75,12 @@ test("a headless tick sends a queued decision to a sink once", async () => {
   fs.mkdirSync(paths.stateDirectory, { recursive: true });
   fs.mkdirSync(paths.configDirectory, { recursive: true });
   const first = await tickWorkspace(directory, paths);
-  assert.equal(first.notifications.sinks[0].sent, 1, JSON.stringify(first));
+  assert.ok("notifications" in first, JSON.stringify(first));
+  assert.partialDeepStrictEqual(
+    first.notifications,
+    { sinks: [{ sent: 1 }] },
+    JSON.stringify(first),
+  );
   await tickWorkspace(directory, paths);
   assert.equal(fake.got.length, 1);
   assert.equal(fake.got[0].title, "Decide 1");
@@ -95,7 +101,7 @@ test("with no sink, status shows how many wait and the oldest one's age", async 
     XDG_CONFIG_HOME: path.join(root, "config"),
     XDG_STATE_HOME: path.join(root, "state"),
   });
-  const hostFile = path.join(env.XDG_CONFIG_HOME, "avoozl", "config.json");
+  const hostFile = path.join(root, "config", "avoozl", "config.json");
   fs.mkdirSync(path.dirname(hostFile), { recursive: true });
   fs.writeFileSync(
     hostFile,
@@ -147,17 +153,21 @@ test("a sink that throws does not stop another, and is tried again later", async
     const down = sink("down", { fail: true }),
       up = sink("up");
     const first = await deliverNotifications(store, [down, up], now);
+    assert.ok("sinks" in first);
     assert.equal(first.sinks[0].error, "down is down");
     assert.equal(up.got.length, 2);
     // Not before its wait; the other sink resends nothing.
     const early = await deliverNotifications(store, [down, up], now + 1000);
+    assert.ok("sinks" in early);
     assert.equal(early.sinks[0].waiting, true);
     assert.equal(up.got.length, 2);
     // Down again after a minute: the wait grows.
     await deliverNotifications(store, [down, up], now + MINUTE + 1);
-    const again = store.getMeta("notifications.sink.down");
-    assert.equal(again.failures, 2);
-    assert.ok(Date.parse(again.retryAt) >= now + 3 * MINUTE);
+    const again = store.getMeta<{ failures: number; retryAt?: string }>(
+      "notifications.sink.down",
+    );
+    assert.equal(again?.failures, 2);
+    assert.ok(Date.parse(again?.retryAt ?? "") >= now + 3 * MINUTE);
     // Back up: it gets what waited, once.
     const back = sink("down");
     await deliverNotifications(store, [back, up], now + 10 * MINUTE);
@@ -166,7 +176,10 @@ test("a sink that throws does not stop another, and is tried again later", async
       ["Decide 1", "Decide 2"],
     );
     assert.equal(up.got.length, 2);
-    assert.equal(store.getMeta("notifications.sink.down").failures, 0);
+    assert.equal(
+      store.getMeta<{ failures: number }>("notifications.sink.down")?.failures,
+      0,
+    );
   });
 });
 
@@ -174,12 +187,17 @@ test("the Kiro Crew push still marks each row sent, one push per row", async () 
   const { db } = scratch();
   await withStore(db, async (store) => {
     queueNotifications(store, [notice(1), notice(2)]);
-    const pushed = [];
+    const pushed: NotificationPayload[] = [];
     const result = await deliverNotifications(store, async (payload) => {
       pushed.push(payload);
     });
+    assert.ok("sent" in result);
     assert.equal(result.sent, 2);
     assert.equal(pushed.length, 2);
-    assert.ok(store.list("app_notifications").every((row) => row.sentAt));
+    assert.ok(
+      store
+        .list<NotificationRow>("app_notifications")
+        .every((row) => row.sentAt),
+    );
   });
 });

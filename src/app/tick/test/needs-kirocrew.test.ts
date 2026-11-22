@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // What needs Kiro Crew says so (without-kirocrew nk-7.1, NK8): one table, a
 // Needs you item per waiting role on a headless tick, a person-only Run on,
 // and no Kiro Crew reader called outside the table.
@@ -9,6 +8,16 @@ import test from "node:test";
 import { workspaceConfig } from "../../settings/config.ts";
 import { OPERATIONS } from "../../api/operation-table.ts";
 import { workspaceStatus } from "../../workspace/workspace-status.ts";
+import { withStatus } from "../../test/refusal.ts";
+import {
+  storedRow,
+  type ConflictsView,
+  type NeedsYouItem,
+} from "../../test/view-shapes.ts";
+import type { RequestRow } from "../../sessions/session-requests.ts";
+
+// One open needs-kirocrew item: its role and the starts that wait on it.
+type Waiting = { role: string; requests: unknown[] };
 import {
   approveHarnessDefinition,
   harnessDefinitionHash,
@@ -68,7 +77,7 @@ function machine() {
       JSON.stringify({ "fake-cli": hash }),
     );
   const db = workspaceConfig({ workspace: directory }).dbPath;
-  const open = (use) => {
+  const open = <T>(use: (store: Store) => T) => {
     const store = new Store(db);
     try {
       return use(store);
@@ -97,7 +106,7 @@ function machine() {
 }
 
 // A worker start for task b, queued for Kiro Crew as the tick queues one.
-function askWorker(m) {
+function askWorker(m: ReturnType<typeof machine>) {
   m.open((store) =>
     enqueueSessionRequests(store, {
       starts: [
@@ -115,8 +124,10 @@ function askWorker(m) {
   );
 }
 
-const items = (store) =>
-  Object.values(store.getMeta("needs-kirocrew.items") ?? {});
+const items = (store: Store) =>
+  Object.values(
+    store.getMeta<Record<string, Waiting>>("needs-kirocrew.items") ?? {},
+  );
 
 test("a kirocrew start on a headless tick opens one item across three ticks and starts nothing", async () => {
   const m = machine();
@@ -131,7 +142,7 @@ test("a kirocrew start on a headless tick opens one item across three ticks and 
     assert.equal(store.list("session_bindings").length, 0, "nothing started");
     assert.deepEqual(
       store
-        .list("session_requests")
+        .list<RequestRow>("session_requests")
         .filter((r) => r.state === "pending")
         .map((r) => r.executor),
       ["kirocrew"],
@@ -140,10 +151,12 @@ test("a kirocrew start on a headless tick opens one item across three ticks and 
     const view = await new Operations(store, {
       workspaceRoot: m.directory,
       configDirectory: m.paths.configDirectory,
-    }).execute("conflicts.view", {});
-    const row = view.items.find((i) => i.kind === "needs-kirocrew");
-    assert.equal(row.role, "worker");
-    assert.deepEqual(row.choices, ["fake-cli"]);
+    }).execute<ConflictsView>("conflicts.view", {});
+    const row: NeedsYouItem | undefined = view.items.find(
+      (i) => i.kind === "needs-kirocrew",
+    );
+    assert.equal(row?.role, "worker");
+    assert.deepEqual(row?.choices, ["fake-cli"]);
   } finally {
     store.close();
   }
@@ -154,6 +167,7 @@ test("a kirocrew start on a headless tick opens one item across three ticks and 
     config: workspaceConfig({ workspace: m.directory }),
     catalog: { workspaces: [] },
   });
+  assert.ok("kirocrew" in status, status.health);
   assert.equal(status.kirocrew.reachable, false);
   assert.deepEqual(
     status.kirocrew.waiting.map((w) => [w.role, w.sessions]),
@@ -184,7 +198,7 @@ test("Run on from a person moves the role and cancels its waiting kirocrew start
         undefined,
         { mcp: true },
       ),
-      (error) => error.status === 403,
+      withStatus(403),
     );
     await assert.rejects(
       ops.execute("needskirocrew.runon", {
@@ -204,7 +218,7 @@ test("Run on from a person moves the role and cancels its waiting kirocrew start
     assert.deepEqual(items(store), []);
     // Its waiting kirocrew start is canceled, so the next tick plans it anew.
     assert.notEqual(
-      store.get("session_requests", "b:worker:1").state,
+      storedRow(store, "session_requests", "b:worker:1").state,
       "pending",
     );
   } finally {
