@@ -93,7 +93,7 @@ Each task's plain sub-bullets say what done means.
   - Failure means: planning output is not bounded or the tick is not idempotent.
   - Next decision: tighten the planner brief and validator, or reconsider tick boundaries.
 - [x] `avoozl-p5` P5 Proof: automatic Kiro Crew execution of ready leaves [R6, R7]
-  - Expected: only the loader dispatches first; after its verifier passes and it integrates, the validator dispatches, then the flag; every task links to its worker and verifier sessions; the integration branch has three verified commits.
+  - Expected: only the loader dispatches first; after its checks pass and it integrates, the validator dispatches, then the flag; every task links to its worker session and check run; the integration branch has three verified commits.
   - A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict.
   - Setup: the approved graph from P4; concurrency 2.
   - Action: leave the tick running with no human input.

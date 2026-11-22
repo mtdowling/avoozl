@@ -109,7 +109,7 @@ const REMOVED_FACTS: Record<string, string> = {
   session:
     "Pick the agent, model and harness for a role in Settings; delete this line.",
   verify:
-    "A repository with no checks gets a verifier chat; set checks in Settings and delete this line.",
+    "A repository with no checks is judged by its reviewers only; set checks in Settings and delete this line.",
   ship: "The repository's landing setting says how work ships; delete this line.",
   taskId: GONE,
   nextAction: GONE,

@@ -111,7 +111,7 @@ export const SETTINGS_BLURBS: Record<SettingsTab, string> = {
   workspaces: 'The Avoozl workspaces on this machine, each a folder with its own task database, and the settings that stay on this computer.',
   github: 'The GitHub settings of the selected workspace, for every repository in it. Each tab is one group; one Save writes them all to .avoozl.json.',
   repositories: "Each repository's role says where its tasks live. Its Workflow map, checks and code review rule are tabs under its name. Save only writes .avoozl.json.",
-  plugins: 'A plugin can bring a team’s settings pack, content rules, an intake source or workflow templates. Each one runs or imports only after you approve it on this machine.',
+  plugins: 'A plugin can bring content rules, GitHub sign-in, checks or epic context. Each one runs only after you approve it on this machine.',
   context: 'Extra skills, read folders and MCP servers a worker gets on your own approved spec tasks, only in the repositories you name. They stay on this machine.',
   content: 'Terms Avoozl must never write: in spec files, issues, comments, briefs and diffs. A match stops the write and asks you.',
   flow: 'How Avoozl measures delivery time and reacts to slow or broken work. Every group applies in each mode.',

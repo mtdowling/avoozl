@@ -73,7 +73,7 @@ test("a command-only bar opens no verifier chat: Avoozl runs the checks at the e
   // Nearby inputs: a second tick while the run is queued (no second run), a
   // page tick (queues nothing), the worktree left behind (none), flow
   // timing (one `checks` span), and a repository with no checks (that
-  // still opens a verifier chat).
+  // is judged by its reviewers only).
   const { store, ops, checkout } = setup(t, {
     checks: [[node, "-e", "console.log('ok from checks')"]],
   });
