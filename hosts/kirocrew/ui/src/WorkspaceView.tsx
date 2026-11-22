@@ -21,7 +21,7 @@ import {
   type WorkspaceProposalRecord,
   type WorkspaceProvisionProposal,
 } from './workspace-api'
-import { SectionHeading } from './ui/controls.tsx'
+import { DangerBtn, SectionHeading } from './ui/controls.tsx'
 import { Button } from './ui/Button.tsx'
 import { FieldGroup } from './ui/FieldGroup.tsx'
 import { Modal } from './ui/Modal.tsx'
@@ -134,9 +134,17 @@ function ProposalRow(props: { record: WorkspaceProposalRecord; busy: boolean; on
           <Btn type="button" disabled={props.busy} onClick={props.onEdit}>
             Edit
           </Btn>
-          <Btn type="button" disabled={props.busy} onClick={props.onDismiss}>
+          <DangerBtn
+            disabled={props.busy}
+            confirm={{
+              title: `Dismiss ${proposal.workspace.name}?`,
+              body: 'The request leaves this list. No workspace or repository is changed.',
+              action: 'Dismiss',
+            }}
+            onConfirm={props.onDismiss}
+          >
             Dismiss
-          </Btn>
+          </DangerBtn>
           <Btn type="button" primary disabled={props.busy} onClick={props.onApply}>
             {proposal.workspace.action === 'create' ? 'Create and open' : 'Add and open'}
           </Btn>
@@ -180,10 +188,12 @@ export default function WorkspaceView(props: { selected?: string | null; onSelec
   const loadList = useCallback(
     (prefer: string | null = null) =>
       attempt(async () => {
-        const [next, requested] = await Promise.all([client.list(), client.proposals()])
+        const next = await client.list()
         setList(next)
-        setProposals(requested)
         setSelected((current) => pickDefault(next, prefer ?? current))
+        // A workspace list remains usable against a backend that predates
+        // requests, and in test harnesses that model only the older calls.
+        setProposals(await client.proposals().catch(() => []))
       }),
     [attempt, client],
   )
