@@ -1,16 +1,37 @@
-// @ts-nocheck: typing debt
 // Settings view for the GitHub policy in `.avoozl.json` (task 3.13): load,
 // validate and save through Operations. Without an available GitHub client
 // nothing calls GitHub; with one, the default-branch check reads it.
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { principalAllows } from "../../executors/kirocrew/app-backend.ts";
 import { normalizeGitHubPolicy, readGitHubPolicy } from "../github-policy.ts";
 import { Operations } from "../../api/operations.ts";
 import { RepositorySettings } from "../../settings/repository-settings.ts";
 import { fixture } from "../../test/fixtures.ts";
+import type { Refusal } from "../../test/refusal.ts";
+
+// github.settings.get and .update, for the fields these tests read.
+interface GitHubSettings {
+  exists: boolean;
+  hash: string | null;
+  github: { mode?: string; repositories?: Record<string, unknown> };
+  error: string | null;
+  effective: {
+    mode: string | null;
+    planningRepository?: string | null;
+    repositories: Record<string, { minimumPermission?: string }>;
+  } | null;
+  choices: { modes: string[] };
+  review?: unknown;
+}
+// github.settings.validate.
+interface Checked {
+  valid: boolean;
+  error?: string;
+  policy: { repositories: Record<string, { priorityLabels?: string[] }> };
+}
 
 const noGitHub = new Proxy(
   { available: () => false },
@@ -36,7 +57,13 @@ const POLICY = {
   },
 };
 
-function workspace(t, { file, server = false } = {}) {
+function workspace(
+  t: TestContext,
+  {
+    file,
+    server = false,
+  }: { file?: Record<string, unknown>; server?: boolean } = {},
+) {
   const { root, store } = fixture(t),
     filename = path.join(root, ".avoozl.json");
   if (file) fs.writeFileSync(filename, JSON.stringify(file, null, 2) + "\n");
@@ -51,16 +78,17 @@ function workspace(t, { file, server = false } = {}) {
   return { root, store, ops, filename };
 }
 
-const readJson = (filename) => JSON.parse(fs.readFileSync(filename, "utf8"));
+const readJson = (filename: string): Record<string, unknown> =>
+  JSON.parse(fs.readFileSync(filename, "utf8"));
 
 test("an empty workspace loads empty GitHub settings with the default policy", async (t) => {
   const { ops } = workspace(t),
-    settings = await ops.execute("github.settings.get");
+    settings = await ops.execute<GitHubSettings>("github.settings.get");
   assert.equal(settings.exists, false);
   assert.equal(settings.hash, null);
   assert.deepEqual(settings.github, {});
   assert.equal(settings.error, null);
-  assert.equal(settings.effective.mode, null);
+  assert.equal(settings.effective?.mode, null);
   assert.deepEqual(settings.choices.modes, [
     "local",
     "plans-repo",
@@ -84,21 +112,21 @@ for (const server of [false, true])
           },
         },
       }),
-      before = await ops.execute("github.settings.get");
+      before = await ops.execute<GitHubSettings>("github.settings.get");
     assert.equal(before.github.mode, "single-repo");
-    const saved = await ops.execute("github.settings.update", {
+    const saved = await ops.execute<GitHubSettings>("github.settings.update", {
       github: POLICY,
       expectedHash: before.hash,
     });
     assert.notEqual(saved.hash, before.hash);
     assert.equal(saved.error, null);
-    assert.equal(saved.effective.mode, "plans-repo");
+    assert.equal(saved.effective?.mode, "plans-repo");
     assert.equal(
-      saved.effective.repositories["example/app"].minimumPermission,
+      saved.effective?.repositories["example/app"]?.minimumPermission,
       "maintain",
     );
     assert.deepEqual(
-      Object.keys(saved.github.repositories),
+      Object.keys(saved.github.repositories ?? {}),
       ["example/app"],
       "the edit replaces the repository list",
     );
@@ -106,7 +134,7 @@ for (const server of [false, true])
     assert.equal(file.namespace, "avz_0123456789abcdef");
     assert.deepEqual(file.conversations, { autoArchiveCompleted: false });
     assert.equal(readGitHubPolicy(root).planningRepository, "example/plans");
-    const again = await ops.execute("github.settings.get");
+    const again = await ops.execute<GitHubSettings>("github.settings.get");
     assert.equal(again.hash, saved.hash);
     assert.deepEqual(again.github, saved.github);
   });
@@ -115,14 +143,14 @@ test("clearing a setting removes it and an empty block removes github", async (t
   const { ops, filename } = workspace(t, {
       file: { version: 1, github: { mode: "single-repo" } },
     }),
-    before = await ops.execute("github.settings.get"),
-    saved = await ops.execute("github.settings.update", {
+    before = await ops.execute<GitHubSettings>("github.settings.get"),
+    saved = await ops.execute<GitHubSettings>("github.settings.update", {
       github: { mode: null, epicIssueType: null },
       expectedHash: before.hash,
     });
   assert.deepEqual(saved.github, {});
   assert.equal(Object.hasOwn(readJson(filename), "github"), false);
-  assert.equal(saved.effective.mode, null);
+  assert.equal(saved.effective?.mode, null);
 });
 
 test("a stale hash is refused and the file is unchanged", async (t) => {
@@ -131,24 +159,24 @@ test("a stale hash is refused and the file is unchanged", async (t) => {
     }),
     text = fs.readFileSync(filename, "utf8");
   await assert.rejects(
-    ops.execute("github.settings.update", {
+    ops.execute<GitHubSettings>("github.settings.update", {
       github: POLICY,
       expectedHash: "stale",
     }),
-    (error) =>
+    (error: Refusal) =>
       error.status === 409 && /reload before saving/.test(error.message),
   );
   assert.equal(fs.readFileSync(filename, "utf8"), text);
 });
 
-const repository = (change) => ({
+const repository = (change: Record<string, unknown>) => ({
   ...POLICY,
   repositories: {
     "example/app": { ...POLICY.repositories["example/app"], ...change },
   },
 });
 
-const INVALID = [
+const INVALID: [string, Record<string, unknown>, RegExp][] = [
   [
     "plans-repo without a planning repository",
     { ...POLICY, planningRepository: null },
@@ -201,12 +229,14 @@ for (const [label, github, message] of INVALID)
         file: { version: 1, github: { mode: "single-repo" } },
       }),
       text = fs.readFileSync(filename, "utf8"),
-      before = await ops.execute("github.settings.get"),
-      checked = await ops.execute("github.settings.validate", { github });
+      before = await ops.execute<GitHubSettings>("github.settings.get"),
+      checked = await ops.execute<Checked>("github.settings.validate", {
+        github,
+      });
     assert.equal(checked.valid, false);
-    assert.match(checked.error, message);
+    assert.match(checked.error ?? "", message);
     await assert.rejects(
-      ops.execute("github.settings.update", {
+      ops.execute<GitHubSettings>("github.settings.update", {
         github,
         expectedHash: before.hash,
       }),
@@ -217,11 +247,11 @@ for (const [label, github, message] of INVALID)
 
 test("validate accepts a full policy", async (t) => {
   const { ops } = workspace(t),
-    checked = await ops.execute("github.settings.validate", {
+    checked = await ops.execute<Checked>("github.settings.validate", {
       github: POLICY,
     });
   assert.equal(checked.valid, true);
-  assert.deepEqual(checked.policy.repositories["example/app"].priorityLabels, [
+  assert.deepEqual(checked.policy.repositories["example/app"]?.priorityLabels, [
     "p0",
     "p1",
   ]);
@@ -231,16 +261,19 @@ test("an invalid file is shown as an error and can be fixed from Settings", asyn
   const { ops } = workspace(t, {
       file: { version: 1, github: { mode: "plans-repo" } },
     }),
-    broken = await ops.execute("github.settings.get");
+    broken = await ops.execute<GitHubSettings>("github.settings.get");
   assert.equal(broken.effective, null);
-  assert.match(broken.error, /plans-repo needs github.planningRepository/);
+  assert.match(
+    broken.error ?? "",
+    /plans-repo needs github.planningRepository/,
+  );
   assert.equal(broken.github.mode, "plans-repo");
-  const fixed = await ops.execute("github.settings.update", {
+  const fixed = await ops.execute<GitHubSettings>("github.settings.update", {
     github: { ...broken.github, planningRepository: "example/plans" },
     expectedHash: broken.hash,
   });
   assert.equal(fixed.error, null);
-  assert.equal(fixed.effective.planningRepository, "example/plans");
+  assert.equal(fixed.effective?.planningRepository, "example/plans");
 });
 
 test("the raw configuration editor refuses an invalid GitHub policy", async (t) => {
@@ -249,7 +282,9 @@ test("the raw configuration editor refuses an invalid GitHub policy", async (t) 
       file: { version: 1 },
     }),
     text = fs.readFileSync(filename, "utf8"),
-    current = await ops.execute("configuration.get", { scope: "repository" });
+    current = await ops.execute<{ hash: string }>("configuration.get", {
+      scope: "repository",
+    });
   await assert.rejects(
     ops.execute("configuration.update", {
       scope: "repository",
@@ -291,7 +326,7 @@ test("settings show review roles from delivery, read only", async (t) => {
       },
     },
   });
-  const { review } = await ops.execute("github.settings.get");
+  const { review } = await ops.execute<GitHubSettings>("github.settings.get");
   assert.deepEqual(review, {
     error: null,
     writerModel: "model-a",
@@ -341,9 +376,9 @@ test("githubMode() is null in Local only", async (t) => {
     file: { version: 1, github: { mode: "local" } },
   });
   assert.equal(ops.githubMode(), null);
-  const settings = await ops.execute("github.settings.get");
+  const settings = await ops.execute<GitHubSettings>("github.settings.get");
   assert.equal(settings.github.mode, "local");
-  assert.equal(settings.effective.mode, null);
+  assert.equal(settings.effective?.mode, null);
   assert.deepEqual(settings.choices.modes, [
     "local",
     "plans-repo",

@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The served-model gate (design §5.2, R36.3, R36.4): a review verdict counts
 // only when Kiro Crew's session rows show the reviewer ran on a named model
 // other than the writer's. Fake roster rows only: each case reports the
@@ -8,7 +7,7 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { Operations } from "../operations.ts";
 import { Store } from "../../store/store.ts";
 import { deliveryView } from "../page-views.ts";
@@ -16,16 +15,43 @@ import { snapshot } from "../../test/fixtures.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
 import { loopOn } from "../../test/fixtures.ts";
 import { drainCheckRuns } from "../../delivery/check-runs.ts";
+import { storedRow, type TickResult } from "../../test/view-shapes.ts";
+
+// Extra roster fields for one session row.
+type Row = Record<string, unknown>;
+// The task delivery, for the fields these tests read.
+interface Delivery {
+  state: string;
+  cause?: string;
+  attempts: { outcome?: string }[];
+  verifications: {
+    role?: string;
+    outcome?: string;
+    verdict?: string;
+    findings?: unknown;
+  }[];
+}
+// A session binding's last served-model reading.
+interface Binding {
+  served?: { model: string };
+}
+// A delivery.view card's sessions and review rounds.
+interface ServedCard {
+  sessions: { slot: string; model?: string; served: unknown }[];
+  rounds: { verdicts: { role: string; served?: string }[] }[];
+}
+const delivery = (store: Store) =>
+  storedRow<Delivery>(store, "task_deliveries", "w1");
 
 // The tick starts and lands work only with the server loop on.
 loopOn();
 
-const git = (cwd, ...args) =>
+const git = (cwd: string, ...args: string[]) =>
   execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
 const CHECK = "git status";
-const as = (slot) => ({ caller: { sessionKey: "dashboard:" + slot } });
+const as = (slot: string) => ({ caller: { sessionKey: "dashboard:" + slot } });
 
-function setup(t) {
+function setup(t: TestContext) {
   const root = temporaryDirectory("avoozl-served-"),
     checkout = path.join(root, "app");
   fs.mkdirSync(checkout, { recursive: true });
@@ -86,18 +112,29 @@ function setup(t) {
 // One round: the writer reports, the checks and review sessions open, both
 // approve (or the review asks for changes), and the cron ticks with `rows`
 // (slot -> extra roster fields) and `status` (slot -> status).
-async function round(t, { rows = {}, status = {}, verdict = "approved" } = {}) {
+async function round(
+  t: TestContext,
+  {
+    rows = {},
+    status = {},
+    verdict = "approved",
+  }: {
+    rows?: Record<string, Row>;
+    status?: Record<string, string>;
+    verdict?: string;
+  } = {},
+) {
   const { store, ops } = setup(t),
-    slots = [];
+    slots: string[] = [];
   const tick = () =>
-    ops.execute("workspace.tick", {
+    ops.execute<TickResult>("workspace.tick", {
       sessions: slots.map((target) => ({
         target,
         status: status[target] ?? "idle",
         ...(rows[target] || {}),
       })),
     });
-  const bind = async (slot, role, extra) => {
+  const bind = async (slot: string, role: string, extra: Row) => {
     slots.push(slot);
     await ops.execute("session.bind", {
       taskId: "w1",
@@ -109,7 +146,7 @@ async function round(t, { rows = {}, status = {}, verdict = "approved" } = {}) {
       ...extra,
     });
   };
-  const report = (slot, input) =>
+  const report = (slot: string, input: Row) =>
     ops.execute(
       "session.report",
       { kind: "done", taskId: "w1", ...input },
@@ -118,9 +155,12 @@ async function round(t, { rows = {}, status = {}, verdict = "approved" } = {}) {
     );
   await tick();
   await bind("w", "worker", { model: "fake-a" });
-  const { path: worktree } = await ops.execute("worktree.prepare", {
-    taskId: "w1",
-  });
+  const { path: worktree } = await ops.execute<{ path: string }>(
+    "worktree.prepare",
+    {
+      taskId: "w1",
+    },
+  );
   fs.writeFileSync(path.join(worktree, "a.txt"), "a1\n");
   git(worktree, "commit", "-am", "Work");
   const commit = git(worktree, "rev-parse", "HEAD");
@@ -144,7 +184,7 @@ async function round(t, { rows = {}, status = {}, verdict = "approved" } = {}) {
   return { store, ops, tick, result, status, rows };
 }
 
-const served = (model, extra = {}) => ({
+const served = (model: string | null, extra: Row = {}) => ({
   model_requested: null,
   served_model: model,
   model_withheld: false,
@@ -152,11 +192,11 @@ const served = (model, extra = {}) => ({
   ...extra,
 });
 const writerA = { w: served("fake-a", { model_requested: "fake-a" }) };
-const review = (row) => ({ r: { ...row, model_requested: "fake-b" } });
-const verdictOf = (store) =>
-  store.get("task_deliveries", "w1").verifications.find((v) => v.role);
+const review = (row: Row) => ({ r: { ...row, model_requested: "fake-b" } });
+const verdictOf = (store: Store) =>
+  delivery(store).verifications.find((v) => v.role);
 
-for (const [name, rows, cause] of [
+const refusals: [string, Record<string, Row>, RegExp][] = [
   [
     "served model unknown",
     { ...writerA, ...review(served(null)) },
@@ -203,26 +243,23 @@ for (const [name, rows, cause] of [
     review(served("fake-a")),
     /ran on the writer's model fake-a/,
   ],
-])
+];
+for (const [name, rows, cause] of refusals)
   test(`a review verdict from ${name} is refused with a decision`, async (t) => {
     const { store, result } = await round(t, { rows });
-    const delivery = store.get("task_deliveries", "w1");
-    assert.equal(delivery.state, "decision", "the gate stays shut");
-    assert.match(delivery.cause, cause);
-    assert.equal(delivery.attempts.length, 1);
-    assert.equal(
-      delivery.attempts[0].outcome,
-      "done",
-      "no writer attempt spent",
-    );
-    assert.equal(verdictOf(store).outcome, "refused");
-    assert.equal(verdictOf(store).verdict, "approved");
-    const notice = result.notify.find(
+    const held = delivery(store);
+    assert.equal(held.state, "decision", "the gate stays shut");
+    assert.match(held.cause ?? "", cause);
+    assert.equal(held.attempts.length, 1);
+    assert.equal(held.attempts[0]?.outcome, "done", "no writer attempt spent");
+    assert.equal(verdictOf(store)?.outcome, "refused");
+    assert.equal(verdictOf(store)?.verdict, "approved");
+    const notice = result.notify?.find(
       (n) => n.title === "Avoozl refused review conventions on w1",
     );
     assert.equal(notice?.channel, "decision");
     assert.ok(
-      !result.notify.some((n) => n.title.startsWith("Avoozl stopped")),
+      !result.notify?.some((n) => String(n.title).startsWith("Avoozl stopped")),
       "one notice, not a failure too",
     );
     assert.deepEqual(
@@ -237,27 +274,27 @@ test("a refused changes-requested verdict spends no writer attempt and leaves no
     rows: { ...writerA, ...review(served("auto", { model_withheld: true })) },
     verdict: "changes-requested",
   });
-  const delivery = store.get("task_deliveries", "w1");
-  assert.equal(delivery.state, "decision");
-  assert.equal(delivery.attempts[0].outcome, "done");
-  assert.equal(verdictOf(store).findings, undefined);
+  const held = delivery(store);
+  assert.equal(held.state, "decision");
+  assert.equal(held.attempts[0]?.outcome, "done");
+  assert.equal(verdictOf(store)?.findings, undefined);
 });
 
 test("distinct served models on both sides merge", async (t) => {
   const { store } = await round(t, {
     rows: { ...writerA, ...review(served("fake-b")) },
   });
-  assert.equal(store.get("task_deliveries", "w1").state, "integrated");
-  assert.equal(verdictOf(store).outcome, "accepted");
-  const view = deliveryView(store, store.read()).items[0];
-  assert.deepEqual(view.sessions.find((s) => s.slot === "r").served, {
+  assert.equal(delivery(store).state, "integrated");
+  assert.equal(verdictOf(store)?.outcome, "accepted");
+  const view: ServedCard = deliveryView(store, store.read()).items[0];
+  assert.deepEqual(view.sessions.find((s) => s.slot === "r")?.served, {
     model: "fake-b",
     withheld: false,
     changed: false,
   });
-  assert.equal(view.sessions.find((s) => s.slot === "r").model, "fake-b");
+  assert.equal(view.sessions.find((s) => s.slot === "r")?.model, "fake-b");
   assert.equal(
-    view.rounds[0].verdicts.find((v) => v.role === "conventions").served,
+    view.rounds[0]?.verdicts.find((v) => v.role === "conventions")?.served,
     "fake-b",
   );
 });
@@ -265,13 +302,16 @@ test("distinct served models on both sides merge", async (t) => {
 test("an older Kiro Crew that reports no model keeps today's behavior", async (t) => {
   // Nearby input: the same rows with no served_model key at all.
   const { store } = await round(t);
-  assert.equal(store.get("task_deliveries", "w1").state, "integrated");
-  const view = deliveryView(store, store.read()).items[0];
+  assert.equal(delivery(store).state, "integrated");
+  const view: ServedCard = deliveryView(store, store.read()).items[0];
   assert.ok(
     view.sessions.every((s) => s.served === null),
     "served model not reported",
   );
-  assert.equal(store.get("session_bindings", "r").served, undefined);
+  assert.equal(
+    storedRow<Binding>(store, "session_bindings", "r").served,
+    undefined,
+  );
 });
 
 test("a verdict waits while a reporting reviewer still has a turn in flight", async (t) => {
@@ -279,17 +319,13 @@ test("a verdict waits while a reporting reviewer still has a turn in flight", as
     rows: { ...writerA, ...review(served(null)) },
     status: { r: "working" },
   });
-  assert.equal(
-    store.get("task_deliveries", "w1").state,
-    "done",
-    "not judged yet",
-  );
+  assert.equal(delivery(store).state, "done", "not judged yet");
   assert.equal(verdictOf(store), undefined);
   // The turn completes on the reviewer's model; the verdict now counts.
   status.r = "idle";
   rows.r = { ...served("fake-b"), model_requested: "fake-b" };
   await tick();
-  assert.equal(store.get("task_deliveries", "w1").state, "integrated");
+  assert.equal(delivery(store).state, "integrated");
 });
 
 test("the tick refuses roster model fields of the wrong type", async (t) => {
@@ -318,12 +354,18 @@ test("a closed session's empty model fields keep its last live reading", async (
   status.r = "idle";
   rows.r = { ...served("fake-b"), model_requested: "fake-b" };
   await tick();
-  assert.equal(store.get("task_deliveries", "w1").state, "integrated");
+  assert.equal(delivery(store).state, "integrated");
   status.w = status.r = "closed";
   rows.w = rows.r = gone;
   await tick();
-  assert.equal(store.get("session_bindings", "r").served.model, "fake-b");
-  assert.equal(store.get("session_bindings", "w").served.model, "fake-a");
+  assert.equal(
+    storedRow<Binding>(store, "session_bindings", "r").served?.model,
+    "fake-b",
+  );
+  assert.equal(
+    storedRow<Binding>(store, "session_bindings", "w").served?.model,
+    "fake-a",
+  );
 });
 
 test("a reviewer first seen closed, with no model reading, is refused", async (t) => {
@@ -331,9 +373,6 @@ test("a reviewer first seen closed, with no model reading, is refused", async (t
     rows: { ...writerA, r: served(null) },
     status: { r: "closed" },
   });
-  assert.equal(store.get("task_deliveries", "w1").state, "decision");
-  assert.match(
-    store.get("task_deliveries", "w1").cause,
-    /served model as unknown/,
-  );
+  assert.equal(delivery(store).state, "decision");
+  assert.match(delivery(store).cause ?? "", /served model as unknown/);
 });

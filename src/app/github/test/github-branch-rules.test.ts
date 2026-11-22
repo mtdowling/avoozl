@@ -1,10 +1,10 @@
-// @ts-nocheck: typing debt
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
   branchReviewRule,
   ruleBranch,
   seenCheckNames,
+  type RulesReader,
 } from "../github-branch-rules.ts";
 import { Operations } from "../../api/operations.ts";
 import { fixture } from "../../test/fixtures.ts";
@@ -12,14 +12,42 @@ import { reviewRuleText } from "../../../../hosts/kirocrew/ui/src/settings-api.t
 
 const REPO = "example/code";
 
+// A commit the fake lists, with the check runs and statuses on it.
+interface FakeCommit {
+  sha: string;
+  runs?: string[];
+  statuses?: string[];
+}
+// github.repository.inspect, for the fields these tests read.
+interface Inspected {
+  error: string | null;
+  reviewRule: { approvals: number } | null;
+  reviewError?: string;
+  checks: { seen: string[] } | null;
+  checksError?: string | null;
+}
+type FakeReader = RulesReader & {
+  available: () => boolean;
+  reads: unknown[][];
+  signedIn?: () => boolean;
+};
+
 function fake({
   rules = [],
   protection = null,
   commits = [],
   branch = { protected: false },
   admin = true,
+}: {
+  rules?: NonNullable<Awaited<ReturnType<RulesReader["branchRules"]>>>;
+  protection?: Awaited<ReturnType<RulesReader["branchProtection"]>> | Error;
+  commits?: FakeCommit[];
+  branch?: NonNullable<Awaited<ReturnType<RulesReader["branch"]>>> & {
+    protected: boolean;
+  };
+  admin?: boolean;
 } = {}) {
-  return {
+  const github: FakeReader = {
     available: () => true,
     reads: [],
     repository: () =>
@@ -47,6 +75,7 @@ function fake({
         ),
       }),
   };
+  return github;
 }
 
 test("the rule branch is the policy's base branch, else GitHub's default", async () => {
@@ -127,7 +156,7 @@ test("classic protection hidden from a non-admin is an unknown rule, not zero", 
   );
   assert.equal(rule.hidden, true);
   assert.equal(rule.approvals, 0);
-  assert.match(rule.hiddenReason, /only to admins/);
+  assert.match(rule.hiddenReason ?? "", /only to admins/);
   assert.equal(rule.url, "https://github.com/example/code/settings/branches");
   assert.match(
     reviewRuleText({
@@ -181,10 +210,11 @@ test("a ruleset count with hidden classic protection is a floor", async () => {
 });
 
 test("an admin's 404 means no classic protection, and an unprotected branch is known", async () => {
-  for (const [branch, admin] of [
+  const cases: [{ protected: boolean }, boolean][] = [
     [hiddenClassic, true],
     [{ protected: false }, false],
-  ]) {
+  ];
+  for (const [branch, admin] of cases) {
     const rule = await branchReviewRule(fake({ branch, admin }), REPO, "main");
     assert.equal(rule.hidden, false, JSON.stringify({ branch, admin }));
     assert.equal(rule.approvals, 0);
@@ -260,14 +290,14 @@ test("github.repository.inspect reads rules and checks without writing", async (
     }),
     ops = new Operations(store, { github });
   const before = ops.read().revision;
-  const result = await ops.execute("github.repository.inspect", {
+  const result = await ops.execute<Inspected>("github.repository.inspect", {
     repository: REPO,
     baseBranch: "main",
   });
   assert.equal(ops.read().revision, before);
   assert.equal(result.error, null);
-  assert.equal(result.reviewRule.approvals, 1);
-  assert.deepEqual(result.checks.seen, ["build"]);
+  assert.equal(result.reviewRule?.approvals, 1);
+  assert.deepEqual(result.checks?.seen, ["build"]);
   await assert.rejects(
     ops.execute("github.repository.inspect", { repository: "nope" }),
     /owner\/repository/,
@@ -275,10 +305,10 @@ test("github.repository.inspect reads rules and checks without writing", async (
   const down = new Operations(store, {
     github: { ...github, available: () => false },
   });
-  const offline = await down.execute("github.repository.inspect", {
+  const offline = await down.execute<Inspected>("github.repository.inspect", {
     repository: REPO,
   });
-  assert.match(offline.error, /GitHub/);
+  assert.match(offline.error ?? "", /GitHub/);
   assert.equal(offline.checks, null);
 });
 
@@ -327,13 +357,13 @@ test("inspect keeps the check names when the review rule cannot be read", async 
       Object.assign(Error("Resource not accessible"), { status: 403 }),
     );
   const ops = new Operations(store, { github });
-  const result = await ops.execute("github.repository.inspect", {
+  const result = await ops.execute<Inspected>("github.repository.inspect", {
     repository: REPO,
     baseBranch: "main",
   });
   assert.equal(result.reviewRule, null);
-  assert.match(result.reviewError, /Resource not accessible/);
-  assert.deepEqual(result.checks.seen, ["build"]);
+  assert.match(result.reviewError ?? "", /Resource not accessible/);
+  assert.deepEqual(result.checks?.seen, ["build"]);
   assert.equal(result.checksError, null);
   assert.equal(result.error, null);
 });
@@ -341,7 +371,7 @@ test("inspect keeps the check names when the review rule cannot be read", async 
 test("inspect says not signed in instead of reading GitHub anonymously", async (t) => {
   const { store } = fixture(t),
     github = { ...fake(), available: () => true, signedIn: () => false };
-  const result = await new Operations(store, { github }).execute(
+  const result = await new Operations(store, { github }).execute<Inspected>(
     "github.repository.inspect",
     {
       repository: REPO,
@@ -349,5 +379,5 @@ test("inspect says not signed in instead of reading GitHub anonymously", async (
     },
   );
   assert.equal(result.checks, null);
-  assert.match(result.error, /not signed in/);
+  assert.match(result.error ?? "", /not signed in/);
 });
