@@ -320,6 +320,7 @@ export class GitHubClient {
   credentials: {
     signIns?: () => unknown[];
     available?: (owner: unknown) => boolean;
+    on?: import("./github-credentials.ts").MachineCredentials["on"];
     [key: string]: unknown;
   };
   onNoPerson?: (provider: string, owner: string) => unknown;
