@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { execFileSync } from "node:child_process";
 import test from "node:test";
 import { Operations } from "../../api/operations.ts";
 import { RepositorySettings } from "../repository-settings.ts";
@@ -10,6 +9,7 @@ import { fixture, waitFor } from "../../test/fixtures.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
 import type { Refusal } from "../../test/refusal.ts";
 import { found } from "../../test/view-shapes.ts";
+import { testRepository } from "../../test/git-repository.ts";
 
 // The workspace operation's configuration block.
 interface WorkspaceView {
@@ -409,24 +409,9 @@ test("repository conversation settings override and fall back to global defaults
   });
 });
 
-function git(root: string, args: string[]) {
-  return execFileSync("git", args, {
-    cwd: root,
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "pipe"],
-  }).trim();
-}
-
-function repository(root: string) {
-  fs.mkdirSync(root, { recursive: true });
-  git(root, ["init", "-b", "main"]);
-  git(root, ["config", "user.name", "Avoozl test"]);
-  git(root, ["config", "user.email", "avoozl@example.test"]);
-  fs.writeFileSync(path.join(root, "README.md"), "# Test\n");
-  git(root, ["add", "README.md"]);
-  git(root, ["commit", "-m", "Initialize"]);
-  git(root, ["remote", "add", "origin", path.join(root, "private.git")]);
-}
+// A repository with an origin remote that is never reached.
+const repository = (root: string) =>
+  testRepository(root, path.join(root, "private.git"));
 
 class PrivateGitHub {
   available() {

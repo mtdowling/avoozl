@@ -9,6 +9,7 @@ import type { TestContext } from "node:test";
 import type { Task } from "../../types.ts";
 import { deliveryWorkspace } from "./delivery-fixture.ts";
 import { found } from "./view-shapes.ts";
+import type { PluginCheck as ApprovedCheck } from "../workspace/repository-checks.ts";
 import {
   approvePlugin,
   validateManifest,
@@ -165,7 +166,9 @@ export function pluginWorkspace(
     approve: approveNow,
     settings: () => readPluginSettings(settingsFile),
     // An approved check by name, with the folder its steps run from.
-    check: (name: string) => {
+    check: (
+      name: string,
+    ): (ApprovedCheck & { plugin: { folder: string } }) | undefined => {
       const check = approvedPluginChecks(options).find((c) => c.name === name);
       if (!check) return undefined;
       const folder = check.plugin.folder;
