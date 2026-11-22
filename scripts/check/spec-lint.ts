@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt, see the commit message
 // Lint every spec folder under .kiro/specs/ with the checks approval runs
 // (lintSpec). Exits 1 when any folder has an error. CI runs it on every
 // change, including docs-only ones that skip the full suite.
@@ -11,6 +10,7 @@ import {
   readSpecFolder,
   specItems,
 } from "../../src/app/specs/spec-plans.ts";
+import type { SpecFolder, SpecItem } from "../../src/app/specs/spec-plans.ts";
 import { git } from "../../src/app/git/git.ts";
 import { foreignCommits } from "../../src/app/specs/integration-lint.ts";
 import { linkedReader } from "../../src/app/specs/order.ts";
@@ -31,7 +31,7 @@ if (!names.length) {
 // specs in other repositories still work).
 const STATUS =
   "A `Status:` line is not allowed: approval lives in Avoozl, not in the spec files. Delete this line.";
-function statusErrors(spec) {
+function statusErrors(spec: SpecFolder) {
   return Object.entries(spec.files).flatMap(([file, text]) =>
     String(text)
       .split("\n")
@@ -49,7 +49,7 @@ function statusErrors(spec) {
 const RETIRED =
   "A task, requirement or section marked superseded or retired is not allowed: delete it. Git history keeps the old text.";
 const RETIRED_WORD = /\b(?:superseded|retired)\b/i;
-function retiredErrors(spec) {
+function retiredErrors(spec: SpecFolder) {
   return Object.entries(spec.files).flatMap(([file, text]) =>
     String(text)
       .split("\n")
@@ -81,7 +81,14 @@ const linked = linkedReader(
 // Workflow v1 rules lintSpec does not check, read across every spec
 // (shortcut: checked here, not in lintSpec, so specs in other repositories
 // still work; move them into lintSpec when a runner must refuse them).
-const error = (file, line, message) => ({
+// One error of these checks: its file, line and message.
+type LintError = {
+  severity: string;
+  file: string;
+  line: number;
+  message: string;
+};
+const error = (file: string, line: number, message: string): LintError => ({
   severity: "error",
   file,
   line,
@@ -98,25 +105,29 @@ const itemsOf = new Map(
 );
 // The first spec that holds each task ID (2.2), and the spec of each named
 // ID, for a task that names another spec's task (6.5).
-const firstSpecOf = new Map();
+const firstSpecOf = new Map<string, string>();
 for (const [name, tasks] of itemsOf)
   for (const item of tasks?.items ?? [])
     if (item.key && !firstSpecOf.has(item.key)) firstSpecOf.set(item.key, name);
 const NAMED_ID = /(?<![\w.-])[a-z][a-z0-9]*(?:[.-][a-z0-9]+)+(?![\w-]|\.\d)/g;
 // A task's title and the plain sub-bullets under it.
-function taskWords(lines, item) {
-  const indent = /^\s*/.exec(lines[item.line - 1])[0].length,
+function taskWords(lines: string[], item: SpecItem) {
+  const indent = /^\s*/.exec(lines[item.line - 1] ?? "")?.[0].length ?? 0,
     words = [item.title];
   for (let at = item.line; at < lines.length; at++) {
     const row = lines[at];
     if (!row.trim()) continue;
-    if (/^\s*/.exec(row)[0].length <= indent || /^\s*[-*+] \[/.test(row)) break;
+    if (
+      (/^\s*/.exec(row)?.[0].length ?? 0) <= indent ||
+      /^\s*[-*+] \[/.test(row)
+    )
+      break;
     words.push(row);
   }
   return words.join("\n");
 }
-function workflowErrors(name, spec) {
-  const errors = [],
+function workflowErrors(name: string, spec: SpecFolder) {
+  const errors: LintError[] = [],
     tasks = itemsOf.get(name);
   // 5.1: the front matter of every file holds only `category` and `repo`.
   for (const [file, text] of Object.entries(spec.files ?? {})) {
@@ -186,18 +197,19 @@ const defaultBranch = await git(root, [
 );
 // A spec's task IDs and those of every spec it links, for the landings an
 // integration branch may hold.
-const taskIdsOf = (name, seen = new Set()) => {
-  if (seen.has(name) || !folders.has(name)) return [];
+const taskIdsOf = (name: string, seen = new Set<string>()): string[] => {
+  const folder = folders.get(name);
+  if (seen.has(name) || !folder) return [];
   seen.add(name);
-  const spec = { ...folders.get(name), linked },
+  const spec = { ...folder, linked },
     ids = parseSpec(spec).proposals.map((p) => p.id),
     children = [...folders.keys()].filter((other) =>
       linked.parents(other).some((parent) => parent.name === name),
     );
   return [...ids, ...children.flatMap((child) => taskIdsOf(child, seen))];
 };
-for (const name of names) {
-  const spec = { ...folders.get(name), linked },
+for (const [name, folder] of folders) {
+  const spec = { ...folder, linked },
     result = lintSpec({ spec }),
     status = [
       ...statusErrors(spec),
@@ -224,7 +236,7 @@ for (const name of names) {
     );
   for (const d of errors)
     console.log(
-      `  ${d.file ?? ""}:${d.line ?? d.lineStart ?? ""} ${d.message ?? d.text ?? JSON.stringify(d)}`,
+      `  ${d.file ?? ""}:${"lineStart" in d ? d.lineStart : d.line} ${d.message}`,
     );
   if (result.counts.error) failed = true;
 }

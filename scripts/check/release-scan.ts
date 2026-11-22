@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt, see the commit message
 // Release scan (design §13 gates 5 and 7, R24.2). Lists what the npm package
 // and the Kiro Crew app package would ship, and fails when either holds an
 // excluded file or a secret, private name, or machine path that is not
@@ -74,7 +73,12 @@ export const EXCLUDED = [
 const APP_SHIPS = /^hosts\/kirocrew\/ui\/test\//;
 
 // Findings a package may hold, each with its reason.
-export const ALLOWED = [
+export const ALLOWED: {
+  rule: string;
+  filePattern?: RegExp;
+  file?: string;
+  reason: string;
+}[] = [
   ...["macos-home", "linux-home"].map((rule) => ({
     rule,
     filePattern:
@@ -86,8 +90,14 @@ export const ALLOWED = [
 
 // Every rule that matches one line of text. A private-term finding carries
 // no text: terminal output gets pasted into chats and CI logs (R40.13).
-export function scanText(text, rules = RULES) {
-  const hits = [];
+// One rule that matched one line, and where.
+type Hit = { category: string; rule: string; line: number; text?: string };
+type Finding = Hit & { file: string };
+// A finding in history: the file may be gone, and it names its commit.
+type HistoryFinding = Hit & { file: string | null; commit: string | null };
+
+export function scanText(text: string, rules = RULES) {
+  const hits: Hit[] = [];
   text.split("\n").forEach((line, index) => {
     for (const { category, rule } of matchLine(line, rules))
       hits.push({
@@ -102,7 +112,7 @@ export function scanText(text, rules = RULES) {
   return hits;
 }
 
-export function npmFiles() {
+export function npmFiles(): string[] {
   const output = execFileSync(
     "npm",
     ["pack", "--dry-run", "--json", "--ignore-scripts"],
@@ -113,7 +123,7 @@ export function npmFiles() {
       shell: process.platform === "win32",
     },
   );
-  return JSON.parse(output)[0].files.map((file) => file.path);
+  return JSON.parse(output)[0].files.map((file: { path: string }) => file.path);
 }
 
 // Kiro Crew copies the whole app directory except these names.
@@ -122,8 +132,8 @@ function appFiles() {
   const app = path.join(root, "hosts", "kirocrew");
   if (!fs.existsSync(path.join(app, "bin", "lib", "cli.mjs")))
     throw Error("Build the app package first: npm run build:kirocrew-app");
-  const files = [];
-  const walk = (directory) => {
+  const files: string[] = [];
+  const walk = (directory: string) => {
     for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
       if (APP_COPY_SKIP.has(entry.name)) continue;
       const full = path.join(directory, entry.name);
@@ -149,17 +159,17 @@ export const STANDALONE_NOTICES = [
   "fonts/opendyslexic/OFL.txt",
   "fonts/space-grotesk/OFL.txt",
 ];
-export function missingNotices(files) {
+export function missingNotices(files: string[]) {
   if (!files.includes(`${STANDALONE}index.html`)) return [];
   return STANDALONE_NOTICES.map((name) => STANDALONE + name).filter(
     (name) => !files.includes(name),
   );
 }
 
-const binary = (buffer) => buffer.subarray(0, 8000).includes(0);
+const binary = (buffer: Buffer) => buffer.subarray(0, 8000).includes(0);
 
-function scanFiles(files) {
-  const findings = [];
+function scanFiles(files: string[]) {
+  const findings: Finding[] = [];
   for (const file of files) {
     const buffer = fs.readFileSync(path.join(root, file));
     if (binary(buffer)) continue;
@@ -169,7 +179,7 @@ function scanFiles(files) {
   return findings;
 }
 
-const allowed = (finding) =>
+const allowed = (finding: Finding) =>
   ALLOWED.find(
     (entry) =>
       entry.rule === finding.rule &&
@@ -184,8 +194,8 @@ export interface PackageReport {
   files: number;
   excluded: string[];
   missingNotices: string[];
-  findings: { file: string; category: string; rule: string; line: number }[];
-  allowed: { file: string; rule: string; reason: string }[];
+  findings: Finding[];
+  allowed: (Finding & { reason: string })[];
 }
 
 export function scanPackages() {
@@ -202,9 +212,10 @@ export function scanPackages() {
       ),
       missingNotices: missingNotices(files),
       findings: findings.filter((finding) => !allowed(finding)),
-      allowed: findings
-        .filter(allowed)
-        .map((finding) => ({ ...finding, reason: allowed(finding).reason })),
+      allowed: findings.flatMap((finding) => {
+        const entry = allowed(finding);
+        return entry ? [{ ...finding, reason: entry.reason }] : [];
+      }),
     };
   }
   return report;
@@ -220,8 +231,8 @@ export const PLUGIN_PATHS = [
 ];
 
 export function pluginFiles() {
-  const files = [];
-  const walk = (relative) => {
+  const files: string[] = [];
+  const walk = (relative: string) => {
     const full = path.join(root, relative);
     if (!fs.existsSync(full)) return;
     if (fs.statSync(full).isDirectory())
@@ -238,7 +249,7 @@ export function scanPlugins() {
   return { files: files.length, findings: scanFiles(files) };
 }
 
-function git(args) {
+function git(args: string[]) {
   return execFileSync("git", args, {
     cwd: root,
     encoding: "utf8",
@@ -246,8 +257,16 @@ function git(args) {
   });
 }
 
-function tally(findings) {
-  const rules = {};
+function tally(findings: (Finding | HistoryFinding)[]) {
+  const rules: Record<
+    string,
+    {
+      category: string;
+      hits: number;
+      files: Set<string | null>;
+      commits: Set<string>;
+    }
+  > = {};
   for (const finding of findings) {
     const entry = (rules[finding.rule] ||= {
       category: finding.category,
@@ -257,7 +276,8 @@ function tally(findings) {
     });
     entry.hits++;
     entry.files.add(finding.file);
-    if (finding.commit) entry.commits.add(finding.commit);
+    if ("commit" in finding && finding.commit)
+      entry.commits.add(finding.commit);
   }
   return Object.fromEntries(
     Object.entries(rules).map(([rule, entry]) => [
@@ -281,9 +301,9 @@ export function scanTree() {
 
 // Lines added by every commit reachable from HEAD.
 export function scanHistory() {
-  const findings = [];
-  let commit = null,
-    file = null;
+  const findings: HistoryFinding[] = [];
+  let commit: string | null = null,
+    file: string | null = null;
   const log = git([
     "log",
     "-p",
@@ -310,7 +330,13 @@ if (
   path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
 ) {
   const args = new Set(process.argv.slice(2)),
-    report = {
+    report: {
+      privateTerms: boolean;
+      packages: Record<string, PackageReport>;
+      plugins: ReturnType<typeof scanPlugins>;
+      tree?: ReturnType<typeof scanTree>;
+      history?: ReturnType<typeof scanHistory>;
+    } = {
       privateTerms: PRIVATE_TERMS_LOADED,
       packages: scanPackages(),
       plugins: scanPlugins(),
@@ -353,14 +379,17 @@ if (
         `  ${finding.file}:${finding.line} ${finding.rule}` +
           (finding.text === undefined ? "" : `: ${finding.text}`),
       );
-    for (const scope of ["tree", "history"]) {
-      if (!report[scope]) continue;
-      const rules = scope === "history" ? report[scope].rules : report[scope];
-      console.log(
-        scope === "history"
-          ? `history: ${report.history.commits} commits`
-          : "tree:",
-      );
+    const scopes: [string, ReturnType<typeof tally> | undefined, string][] = [
+      ["tree", report.tree, "tree:"],
+      [
+        "history",
+        report.history?.rules,
+        `history: ${report.history?.commits} commits`,
+      ],
+    ];
+    for (const [scope, rules, title] of scopes) {
+      if (!rules) continue;
+      console.log(title);
       for (const [rule, entry] of Object.entries(rules))
         console.log(
           `  ${entry.category} ${rule}: ${entry.hits} hits in ${entry.files.length} files` +

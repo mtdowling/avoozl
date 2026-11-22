@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt
 // The person-only guard this package installs as a pre-tool hook
 // (machine-server MS11.3): it refuses the agent's own shell call to an
 // `avoozl` command only a person may run, and lets every other call through.

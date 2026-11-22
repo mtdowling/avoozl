@@ -20,6 +20,23 @@ export interface Case {
   expectFail?: Record<string, string>;
   rules?: string[];
   steps?: { do: string; [key: string]: unknown }[];
+  // What the runners start from (read by scripts/kit/scenarios-doc.ts).
+  runner?: {
+    login?: string;
+    defaultBranch?: string;
+    specsBranch?: string;
+    staleHours?: number;
+  };
+  runners?: Record<string, string>;
+  origin?: {
+    branches?: string[];
+    behind?: string[];
+    [key: string]: unknown;
+  };
+  landing?: { mode?: string; pr?: string };
+  repository?: { deleteBranchOnMerge?: boolean };
+  issues?: Record<string, string[]>;
+  stops?: string[];
   [key: string]: unknown;
 }
 export type Verdict = "pass" | "fail" | "expected-fail" | "unexpected-pass";

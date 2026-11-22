@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt, see the commit message
 // Lists the text of every <style> element the page renders (SW2.5), so the
 // server's content security policy can allow each by hash. A text must be
 // known when the page is built: a string, a template, a number, a `+` of
@@ -11,7 +10,17 @@ import { parseSync } from "rolldown/utils";
 
 const EXTENSIONS = ["", ".tsx", ".ts", ".mjs", ".js"];
 
-function resolveModule(from, specifier) {
+// The parsed program, and the expression nodes the evaluator reads.
+type Program = ReturnType<typeof parseSync>["program"];
+type Statement = Program["body"][number];
+type Expression = NonNullable<
+  Extract<
+    Statement,
+    { type: "VariableDeclaration" }
+  >["declarations"][number]["init"]
+>;
+
+function resolveModule(from: string, specifier: string) {
   const base = path.resolve(path.dirname(from), specifier);
   for (const extension of EXTENSIONS) {
     const file = base + extension;
@@ -21,7 +30,12 @@ function resolveModule(from, specifier) {
 }
 
 class Module {
-  constructor(file, modules) {
+  file: string;
+  modules: Modules;
+  program: Program;
+  consts: Map<string, Expression>;
+  imports: Map<string, { from: string; name: string }>;
+  constructor(file: string, modules: Modules) {
     this.file = file;
     this.modules = modules;
     const { program } = parseSync(file, fs.readFileSync(file, "utf8"), {
@@ -45,7 +59,10 @@ class Module {
           if (specifier.type === "ImportSpecifier")
             this.imports.set(specifier.local.name, {
               from: node.source.value,
-              name: specifier.imported.name ?? specifier.imported.value,
+              name:
+                specifier.imported.type === "Identifier"
+                  ? specifier.imported.name
+                  : String(specifier.imported.value),
             });
     }
   }
@@ -53,8 +70,15 @@ class Module {
   // The value of an expression, or throws when it is not known at build time.
   // Strings, numbers, arrays, objects, a few operators, `.map(arrow)` and
   // `.join(text)`: enough for a text made of constants.
-  value(node, seen = new Set(), scope = new Map()) {
-    const again = (child) => this.value(child, seen, scope);
+  value(
+    node: Expression,
+    seen = new Set<string>(),
+    scope = new Map<string, unknown>(),
+  ): unknown {
+    const again = (child: Expression | null | { type: string }): unknown =>
+      child && isExpression(child)
+        ? this.value(child, seen, scope)
+        : unknownValue();
     switch (node.type) {
       case "Literal":
         return node.value;
@@ -70,7 +94,10 @@ class Module {
       case "BinaryExpression": {
         const left = again(node.left),
           right = again(node.right);
-        if (node.operator === "+") return left + right;
+        if (node.operator === "+")
+          return typeof left === "number" && typeof right === "number"
+            ? left + right
+            : String(left) + String(right);
         if (typeof left === "number" && typeof right === "number") {
           if (node.operator === "-") return left - right;
           if (node.operator === "*") return left * right;
@@ -85,47 +112,61 @@ class Module {
         return node.elements.map(again);
       case "ObjectExpression":
         return Object.fromEntries(
-          node.properties.map((property) => [
-            property.key.type === "Identifier" && !property.computed
-              ? property.key.name
-              : again(property.key),
-            again(property.value),
-          ]),
+          node.properties.map((property) =>
+            property.type === "Property"
+              ? [
+                  property.key.type === "Identifier" && !property.computed
+                    ? property.key.name
+                    : again(property.key),
+                  again(property.value),
+                ]
+              : unknownValue(),
+          ),
         );
       case "MemberExpression": {
         const object = again(node.object),
-          key = node.computed ? again(node.property) : node.property.name;
+          key = node.computed
+            ? again(node.property)
+            : node.property.type === "Identifier"
+              ? node.property.name
+              : unknownValue();
         if (
           object !== null &&
           typeof object === "object" &&
+          (typeof key === "string" || typeof key === "number") &&
           Object.hasOwn(object, key)
         )
-          return object[key];
+          return Reflect.get(object, key);
         break;
       }
       case "CallExpression": {
         const callee = node.callee;
         if (callee.type === "MemberExpression" && !callee.computed) {
           const target = again(callee.object);
-          if (Array.isArray(target) && callee.property.name === "join")
+          const method =
+            callee.property.type === "Identifier" ? callee.property.name : "";
+          if (Array.isArray(target) && method === "join")
             return target.join(
-              node.arguments.length ? again(node.arguments[0]) : ",",
+              node.arguments.length ? String(again(node.arguments[0])) : ",",
             );
           const fn = node.arguments[0];
           if (
             Array.isArray(target) &&
-            callee.property.name === "map" &&
+            method === "map" &&
             fn?.type === "ArrowFunctionExpression" &&
-            fn.expression &&
-            fn.params.every((param) => param.type === "Identifier")
-          )
-            return target.map((item, index) => {
-              const inner = new Map(scope);
-              fn.params.forEach((param, at) =>
-                inner.set(param.name, at ? index : item),
-              );
-              return this.value(fn.body, seen, inner);
-            });
+            fn.expression
+          ) {
+            const names = fn.params.flatMap((param) =>
+                param.type === "Identifier" ? [param.name] : [],
+              ),
+              body = fn.body;
+            if (names.length === fn.params.length && isExpression(body))
+              return target.map((item, index) => {
+                const inner = new Map(scope);
+                names.forEach((name, at) => inner.set(name, at ? index : item));
+                return this.value(body, seen, inner);
+              });
+          }
         }
         break;
       }
@@ -136,12 +177,13 @@ class Module {
     throw new Error("not known at build time");
   }
 
-  identifier(name, seen) {
+  identifier(name: string, seen: Set<string>): unknown {
     const key = `${this.file}:${name}`;
     if (seen.has(key)) throw new Error("not known at build time");
     seen.add(key);
     try {
-      if (this.consts.has(name)) return this.value(this.consts.get(name), seen);
+      const local = this.consts.get(name);
+      if (local) return this.value(local, seen);
       const imported = this.imports.get(name);
       if (imported) {
         const file = resolveModule(this.file, imported.from);
@@ -155,28 +197,58 @@ class Module {
 }
 
 class Modules {
-  cache = new Map();
-  get(file) {
-    if (!this.cache.has(file)) this.cache.set(file, new Module(file, this));
-    return this.cache.get(file);
+  cache = new Map<string, Module>();
+  get(file: string): Module {
+    const module = this.cache.get(file) ?? new Module(file, this);
+    this.cache.set(file, module);
+    return module;
   }
 }
 
-function* elements(node) {
+// A JSX element node.
+type JSXElement = Extract<Expression, { type: "JSXElement" }>;
+// Every JSX element under a node, in source order.
+function* elements(node: unknown): Generator<JSXElement> {
   if (Array.isArray(node)) for (const item of node) yield* elements(item);
   else if (node && typeof node === "object") {
-    if (node.type === "JSXElement") yield node;
-    for (const key of Object.keys(node))
-      if (key !== "type") yield* elements(node[key]);
+    if (isJSXElement(node)) yield node;
+    for (const [key, child] of Object.entries(node))
+      if (key !== "type") yield* elements(child);
   }
 }
 
+// What a node's `type` says it is. The AST comes from the parser, so its
+// type field names its shape.
+function isExpression(node: { type: string }): node is Expression {
+  return EXPRESSION_TYPES.has(node.type);
+}
+function isJSXElement(node: object): node is JSXElement {
+  return "type" in node && node.type === "JSXElement";
+}
+// The node types value() reads; any other one is not known at build time.
+const EXPRESSION_TYPES = new Set([
+  "Literal",
+  "TemplateLiteral",
+  "BinaryExpression",
+  "ParenthesizedExpression",
+  "TSAsExpression",
+  "TSSatisfiesExpression",
+  "ArrayExpression",
+  "ObjectExpression",
+  "MemberExpression",
+  "CallExpression",
+  "Identifier",
+]);
+const unknownValue = (): never => {
+  throw new Error("not known at build time");
+};
+
 // [{ file, text }] for every <style> in the page's own sources.
-export function listStyleTexts(srcDir) {
+export function listStyleTexts(srcDir: string) {
   const modules = new Modules(),
-    found = [],
+    found: { file: string; text: string }[] = [],
     files = fs
-      .readdirSync(srcDir, { recursive: true })
+      .readdirSync(srcDir, { recursive: true, encoding: "utf8" })
       .filter((name) => /\.tsx$/.test(name))
       .map((name) => path.join(srcDir, name))
       .sort();
@@ -194,7 +266,11 @@ export function listStyleTexts(srcDir) {
           text += child.value;
         } else if (child.type === "JSXExpressionContainer") {
           try {
-            text += String(module.value(child.expression));
+            text += String(
+              isExpression(child.expression)
+                ? module.value(child.expression)
+                : unknownValue(),
+            );
           } catch {
             throw new Error(
               `${path.relative(srcDir, file)}: a <style> text is built at run time. The standalone page's content security policy allows each style text by hash, so it must be a string, a template of constants, or a const.`,
@@ -211,5 +287,5 @@ export function listStyleTexts(srcDir) {
   return found;
 }
 
-export const styleHash = (text) =>
+export const styleHash = (text: string) =>
   `'sha256-${createHash("sha256").update(text, "utf8").digest("base64")}'`;

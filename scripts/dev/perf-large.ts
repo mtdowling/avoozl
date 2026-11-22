@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt, see the commit message
 // Time the tick and the page reads on a large synthetic workspace, with the
 // SQLite statements each one runs and the size of its reply.
 //
@@ -14,7 +13,7 @@ import { StatementSync } from "node:sqlite";
 import { largeWorkspace } from "../../src/app/test/large-workspace.ts";
 
 const args = process.argv.slice(2),
-  option = (name) => {
+  option = (name: string) => {
     const i = args.indexOf(name);
     return i >= 0 ? args[i + 1] : undefined;
   },
@@ -27,11 +26,16 @@ const args = process.argv.slice(2),
 // Count every statement run, whatever module prepared it.
 let queries = 0;
 for (const method of ["all", "get", "run", "iterate"]) {
-  const original = StatementSync.prototype[method];
-  StatementSync.prototype[method] = function (...values) {
-    queries++;
-    return original.apply(this, values);
-  };
+  const original: unknown = Reflect.get(StatementSync.prototype, method);
+  if (typeof original !== "function") continue;
+  Reflect.set(
+    StatementSync.prototype,
+    method,
+    function (this: StatementSync, ...values: unknown[]) {
+      queries++;
+      return original.apply(this, values);
+    },
+  );
 }
 
 const building = Date.now(),
@@ -44,7 +48,8 @@ console.error(
   }),
 );
 
-const cases = [
+// Each case: its label, the operation, its input and how many runs.
+const cases: [string, string, Record<string, unknown>, number?][] = [
   ["tick (first)", "workspace.tick", {}, 1],
   ["tick (page)", "workspace.tick", {}],
   ["tick (cron)", "workspace.tick", { cron: true }],
@@ -59,9 +64,9 @@ const cases = [
   ["intake.list", "intake.list", {}],
   ["flow.view", "flow.view", {}],
 ];
-const rows = [];
+const rows: (string | number)[][] = [];
 for (const [label, name, input, runs = 3] of cases) {
-  const times = [];
+  const times: number[] = [];
   let count = 0,
     size = 0;
   for (let run = 0; run < runs; run++) {
@@ -79,9 +84,9 @@ for (const [label, name, input, runs = 3] of cases) {
   rows.push([label, ms.toFixed(0), count, (size / 1024).toFixed(0)]);
 }
 // The Dashboard makes four of the reads above.
-const sum = (labels, column) =>
+const sum = (labels: string[], column: number) =>
   rows
-    .filter((row) => labels.includes(row[0]))
+    .filter((row) => labels.includes(String(row[0])))
     .reduce((total, row) => total + Number(row[column]), 0);
 const dashboard = [
   "graph.view (full)",
