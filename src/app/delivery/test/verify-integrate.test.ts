@@ -10,6 +10,7 @@ import { repositoryConfig } from "../../git/git.ts";
 import {
   bind,
   deliveryWorkspace,
+  age,
   git,
   leaf,
   workerDone,
@@ -53,12 +54,6 @@ const tick = (ops: Operations, slots: string[] = []) =>
   ops.execute<Tick>("workspace.tick", {
     sessions: slots.map((target) => ({ target, status: "idle" })),
   });
-
-function age(store: Store, slot: string, minutes: number) {
-  const binding = storedRow(store, "session_bindings", slot),
-    at = new Date(Date.now() - minutes * 60_000).toISOString();
-  store.put("session_bindings", { ...binding, boundAt: at, statusAt: at });
-}
 
 test("a quiet reviewer is nudged, then failed and retried, so the graph never hangs", async (t) => {
   // Nearby inputs: idle for less than quietMinutes, a tick without a roster,

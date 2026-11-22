@@ -16,6 +16,7 @@ import { loopOn } from "../../test/fixtures.ts";
 import { workspaceConfig } from "../../settings/config.ts";
 import { loopAllows, machineLoop } from "../../tick/loop.ts";
 import { laneWorkspace } from "../../tick/tick.ts";
+import { age } from "../../test/delivery-fixture.ts";
 import type { Refusal } from "../../test/refusal.ts";
 import { toolResult } from "../../test/mcp-result.ts";
 import {
@@ -157,13 +158,6 @@ async function bindTick(
     source: "tick",
     title: `avoozl:${task} Task ${task}`,
   });
-}
-
-// Back-date a binding so it reads as quiet; only the test changes the clock.
-function age(store: Store, slot: string, minutes: number) {
-  const binding = storedRow(store, "session_bindings", slot),
-    at = new Date(Date.now() - minutes * 60_000).toISOString();
-  store.put("session_bindings", { ...binding, boundAt: at, statusAt: at });
 }
 
 test("plans_prepare_worktree gives a leaf one worktree on avoozl/<task-id>, again on retry", async (t) => {
