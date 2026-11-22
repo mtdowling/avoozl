@@ -23,7 +23,7 @@
 // The git and check steps are passed in, so direct landing
 // (merge-batch.mjs) and pull request landing reuse the same queue.
 import { type Repository, withWorkLock } from "../git/git.ts";
-import { openStops } from "../flow/flow.ts";
+import { openStops, type Stop as FlowStop } from "../flow/flow.ts";
 import { stoppedSpecIds } from "../specs/label-filters.ts";
 import { outputExcerpt } from "../delivery/verify.ts";
 import { fail, type Store } from "../store/store.ts";
@@ -86,16 +86,7 @@ export interface QueueEntry {
   [key: string]: unknown;
 }
 // An open stop, or a stop label on the portion's spec.
-interface Stop {
-  id: string;
-  scope?: string;
-  taskId?: string;
-  spec?: string;
-  planId?: string;
-  repositoryId?: string;
-  reason?: string;
-  label?: boolean;
-}
+type Stop = Partial<FlowStop> & { id: string; label?: boolean };
 // A queue's repository and base branch.
 interface QueueRef {
   repositoryId: string;

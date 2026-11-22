@@ -149,7 +149,7 @@ test("Proof 16: a four-task rewrite on a protected branch lands only with one pe
   assert.deepEqual(github.s, before, "the conflict left the branch unchanged");
   assert.equal(syncNeedsYou(store).length, 1);
   assert.equal(openStops(store).length, 1);
-  assert.match(openStops(store)[0].reason, /sync has a conflict/);
+  assert.match(openStops(store)[0].reason ?? "", /sync has a conflict/);
   assert.deepEqual(landingNeedsYou(store), [], "no landing row while stopped");
 
   // The head check fails too: still one stop, now naming the red check.

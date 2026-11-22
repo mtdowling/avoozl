@@ -285,7 +285,7 @@ test("a blocked report stops the line only when a dependent names its blocker", 
   blocked("a2", "a1 broke the build");
   blockedNaming(store, {});
   assert.deepEqual(
-    openStops(store).map((s: { culprit?: string }) => s.culprit),
+    openStops(store).map((s) => s.culprit),
     ["a1"],
   );
 });
