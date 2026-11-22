@@ -559,7 +559,8 @@ export class Operations {
       )
         continue;
       try {
-        const spec = this.readSpec(plan.spec);
+        const name = plan.spec,
+          spec = this.readSpec(name);
         if (!spec.exists || !spec.root) continue;
         const branch = specsBranch(this.store, this.workspaceRoot, spec.root),
           read = await baseTasks(spec.root, branch, plan.spec, {
@@ -573,8 +574,7 @@ export class Operations {
           ...read,
           branch,
           land,
-          commits: () =>
-            tickCommits(spec.root, read.head, plan.spec, plan.files),
+          commits: () => tickCommits(spec.root, read.head, name, plan.files),
         });
         await tickOpenGroups(spec.root, {
           branch,
