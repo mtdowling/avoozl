@@ -29,6 +29,12 @@ test('the primary action follows the spec review loop', async () => {
   assert.equal(primaryAction({ status: 'done', spec: 's' }, { state: 'approved' }, null), 'edit')
 })
 
+test('a rework handoff clears comments from the active review', () => {
+  const source = readFileSync(new URL('../src/PlansView.tsx', import.meta.url), 'utf8')
+  assert.match(source, /\{open\.length \? \(\s*<Stack gap=\{2\}>\s*\{open\.map\(\(comment\) =>/)
+  assert.match(source, /No open review comments\./)
+})
+
 let harness: Harness, page: Page
 withChrome(chrome, (got) => ({ harness, page } = got), demoHarness)
 

@@ -144,19 +144,23 @@ function reviewExcerpt(text: string, lineStart: number | null): string {
 // and folder so a worker never has to search for the right checkout, carries
 // the durable findings, and includes nearby current text so each requested
 // change is actionable before the worker opens a file.
-export function reviewReworkInstruction(
-  request: ReviewRequestResult,
-  context: { workspaceId: string; folder: string | null; files: Record<string, string> },
-): string {
+export function reviewReworkInstruction(request: ReviewRequestResult, context: { workspaceId: string; folder: string | null; files: Record<string, string> }): string {
   const requested = new Set(request.commentIds)
-  const comments = request.comments.filter((comment) => comment.state === 'open' && requested.has(comment.id))
+  const comments = request.comments.filter((comment) => requested.has(comment.id))
   const findings = comments.flatMap((comment) => {
     const location = `${comment.file}${comment.lineStart ? `:${comment.lineStart}` : ''}`
     const revision = comment.revisionHash === request.revisionHash ? '' : ` (reviewed revision ${comment.revisionHash.slice(0, 12)})`
     const current = context.files[comment.file]
     return [
       `- [${comment.id}] ${location}${revision}: ${comment.body}`,
-      ...(typeof current === 'string' ? [`  Current ${comment.file} text:\n${reviewExcerpt(current, comment.lineStart).split('\n').map((line) => `    ${line}`).join('\n')}`] : []),
+      ...(typeof current === 'string'
+        ? [
+            `  Current ${comment.file} text:\n${reviewExcerpt(current, comment.lineStart)
+              .split('\n')
+              .map((line) => `    ${line}`)
+              .join('\n')}`,
+          ]
+        : []),
     ]
   })
   return [

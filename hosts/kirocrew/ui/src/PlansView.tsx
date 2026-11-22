@@ -393,9 +393,9 @@ function ReviewTab(props: { workspaceId: string; plan: SpecPlan; client: PlansCl
             Reviewer note: {review.activeRequest.reason}
           </Hint>
         )}
-        {review.comments.length ? (
+        {open.length ? (
           <Stack gap={2}>
-            {review.comments.map((comment) => (
+            {open.map((comment) => (
               <Box key={comment.id} css-border={TONE.hairline} css-border-radius="8" css-padding="10px-12px" data-spec-review-comment={comment.id}>
                 <Box flex items="center" justify="between" gap="2">
                   <Hint as="span" size="xs">
@@ -431,7 +431,7 @@ function ReviewTab(props: { workspaceId: string; plan: SpecPlan; client: PlansCl
           </Stack>
         ) : (
           <Hint as="p" size="sm">
-            No review comments yet.
+            No open review comments.
           </Hint>
         )}
 
