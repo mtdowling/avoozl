@@ -1,10 +1,9 @@
-// @ts-nocheck: typing debt
 // MCP steps (plugin-checks pk-1.6, D13, PK10): fixed tool calls on a fake
 // stdio MCP server from the test tree, which logs every call it gets.
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { validateManifest, inspectPlugins } from "../plugins.ts";
 import {
   approvedPluginChecks,
@@ -23,20 +22,34 @@ import {
   refused,
   pluginWorkspace,
   taskStage,
+  type Manifest,
 } from "../../test/plugin-checks-fixture.ts";
+import { found, storedRow } from "../../test/view-shapes.ts";
 
-const review = (m) => m.checks["parity-review"];
+// One line of the fake server's call log.
+interface McpCall {
+  method: string;
+  params?: { name: string; arguments: Record<string, unknown> };
+  env?: Record<string, string>;
+}
+
+const review = (m: Manifest) => found(m.checks["parity-review"]),
+  step = (m: Manifest) => found(review(m).mcp);
 
 // Only parity-review, at task stage, its server mapped to the fake with
 // `args` (and a log file).
-function mcpWorkspace(t, args = [], { approve = true } = {}) {
-  let log = null;
+function mcpWorkspace(
+  t: TestContext,
+  args: string[] = [],
+  { approve = true } = {},
+) {
+  let log = "";
   const workspace = pluginWorkspace(t, {
     edit: (m) => {
       taskStage(m);
       delete m.checks.parity;
       delete m.checks["license-scan"];
-      review(m).mcp.poll.everySeconds = 5;
+      step(m).poll.everySeconds = 5;
     },
     approve,
     files: { "src/api/handler.js": "1\n", "schema/api.json": "{}\n" },
@@ -55,11 +68,11 @@ function mcpWorkspace(t, args = [], { approve = true } = {}) {
           .readFileSync(log, "utf8")
           .split("\n")
           .filter(Boolean)
-          .map((line) => JSON.parse(line))
+          .map((line): McpCall => JSON.parse(line))
       : [];
   const checkout = workspace.checkout,
     base = git(checkout, "rev-parse", "HEAD"),
-    change = (files) => {
+    change = (files: Record<string, string>) => {
       for (const [file, text] of Object.entries(files)) {
         fs.mkdirSync(path.dirname(path.join(checkout, file)), {
           recursive: true,
@@ -70,10 +83,10 @@ function mcpWorkspace(t, args = [], { approve = true } = {}) {
       git(checkout, "commit", "-qm", "Change");
       return git(checkout, "rev-parse", "HEAD");
     },
-    run = (commit, extra = {}) =>
-      runPluginCheck(workspace.check("parity-review"), {
+    run = (commit: string, extra: Record<string, unknown> = {}) =>
+      runPluginCheck(found(workspace.check("parity-review")), {
         store: workspace.store,
-        repository: workspace.store.get("repositories", "app"),
+        repository: storedRow(workspace.store, "repositories", "app"),
         root: checkout,
         dir: checkout,
         commit,
@@ -89,24 +102,24 @@ function mcpWorkspace(t, args = [], { approve = true } = {}) {
 
 test("pk-1.6: an MCP step validates, and a bad one is refused", () => {
   validateManifest(manifestOf(), { id: "acme-checks" }, PLUGIN_FIXTURE);
-  refused((m) => (review(m).mcp.server = "other"), /servers does not declare/);
-  refused(
-    (m) => (m.servers.spare = { about: "Not used" }),
-    /server spare is declared but no check uses it/,
-  );
-  refused(
-    (m) => (review(m).mcp.start.args.when = "{today}"),
-    /holds \{today\}/,
-  );
-  refused(
-    (m) => (review(m).mcp.result.path = "$.items[?(@.ok)]"),
-    /with no filter/,
-  );
-  refused(
-    (m) => (review(m).network = true),
-    /key network goes with a run step/,
-  );
-  refused((m) => (review(m).mcp.start.args.id = "{id}"), /holds \{id\}/);
+  refused((m) => {
+    step(m).server = "other";
+  }, /servers does not declare/);
+  refused((m) => {
+    found(m.servers).spare = { about: "Not used" };
+  }, /server spare is declared but no check uses it/);
+  refused((m) => {
+    step(m).start.args.when = "{today}";
+  }, /holds \{today\}/);
+  refused((m) => {
+    step(m).result.path = "$.items[?(@.ok)]";
+  }, /with no filter/);
+  refused((m) => {
+    review(m).network = true;
+  }, /key network goes with a run step/);
+  refused((m) => {
+    step(m).start.args.id = "{id}";
+  }, /holds \{id\}/);
   assert.deepEqual(readPath({ a: [{ b: 2 }] }, "$.a[0].b"), 2);
   assert.equal(readPath({ a: 1 }, "$.a.b"), undefined);
 });
@@ -144,7 +157,7 @@ test("pk-1.6: no mapping is not run naming the alias; a changed mapping waits fo
         delete m.checks.parity;
       },
     }),
-    check = workspace.check("parity-review"),
+    check = found(workspace.check("parity-review")),
     head = git(workspace.checkout, "rev-parse", "HEAD"),
     result = await runPluginCheck(check, {
       store: workspace.store,
@@ -153,7 +166,7 @@ test("pk-1.6: no mapping is not run naming the alias; a changed mapping waits fo
       commit: head,
     });
   assert.equal(result.exitCode, null);
-  assert.match(result.notRun, /map server review/);
+  assert.match(result.notRun ?? "", /map server review/);
   const mapped = mcpWorkspace(t);
   assert.ok(mapped.check("parity-review"));
   setMapping(mapped.options, {
@@ -181,15 +194,15 @@ test("pk-1.6: start, polls and a result pass and fail by pass, with only the tex
   assert.deepEqual([same.exitCode, same.tail], [0, "Same behavior."]);
   const calls = workspace.calls().filter((c) => c.method === "tools/call");
   assert.deepEqual(
-    calls.map((c) => c.params.name),
+    calls.map((c) => c.params?.name),
     ["create_review", "get_review", "get_review", "get_review", "get_review"],
   );
-  const start = calls[0].params.arguments;
+  const start = found(calls[0]?.params).arguments;
   assert.equal(start.repo, "acme/api");
-  assert.match(start.question, /Answer same or/);
+  assert.match(String(start.question), /Answer same or/);
   assert.equal(start.from, workspace.base);
-  assert.deepEqual(calls[1].params.arguments, { id: "r-1" });
-  assert.deepEqual(calls[0].env, {
+  assert.deepEqual(calls[1]?.params?.arguments, { id: "r-1" });
+  assert.deepEqual(calls[0]?.env, {
     REVIEW_TOKEN: "present",
     GH_TOKEN: "absent",
     SSH_AUTH_SOCK: "absent",
@@ -209,27 +222,28 @@ test("pk-1.6: start, polls and a result pass and fail by pass, with only the tex
 });
 
 test("pk-1.6: an MCP error, no JSON, no id, no result and a timeout fail; a missing tool is not run", async (t) => {
-  for (const [mode, pattern] of [
+  const failures: [string, RegExp][] = [
     ["error", /MCP error from create_review/],
     ["nojson", /replied with no JSON/],
     ["noid", /gave no id at \$\.review\.id/],
     ["noresult", /no value at \$\.verdict/],
-  ]) {
+  ];
+  for (const [mode, pattern] of failures) {
     const workspace = mcpWorkspace(t, ["--mode", mode]),
       result = await workspace.run(workspace.change({ "src/api/a.js": mode }));
     assert.equal(result.exitCode, 1, mode);
-    assert.match(result.tail, pattern, mode);
+    assert.match(result.tail ?? "", pattern, mode);
   }
   const slow = mcpWorkspace(t, ["--running", "1000"]),
     late = await slow.run(slow.change({ "src/api/a.js": "slow" }), {
       timeoutMs: 600,
     });
   assert.equal(late.exitCode, 1);
-  assert.match(late.tail, /timed out after \d+ s/);
+  assert.match(late.tail ?? "", /timed out after \d+ s/);
   const missing = mcpWorkspace(t, ["--mode", "notools"]),
     none = await missing.run(missing.change({ "src/api/a.js": "n" }));
   assert.equal(none.exitCode, null);
-  assert.match(none.notRun, /lists no tool get_review/);
+  assert.match(none.notRun ?? "", /lists no tool get_review/);
   assert.equal(
     missing.calls().filter((c) => c.method === "tools/call").length,
     0,
@@ -258,7 +272,7 @@ test("pk-1.6: a server that opens a listener is stopped and its plugin marked br
   const workspace = mcpWorkspace(t, ["--mode", "listen", "--running", "1000"]),
     result = await workspace.run(workspace.change({ "src/api/a.js": "l" }));
   assert.equal(result.exitCode, 1);
-  assert.match(result.violation, /opened a network listener/);
+  assert.match(result.violation ?? "", /opened a network listener/);
   const [plugin] = inspectPlugins(workspace.options);
   assert.equal(plugin.state, "unapproved");
   assert.match(plugin.reason, /Marked broken/);
@@ -272,7 +286,7 @@ test("pk-1.6: a cache hit makes no call, and a changed mapping misses", async (t
     again = await workspace.run(commit);
   assert.ok(again.cached);
   assert.equal(workspace.calls().length, before);
-  const check = workspace.check("parity-review"),
+  const check = found(workspace.check("parity-review")),
     key = await contentKey(workspace.checkout, check, {
       commit,
       base: workspace.base,
@@ -304,13 +318,13 @@ test("pk-1.6: a backend killed mid-poll resumes the same id; the server saw one 
   });
   await drainCheckRuns(store, { mcp: { secondMs: 10 } });
   const [run] = checkRuns(store),
-    result = run.checks.find((c) => c.name === "parity-review");
-  assert.equal(run.state, "finished");
+    result = found(found(run?.checks).find((c) => c.name === "parity-review"));
+  assert.equal(run?.state, "finished");
   assert.equal(result.exitCode, 0, JSON.stringify(result));
   const named = workspace
     .calls()
     .filter((c) => c.method === "tools/call")
-    .map((c) => [c.params.name, c.params.arguments.id ?? null]);
+    .map((c) => [c.params?.name, c.params?.arguments.id ?? null]);
   assert.deepEqual(named, [
     ["get_review", "r-1"],
     ["get_review", "r-1"],
