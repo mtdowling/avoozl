@@ -28,6 +28,7 @@ interface IssueInput {
   assignees?: string[];
   type?: string;
   parentIssueId?: string;
+  [key: string]: unknown;
 }
 interface FakeComment {
   id: number;
@@ -178,13 +179,17 @@ export class FakeGitHub {
   searchIssuesWithAnyLabel() {
     return Promise.resolve(this.issues.map((issue) => structuredClone(issue)));
   }
+  // shortcut: a caller that names the repository by its GitHub name (the
+  // publishing path) matches nothing, as this fake always answered; give it
+  // an id lookup when a test needs those issues listed.
   listIssues(
-    repository: Repo,
+    repository: Repo | string,
     { state = "all", label }: { state?: string; label?: string } = {},
   ) {
+    const id = typeof repository === "string" ? undefined : repository.id;
     return Promise.resolve(
       this.created
-        .filter((issue) => issue.repository === repository.id)
+        .filter((issue) => issue.repository === id)
         .filter((issue) => state === "all" || issue.state === state)
         .filter(
           (issue) =>
@@ -204,7 +209,7 @@ export class FakeGitHub {
   }
   issue(_repository: Repo, number: number) {
     const issue = this.created.find((item) => item.number === number);
-    return Promise.resolve(structuredClone(issue));
+    return Promise.resolve(issue ? structuredClone(issue) : null);
   }
   // The issue with this number; a missing one is the test's own mistake.
   private made(number: number) {
@@ -262,7 +267,7 @@ export class FakeGitHub {
     return Promise.resolve(structuredClone(issue));
   }
   updateIssue(
-    _repository: Repo,
+    _repository: Repo | string,
     number: number,
     input: Partial<Omit<FakeIssue, "type">> & { type?: string },
   ) {
