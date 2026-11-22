@@ -1,15 +1,26 @@
-// @ts-nocheck: typing debt
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { digest } from "../../../model.ts";
 import { Operations } from "../../api/operations.ts";
 import { fixture, markdown } from "../../test/fixtures.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
+import { found, storedRow } from "../../test/view-shapes.ts";
+import type { Task } from "../../../types.ts";
 
-function git(root, ...args) {
+// What workspace.repository.publish and .sync answer.
+type Published = { commit: string };
+// One agent instruction in the snapshot.
+interface Rule {
+  id: string;
+  instruction?: string;
+  enabled?: boolean;
+  source?: { repositoryId?: string };
+}
+
+function git(root: string, ...args: string[]) {
   return execFileSync("git", args, {
     cwd: root,
     encoding: "utf8",
@@ -17,7 +28,7 @@ function git(root, ...args) {
   }).trim();
 }
 
-function repository(t) {
+function repository(t: TestContext) {
   const root = temporaryDirectory(),
     remote = path.join(temporaryDirectory(), "workspace.git");
   git(root, "init");
@@ -80,7 +91,7 @@ test("portable publication uses an isolated Git tree and hydrates another local 
     directory: ".avoozl",
   });
   const before = git(repo.root, "status", "--porcelain"),
-    published = await ops.execute("workspace.repository.publish");
+    published = await ops.execute<Published>("workspace.repository.publish");
   assert.match(published.commit, /^[a-f0-9]{40,64}$/);
   assert.equal(git(repo.root, "status", "--porcelain"), before);
   git(repo.root, "fetch", "origin", "avoozl-workspace");
@@ -106,14 +117,16 @@ test("portable publication uses an isolated Git tree and hydrates another local 
     branch: "avoozl-workspace",
     directory: ".avoozl",
   });
-  const synced = await secondOps.execute("workspace.repository.sync");
+  const synced = await secondOps.execute<Published>(
+    "workspace.repository.sync",
+  );
   assert.equal(synced.commit, published.commit);
   assert.equal(
-    second.store.get("plans", "plan-portable").text,
+    storedRow(second.store, "plans", "plan-portable").text,
     "# Portable design\n\nShared prose.\n",
   );
   assert.equal(
-    second.store.read().tasks.some((task) => task.id === "sample-task"),
+    second.store.read().tasks.some((task: Task) => task.id === "sample-task"),
     true,
   );
   assert.deepEqual(second.store.read().savedSearches, [
@@ -198,19 +211,19 @@ test("planning repository .avoozl.json supplies shared agent rules while enablem
     directory: ".avoozl",
   });
   await secondOps.execute("workspace.repository.sync");
-  assert.equal(second.store.read().agentInstructions.length, 2);
+  const rules = (): Rule[] => {
+    const list = second.store.read().agentInstructions;
+    assert.ok(Array.isArray(list), "the snapshot holds agent instructions");
+    return list;
+  };
+  const rule = (id: string) => found(rules().find((entry) => entry.id === id));
+  assert.equal(rules().length, 2);
   assert.equal(
-    second.store
-      .read()
-      .agentInstructions.find((rule) => rule.id === "record-required-cleanup")
-      .instruction,
+    rule("record-required-cleanup").instruction,
     "Propose required follow-up work with plans_propose_work.",
   );
   assert.equal(
-    second.store
-      .read()
-      .agentInstructions.find((rule) => rule.id === "code-repository-policy")
-      .source.repositoryId,
+    rule("code-repository-policy").source?.repositoryId,
     "code-repository",
   );
   await secondOps.execute("agent.instructions.toggle", {
@@ -218,13 +231,7 @@ test("planning repository .avoozl.json supplies shared agent rules while enablem
     enabled: false,
   });
   await secondOps.execute("workspace.repository.sync");
-  assert.equal(
-    second.store
-      .read()
-      .agentInstructions.find((rule) => rule.id === "record-required-cleanup")
-      .enabled,
-    false,
-  );
+  assert.equal(rule("record-required-cleanup").enabled, false);
 });
 
 test("publication refuses secrets and absolute machine paths before writing Git objects", async (t) => {
@@ -256,9 +263,10 @@ test("publication refuses secrets and absolute machine paths before writing Git 
     /unknown revision|Needed a single revision|ambiguous argument/,
   );
 
-  const plan = store.get("plans", "plan-secret");
-  plan.text = "# Unsafe\n\nSee /Users/example/private/file.txt\n";
-  plan.hash = digest(plan.text);
+  const plan = storedRow(store, "plans", "plan-secret"),
+    text = "# Unsafe\n\nSee /Users/example/private/file.txt\n";
+  plan.text = text;
+  plan.hash = digest(text);
   store.put("plans", plan);
   await assert.rejects(
     ops.execute("workspace.repository.publish"),
@@ -282,7 +290,9 @@ test("a configured GitHub workspace repository must remain private before public
     root: repo.root,
     branch: "avoozl-workspace",
   });
-  const config = store.getMeta("workspaceRepository");
+  const config = found(
+    store.getMeta<Record<string, unknown>>("workspaceRepository"),
+  );
   config.repository = "example/plans";
   store.setMeta("workspaceRepository", config);
   await assert.rejects(
