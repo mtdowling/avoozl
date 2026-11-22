@@ -85,7 +85,7 @@ export function writeMachineLoop(file: string, loop: unknown) {
 // its file cannot be read.
 export type Loop = { run: Set<string>; epics: Set<string>; everyMs: number };
 
-export function machineLoop(file: string): Loop | null {
+export function machineLoop(file?: string): Loop | null {
   let value: { run: string[]; epics?: string[]; every?: unknown } | undefined;
   try {
     value = machineFile(file).value.loop as typeof value;

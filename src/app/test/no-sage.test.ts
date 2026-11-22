@@ -53,7 +53,7 @@ test("a saved key for the dropped review app is refused, naming it", async () =>
     );
     const read = readDeliveryPolicy(root);
     assert.equal(read.status, "invalid");
-    assert.match(read.error, new RegExp(`Unknown setting "${name}"`));
+    assert.match(read.error ?? "", new RegExp(`Unknown setting "${name}"`));
     assert.equal(readGitHubPolicyOrNull(root), null);
   }
 });

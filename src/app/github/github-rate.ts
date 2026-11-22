@@ -42,7 +42,8 @@ const PRUNE_EVERY = 50;
 // Who asked for a call: a page view, the tick, setup, a forward, a review, or
 // a crew chat through bin/gh-counted. Unmarked code reads as "other".
 const sources = new AsyncLocalStorage();
-export const withSource = (source, fn) => sources.run(source, fn);
+export const withSource = <T>(source: string, fn: () => T): T =>
+  sources.run(source, fn);
 const currentSource = () => sources.getStore() || "other";
 export const sourceOfOperation = (name) =>
   /^tick\b/.test(name)
@@ -568,7 +569,10 @@ export const RATE_LIMIT_TEXT = /GitHub rate limit reached/;
 // Whether this tick may make GitHub calls. Held while limited (until the
 // reset), and while the budget is low, spaced `STRETCH_MS` apart (four
 // times that once under a quarter of the threshold), never past the reset.
-export function githubGate(store, now = Date.now()) {
+export function githubGate(
+  store,
+  now = Date.now(),
+): { skip: boolean; low?: boolean; reason?: string; until?: number } {
   const state = readRate(store),
     pause = state.pause;
   if (pause && pause.until > now)

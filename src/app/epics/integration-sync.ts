@@ -32,9 +32,8 @@ type Policy = {
   repositories?: Record<
     string,
     {
-      landing?: { commitPrefix?: string };
+      landing?: { commitPrefix?: string | null };
       baseBranch?: string | null;
-      [key: string]: unknown;
     }
   >;
 } | null;

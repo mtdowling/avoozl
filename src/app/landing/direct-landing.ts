@@ -41,6 +41,7 @@ import { finishLanded } from "./landed-work.ts";
 import type { PullGitHub } from "./landing-pulls.ts";
 import { fail, type Store } from "../store/store.ts";
 import type { Notice } from "../tick/notifications.ts";
+import type { Message } from "./pr-landing.ts";
 import { landingSpecOf } from "../specs/labeled-issues.ts";
 import { repositoryChecks } from "../workspace/repository-checks.ts";
 import { pluginChecksOf } from "../plugins/plugin-checks.ts";
@@ -125,7 +126,7 @@ export async function landDirect(
   }: LandOptions = {},
 ) {
   const notify: Notice[] = [],
-    messages: unknown[] = [],
+    messages: Message[] = [],
     at = new Date(now).toISOString();
   for (const { repository, base, head, tries } of queueHeads(
     store,
