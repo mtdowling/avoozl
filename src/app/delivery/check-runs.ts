@@ -66,6 +66,13 @@ export interface CheckRun {
   // A finished run's results, and the checks its diff picked, by name.
   checks?: CheckRecord[];
   selected?: string[];
+  // The diff's path verdict (verify.ts).
+  paths?: {
+    changed?: number;
+    outside?: string[];
+    protected?: string[];
+    allowed?: string[];
+  };
   [key: string]: unknown;
 }
 // What runChecksAt and runEach are given.

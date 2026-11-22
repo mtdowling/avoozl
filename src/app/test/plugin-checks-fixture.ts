@@ -42,10 +42,19 @@ interface PluginCheck {
   stage?: string;
   decide?: unknown;
   decideAt?: unknown;
+  network?: boolean;
+  // An MCP step: its server and fixed tool calls.
+  mcp?: {
+    server: string;
+    start: { args: Record<string, string> };
+    poll: { everySeconds: number };
+    result: { path: string };
+  };
   [key: string]: unknown;
 }
 export interface Manifest {
   checks: Record<string, PluginCheck>;
+  servers?: Record<string, { about: string }>;
   [key: string]: unknown;
 }
 type Edit = (manifest: Manifest) => Manifest | void;

@@ -314,6 +314,9 @@ export const readRate = (store) => {
 // numbers are kept in memory and written to the store at most every two
 // seconds, merged with what another process wrote.
 export class RateState {
+  declare countFile: string | null;
+  declare now: () => number;
+  declare dirty: boolean;
   constructor(store, { now, countFile } = {}) {
     this.store = store;
     this.countFile = countFile || null;
@@ -670,7 +673,10 @@ export function rateNeedsYou(store, now = Date.now()) {
 export function rateView(store, now = Date.now(), { countFile } = {}) {
   const state = readRate(store),
     usage = structuredClone(state.usage || {}),
-    bySource = {};
+    bySource: Record<
+      string,
+      { calls: number; notModified: number; cached: number }
+    > = {};
   // Lines the wrapper wrote that no tick has taken yet.
   if (countFile)
     for (const row of readLines(countFile))
