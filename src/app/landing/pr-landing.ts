@@ -75,7 +75,7 @@ type Failed = QueueEntry & {
   excerpt?: string;
 };
 // A message to a worker chat.
-interface Message {
+export interface Message {
   slot: string;
   task: string;
   text: string;

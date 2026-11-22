@@ -3,6 +3,7 @@
 // count, a tick that works leaves nothing, and three failures open Needs you.
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import path from "node:path";
 import test from "node:test";
 import { listActivity } from "../../store/activity-log.ts";
 import { conflictsView } from "../../api/page-views.ts";
@@ -96,8 +97,11 @@ test("a real tick records its stall and failure from the health file", async (t)
     health,
     JSON.stringify({ at: "2026-11-18T01:00:00.000Z", outcome: "ok" }),
   );
-  // With no workspace root this tick fails, which a real run records too.
-  await tick(store, {}).catch(() => {});
+  // A .avoozl.json that is a folder fails the tick, which a real run
+  // records too.
+  const root = path.dirname(health);
+  fs.mkdirSync(path.join(root, ".avoozl.json"));
+  await tick(store, { workspaceRoot: root, memory: {} }).catch(() => {});
   const kinds = rows(store).map((row) => row.kind);
   assert.ok(kinds.includes("tick.stalled"));
   assert.ok(kinds.includes("tick.failed"));

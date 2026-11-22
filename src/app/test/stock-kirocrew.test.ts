@@ -107,7 +107,7 @@ test("a cron tick without a roster dispatches, then holds until the backend obse
     first.dispatch.map((d) => d.task),
     ["a", "b"],
   );
-  assert.equal(tickHealth(store).lastRun.observer, "app");
+  assert.equal(tickHealth(store).lastRun?.observer, "app");
   await bind(ops, "a", "avoozl_a");
   const held = await cronTick(ops);
   assert.deepEqual(held.held, { reason: "unobserved", slots: ["avoozl_a"] });
@@ -120,9 +120,9 @@ test("a cron tick without a roster dispatches, then holds until the backend obse
   );
   // The page's plan-only tick keeps the cron's answer in the receipt.
   await ops.execute("workspace.tick", {});
-  assert.equal(tickHealth(store).lastRun.observer, "app");
+  assert.equal(tickHealth(store).lastRun?.observer, "app");
   await ops.execute("workspace.tick", { cron: true, sessions: [] });
-  assert.equal(tickHealth(store).lastRun.observer, "roster");
+  assert.equal(tickHealth(store).lastRun?.observer, "roster");
 });
 
 // Gone for longer than the grace a restart needs to restore its chats.

@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 import { withGitHubReadSnapshots } from "../github/github-read-snapshot.ts";
 import {
   enqueueSessionRequests,
@@ -26,7 +25,7 @@ import { validateLanes } from "./lanes.ts";
 import { observeLanes } from "../sessions/lane-sessions.ts";
 import path from "node:path";
 import { createHash } from "node:crypto";
-import { git, withWorkLock } from "../git/git.ts";
+import { git, type Repository, withWorkLock } from "../git/git.ts";
 import {
   assertPortableRepositoryConfig,
   assertKnownKeys,
@@ -54,7 +53,13 @@ import {
   reconcileVerifications,
   summaryLine,
 } from "../delivery/delivery.ts";
-import { fail } from "../store/store.ts";
+import { fail, type Store } from "../store/store.ts";
+import type { SessionRequest } from "../sessions/session-requests.ts";
+import type { SessionBinding } from "../sessions/session-bindings.ts";
+import type { Task } from "../../types.ts";
+import type { GitHubClient } from "../github/github.ts";
+import type { Message as WorkerMessage } from "../landing/pr-landing.ts";
+import type { Notice } from "./notifications.ts";
 import {
   FINAL_STATUSES,
   listSessionBindings,
@@ -109,9 +114,70 @@ import {
   landingSettings,
 } from "../landing/landing-config.ts";
 
+// A parsed .avoozl.json.
+type Config = Record<string, unknown>;
+// What the tick keeps between runs in this process: the last valid policy.
+export interface PolicyMemory {
+  value?: Config | null;
+  valid?: { hash: string; commit: string | null } | null;
+  reportedInvalid?: string | null;
+}
+// A message for a bound session, and the executor that carries it.
+type Message = WorkerMessage & { executor?: string };
+// One row of the script's session roster.
+interface RosterRow {
+  target: string;
+  status: string;
+  served_model?: string | null;
+  model_requested?: string | null;
+  model_withheld?: boolean;
+  model_changed?: boolean;
+}
+// One tick's receipt, as tick-health.json and tick-log.jsonl keep it.
+interface Run {
+  at?: string;
+  outcome?: string;
+  policy?: string;
+  observer?: string;
+  error?: string;
+  held?: { reason: string; slots?: string[] };
+}
+// What one tick is given: its workspace, the policy memory, the script's
+// roster and folders, the GitHub client, and the epic context brief.
+interface TickOptions {
+  workspaceRoot?: string | null;
+  memory: PolicyMemory;
+  sessions?: unknown;
+  cron?: boolean;
+  github?: GitHubClient | null;
+  plugins?: unknown;
+  folders?: unknown;
+  // `contextBrief(entry)`: the epic context section for a Kiro Crew
+  // worker's brief, or "" (epic-context EC8).
+  contextBrief?:
+    | ((entry: {
+        task: string;
+        role: string;
+        attempt?: number;
+      }) => Promise<string>)
+    | null;
+}
+// One own field of a value, or undefined.
+const fieldOf = (value: unknown, key: string): unknown =>
+  value && typeof value === "object"
+    ? Object.entries(value).find(([name]) => name === key)?.[1]
+    : undefined;
+const messageOf = (error: unknown) =>
+  error instanceof Error ? error.message : String(error);
+const codeOf = (error: unknown) =>
+  error && typeof error === "object" && "code" in error ? error.code : null;
+
 // Each repository's `conflicts.maxAttempts`, older keys folded in (R87.6).
-const attemptsFor = (config) => (repository) =>
-  landingSettings(config || {}, repository.github, repository).maxAttempts;
+const attemptsFor =
+  (config: Config | null | undefined) =>
+  (repository: Pick<Repository, "github" | "landing">) =>
+    landingSettings(config || {}, repository.github ?? "", repository)
+      .maxAttempts;
 import { noteTickRun } from "./tick-activity.ts";
 import { withJob } from "../github/github-jobs.ts";
 
@@ -124,7 +190,7 @@ export const WORKSPACE_LOCK = {
 };
 const MAX_POLICY_BYTES = 512 * 1024;
 
-function parsePolicy(text) {
+function parsePolicy(text: string): Config {
   if (Buffer.byteLength(text) > MAX_POLICY_BYTES)
     throw Error(".avoozl.json is too large.");
   const value = JSON.parse(text);
@@ -159,10 +225,15 @@ export const laneWorkspace = (
 // This machine's lanes (R6.3, simplify §D22): lanes.local or, with `key`,
 // lanes.reviewers in the machine file, or undefined when it sets none or
 // cannot be read (loading the config reports a bad file).
-export function machineLanes(file, key = "local") {
+export function machineLanes(
+  file?: string,
+  key: "local" | "reviewers" = "local",
+) {
   try {
     const lanes = machineFile(file).value.lanes;
-    return lanes?.[key] === undefined ? undefined : validateLanes(lanes)[key];
+    return fieldOf(lanes, key) === undefined
+      ? undefined
+      : validateLanes(lanes)[key];
   } catch {
     return undefined;
   }
@@ -174,13 +245,13 @@ const machinePolicyLanes = () => ({
 
 // The delivery settings in .avoozl.json for a read that must not touch the
 // tick's memory: {status: absent|loaded|invalid|unavailable, delivery}.
-export function readDeliveryPolicy(workspaceRoot) {
+export function readDeliveryPolicy(workspaceRoot: string | null | undefined) {
   if (!workspaceRoot) return { status: "unavailable", delivery: null };
-  let text;
+  let text: string;
   try {
     text = fs.readFileSync(path.join(workspaceRoot, ".avoozl.json"), "utf8");
   } catch (error) {
-    if (error.code !== "ENOENT") throw error;
+    if (codeOf(error) !== "ENOENT") throw error;
     return { status: "absent", delivery: null };
   }
   try {
@@ -189,11 +260,11 @@ export function readDeliveryPolicy(workspaceRoot) {
       delivery: deliveryPolicy(parsePolicy(text), machinePolicyLanes()),
     };
   } catch (error) {
-    return { status: "invalid", delivery: null, error: error.message };
+    return { status: "invalid", delivery: null, error: messageOf(error) };
   }
 }
 
-async function checkedOutCommit(root) {
+async function checkedOutCommit(root: string) {
   try {
     return await git(root, ["rev-parse", "--verify", "HEAD"]);
   } catch {
@@ -206,14 +277,25 @@ async function checkedOutCommit(root) {
 // invalid file. shortcut: the last valid policy and the reported-invalid hash
 // live in memory, so a restarted MCP server reports an invalid file once more
 // and has no last valid policy; persist them once policy drives decisions (§4.4).
-async function loadPolicy(workspaceRoot, memory) {
+// The policy a tick loaded: its state, file hash and commit.
+interface LoadedPolicy {
+  status: string;
+  hash?: string;
+  commit?: string | null;
+  error?: string;
+  using?: string | null;
+}
+async function loadPolicy(
+  workspaceRoot: string | null | undefined,
+  memory: PolicyMemory,
+): Promise<{ policy: LoadedPolicy; notify: Notice[] }> {
   if (!workspaceRoot) return { policy: { status: "unavailable" }, notify: [] };
   const filename = path.join(workspaceRoot, ".avoozl.json");
-  let text;
+  let text: string;
   try {
     text = fs.readFileSync(filename, "utf8");
   } catch (error) {
-    if (error.code !== "ENOENT") throw error;
+    if (codeOf(error) !== "ENOENT") throw error;
     return { policy: { status: "absent" }, notify: [] };
   }
   const hash = createHash("sha256").update(text).digest("hex"),
@@ -231,7 +313,7 @@ async function loadPolicy(workspaceRoot, memory) {
             {
               channel: "decision",
               title: "Avoozl kept its last valid policy",
-              text: `.avoozl.json is invalid: ${error.message}`,
+              text: `.avoozl.json is invalid: ${messageOf(error)}`,
               resume: "Fix .avoozl.json; the next tick loads it.",
             },
           ];
@@ -241,7 +323,7 @@ async function loadPolicy(workspaceRoot, memory) {
         status: "invalid",
         hash,
         commit,
-        error: error.message,
+        error: messageOf(error),
         using: memory.valid?.hash || null,
       },
       notify,
@@ -253,7 +335,7 @@ async function loadPolicy(workspaceRoot, memory) {
 // tick that changes nothing still leaves every table untouched. The cron, the
 // MCP server, and the app backend are separate processes; a file is what they
 // share.
-export function tickHealthPath(store) {
+export function tickHealthPath(store: Pick<Store, "filename">) {
   return store.filename && store.filename !== ":memory:"
     ? path.join(path.dirname(path.resolve(store.filename)), "tick-health.json")
     : null;
@@ -261,7 +343,7 @@ export function tickHealthPath(store) {
 
 // Statuses the script read land before any planning (the tick's first step)
 // and when the cron's call records its observations (cron-intents.mjs).
-export function recordRoster(store, roster) {
+export function recordRoster(store: Store, roster: RosterRow[]) {
   const bound = new Set(listSessionBindings(store).map((b) => b.slot));
   for (const row of roster)
     if (bound.has(row.target))
@@ -274,14 +356,14 @@ export function recordRoster(store, roster) {
 
 // The requests the last cron tick released, beside the health receipt: the
 // cron's call carries out these and no others (MS12.1).
-const releasedPath = (store) => {
+const releasedPath = (store: Pick<Store, "filename">) => {
   const health = tickHealthPath(store);
   return health ? path.join(path.dirname(health), "tick-released.json") : null;
 };
 
 export function recordReleased(
-  store,
-  { dispatch, messages }: Pick<TickResult, "dispatch" | "messages">,
+  store: Pick<Store, "filename">,
+  { dispatch = [], messages = [] }: Pick<TickResult, "dispatch" | "messages">,
 ) {
   const file = releasedPath(store);
   if (!file) return;
@@ -290,25 +372,30 @@ export function recordReleased(
     temporary,
     JSON.stringify({
       starts: dispatch.map((request) => request.id),
-      sends: messages.map((request) => request.id),
+      sends: messages.map((request) => fieldOf(request, "id")),
     }) + "\n",
     { mode: 0o600 },
   );
   fs.renameSync(temporary, file);
 }
 
-export function readReleased(store) {
+export function readReleased(store: Pick<Store, "filename">) {
+  const file = releasedPath(store);
   try {
-    const found = JSON.parse(fs.readFileSync(releasedPath(store), "utf8"));
+    if (!file) throw Error("No released file.");
+    // The file recordReleased wrote.
+    const found: { starts?: string[]; sends?: string[] } = JSON.parse(
+      fs.readFileSync(file, "utf8"),
+    );
     return { starts: new Set(found.starts), sends: new Set(found.sends) };
   } catch {
-    return { starts: new Set(), sends: new Set() };
+    return { starts: new Set<string>(), sends: new Set<string>() };
   }
 }
 
-function recordRun(store, run) {
+function recordRun(store: Store, run: Run) {
   const filename = tickHealthPath(store);
-  let previousAt = null;
+  let previousAt: string | null = null;
   try {
     if (filename)
       previousAt = JSON.parse(fs.readFileSync(filename, "utf8")).at ?? null;
@@ -332,18 +419,18 @@ function recordRun(store, run) {
 // at this size; switch to rotation if TICK_LOG_KEEP grows large.
 const TICK_LOG_KEEP = 200;
 
-const tickLogPath = (healthFile) =>
+const tickLogPath = (healthFile: string) =>
   path.join(path.dirname(healthFile), "tick-log.jsonl");
 
-function appendTickLog(healthFile, run) {
+function appendTickLog(healthFile: string, run: Run) {
   const filename = tickLogPath(healthFile),
     temporary = `${filename}.${process.pid}.tmp`;
   try {
-    let lines = [];
+    let lines: string[] = [];
     try {
       lines = fs.readFileSync(filename, "utf8").split("\n").filter(Boolean);
     } catch (error) {
-      if (error.code !== "ENOENT") throw error;
+      if (codeOf(error) !== "ENOENT") throw error;
     }
     lines.push(JSON.stringify(run));
     fs.writeFileSync(temporary, lines.slice(-TICK_LOG_KEEP).join("\n") + "\n", {
@@ -356,7 +443,7 @@ function appendTickLog(healthFile, run) {
 }
 
 // One readable line per receipt: when, how bad, and what happened.
-export function tickLogEntry(run) {
+export function tickLogEntry(run: Run) {
   const level =
     run.outcome === "error" ||
     run.outcome === "unreadable" ||
@@ -382,20 +469,23 @@ export function tickLogEntry(run) {
 }
 
 // workspace.tick.log: the newest `limit` receipts, newest first. Reads only.
-export function tickLog(store, { limit = 20 } = {}) {
+export function tickLog(
+  store: Pick<Store, "filename">,
+  { limit = 20 }: { limit?: unknown } = {},
+) {
   const health = tickHealthPath(store),
     max = Math.max(1, Math.min(Number(limit) || 20, TICK_LOG_KEEP));
   if (!health) return { items: [] };
-  let lines = [];
+  let lines: string[] = [];
   try {
     lines = fs
       .readFileSync(tickLogPath(health), "utf8")
       .split("\n")
       .filter(Boolean);
   } catch (error) {
-    if (error.code !== "ENOENT") throw error;
+    if (codeOf(error) !== "ENOENT") throw error;
   }
-  const items = [];
+  const items: ReturnType<typeof tickLogEntry>[] = [];
   for (const line of lines.slice(-max).reverse()) {
     try {
       items.push(tickLogEntry(JSON.parse(line)));
@@ -409,31 +499,32 @@ export function tickLog(store, { limit = 20 } = {}) {
 // Who reads session statuses, for the receipt: "roster" when the cron hands
 // the tick Kiro Crew's roster, "app" when the app backend must read them
 // (session-observer.mjs). The page's plan-only tick keeps the cron's answer.
-function observerOf(store, script, roster) {
+function observerOf(store: Store, script: boolean, roster: unknown) {
   if (script) return { observer: roster ? "roster" : "app" };
   const previous = tickHealth(store).lastRun?.observer;
   return previous ? { observer: previous } : {};
 }
 
 // Last run, lock holder, and last error, for the Workspace view. Reads only.
-export function tickHealth(store) {
+export function tickHealth(store: Pick<Store, "filename" | "db">) {
   const filename = tickHealthPath(store);
-  let lastRun = null;
+  let lastRun: Run | null = null;
   try {
     if (filename) lastRun = JSON.parse(fs.readFileSync(filename, "utf8"));
   } catch (error) {
-    if (error.code !== "ENOENT") lastRun = { outcome: "unreadable" };
+    if (codeOf(error) !== "ENOENT") lastRun = { outcome: "unreadable" };
   }
+  // A work_locks row, as withWorkLock writes it.
   const row = store.db
     .prepare("SELECT pid FROM work_locks WHERE id=?")
-    .get(WORKSPACE_LOCK.id);
+    .get(WORKSPACE_LOCK.id) as { pid: number } | undefined;
   let lock = null;
   if (row) {
     let live = true;
     try {
       process.kill(row.pid, 0);
     } catch (error) {
-      live = error.code !== "ESRCH";
+      live = codeOf(error) !== "ESRCH";
     }
     lock = { pid: row.pid, live };
   }
@@ -445,14 +536,25 @@ export function tickHealth(store) {
 // next tick sees the binding and plans nothing again. Reads only.
 // shortcut: two ticks can only overlap through the lock, and the cron never
 // runs two wakes of one job at once; a second dispatcher would need a claim.
-function planDispatches(store, bindings) {
-  const requests = listSessionRequests(store);
+// A stored session request intent, as planDispatches reads it.
+type Intent = {
+  id: string;
+  taskId?: string;
+  role?: string;
+  repository?: string;
+  executor: string;
+  model?: string;
+  permissionClass?: string;
+};
+function planDispatches(store: Store, bindings: SessionBinding[]) {
+  // The session_requests rows and intents, as the table holds them.
+  const requests = listSessionRequests(store) as Intent[];
   if (!requests.length) return [];
   const data = store.read(),
     repositories = new Map(
       workspaceRepositories(store).map((entry) => [entry.id, entry]),
     );
-  const dispatch = [];
+  const dispatch: SessionRequest[] = [];
   for (const request of requests) {
     if (
       bindings.some(
@@ -461,11 +563,11 @@ function planDispatches(store, bindings) {
     )
       continue;
     const task = data.tasks.find((t) => t.id === request.taskId),
-      repository = repositories.get(request.repository);
+      repository = repositories.get(request.repository ?? "");
     if (
       !task ||
       !repository?.localCheckout ||
-      sessionRequestHold(data, task.id, request.role)
+      sessionRequestHold(data, task.id, request.role ?? "")
     )
       continue;
     const title = `avoozl:${task.id} ${task.title || ""}`.trim().slice(0, 200);
@@ -490,16 +592,27 @@ function planDispatches(store, bindings) {
   return dispatch;
 }
 
-function brief(task, repository) {
+function brief(
+  task: Task,
+  repository: {
+    id: string;
+    localCheckout?: string | null;
+    baseBranch?: string | null;
+  },
+) {
+  const given = task.acceptance,
+    acceptance = Array.isArray(given)
+      ? given
+      : typeof given === "string" && given
+        ? [given]
+        : [];
   return [
     `Avoozl task ${task.id}: ${task.title || task.id}`,
     "",
     `Repository: ${repository.id}, checkout ${repository.localCheckout}, base branch ${repository.baseBranch || "main"}.`,
     "Before changing anything, confirm `git rev-parse --show-toplevel` is that checkout.",
     summaryLine(task),
-    task.acceptance?.length
-      ? `Acceptance: ${[].concat(task.acceptance).join("; ")}`
-      : null,
+    acceptance.length ? `Acceptance: ${acceptance.join("; ")}` : null,
   ]
     .filter((line) => line !== null)
     .join("\n");
@@ -508,9 +621,9 @@ function brief(task, repository) {
 // The script's one read of the sessions its cron opened: [{target, status}],
 // plus, from a Kiro Crew that reports them, model_requested, served_model,
 // model_withheld and model_changed.
-const NAME = (value) =>
+const NAME = (value: unknown) =>
   value === null || (typeof value === "string" && value.length <= 128);
-export function sessionList(value) {
+export function sessionList(value: unknown): RosterRow[] | null {
   if (value === undefined) return null;
   if (
     !Array.isArray(value) ||
@@ -534,7 +647,7 @@ export function sessionList(value) {
 }
 
 // What Kiro Crew said about a row's model, or undefined when it said nothing.
-function servedOf(row) {
+function servedOf(row: RosterRow) {
   if (!("served_model" in row)) return undefined;
   return {
     requested: row.model_requested ?? null,
@@ -548,24 +661,25 @@ function servedOf(row) {
 // job `job` (plugin-credentials §D6). The tick holds no grant, so a
 // high-risk job fails here as person-only (PC8.4).
 const under =
-  (source, job, step) =>
-  (...args) =>
+  <A extends unknown[], R>(
+    source: string,
+    job: string,
+    step: (...args: A) => Promise<R>,
+  ) =>
+  (...args: A) =>
     withSource(source, () => withJob(job, () => step(...args), []));
 
 async function runTick(
-  store,
+  store: Store,
   {
     workspaceRoot,
     memory,
     sessions,
     cron = false,
     github: client,
-    plugins,
     folders = null,
-    // `contextBrief(entry)`: the epic context section for a Kiro Crew
-    // worker's brief, or "" (epic-context EC8).
     contextBrief = null,
-  },
+  }: TickOptions,
 ) {
   const at = new Date().toISOString();
   const roster = sessionList(sessions),
@@ -592,7 +706,7 @@ async function runTick(
       // passes, the tick starts and lands nothing. `outOfLoop` holds the
       // tasks of every kind the loop does not run.
       const loop = machineLoop(),
-        looping = Boolean(loop) && loopDue(store, loop),
+        looping = loop !== null && loopDue(store, loop),
         links = storedLinks(store),
         outOfLoop = new Set(
           store
@@ -619,9 +733,12 @@ async function runTick(
         applyLandingModes(store, memory.value);
         applyRunnerSettings(store, memory.value);
       }
-      const planned = { messages: [], notify: [] };
+      const planned: { messages: Message[]; notify: Notice[] } = {
+        messages: [],
+        notify: [],
+      };
       // A lane whose session a person closed pauses until Resume (SM20.8).
-      if (delivery && workspaceRoot)
+      if (delivery && workspaceRoot && laneWorkspaceId)
         for (const lane of observeLanes(store, delivery, laneWorkspaceId))
           planned.notify.push({
             channel: "decision",
@@ -709,14 +826,16 @@ async function runTick(
       if (script && github)
         try {
           const policy = readGitHubPolicyOrNull(workspaceRoot),
-            machine = store.getMeta("machineIdentity")?.id,
+            machine = store.getMeta<{ id?: string }>("machineIdentity")?.id,
             found = policy?.mode ? syncTargets(store, policy) : null;
           if (found) {
             const mine = found.targets.filter(
                 (target) =>
                   machine &&
-                  store.get("github_repositories", target.repository)
-                    ?.activeMachine === machine,
+                  store.get<{ activeMachine?: string }>(
+                    "github_repositories",
+                    target.repository,
+                  )?.activeMachine === machine,
               ),
               step = await under("tick", "integration", syncStep)(
                 store,
@@ -757,7 +876,7 @@ async function runTick(
           planned.notify.push({
             channel: "failure",
             title: "Avoozl could not sync an integration branch",
-            text: error.message,
+            text: messageOf(error),
           });
         }
       // The open items read (github-open-read.mjs): one read-only search per
@@ -773,7 +892,7 @@ async function runTick(
           planned.notify.push({
             channel: "failure",
             title: "Avoozl could not read open GitHub items",
-            text: error.message,
+            text: messageOf(error),
           });
         }
       // The claim branches and their head times, for stale claims in Needs
@@ -830,15 +949,16 @@ async function runTick(
       // once the app backend has recorded any status for it; a stale reading
       // only keeps its task claimed, so it never causes a second dispatch.
       const listed = new Set((roster || []).map((row) => row.target)),
-        observed = (b) =>
+        observed = (b: SessionBinding) =>
           roster || !script ? listed.has(b.slot) : Boolean(b.status),
         // A session on a crew that stopped answering stays bound and is not
         // waited on (R41.10); when the crew answers again its roster lists
         // it, so it is observed before anything new opens.
+        instances = crewSnapshot(store)?.instances,
         unreachable = new Set(
-          (crewSnapshot(store)?.instances || [])
-            .filter((i) => i.reachable === false)
-            .map((i) => i.id),
+          (Array.isArray(instances) ? instances : [])
+            .filter((i) => fieldOf(i, "reachable") === false)
+            .map((i) => fieldOf(i, "id")),
         ),
         unobserved = bindings
           // Historical relay bindings live on another crew; leave them alone.
@@ -848,7 +968,7 @@ async function runTick(
           .map((b) => b.slot);
       // Discussions answering (R27.13): one responder per discussion
       // snapshot. Cleanup runs even while new dispatch is held.
-      let responders = [];
+      let responders: SessionRequest[] = [];
       if (script && github)
         try {
           responders = (
@@ -866,13 +986,13 @@ async function runTick(
           planned.notify.push({
             channel: "failure",
             title: "Avoozl could not run the respond step",
-            text: error.message,
+            text: messageOf(error),
           });
         }
       const requested = unobserved.length
           ? []
           : planDispatches(store, bindings),
-        readySkip = new Set(requested.map((d) => d.task)),
+        readySkip = new Set(requested.flatMap((d) => (d.task ? [d.task] : []))),
         // Ranking, release and repository-wide path holds (spec-scheduler.mjs).
         schedule =
           unobserved.length || !delivery || delivery.crewModeHeld
@@ -943,8 +1063,12 @@ async function runTick(
         dispatch = await Promise.all(
           dispatch.map(async (d) => {
             const section =
-              d.role === "worker" && d.executor === "kirocrew"
-                ? await contextBrief(d).catch(() => "")
+              d.role === "worker" && d.executor === "kirocrew" && d.task
+                ? await contextBrief({
+                    task: d.task,
+                    role: d.role,
+                    attempt: d.attempt,
+                  }).catch(() => "")
                 : "";
             return section ? { ...d, brief: `${d.brief}\n\n${section}` } : d;
           }),
@@ -970,7 +1094,7 @@ async function runTick(
       }
       // One notice per rate-limit window; a step that failed on the limit
       // adds nothing of its own.
-      const notices = [
+      const notices: Notice[] = [
         ...notify,
         ...planned.notify,
         ...(script ? rateLimitNotices(store) : []),
@@ -1027,7 +1151,7 @@ async function runTick(
         policy,
         // A closed or lost session is final; it is read once and not again.
         observe: bindings
-          .filter((b) => !FINAL_STATUSES.has(b.status))
+          .filter((b) => !FINAL_STATUSES.has(b.status ?? ""))
           .map(({ slot, taskId, role }) => ({ slot, taskId, role })),
         dispatch: transport.starts,
         messages: transport.sends,
@@ -1050,7 +1174,7 @@ async function runTick(
     });
     return result;
   } catch (error) {
-    if (error.contention) {
+    if (fieldOf(error, "contention")) {
       recordRun(store, {
         at,
         outcome: "locked",
@@ -1061,7 +1185,7 @@ async function runTick(
     recordRun(store, {
       at,
       outcome: "error",
-      error: error.message,
+      error: messageOf(error),
       ...observerOf(store, script, roster),
     });
     throw error;
@@ -1070,15 +1194,15 @@ async function runTick(
 
 // What one tick pass returns: its notices, chat messages and dispatches.
 export interface TickResult {
-  skipped?: boolean;
-  notify?: { channel: string; title: string; text: string; task?: string }[];
-  messages?: unknown[];
-  dispatch?: unknown[];
+  skipped?: string;
+  notify?: (Notice & { link?: string })[];
+  messages?: (Message | SessionRequest)[];
+  dispatch?: { id: string }[];
   [key: string]: unknown;
 }
 
 // Every other GitHub read of the tick runs as check-in.
-export const tick = (store, options): Promise<TickResult> =>
+export const tick = (store: Store, options: TickOptions): Promise<TickResult> =>
   withSource("tick", () =>
     withJob(
       "check-in",

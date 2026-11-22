@@ -9,7 +9,8 @@
 // (plugin-child.mjs), with no port, a minimal environment, a per-call time
 // limit, and a listening-socket check after start and after every call.
 // Nothing here runs unless a plugin is declared and approved.
-import { execFile, spawn } from "node:child_process";
+import { type ChildProcessByStdio, execFile, spawn } from "node:child_process";
+import type { Readable, Writable } from "node:stream";
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -891,6 +892,9 @@ function childEnvironment(config, extra) {
 // One running plugin: JSON lines over stdio, one call at a time. The
 // credentials host (github-credentials.mjs) runs one too, outside any tick.
 export class PluginProcess {
+  // What callers read: why it broke, and its child.
+  broken: string | null;
+  child: ChildProcessByStdio<Writable, Readable, null>;
   constructor(plugin, { timeoutMs, deadline, guard, checkListeners }) {
     this.plugin = plugin;
     this.timeoutMs = timeoutMs;
@@ -956,7 +960,7 @@ export class PluginProcess {
     this.fail(reason);
     this.child.kill("SIGKILL");
   }
-  async request(method, params) {
+  async request(method: string, params?: unknown): Promise<unknown> {
     if (this.broken) throw Error(this.broken);
     const timeoutMs = Math.min(this.timeoutMs, this.deadline - Date.now());
     if (timeoutMs <= 0)

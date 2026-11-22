@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Who signs Avoozl in to GitHub (plugin-credentials §D3, §D4, §D8). For each
 // owner on a host: the credentials plugin that claims it, else `env`
 // (AVOOZL_GITHUB_TOKEN), else `gh`. An owner a plugin claims never falls
@@ -6,9 +5,9 @@
 // on disk, in the store, a log, an error or a child's environment.
 import { execFile } from "node:child_process";
 import path from "node:path";
-import { checkReply } from "../plugins/plugin-contract.ts";
+import { checkTokenReply } from "../plugins/plugin-contract.ts";
 import { recordActivity } from "../store/activity-log.ts";
-import { fail } from "../store/store.ts";
+import { fail, type Store } from "../store/store.ts";
 import {
   PluginProcess,
   SECRET_VALUE,
@@ -19,7 +18,7 @@ import {
   readPluginSettings,
   writePluginSettings,
 } from "../plugins/plugins.ts";
-import { jobOf, permissionText } from "./github-jobs.ts";
+import { jobOf, type Permissions, permissionText } from "./github-jobs.ts";
 export { tokenTransportAllowed } from "./github-jobs.ts";
 
 const CALL_TIMEOUT_MS = 20_000;
@@ -31,9 +30,95 @@ const RESTART_MS = 60 * 1000;
 const MAX_REASON = 500;
 export const BUILT_IN = ["env", "gh"];
 
+// Which hosts and owners a credentials plugin signs in for.
+interface CredentialClaim {
+  hosts?: string[];
+  owners?: string[];
+}
+// A plugin, as inspectPlugins reports what credentials read of it.
+interface CredentialPlugin {
+  id: string;
+  source?: string;
+  state?: string;
+  reason?: string | null;
+  hash?: string;
+  location?: string | null;
+  entry?: { git?: unknown; config?: unknown };
+  manifest?: { credentials?: { entry?: string } };
+  provides?: string[];
+  credentials?: CredentialClaim;
+  approval?: { credentials?: CredentialClaim; provides?: string[] } | null;
+}
+// This machine's plugins.json, as far as credentials read it.
+type PluginSettings = {
+  credentialsPick?: Record<string, string>;
+  [key: string]: unknown;
+};
+// Who serves one owner: a provider, or why none can.
+interface Choice {
+  provider: string | null;
+  plugin?: CredentialPlugin;
+  refusal?: string;
+  clash?: string[];
+}
+// What a provider gives for one call.
+interface Minted {
+  token: string;
+  login?: string | null;
+  person?: string | null;
+  granted: "all" | Permissions;
+  broader?: boolean;
+  expiresAt?: string | null;
+}
+// A token held for one provider, host, scope and permission set.
+type CachedToken = Minted & {
+  provider: string | null;
+  host: string;
+  repository: string | null;
+  owner?: string;
+  job: string;
+  key: string;
+  at: number;
+};
+// One refused token call, as Needs you shows it.
+interface Failure {
+  key: string;
+  provider: string | null;
+  host: string;
+  owner?: string;
+  job: string;
+  reason: string;
+  clash?: string[] | null;
+  at?: string;
+}
+// One new token, as Activity records it.
+interface Made {
+  provider: string | null;
+  host: string;
+  job: string;
+  repository: string | null;
+  owner?: string;
+  login?: string | null;
+  granted?: "all" | Permissions;
+  broader?: boolean;
+  expiresAt?: string | null;
+}
+// What each credentials event hands its listeners.
+interface Events {
+  token: Made;
+  failure: Failure;
+  success: { key: string };
+}
+// Let a pipe (a socket at run time) not hold the process open.
+const unref = (stream: object) => {
+  if ("unref" in stream && typeof stream.unref === "function") stream.unref();
+};
+const messageOf = (error: unknown) =>
+  error instanceof Error ? error.message : String(error);
+
 // The GitHub host Avoozl talks to: github.com for api.github.com, else the
 // host (and port) of AVOOZL_GIT_URL or GITHUB_API_URL.
-function githubHost(apiUrl, gitUrl) {
+function githubHost(apiUrl: string, gitUrl: string | undefined) {
   if (/^https:\/\/api\.github\.com\/?$/.test(apiUrl || "")) return "github.com";
   try {
     return new URL(gitUrl || apiUrl).host.toLowerCase();
@@ -43,7 +128,16 @@ function githubHost(apiUrl, gitUrl) {
 }
 
 class CredentialError extends Error {
-  constructor(message, { status = 503, key = null, provider = null } = {}) {
+  status: number;
+  credentials: { key: string | null; provider: string | null };
+  constructor(
+    message: string,
+    {
+      status = 503,
+      key = null,
+      provider = null,
+    }: { status?: number; key?: string | null; provider?: string | null } = {},
+  ) {
     super(message);
     this.status = status;
     this.credentials = { key, provider };
@@ -52,8 +146,8 @@ class CredentialError extends Error {
 
 // Every token held, and every credential-looking value, becomes [redacted];
 // then the text is cut to 500 characters (PC11.4).
-const held = new Set();
-export function redact(text, max = MAX_REASON) {
+const held = new Set<string>();
+export function redact(text: unknown, max = MAX_REASON) {
   let value = String(text ?? "");
   for (const token of held)
     if (token) value = value.split(token).join("[redacted]");
@@ -62,12 +156,12 @@ export function redact(text, max = MAX_REASON) {
   return value.length > max ? value.slice(0, max - 1) + "…" : value;
 }
 
-const lower = (value) => String(value || "").toLowerCase();
+const lower = (value: unknown) => String(value || "").toLowerCase();
 
 // The plugins that claim `owner` on `host` (D3 step 1), from this machine's
 // plugins.json. A plugin with no approval here claims nothing; a disabled
 // one neither. A changed, missing or broken one still claims.
-function claimsFor(plugins, host, owner) {
+function claimsFor(plugins: CredentialPlugin[], host: string, owner: string) {
   const wanted = lower(owner);
   return plugins.filter((plugin) => {
     if (plugin.source !== "machine" || plugin.state === "disabled")
@@ -88,8 +182,11 @@ function claimsFor(plugins, host, owner) {
 
 // The reasons credentials plugins cannot be used, such as one declared in
 // .avoozl.json (PC2.2), for `avoozl check`.
-export function credentialsProblems(options) {
-  return inspectPlugins(options)
+export function credentialsProblems(
+  options: Parameters<typeof inspectPlugins>[0],
+) {
+  const plugins: CredentialPlugin[] = inspectPlugins(options);
+  return plugins
     .filter(
       (plugin) =>
         plugin.state === "invalid" && plugin.provides?.includes("credentials"),
@@ -99,24 +196,40 @@ export function credentialsProblems(options) {
 
 // Settings › Plugins **Use this one** (PC2.5, PC2.6): which credentials
 // plugin serves `host` where two or more claim one owner. A person's act.
-export function pickCredentials(options, { host, id } = {}) {
+export function pickCredentials(
+  options: Parameters<typeof inspectPlugins>[0] & { settingsFile: string },
+  { host, id }: { host?: unknown; id?: unknown } = {},
+) {
   if (typeof host !== "string" || !host) fail("Name the host.");
-  const plugin = inspectPlugins(options).find((p) => p.id === id);
+  const plugins: CredentialPlugin[] = inspectPlugins(options),
+    plugin = plugins.find((p) => p.id === id);
   if (!plugin) fail(`Plugin ${id} is not declared.`, 404);
   const claim = plugin.credentials ?? plugin.approval?.credentials;
   if (!claim?.hosts?.includes(host))
     fail(`Plugin ${id} does not sign Avoozl in to ${host}.`, 409);
-  const settings = readPluginSettings(options.settingsFile);
+  const settings: PluginSettings = readPluginSettings(options.settingsFile);
   settings.credentialsPick = {
     ...(settings.credentialsPick || {}),
-    [host]: id,
+    [host]: plugin.id,
   };
   writePluginSettings(options.settingsFile, settings);
   return { host, id };
 }
 
 // The provider for one owner (D3): {provider, plugin} or {refusal}.
-function chooseProvider({ plugins, settings, host, owner, env }) {
+function chooseProvider({
+  plugins,
+  settings,
+  host,
+  owner,
+  env,
+}: {
+  plugins: CredentialPlugin[];
+  settings: PluginSettings;
+  host: string;
+  owner: string | undefined;
+  env: NodeJS.ProcessEnv;
+}): Choice {
   const claims = owner ? claimsFor(plugins, host, owner) : [];
   if (claims.length > 1) {
     const picked = settings.credentialsPick?.[host];
@@ -133,7 +246,7 @@ function chooseProvider({ plugins, settings, host, owner, env }) {
   return { provider: env.AVOOZL_GITHUB_TOKEN?.trim() ? "env" : "gh" };
 }
 
-function usable(plugin, owner) {
+function usable(plugin: CredentialPlugin, owner?: string): Choice {
   if (plugin.state === "approved") return { provider: plugin.id, plugin };
   return {
     provider: plugin.id,
@@ -142,8 +255,12 @@ function usable(plugin, owner) {
 }
 
 // The token's login, from GitHub's GET /user (built-in providers, PC3.4).
-async function userLogin(fetchImpl, apiUrl, token) {
-  let response;
+async function userLogin(
+  fetchImpl: typeof fetch,
+  apiUrl: string,
+  token: string,
+) {
+  let response: Response;
   try {
     response = await fetchImpl(new URL(apiUrl.replace(/\/$/, "") + "/user"), {
       headers: {
@@ -154,21 +271,27 @@ async function userLogin(fetchImpl, apiUrl, token) {
       signal: AbortSignal.timeout(CALL_TIMEOUT_MS),
     });
   } catch (error) {
-    throw new CredentialError(`GitHub is unreachable: ${error.message}`);
+    throw new CredentialError(`GitHub is unreachable: ${messageOf(error)}`);
   }
   if (response.status === 401)
     throw new CredentialError("GitHub refused the token (401).");
   if (!response.ok) return null;
-  const body = await response.json().catch(() => null);
-  return typeof body?.login === "string" ? body.login : null;
+  // GitHub's GET /user answer.
+  const body: unknown = await response.json().catch(() => null),
+    login = body && typeof body === "object" && "login" in body && body.login;
+  return typeof login === "string" ? login : null;
 }
 
 const SIGN_IN = "Run `gh auth login`, or set AVOOZL_GITHUB_TOKEN.";
 
 // `ghCommand` is "gh", or [program, ...arguments] that stands in for it.
-function ghToken(host, { env, ghCommand }) {
-  const [program, ...first] = [].concat(ghCommand);
-  return new Promise((resolve, reject) =>
+function ghToken(
+  host: string,
+  { env, ghCommand }: { env: NodeJS.ProcessEnv; ghCommand: string | string[] },
+) {
+  const [program, ...first] =
+    typeof ghCommand === "string" ? [ghCommand] : ghCommand;
+  return new Promise<string>((resolve, reject) =>
     execFile(
       program,
       [...first, "auth", "token", "--hostname", host],
@@ -184,7 +307,25 @@ function ghToken(host, { env, ghCommand }) {
 
 // The credentials child of one plugin, kept for this process's life (D4).
 class CredentialChild {
-  constructor(plugin, { timeoutMs, checkListeners, guard }) {
+  plugin: CredentialPlugin;
+  timeoutMs: number;
+  checkListeners: typeof listeningSockets;
+  guard: boolean;
+  process: PluginProcess | null;
+  hashedAt: number;
+  startedAt: number;
+  constructor(
+    plugin: CredentialPlugin,
+    {
+      timeoutMs,
+      checkListeners,
+      guard,
+    }: {
+      timeoutMs: number;
+      checkListeners: typeof listeningSockets;
+      guard: boolean;
+    },
+  ) {
     this.plugin = plugin;
     this.timeoutMs = timeoutMs;
     this.checkListeners = checkListeners;
@@ -193,13 +334,13 @@ class CredentialChild {
     this.hashedAt = 0;
     this.startedAt = 0;
   }
-  same(plugin) {
+  same(plugin: CredentialPlugin) {
     return plugin.hash === this.plugin.hash && plugin.state === "approved";
   }
-  async call(params) {
+  async call(params: Record<string, unknown>) {
     const plugin = this.plugin;
     if (
-      plugin.entry.git === undefined &&
+      plugin.entry?.git === undefined &&
       Date.now() - this.hashedAt > REHASH_MS
     ) {
       let now;
@@ -208,7 +349,7 @@ class CredentialChild {
       } catch (error) {
         this.stop();
         throw new CredentialError(
-          `${plugin.id} cannot be read: ${error.message}`,
+          `${plugin.id} cannot be read: ${messageOf(error)}`,
         );
       }
       if (now !== plugin.hash) {
@@ -225,6 +366,10 @@ class CredentialChild {
       this.process = null;
     }
     if (!this.process) {
+      const location = plugin.location,
+        entry = plugin.manifest?.credentials?.entry;
+      if (!location || !entry)
+        throw new CredentialError(`${plugin.id} names no credentials entry.`);
       this.startedAt = Date.now();
       this.process = new PluginProcess(plugin, {
         timeoutMs: this.timeoutMs,
@@ -237,23 +382,23 @@ class CredentialChild {
       // holds the process open while that call waits.
       const { child } = this.process;
       child.unref();
-      child.stdin.unref?.();
-      child.stdout.unref?.();
+      unref(child.stdin);
+      unref(child.stdout);
       await this.process
         .request("hello", {
-          entry: path.join(plugin.location, plugin.manifest.credentials.entry),
-          config: plugin.entry.config ?? {},
+          entry: path.join(location, entry),
+          config: plugin.entry?.config ?? {},
           kind: "credentials",
         })
-        .catch((error) => {
-          throw new CredentialError(`${plugin.id} ${error.message}`);
+        .catch((error: unknown) => {
+          throw new CredentialError(`${plugin.id} ${messageOf(error)}`);
         });
     }
     try {
       return await this.process.request("credentials.token", params);
     } catch (error) {
       throw new CredentialError(
-        `${plugin.id} refused: ${String(error.message).replace(/^failed: /, "")}`,
+        `${plugin.id} refused: ${messageOf(error).replace(/^failed: /, "")}`,
       );
     }
   }
@@ -296,14 +441,23 @@ export function machineCredentials({
   now?: () => number;
 } = {}) {
   const host = githubHost(apiUrl, gitUrl),
-    cache = new Map(),
-    inflight = new Map(),
-    children = new Map(),
-    listeners = { token: [], failure: [], success: [] };
-  let inspected = null;
+    cache = new Map<string, CachedToken>(),
+    inflight = new Map<string, Promise<CachedToken>>(),
+    children = new Map<string, CredentialChild>(),
+    listeners: { [E in keyof Events]: ((event: Events[E]) => void)[] } = {
+      token: [],
+      failure: [],
+      success: [],
+    };
+  let inspected: {
+    plugins: CredentialPlugin[];
+    settings: PluginSettings;
+    at: number;
+    signature?: string;
+  } | null = null;
 
   const inspect = () => {
-    const plugins = listPlugins();
+    const plugins: CredentialPlugin[] = listPlugins();
     // A changed, disabled or removed plugin stops and drops its tokens
     // before the next call (PC11.6).
     for (const [id, child] of children) {
@@ -324,7 +478,7 @@ export function machineCredentials({
   // plugins.json is read on every token call (one small file); the folders
   // are inspected again when it changed, or every 10 minutes.
   const current = () => {
-    const settings = readSettings(),
+    const settings: PluginSettings = readSettings(),
       signature = JSON.stringify(settings);
     if (
       !inspected ||
@@ -334,22 +488,35 @@ export function machineCredentials({
       inspected = { ...inspect(), signature };
     return inspected;
   };
-  const choose = (owner) => {
-    current();
+  const choose = (owner?: string) => {
+    const { plugins, settings } = current();
     return chooseProvider({
-      plugins: inspected.plugins,
-      settings: inspected.settings,
+      plugins,
+      settings,
       host,
       owner,
       env,
     });
   };
 
-  async function mint(choice, { repository, owner, permissions, purpose }) {
+  async function mint(
+    choice: Choice,
+    {
+      repository,
+      owner,
+      permissions,
+      purpose,
+    }: {
+      repository: string | null;
+      owner?: string;
+      permissions: ReturnType<typeof jobOf>["permissions"];
+      purpose: string;
+    },
+  ): Promise<Minted> {
     if (choice.provider === "env" || choice.provider === "gh") {
       const token =
         choice.provider === "env"
-          ? env.AVOOZL_GITHUB_TOKEN.trim()
+          ? String(env.AVOOZL_GITHUB_TOKEN).trim()
           : await ghToken(host, { env, ghCommand });
       held.add(token);
       const login = await userLogin(fetchImpl, apiUrl, token);
@@ -362,27 +529,31 @@ export function machineCredentials({
         expiresAt: null,
       };
     }
-    let child = children.get(choice.plugin.id);
+    const plugin = choice.plugin;
+    if (!plugin) throw new CredentialError("No credentials plugin is chosen.");
+    let child = children.get(plugin.id);
     if (!child) {
-      child = new CredentialChild(choice.plugin, {
+      child = new CredentialChild(plugin, {
         timeoutMs,
         checkListeners,
         guard,
       });
-      children.set(choice.plugin.id, child);
+      children.set(plugin.id, child);
     }
-    const reply = await child.call({ repository, owner, permissions, purpose });
-    if (typeof reply?.token === "string") held.add(reply.token);
+    const reply = await child.call({ repository, owner, permissions, purpose }),
+      token =
+        reply && typeof reply === "object" && "token" in reply && reply.token;
+    if (typeof token === "string") held.add(token);
     try {
-      return checkReply("credentials", "token", reply, permissions);
+      return checkTokenReply(reply, permissions);
     } catch (error) {
       throw new CredentialError(
-        `${choice.plugin.id} sent a bad reply: ${error.message}`,
+        `${plugin.id} sent a bad reply: ${messageOf(error)}`,
       );
     }
   }
 
-  const fresh = (entry) =>
+  const fresh = (entry: CachedToken) =>
     entry.expiresAt
       ? Date.parse(entry.expiresAt) - EARLY_MS > now()
       : now() - entry.at < HOUR_MS;
@@ -392,11 +563,11 @@ export function machineCredentials({
     apiUrl,
     // True when a provider is chosen for this owner: false only on a clash
     // or an unusable claiming plugin (D3).
-    available(owner) {
+    available(owner?: string) {
       return !choose(owner).refusal;
     },
     choose,
-    on(event, fn) {
+    on<E extends keyof Events>(event: E, fn: (made: Events[E]) => void) {
       listeners[event].push(fn);
     },
     // {token, login, person, provider, granted, broader, expiresAt}.
@@ -440,7 +611,8 @@ export function machineCredentials({
       ].join("|");
       const cached = cache.get(key);
       if (cached && fresh(cached)) return cached;
-      if (inflight.has(key)) return inflight.get(key);
+      const already = inflight.get(key);
+      if (already) return already;
       const pending = (async () => {
         try {
           const reply = await mint(choice, {
@@ -449,7 +621,7 @@ export function machineCredentials({
             permissions,
             purpose: job,
           });
-          const entry = {
+          const entry: CachedToken = {
             ...reply,
             provider: choice.provider,
             host,
@@ -475,7 +647,7 @@ export function machineCredentials({
             });
           return entry;
         } catch (error) {
-          const reason = redact(error.message);
+          const reason = redact(messageOf(error));
           for (const fn of listeners.failure)
             fn({
               key: failureKey,
@@ -497,20 +669,30 @@ export function machineCredentials({
       return pending;
     },
     // GitHub answered 401 with this token: ask again next time (PC5.4).
-    drop(entry) {
-      if (cache.get(entry?.key) === entry) cache.delete(entry.key);
+    drop(entry: CachedToken | null | undefined) {
+      if (entry && cache.get(entry.key) === entry) cache.delete(entry.key);
     },
     // What Settings shows: the newest token per provider in use (D11), from
     // plugins.json as it is now: an approval shows at once.
     signIns() {
       const { plugins } = current(),
-        rows = new Map();
+        rows = new Map<string | null, CachedToken>();
       for (const entry of cache.values()) {
         const row = rows.get(entry.provider);
         if (!row || row.at < entry.at) rows.set(entry.provider, entry);
       }
       const builtIn = env.AVOOZL_GITHUB_TOKEN?.trim() ? "env" : "gh";
-      const lines = [];
+      const lines: {
+        host: string;
+        provider: string;
+        owners: string[] | string;
+        state?: string;
+        login: string | null;
+        person: string | null;
+        granted: string;
+        broader: string[];
+        expiresAt: string | null;
+      }[] = [];
       for (const plugin of plugins) {
         const claim = plugin.credentials ?? plugin.approval?.credentials;
         if (
@@ -561,14 +743,19 @@ export function machineCredentials({
 // ---- Needs you and Activity (PC7.3, PC9.6) ------------------------------
 
 const META = "githubCredentials";
-const readMeta = (store) => {
+// The credentials meta: each open failure by its key.
+type CredentialsMeta = { failures?: Record<string, Failure> };
+const readMeta = (store: Pick<Store, "getMeta">): CredentialsMeta => {
   try {
-    return store.getMeta(META) || {};
+    return store.getMeta<CredentialsMeta>(META) || {};
   } catch {
     return {};
   }
 };
-const writeFailures = (store, edit) => {
+const writeFailures = (
+  store: Pick<Store, "getMeta" | "setMeta">,
+  edit: (failures: Record<string, Failure>) => false | undefined,
+) => {
   try {
     const meta = readMeta(store),
       failures = { ...(meta.failures || {}) };
@@ -582,7 +769,12 @@ const writeFailures = (store, edit) => {
 // One Needs you row per provider, host, owner and job; it clears itself on
 // the next token call that works for that key. Activity gets one row per
 // new token: never the token.
-export function recordCredentialEvents(store, credentials) {
+export type MachineCredentials = ReturnType<typeof machineCredentials>;
+
+export function recordCredentialEvents(
+  store: Store,
+  credentials: Partial<Pick<MachineCredentials, "on">> | null | undefined,
+) {
   if (!credentials?.on) return;
   credentials.on("failure", (failure) =>
     writeFailures(store, (failures) => {
@@ -604,7 +796,7 @@ export function recordCredentialEvents(store, credentials) {
         actor: made.login || made.provider,
         kind: "github.token",
         summary: redact(
-          `New GitHub token from ${made.provider} on ${made.host} for ${made.job} on ${made.repository || made.owner || "this machine"}: signed in as ${made.login || "unknown"}, ${made.granted === "all" ? "full access" : `granted ${permissionText(made.granted)}`}, ${made.expiresAt ? `expires ${made.expiresAt}` : "no expiry"}.`,
+          `New GitHub token from ${made.provider} on ${made.host} for ${made.job} on ${made.repository || made.owner || "this machine"}: signed in as ${made.login || "unknown"}, ${made.granted === "all" ? "full access" : `granted ${permissionText(made.granted ?? {})}`}, ${made.expiresAt ? `expires ${made.expiresAt}` : "no expiry"}.`,
           400,
         ),
       });
@@ -614,7 +806,7 @@ export function recordCredentialEvents(store, credentials) {
   });
 }
 
-export function credentialsNeedsYou(store) {
+export function credentialsNeedsYou(store: Pick<Store, "getMeta">) {
   return Object.values(readMeta(store).failures || {}).map((failure) => ({
     kind: "needs-human",
     reason: "crew",
@@ -641,7 +833,10 @@ export function credentialsNeedsYou(store) {
 
 // A provider that names no person (PC10.4): steps that need the person's
 // login wait, with one Needs you row per provider and owner.
-export function recordNoPerson(store, { provider, owner }) {
+export function recordNoPerson(
+  store: Pick<Store, "getMeta" | "setMeta">,
+  { provider, owner }: { provider: string; owner?: string },
+) {
   const key = ["person", provider, lower(owner || "")].join("|");
   writeFailures(store, (failures) => {
     if (failures[key]) return false;
