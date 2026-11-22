@@ -6,6 +6,7 @@
 // worker that already ran. A cell holds the builder for its kind, or `declined` (the reason)
 // and `fallback` (the kind that runs instead).
 import { localSteps, processSteps } from "../delivery/delivery.ts";
+import type { CliReport } from "../delivery/delivery.ts";
 
 export const EXECUTORS = Object.freeze(["kirocrew", "process"]);
 export const KINDS = Object.freeze(["single", "round"]);
@@ -17,7 +18,7 @@ interface BriefContext {
     sandbox?: { allowCommands?: string[][] };
     [key: string]: unknown;
   };
-  cliReport?: unknown;
+  cliReport?: CliReport | null;
 }
 
 // One table cell: the steps builder, the round's closing line, or a

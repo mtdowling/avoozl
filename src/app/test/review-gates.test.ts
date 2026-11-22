@@ -329,7 +329,7 @@ test("policy validation refuses a reviewer that cannot be shown distinct from th
   });
   assert.equal(replaced.reviewers[0].distinctFrom, "model", "the default");
   assert.deepEqual(
-    replaced.repositories.app.reviewers.map((r: { id: string }) => r.id),
+    replaced.repositories.app.reviewers?.map((r: { id: string }) => r.id),
     ["conventions"],
   );
 });

@@ -9,6 +9,7 @@ import {
   readyCandidates,
   readyLeaves,
 } from "../delivery/delivery.ts";
+import type { Delivery, DeliveryPolicy } from "../delivery/delivery.ts";
 import {
   cacheClaim,
   claimBranch,
@@ -45,7 +46,7 @@ type DeliveryRow = {
 };
 // readDeliveryPolicy's wrapper.
 type Policy =
-  | { status?: string; error?: string; delivery?: unknown }
+  | { status?: string; error?: string; delivery?: DeliveryPolicy | null }
   | null
   | undefined;
 // One row of a list; a ready row names its task.
@@ -477,10 +478,10 @@ export async function claimNext(
   });
   const data = store.read(),
     brief = leafBrief(store, data, {
-      task: data.tasks.find((t) => t.id === claim.task.id),
+      task: data.tasks.find((t) => t.id === claim.task.id) ?? claim.task,
       repository: claim.repository,
       attempt: take.binding.attempt,
-      delivery: store.get("task_deliveries", claim.task.id),
+      delivery: store.get<Delivery>("task_deliveries", claim.task.id),
     });
   return {
     claimed: {

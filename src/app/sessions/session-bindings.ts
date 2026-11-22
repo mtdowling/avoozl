@@ -8,6 +8,7 @@ import { queryTasks } from "../../query.ts";
 import { fail, type Store } from "../store/store.ts";
 import { resolveTaskId } from "../../task-identity.ts";
 import type { Snapshot } from "../../types.ts";
+import type { Closure, Finding } from "../delivery/delivery.ts";
 
 // One `session_bindings` row: which session works on which task.
 export interface SessionBinding {
@@ -40,7 +41,12 @@ export interface SessionBinding {
     at?: string;
     commit?: string;
     text?: string;
-    review?: { verdict?: string };
+    phase?: string;
+    review?: {
+      verdict?: string;
+      findings?: Finding[];
+      closures?: Closure[];
+    };
   } | null;
   // The epic context a worker's brief carried (briefContext).
   epicContext?: {
@@ -598,7 +604,7 @@ export function recordSessionStatus(
 // is spent. Only an observed idle status counts, so a session Avoozl cannot see
 // (disconnected, or a lapsed lease) is never treated as quiet.
 export function quietStep(
-  binding: SessionBinding,
+  binding: Partial<SessionBinding>,
   nudge: { at?: string; count?: number } | null | undefined,
   policy: { quietMinutes: number; nudges: number },
   now: number,

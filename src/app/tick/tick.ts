@@ -1001,15 +1001,16 @@ async function runTick(
                 github: readGitHubPolicyOrNull(workspaceRoot),
                 skip: readySkip,
               }),
-        plannedReady = !schedule
-          ? []
-          : planReadyDispatches(store, delivery, {
-              workspace: laneWorkspaceId,
-              skip: new Set([...readySkip, ...schedule.skip, ...outOfLoop]),
-              // Settings › Models' worker harness (R98.3, R98.6).
-              config: memory.value || {},
-              github: readGitHubPolicyOrNull(workspaceRoot),
-            }),
+        plannedReady =
+          !schedule || !delivery
+            ? []
+            : planReadyDispatches(store, delivery, {
+                workspace: laneWorkspaceId,
+                skip: new Set([...readySkip, ...schedule.skip, ...outOfLoop]),
+                // Settings › Models' worker harness (R98.3, R98.6).
+                config: memory.value || {},
+                github: readGitHubPolicyOrNull(workspaceRoot),
+              }),
         verify =
           unobserved.length || !delivery
             ? []

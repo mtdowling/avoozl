@@ -25,6 +25,7 @@ import {
   liveAttempt,
   startNowIds,
 } from "../delivery/delivery.ts";
+import type { Closure, Finding } from "../delivery/delivery.ts";
 import { sessionUrl } from "../tick/notifications.ts";
 import { processSessionDetails } from "../executors/process-view.ts";
 import { attemptDestination } from "./direct-links.ts";
@@ -1018,19 +1019,20 @@ function crewHoldText(task: Task) {
 type Destinations = Parameters<typeof attemptDestination>[1];
 // One review verdict a delivery records.
 interface Verification {
-  commit?: string | null;
+  commit?: string;
   role?: string;
   attempt?: number;
   outcome?: string;
   verdict?: string;
   model?: string;
   served?: { model?: string } | null;
-  cause?: unknown;
+  cause?: string;
   at?: string;
   slot?: string;
   checks?: { isolation?: string }[];
-  findings?: { id: string; kind?: string; paths?: unknown; text?: string }[];
-  closures?: unknown[];
+  findings?: Finding[];
+  closures?: Closure[];
+  [key: string]: unknown;
 }
 // One `task_deliveries` row, as these views read it.
 interface DeliveryRow {
