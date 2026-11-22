@@ -46,11 +46,7 @@ function mapHandler(this: Operations, { input, context }: OperationCall) {
   if (!options?.workspaceRoot) fail("Plugins need a workspace root.", 409);
   const plugin = setMapping(options, input ?? {});
   contentBinding(this.store)?.plugins.clear();
-  const {
-    manifest: _m,
-    entry: _e,
-    ...shown
-  } = plugin as Record<string, unknown>;
+  const { manifest: _m, entry: _e, ...shown } = plugin ?? {};
   return shown;
 }
 

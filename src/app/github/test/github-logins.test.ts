@@ -112,8 +112,8 @@ test("a primary limit on one login holds its calls and not another's", (t) => {
   );
   other.flush();
   const stored = readRate(store);
-  assert.ok(stored.logins["acme-bot[bot]"].pause);
-  assert.equal(stored.logins.mtdowling.resources.core.remaining, 4000);
+  assert.ok(stored.logins?.["acme-bot[bot]"].pause);
+  assert.equal(stored.logins?.mtdowling.resources.core.remaining, 4000);
   assert.equal(stored.pause, null, "the workspace is not held");
 });
 

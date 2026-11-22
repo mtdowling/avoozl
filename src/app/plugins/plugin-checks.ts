@@ -16,7 +16,9 @@ import { pluginCheckConflicts } from "../workspace/repository-checks.ts";
 import {
   contentHash,
   credentialValue,
+  type InspectedPlugin,
   inspectPlugins,
+  type PluginSettings,
   pluginSettingsPath,
   readPluginSettings,
   writePluginSettings,
@@ -91,30 +93,14 @@ interface ChecksManifest {
   servers?: Record<string, ServerDeclaration>;
 }
 // A plugin, as inspectPlugins reports what checks read of it.
-interface CheckedPlugin {
-  id: string;
-  state?: string;
-  version?: string;
-  hash?: string;
-  location?: string | null;
-  commit?: string;
-  entry?: { git?: unknown };
-  provides?: string[];
-  manifest?: ChecksManifest | null;
-  context?: { servers?: Record<string, unknown> } | null;
-}
+type CheckedPlugin = InspectedPlugin;
 // One alias's local MCP server: its command and the names of its env.
 interface Mapping {
   command?: string[];
   env: string[];
 }
-// plugins.json, as far as checks read and write it.
-type CheckSettings = {
-  mcp?: Record<string, Record<string, Mapping>>;
-  approvals: Record<string, unknown>;
-  broken?: Record<string, { reason: string; at: string }>;
-  [key: string]: unknown;
-};
+// This machine's plugins.json.
+type CheckSettings = PluginSettings;
 // Where this machine's plugins are declared and approved.
 type Options = { workspaceRoot?: string | null; settingsFile: string };
 

@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 import {
   mergeRoles,
   resolveRoles,
@@ -18,7 +17,11 @@ import { deliveryPolicy } from "../delivery/delivery.ts";
 import { createHash, randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { githubSources, writeGitHubSources } from "../github/github-sources.ts";
+import {
+  githubSources,
+  type SourceSettings,
+  writeGitHubSources,
+} from "../github/github-sources.ts";
 import {
   normalizeGitHubPolicy,
   POLICY_KEYS,
@@ -36,7 +39,7 @@ import {
   activityRetention,
   validateActivitySettings,
 } from "../store/activity-log.ts";
-import { fail } from "../store/store.ts";
+import { fail, type Store } from "../store/store.ts";
 import { checksSetting } from "../workspace/repository-checks.ts";
 import { isolationSetting } from "../workspace/check-isolation.ts";
 import { REPOSITORY_CONFIG_SCHEMA_URL } from "./config-schema.ts";
@@ -48,19 +51,74 @@ const APPLY_KEYS = Object.freeze([
   "planningRepository",
 ]);
 
-function hash(text) {
+// A JSON object: a parsed .avoozl.json, or one of its blocks.
+type Obj = Record<string, unknown>;
+// A stored repositories row, as far as these settings read it.
+interface RepositoryRow {
+  id: string;
+  name?: string;
+  root: string;
+  baseBranch?: string;
+  integrationBranch?: string;
+  worktreeRoot?: string;
+  checks?: unknown;
+  checksEnv?: string[];
+  worktreeHelper?: string;
+  landing?: string;
+  claims?: Obj;
+  labels?: Obj;
+  planning?: boolean;
+  editable?: boolean;
+  executor?: string;
+  harness?: string;
+  sandbox?: Obj;
+  isolation?: unknown;
+  github?: string | null;
+}
+// One GitHub source a github_repositories row keeps.
+interface IntakeRow {
+  id: string;
+  repositoryId: string;
+  workspaceRepositoryId?: string;
+  assignee: string;
+  autoStart?: boolean;
+  provider?: string | null;
+  model?: string | null;
+}
+// A GitHub source to write, named by its repository.
+type Intake = SourceSettings & { id: string };
+// The planning repository, as the workspace keeps it.
+interface PlanningRepository {
+  root: string;
+  remote?: string;
+  branch?: string;
+  directory: string;
+}
+// The file as read: its value, text and hash.
+interface ReadFile {
+  value: Obj;
+  text: string | null;
+  hash: string | null;
+  exists: boolean;
+}
+const messageOf = (error: unknown) =>
+  error instanceof Error ? error.message : String(error);
+
+function hash(text: string) {
   return createHash("sha256").update(text).digest("hex");
 }
 
-function record(value) {
+function record(value: unknown): value is Obj {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
+// An object field of a block, or an empty one.
+const objectOf = (value: unknown): Obj => (record(value) ? value : {});
 
-function same(left, right) {
+function same(left: unknown, right: unknown) {
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
-function privilegedConfiguration(value) {
+function privilegedConfiguration(value: Obj) {
   return Object.fromEntries(
     Object.entries(value).filter(
       ([key]) => !["$schema", "version", "conversations"].includes(key),
@@ -68,26 +126,24 @@ function privilegedConfiguration(value) {
   );
 }
 
-function changedTopLevelKeys(left, right) {
+function changedTopLevelKeys(left: Obj, right: Obj) {
   return [...new Set([...Object.keys(left), ...Object.keys(right)])]
     .filter((key) => !same(left[key], right[key]))
     .sort();
 }
 
-function text(value, label, { nullable = false } = {}) {
-  if (nullable && (value === null || value === undefined || value === ""))
-    return null;
+function text(value: unknown, label: string) {
   if (typeof value !== "string" || !value.trim()) fail(`${label} is required.`);
   return value.trim();
 }
 
-function sortedRecord(value) {
+function sortedRecord<T>(value: Record<string, T>): Record<string, T> {
   return Object.fromEntries(
     Object.entries(value).sort(([left], [right]) => left.localeCompare(right)),
   );
 }
 
-function envNames(value, id) {
+function envNames(value: unknown, id: string) {
   if (
     !Array.isArray(value) ||
     value.some(
@@ -100,7 +156,7 @@ function envNames(value, id) {
   return [...value];
 }
 
-function helperHash(value, id) {
+function helperHash(value: unknown, id: string) {
   if (typeof value !== "string" || !/^[0-9a-f]{64}$/.test(value))
     fail(`Repository ${id} worktreeHelper must be a SHA-256 hash.`);
   return value;
@@ -109,7 +165,7 @@ function helperHash(value, id) {
 // `claims.staleHours` (simplify §D3): hours without a commit before a claim
 // branch shows as stale.
 export const CLAIMS_KEYS = Object.freeze(["staleHours"]);
-export function claimsOf(value, id) {
+export function claimsOf(value: unknown, id: string) {
   if (
     !record(value) ||
     Object.keys(value).some((key) => !CLAIMS_KEYS.includes(key))
@@ -128,13 +184,15 @@ export function claimsOf(value, id) {
 // spec issue, read by label-filters.mjs.
 // `labels.stop` (rule 10) names the stop label, default `avoozl:stopped`.
 export const LABELS_KEYS = Object.freeze(["require", "exclude", "stop"]);
-export function labelsOf(value, id) {
+export function labelsOf(value: unknown, id: string) {
   if (
     !record(value) ||
     Object.keys(value).some((key) => !LABELS_KEYS.includes(key))
   )
     fail(`Repository ${id} labels may set only require, exclude and stop.`);
-  const out = {};
+  const out: Partial<
+    Record<"stop", string> & Record<"require" | "exclude", string[]>
+  > = {};
   if (value.stop !== undefined) {
     if (typeof value.stop !== "string" || !value.stop || value.stop.length > 50)
       fail(
@@ -142,7 +200,7 @@ export function labelsOf(value, id) {
       );
     out.stop = value.stop;
   }
-  for (const key of ["require", "exclude"]) {
+  for (const key of ["require", "exclude"] as const) {
     const names = value[key];
     if (names === undefined) continue;
     if (
@@ -156,13 +214,13 @@ export function labelsOf(value, id) {
       fail(
         `Repository ${id} labels.${key} must be up to 20 different label names of 1–50 characters.`,
       );
-    out[key] = [...names];
+    out[key] = names.map(String);
   }
   return out;
 }
 
-function landingOf(value, id) {
-  if (!["direct", "pr", "off"].includes(value))
+function landingOf(value: unknown, id: string) {
+  if (value !== "direct" && value !== "pr" && value !== "off")
     fail(`Repository ${id} landing must be direct, pr or off.`);
   return value;
 }
@@ -207,17 +265,17 @@ export const PLANNING_REPOSITORY_KEYS = Object.freeze([
   "branch",
   "directory",
 ]);
-function repositoryInput(value, id, base) {
+function repositoryInput(value: unknown, id: string, base: string) {
   if (!record(value)) fail(`Repository ${id} must contain a JSON object.`);
   for (const key of Object.keys(value))
     if (!REPOSITORY_KEYS.includes(key))
       fail(`Unknown repository setting repositories.${id}.${key}.`);
   // The repository's named checks; the older list of argv arrays loads too.
   const checks = checksSetting(value.checks, `Repository ${id} checks`);
-  const resolve = (candidate) =>
+  const resolve = (candidate: string) =>
     path.isAbsolute(candidate) ? candidate : path.resolve(base, candidate);
   // Branches reach git as positional arguments; a leading dash is an option.
-  const branch = (value, label) => {
+  const branch = (value: unknown, label: string) => {
     const name = text(value, label);
     if (name.startsWith("-")) fail(`${label} must not start with a dash.`);
     return name;
@@ -270,10 +328,13 @@ function repositoryInput(value, id, base) {
 
 // Which executor runs the repository's sessions (R93.5), the harness a
 // `process` session uses, and its sandbox (R94.4, R94.4c, R95.6).
-function executorInput(value, id) {
-  const out = {};
+function executorInput(value: Obj, id: string) {
+  const out: Pick<
+    RepositoryRow,
+    "executor" | "harness" | "sandbox" | "isolation"
+  > = {};
   if (value.executor !== undefined) {
-    if (!["kirocrew", "process"].includes(value.executor))
+    if (value.executor !== "kirocrew" && value.executor !== "process")
       fail(`Repository ${id} executor must be kirocrew or process.`);
     out.executor = value.executor;
   }
@@ -310,7 +371,7 @@ function executorInput(value, id) {
 
 // The executor, isolation, claim and label settings of a stored
 // repository, as saved.
-const executorSettings = (repository) => ({
+const executorSettings = (repository: RepositoryRow) => ({
   ...(repository.executor ? { executor: repository.executor } : {}),
   ...(repository.harness ? { harness: repository.harness } : {}),
   ...(repository.sandbox
@@ -327,11 +388,11 @@ const executorSettings = (repository) => ({
     : {}),
 });
 
-function repositoriesInput(value, base) {
+function repositoriesInput(value: unknown, base: string) {
   if (value === undefined) return {};
   if (!record(value))
     fail("Repositories configuration must contain a JSON object.");
-  const result = {};
+  const result: Record<string, ReturnType<typeof repositoryInput>> = {};
   for (const [id, repository] of Object.entries(value)) {
     if (!/^[a-z][a-z0-9-]{1,60}$/.test(id))
       fail(`Invalid repository ID ${id}.`);
@@ -342,7 +403,7 @@ function repositoriesInput(value, base) {
 
 // The `github` block's policy, checked, and the GitHub sources of the
 // whole file (`intake.sources`) by repository.
-function githubInput(github, whole = { github }) {
+function githubInput(github: unknown, whole: Obj = { github }) {
   if (github !== undefined) {
     if (!record(github))
       fail("GitHub configuration must contain a JSON object.");
@@ -361,7 +422,7 @@ function githubInput(github, whole = { github }) {
   };
 }
 
-function planningRepositoryInput(value, base) {
+function planningRepositoryInput(value: unknown, base: string) {
   if (value === undefined || value === null) return null;
   if (!record(value))
     fail("Planning repository configuration must contain a JSON object.");
@@ -384,13 +445,15 @@ function planningRepositoryInput(value, base) {
 // repository > Landing). The checkout that source runs in lands there, so the
 // checkout's own `baseBranch` is read only for a repository with no GitHub
 // settings.
-function desiredActions(value, base) {
+function desiredActions(value: Obj, base: string) {
   const repositories = repositoriesInput(value.repositories, base),
     github = githubInput(value.github, value);
   for (const { repository, settings } of githubSources(value)) {
-    const branch = value.github?.repositories?.[repository]?.baseBranch;
-    if (branch && repositories[settings.repositoryId])
-      repositories[settings.repositoryId].baseBranch = branch;
+    const branch = objectOf(
+      objectOf(objectOf(value.github).repositories)[repository],
+    ).baseBranch;
+    const row = repositories[String(settings.repositoryId)];
+    if (typeof branch === "string" && branch && row) row.baseBranch = branch;
   }
   return {
     repositories,
@@ -399,9 +462,9 @@ function desiredActions(value, base) {
   };
 }
 
-function appliedActions(store) {
+function appliedActions(store: Store) {
   const repositories = Object.fromEntries(
-      store.list("repositories").map((repository) => [
+      store.list<RepositoryRow>("repositories").map((repository) => [
         repository.id,
         {
           ...(repository.name === undefined ? {} : { name: repository.name }),
@@ -434,7 +497,7 @@ function appliedActions(store) {
       ]),
     ),
     issueIntake = Object.fromEntries(
-      store.list("github_repositories").map((entry) => [
+      store.list<IntakeRow>("github_repositories").map((entry) => [
         entry.id,
         {
           repositoryId: entry.repositoryId,
@@ -450,7 +513,7 @@ function appliedActions(store) {
         },
       ]),
     ),
-    planning = store.getMeta("workspaceRepository");
+    planning = store.getMeta<PlanningRepository>("workspaceRepository");
   return {
     repositories: sortedRecord(repositories),
     github: { issueIntake: sortedRecord(issueIntake) },
@@ -465,36 +528,37 @@ function appliedActions(store) {
   };
 }
 
-function withoutKeys(value, excluded) {
+function withoutKeys(value: Obj, excluded: string[]) {
   return Object.fromEntries(
     Object.entries(value).filter(([key]) => !excluded.includes(key)),
   );
 }
 
-function entryStat(filename) {
+function entryStat(filename: string) {
   try {
     return fs.lstatSync(filename);
   } catch (error) {
-    if (error.code === "ENOENT") return null;
+    if (error && typeof error === "object" && "code" in error)
+      if (error.code === "ENOENT") return null;
     throw error;
   }
 }
 
-function assertDirectory(filename, label) {
+function assertDirectory(filename: string, label: string) {
   const stat = entryStat(filename);
   if (!stat) fail(`${label} does not exist.`);
   if (stat.isSymbolicLink() || !stat.isDirectory())
     fail(`${label} must be a real directory.`);
 }
 
-function assertFile(filename) {
+function assertFile(filename: string) {
   const stat = entryStat(filename);
   if (!stat) fail("Workspace Avoozl configuration does not exist.");
   if (stat.isSymbolicLink() || !stat.isFile())
     fail("Workspace Avoozl configuration must be a regular file.");
 }
 
-function readText(filename) {
+function readText(filename: string) {
   assertFile(filename);
   const stat = fs.statSync(filename);
   if (stat.size > MAX_CONFIG_BYTES)
@@ -502,13 +566,13 @@ function readText(filename) {
   return fs.readFileSync(filename, "utf8");
 }
 
-function parse(text, filename, { portable = false } = {}) {
-  let value;
+function parse(text: string, filename: string, { portable = false } = {}): Obj {
+  let value: unknown;
   try {
     value = JSON.parse(text);
   } catch (error) {
     fail(
-      `Could not parse workspace Avoozl configuration at ${filename}: ${error.message}`,
+      `Could not parse workspace Avoozl configuration at ${filename}: ${messageOf(error)}`,
     );
   }
   if (!record(value))
@@ -519,7 +583,7 @@ function parse(text, filename, { portable = false } = {}) {
   try {
     assertKnownKeys(value, `workspace Avoozl configuration at ${filename}`);
   } catch (error) {
-    fail(error.message);
+    fail(messageOf(error));
   }
   validateRoles(value);
   if (portable)
@@ -534,35 +598,51 @@ function parse(text, filename, { portable = false } = {}) {
 // accepted task's finished runs leave the conversation list. Other keys are
 // dropped.
 export const CONVERSATION_KEYS = new Set(["autoArchiveCompleted"]);
-function conversationInput(value) {
+function conversationInput(
+  value: unknown,
+): { autoArchiveCompleted?: boolean } | null {
   if (value === undefined) return null;
   if (!record(value))
     fail("Conversation configuration must contain a JSON object.");
-  if (
-    "autoArchiveCompleted" in value &&
-    typeof value.autoArchiveCompleted !== "boolean"
-  )
+  const archive = value.autoArchiveCompleted;
+  if ("autoArchiveCompleted" in value && typeof archive !== "boolean")
     fail("Choose whether completed conversations auto-archive.");
-  return "autoArchiveCompleted" in value
-    ? { autoArchiveCompleted: value.autoArchiveCompleted }
-    : {};
+  return typeof archive === "boolean" ? { autoArchiveCompleted: archive } : {};
 }
 
-export function conversationSettings(store) {
+export function conversationSettings(store: Pick<Store, "getMeta">) {
   return {
     autoArchiveCompleted:
-      store.getMeta("conversationSettings")?.autoArchiveCompleted !== false,
+      store.getMeta<{ autoArchiveCompleted?: boolean }>("conversationSettings")
+        ?.autoArchiveCompleted !== false,
   };
 }
 
 // The worker's agent and model are in the roles table (Settings › Models,
 // R98.7); who merges is each repository's landing block (§4.25).
-const DELIVERY_FORM_KEYS = [];
+const DELIVERY_FORM_KEYS: string[] = [];
 
 export class RepositorySettings {
-  declare workspaceRoot: string;
+  store: Store;
+  workspaceRoot: string;
+  realWorkspaceRoot: string;
+  filename: string;
+  directory: string;
+  files: { repository: string; global?: string };
+  sources: { label?: string; filename?: string }[];
+  baseRoles: ReturnType<typeof resolveRoles>;
+  baseConversationConfigured: boolean;
+  baseConversationSettings: { autoArchiveCompleted?: boolean };
+  debounceMs: number;
+  watchFactory: typeof fs.watch;
+  watcher: fs.FSWatcher | null;
+  timer: NodeJS.Timeout | null;
+  restartBaseline: Obj | null;
+  restartRequired: string[];
+  applyRequired: string[];
+  lastApplied: { at: string; keys: string[]; hash: string } | null;
   // The file this reads and the last load's outcome.
-  declare state: {
+  state: {
     filename: string;
     exists: boolean;
     hash: string | null;
@@ -570,7 +650,7 @@ export class RepositorySettings {
     error: { message: string; at: string } | null;
   };
   constructor(
-    store,
+    store: Store,
     {
       workspaceRoot,
       files = {},
@@ -581,7 +661,7 @@ export class RepositorySettings {
     }: {
       workspaceRoot?: string;
       files?: { repository?: string; global?: string };
-      sources?: unknown[];
+      sources?: { label?: string; filename?: string }[];
       baseConfig?: Record<string, unknown>;
       debounceMs?: number;
       watchFactory?: typeof fs.watch;
@@ -613,7 +693,10 @@ export class RepositorySettings {
     this.restartBaseline = null;
     this.restartRequired = [];
     this.applyRequired = [];
-    this.lastApplied = store.getMeta("repositorySettingsLastApplied") || null;
+    this.lastApplied =
+      store.getMeta<RepositorySettings["lastApplied"]>(
+        "repositorySettingsLastApplied",
+      ) || null;
     this.state = {
       filename: this.filename,
       exists: false,
@@ -633,7 +716,7 @@ export class RepositorySettings {
     return true;
   }
 
-  readFile() {
+  readFile(): ReadFile {
     if (!this.assertParents() || !entryStat(this.filename)) {
       return {
         value: { version: 1 },
@@ -652,7 +735,7 @@ export class RepositorySettings {
   }
 
   readConfiguration(scope: unknown) {
-    if (!["global", "repository"].includes(scope))
+    if (scope !== "global" && scope !== "repository")
       fail("Choose the global or repository Avoozl configuration.");
     if (scope === "repository") {
       const file = this.readFile();
@@ -725,7 +808,7 @@ export class RepositorySettings {
       mode = current.exists
         ? fs.statSync(current.filename).mode & 0o777
         : 0o644;
-    let descriptor;
+    let descriptor: number | undefined;
     try {
       descriptor = fs.openSync(pending, "wx", mode);
       fs.writeFileSync(descriptor, formatted);
@@ -817,20 +900,20 @@ export class RepositorySettings {
         ...this.state,
         filename: this.filename,
         error: {
-          message: error.message,
+          message: messageOf(error),
           at: new Date().toISOString(),
         },
       };
       if (emit)
         this.store.event(null, "workspace.settings.error", {
           filename: this.filename,
-          message: error.message,
+          message: messageOf(error),
         });
       return this.metadata();
     }
   }
 
-  write(value, { expectedHash } = {}) {
+  write(value: Obj, { expectedHash }: { expectedHash?: unknown } = {}) {
     this.assertParents({ create: true });
     const before = this.readFile();
     if (expectedHash !== undefined && expectedHash !== before.hash)
@@ -855,7 +938,7 @@ export class RepositorySettings {
       flowPolicy(value);
       deliveryPolicy(value);
     } catch (error) {
-      fail(error.message);
+      fail(messageOf(error));
     }
     const text = JSON.stringify(value, null, 2) + "\n";
     if (Buffer.byteLength(text) > MAX_CONFIG_BYTES)
@@ -867,7 +950,7 @@ export class RepositorySettings {
     const mode = before.exists
       ? fs.statSync(this.filename).mode & 0o777
       : 0o644;
-    let descriptor;
+    let descriptor: number | undefined;
     try {
       descriptor = fs.openSync(pending, "wx", mode);
       fs.writeFileSync(descriptor, text);
@@ -877,7 +960,7 @@ export class RepositorySettings {
       this.assertParents();
       if (entryStat(this.filename)) assertFile(this.filename);
       fs.renameSync(pending, this.filename);
-      let directory;
+      let directory: number | undefined;
       try {
         directory = fs.openSync(this.directory, "r");
         fs.fsyncSync(directory);
@@ -911,7 +994,13 @@ export class RepositorySettings {
 
   // Replaces the policy keys of `github` and keeps every other key. The
   // whole block is validated before the file is written.
-  updateGitHubSettings({ github, expectedHash } = {}) {
+  updateGitHubSettings({
+    github,
+    expectedHash,
+  }: {
+    github?: unknown;
+    expectedHash?: unknown;
+  } = {}) {
     const section = policySection(github),
       before = this.readFile();
     if (expectedHash !== before.hash)
@@ -943,38 +1032,51 @@ export class RepositorySettings {
       hash: file.hash,
       flow: record(file.value.flow) ? structuredClone(file.value.flow) : {},
       repositories: Object.fromEntries(
-        Object.entries(repositories)
-          .filter(([, p]) => record(p) && record(p.flow))
-          .map(([id, p]) => [id, structuredClone(p.flow)]),
+        Object.entries(repositories).flatMap(([id, p]) =>
+          record(p) && record(p.flow) ? [[id, structuredClone(p.flow)]] : [],
+        ),
       ),
     };
   }
 
   // Replace the workspace's `flow` (or one repository's override) whole,
   // with an expected hash so a stale edit fails instead of overwriting.
-  updateFlowSettings({ flow, repository = null, expectedHash } = {}) {
+  updateFlowSettings({
+    flow,
+    repository = null,
+    expectedHash,
+  }: {
+    flow?: unknown;
+    repository?: unknown;
+    expectedHash?: unknown;
+  } = {}) {
     const before = this.readFile();
     if (expectedHash !== before.hash)
       fail("Avoozl configuration changed; reload before saving.", 409);
     if (!record(flow)) fail("Give the flow settings as an object.");
-    const value = this.updateValue(before);
+    const given = flow,
+      value = this.updateValue(before);
     // Settings > Flow does not edit `verify` (protected paths, check
     // timeouts), so a save without it keeps the file's own.
-    const kept = (old) =>
-      flow.verify === undefined && record(old?.verify)
-        ? { ...flow, verify: old.verify }
-        : flow;
+    const kept = (old: unknown): Obj =>
+      given.verify === undefined && record(old) && record(old.verify)
+        ? { ...given, verify: old.verify }
+        : given;
     if (repository) {
-      if (!record(value.repositories?.[repository]))
+      const entry = objectOf(value.repositories)[String(repository)];
+      if (!record(entry))
         fail(
           `Repository ${repository} is not in .avoozl.json repositories.`,
           404,
         );
-      flow = kept(value.repositories[repository].flow);
-      if (Object.keys(flow).length) value.repositories[repository].flow = flow;
-      else delete value.repositories[repository].flow;
-    } else if (Object.keys((flow = kept(value.flow))).length) value.flow = flow;
-    else delete value.flow;
+      const next = kept(entry.flow);
+      if (Object.keys(next).length) entry.flow = next;
+      else delete entry.flow;
+    } else {
+      const next = kept(value.flow);
+      if (Object.keys(next).length) value.flow = next;
+      else delete value.flow;
+    }
     this.write(value, { expectedHash: before.hash });
     return this.readFlowSettings();
   }
@@ -1004,7 +1106,7 @@ export class RepositorySettings {
       fail("Avoozl configuration changed; reload before saving.", 409);
     const checked = validateRoles({ roles });
     for (const role of Object.keys(checked))
-      if (!Object.keys(checked[role]).length) delete checked[role];
+      if (!Object.keys(checked[role] ?? {}).length) delete checked[role];
     const value = this.updateValue(before);
     if (Object.keys(checked).length) value.roles = checked;
     else delete value.roles;
@@ -1025,18 +1127,24 @@ export class RepositorySettings {
   }
 
   // null clears the key, so the default applies again.
-  updateActivitySettings({ retentionDays, expectedHash } = {}) {
+  updateActivitySettings({
+    retentionDays,
+    expectedHash,
+  }: {
+    retentionDays?: unknown;
+    expectedHash?: unknown;
+  } = {}) {
     const before = this.readFile();
     if (expectedHash !== before.hash)
       fail("Avoozl configuration changed; reload before saving.", 409);
     const value = this.updateValue(before);
     if (retentionDays === null || retentionDays === undefined)
       delete value.activity;
-    else value.activity = { ...(value.activity || {}), retentionDays };
+    else value.activity = { ...objectOf(value.activity), retentionDays };
     try {
       validateActivitySettings(value.activity);
     } catch (error) {
-      fail(error.message);
+      fail(messageOf(error));
     }
     this.write(value, { expectedHash: before.hash });
     return this.readActivitySettings();
@@ -1067,12 +1175,22 @@ export class RepositorySettings {
   // `turnOn: true` writes an empty `delivery` section first (every key at
   // its default), so Settings > Autopilot can turn Autopilot on with one
   // save. `landingPr` sets the workspace's landing.pr; null removes it.
-  updateDeliverySettings({ delivery, expectedHash, turnOn, landingPr } = {}) {
+  updateDeliverySettings({
+    delivery,
+    expectedHash,
+    turnOn,
+    landingPr,
+  }: {
+    delivery?: unknown;
+    expectedHash?: unknown;
+    turnOn?: unknown;
+    landingPr?: unknown;
+  } = {}): ReturnType<RepositorySettings["readDeliverySettings"]> {
     const before = this.readFile();
     if (expectedHash !== before.hash)
       fail("Avoozl configuration changed; reload before saving.", 409);
     if (landingPr !== undefined) {
-      if (landingPr !== null && !PR_MODES.includes(landingPr))
+      if (landingPr !== null && !PR_MODES.some((mode) => mode === landingPr))
         fail("landing.pr must be draft, ready or auto.");
       const value = this.updateValue(before),
         landing = { ...(record(value.landing) ? value.landing : {}) };
@@ -1108,7 +1226,7 @@ export class RepositorySettings {
     try {
       deliveryPolicy({ ...value, delivery: next });
     } catch (error) {
-      fail(error.message);
+      fail(messageOf(error));
     }
     value.delivery = next;
     this.write(value, { expectedHash: before.hash });
@@ -1118,7 +1236,7 @@ export class RepositorySettings {
   // Let the tick run it (worker-paths WP1.3): remove the old
   // `delivery.runner` key, so a workspace a conductor drove is started by
   // the tick from now on. Refused when the file moved since it was read.
-  removeDeliveryRunner({ expectedHash } = {}) {
+  removeDeliveryRunner({ expectedHash }: { expectedHash?: unknown } = {}) {
     const before = this.readFile();
     if (expectedHash !== before.hash)
       fail("Avoozl configuration changed; reload before saving.", 409);
@@ -1154,7 +1272,7 @@ export class RepositorySettings {
     return { hash: written?.hash ?? this.readFile().hash };
   }
 
-  updateConversationSettings(input = {}) {
+  updateConversationSettings(input: Obj = {}) {
     const before = this.readFile(),
       next = {
         ...conversationSettings(this.store),
@@ -1182,15 +1300,16 @@ export class RepositorySettings {
     };
   }
 
-  updateExecutionRepository(repository) {
+  updateExecutionRepository(repository: RepositoryRow) {
     const before = this.readFile(),
-      value = this.updateValue(before);
+      value = this.updateValue(before),
+      repositories = objectOf(value.repositories);
     value.version = 1;
-    value.repositories = record(value.repositories) ? value.repositories : {};
+    value.repositories = repositories;
     // `landing` here is the older key of the repository's `landing.mode`
     // (§4.25): kept as the file has it, never written from the row.
-    const old = value.repositories[repository.id]?.landing;
-    value.repositories[repository.id] = {
+    const old = objectOf(repositories[repository.id]).landing;
+    repositories[repository.id] = {
       ...(repository.name ? { name: repository.name } : {}),
       root: this.portablePath(repository.root),
       baseBranch: repository.baseBranch || "main",
@@ -1213,7 +1332,7 @@ export class RepositorySettings {
     return this.writeApplied(value, before.hash, ["repositories"]);
   }
 
-  removeExecutionRepository(id) {
+  removeExecutionRepository(id: string) {
     const before = this.readFile(),
       value = this.updateValue(before);
     value.version = 1;
@@ -1225,7 +1344,7 @@ export class RepositorySettings {
   }
 
   // A GitHub source for `entry`, a github_repositories record (§4.39).
-  updateGitHubIssueIntake(entry) {
+  updateGitHubIssueIntake(entry: Intake) {
     const before = this.readFile(),
       value = this.updateValue(before);
     value.version = 1;
@@ -1235,14 +1354,25 @@ export class RepositorySettings {
     return this.writeApplied(value, before.hash, ["github"]);
   }
 
-  updateUnifiedRepository({ id, previousRepository, repository, issueIntake }) {
+  updateUnifiedRepository({
+    id,
+    previousRepository,
+    repository,
+    issueIntake,
+  }: {
+    id: string;
+    previousRepository?: string | null;
+    repository: RepositoryRow | null;
+    issueIntake: Intake | null;
+  }) {
     const before = this.readFile(),
       value = this.updateValue(before);
     value.version = 1;
     if (record(value.repositories)) delete value.repositories[id];
     if (repository) {
-      value.repositories = record(value.repositories) ? value.repositories : {};
-      value.repositories[id] = {
+      const repositories = objectOf(value.repositories);
+      value.repositories = repositories;
+      repositories[id] = {
         ...(repository.name ? { name: repository.name } : {}),
         root: this.portablePath(repository.root),
         baseBranch: repository.baseBranch || "main",
@@ -1268,14 +1398,14 @@ export class RepositorySettings {
       upsert: issueIntake
         ? { repository: issueIntake.id, settings: issueIntake }
         : null,
-      remove: [previousRepository],
+      remove: previousRepository ? [previousRepository] : [],
     });
-    if (!Object.keys(value.repositories || {}).length)
+    if (!Object.keys(objectOf(value.repositories)).length)
       delete value.repositories;
     return this.writeApplied(value, before.hash, ["repositories", "github"]);
   }
 
-  removeUnifiedRepository(repository) {
+  removeUnifiedRepository(repository: Pick<RepositoryRow, "id" | "github">) {
     return this.updateUnifiedRepository({
       id: repository.id,
       previousRepository: repository.github,
@@ -1284,7 +1414,7 @@ export class RepositorySettings {
     });
   }
 
-  updatePlanningRepository(configuration) {
+  updatePlanningRepository(configuration: PlanningRepository) {
     const before = this.readFile(),
       value = this.updateValue(before);
     value.version = 1;
@@ -1297,7 +1427,7 @@ export class RepositorySettings {
     return this.writeApplied(value, before.hash, ["planningRepository"]);
   }
 
-  writeApplied(value, expectedHash, keys) {
+  writeApplied(value: Obj, expectedHash: string | null, keys: string[]) {
     const written = this.write(value, { expectedHash });
     this.lastApplied = {
       at: new Date().toISOString(),
@@ -1320,7 +1450,7 @@ export class RepositorySettings {
     };
   }
 
-  portablePath(value) {
+  portablePath(value: string) {
     let absolute = path.resolve(value);
     if (
       absolute === this.workspaceRoot ||
@@ -1337,7 +1467,7 @@ export class RepositorySettings {
     return relative || ".";
   }
 
-  updateValue(before) {
+  updateValue(before: ReadFile): Obj {
     const value = structuredClone(before.value);
     value.version = 1;
     value.$schema = REPOSITORY_CONFIG_SCHEMA_URL;
@@ -1374,7 +1504,7 @@ export class RepositorySettings {
     this.reload();
     this.watcher = this.watchFactory(this.directory, (_kind, name) => {
       if (String(name || "") !== path.basename(this.filename)) return;
-      clearTimeout(this.timer);
+      clearTimeout(this.timer ?? undefined);
       this.timer = setTimeout(() => this.reload(), this.debounceMs);
       this.timer.unref?.();
     });
@@ -1382,7 +1512,7 @@ export class RepositorySettings {
   }
 
   close() {
-    clearTimeout(this.timer);
+    clearTimeout(this.timer ?? undefined);
     this.timer = null;
     this.watcher?.close();
     this.watcher = null;

@@ -65,7 +65,7 @@ export interface ContextPlugin {
   context?: ContextPart | null;
   source?: string;
   state?: string;
-  location?: string;
+  location?: string | null;
 }
 export interface PluginOptions {
   settingsFile: string;
@@ -426,7 +426,7 @@ export function contextSources(options: PluginOptions) {
       kind: "plugin",
       id: plugin.id,
       name: plugin.id,
-      folder: plugin.location,
+      folder: plugin.location ?? undefined,
       repos: context.repos,
       reads: context.reads.map((read) => ({
         id: read.id,

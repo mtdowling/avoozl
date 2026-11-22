@@ -320,7 +320,7 @@ export function seedSpan(
     startedAt,
     endedAt,
     source,
-    detail,
+    detail: typeof detail === "string" ? detail : null,
   });
 }
 

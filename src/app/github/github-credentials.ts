@@ -17,6 +17,8 @@ import {
   pluginSettingsPath,
   readPluginSettings,
   writePluginSettings,
+  type InspectedPlugin,
+  type PluginSettings as SharedSettings,
 } from "../plugins/plugins.ts";
 import { jobOf, type Permissions, permissionText } from "./github-jobs.ts";
 export { tokenTransportAllowed } from "./github-jobs.ts";
@@ -36,24 +38,9 @@ interface CredentialClaim {
   owners?: string[];
 }
 // A plugin, as inspectPlugins reports what credentials read of it.
-interface CredentialPlugin {
-  id: string;
-  source?: string;
-  state?: string;
-  reason?: string | null;
-  hash?: string;
-  location?: string | null;
-  entry?: { git?: unknown; config?: unknown };
-  manifest?: { credentials?: { entry?: string } };
-  provides?: string[];
-  credentials?: CredentialClaim;
-  approval?: { credentials?: CredentialClaim; provides?: string[] } | null;
-}
-// This machine's plugins.json, as far as credentials read it.
-type PluginSettings = {
-  credentialsPick?: Record<string, string>;
-  [key: string]: unknown;
-};
+type CredentialPlugin = InspectedPlugin;
+// This machine's plugins.json.
+type PluginSettings = SharedSettings;
 // Who serves one owner: a provider, or why none can.
 interface Choice {
   provider: string | null;

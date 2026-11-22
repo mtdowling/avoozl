@@ -146,7 +146,7 @@ test("plugins.list shows the context part, and answering is a person's act", asy
       { local: true, person: true },
     );
     assert.equal(
-      machine.settings().context["team-context"].answers.notesRoot,
+      machine.settings().context?.["team-context"]?.answers?.notesRoot,
       machine.notes,
     );
   } finally {

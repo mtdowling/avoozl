@@ -691,7 +691,7 @@ async function runTick(
     // While GitHub's rate limit holds calls back, or the budget is low and
     // reads are spaced out, no GitHub step runs: the steps reconcile from
     // state, so the first tick after the wait does each pending write once.
-    gate = client && script ? githubGate(store) : { skip: false },
+    gate = client && script ? githubGate(store) : { skip: false, low: null },
     live = gate.skip ? null : client,
     github = live;
   if (gate.low) markGithubRun(store);
