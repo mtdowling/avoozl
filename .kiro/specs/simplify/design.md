@@ -1,8 +1,7 @@
-# Design: Avoozl as the landing spec's reference runner
+# Design: Avoozl as a Workflow v1 runner
 
-`SM` numbers are in this spec's `requirements.md`. The landing spec is
+`SM` numbers are in this spec's `requirements.md`. Workflow v1 is
 `docs/github-workflow.md`; its section names are quoted as written there.
-Line counts are `wc -l` of non-test source files at `e327dcbc`.
 
 ## D1. Shape
 
@@ -11,10 +10,10 @@ Line counts are `wc -l` of non-test source files at `e327dcbc`.
  -------                         ------                          --------------
  person at a terminal ---+
  Kiro Crew chat + skill -+--> CLI / MCP --> operations --+--> specs branch: tasks.md, ticks
- other harness + skill --+                     |          +--> claim branches avoozl/<spec>/<task>
+ other harness + skill --+                     |          +--> claim branches and leases
  server loop (optional) -+                     |          +--> spec and epic issues, assignees
-                                               |          +--> draft pull requests
- page (5 views) ----------> same operations    |
+                                               |          +--> pull requests
+ page (7 views) ----------> same operations    |
                                                v
                           graph builder, ranking, lint, checks, land
                                                |
@@ -25,23 +24,30 @@ Git and GitHub hold every fact. SQLite is a cache of what Avoozl read and of
 the sessions this machine runs. The page, the CLI, MCP and the server loop
 call one set of operations (`src/app/ops/`).
 
-## D2. What stays
+## D2. Code map
+
+Paths are under `src/app/` unless they start with `hosts/`.
 
 | Part | Where it lives |
 | --- | --- |
-| Spec format and lint | `specs/spec-plans.mjs`, `specs/spec-facts.mjs`, `specs/spec-refs.mjs`, `specs/plan-quality.mjs`, `specs/specs-path.mjs` |
-| Graph and ranking | `api/page-views.mjs` graph read, `specs/spec-scheduler.mjs`, `mirror/release-ranking.mjs` (moves to `specs/ranking.mjs`) |
-| Claims | `workers/runner.mjs`, `workers/manual-take.mjs`, a new claim call in `github/github.mjs` |
-| Report | `workers/report-match.mjs`, `workers/report-command.mjs`, `workers/worker-briefs.mjs` |
-| Land | `delivery/`, `landing/`, `git/`, `epics/integration-*.mjs` |
-| Approval | `git/git-approvals.mjs` |
-| Spec issues and assignees | `specs/spec-publication.mjs`, `github/github-marker.mjs`, the assignee check |
-| Server loop | `tick/`, `executors/supervisor*.mjs` |
-| Sessions | `executors/process.mjs`, `executors/kirocrew.mjs`, `executors/harness-*.mjs`, `executors/sandbox.mjs`, `sessions/` |
+| Spec format and lint | `specs/spec-plans.ts`, `specs/spec-facts.ts`, `specs/spec-refs.ts`, `specs/plan-quality.ts`, `specs/order.ts` |
+| Graph and ranking | `specs/graph.ts`, `specs/ranking.ts`, `specs/spec-scheduler.ts` |
+| Claims | `workers/claims.ts`, `workers/runner.ts`, `workers/manual-take.ts` |
+| Report | `workers/report-match.ts`, `workers/report-command.ts`, `workers/worker-briefs.ts` |
+| Land | `delivery/`, `landing/`, `git/` |
+| Approval | `git/git-approvals.ts`, `specs/spec-approval.ts` |
+| Spec issues and assignees | `specs/spec-publication.ts`, `specs/spec-assignee.ts`, `github/github-marker.ts` |
+| Label filters and labeled issues | `specs/label-filters.ts`, `specs/labeled-issues.ts` |
+| Integration branches | `specs/integration-base.ts`, `specs/integration-lint.ts`, `epics/integration-*.ts` |
+| Server loop | `tick/`, `executors/supervisor.ts` |
+| Sessions and lanes | `executors/process.ts`, `executors/kirocrew.ts`, `executors/harness-*.ts`, `executors/sandbox.ts`, `sessions/`, `tick/lanes.ts` |
+| Roles | `agents/role-table.ts` |
 | Plugins | `plugins/` with `checks`, `credentials`, `context` and `rules` |
-| GitHub access | `github/github-credentials.mjs`, `github/github-jobs.mjs`, `github/github-pacer.mjs`, `github/github-rate.mjs`, `cli/confirm-high-risk.mjs` |
-| Safety | `content/`, `executors/harness-allow.mjs`, `mcp/mcp-policy.mjs` |
-| Page server | `serve/`, `executors/kirocrew/app-backend.mjs` |
+| GitHub access | `github/github-credentials.ts`, `github/github-jobs.ts`, `github/github-pacer.ts`, `github/github-rate.ts`, `cli/confirm-high-risk.ts` |
+| Safety | `content/`, `executors/harness-allow.ts`, `mcp/mcp-policy.ts` |
+| Insights and retros | `insights/` |
+| Page server | `serve/`, `executors/kirocrew/app-backend.ts` |
+| Page | `hosts/kirocrew/ui/src/` |
 
 ## D3. Claims and the next task
 
@@ -51,29 +57,28 @@ one operation, `runner.next`:
 1. Read the specs branch and the claim branches (`GET
    /repos/{owner}/{repo}/git/matching-refs/heads/avoozl/`) of each repository,
    through the pacer and the conditional-request cache.
-2. Build the graph (§D8) and keep the ready tasks: the landing spec's "Ready
+2. Build the graph (§D8) and keep the ready tasks: Workflow v1's "Ready
    tasks" list, with waits from §D19 and "no claim branch exists" read from
    step 1.
 3. Rank them (§D3.1).
 4. With `claim`, when the task's base is an integration branch, first merge
    the default branch into it as §D21 says. Then create the top task's claim
-   branch at the base head with
-   `POST /repos/{owner}/{repo}/git/refs`. On HTTP 422 take the next task. Stop
-   after 10 refusals in one call and report "every ready task is claimed".
+   branch at the base head with `POST /repos/{owner}/{repo}/git/refs`, and
+   take the next lease generation on it (Workflow v1 "Claims"). On HTTP 422
+   take the next task. Stop after 10 refusals in one call and report "every
+   ready task is claimed".
 5. Make the task worktree on the claim branch and return the task, the
    worktree and the brief.
 
-The claim branch is the lock. Avoozl's `bindings` row for a session points at
-the task and the branch, so a lost cache is rebuilt from the branches.
-`claims.staleHours` (repository setting, default 24) makes a claim branch
-stale when its newest commit is older. A stale claim shows in Needs you for
-the spec issue's assignee, with "Delete branch" (a high-risk job with the
-confirm popup) and "Take over" (only after a hand-off, as the landing spec
-says).
+The claim branch is the lock, and the cache keeps the branches each read
+saw, so a rebuilt cache finds every claim again. `claims.staleHours`
+(repository setting, default 24) makes a claim branch stale when its newest
+commit is older. A stale claim shows in Needs you for the spec issue's
+assignee, with "Delete branch", a high-risk job behind the confirm popup.
 
 ### D3.1 Ranking
 
-One pure function, `rankReady(graph, inFlight)`, in `specs/ranking.mjs`:
+One pure function, `rankReady(ready, {edges, open})`, in `specs/ranking.ts`:
 
 | Key | Value | Order |
 | --- | --- | --- |
@@ -81,41 +86,38 @@ One pure function, `rankReady(graph, inFlight)`, in `specs/ranking.mjs`:
 | 2 | Length of the longest open chain of waits below the task | longer first |
 | 3 | Position in `tasks.md` | earlier first |
 
-`unblockCounts` moves from `mirror/release-ranking.mjs` into this file, and
-`pathsOverlap` and the paths hold in `specs/spec-scheduler.mjs` go. Two tasks
-that change the same file meet at landing's merge of the base into the
-claim branch; a conflict goes back to the worker
-(`landing/landing-conflicts.mjs`). The function returns each task with its
+Two tasks that change the same file meet at landing's merge of the base into
+the claim branch; a conflict goes back to the worker
+(`landing/landing-conflicts.ts`). The function returns each task with its
 three key values, and `avoozl next` prints them.
 
 ## D4. Landing
 
-`delivery/delivery.mjs` keeps the landing spec's five steps. Changes:
+`landing/landing-action.ts` picks the landing step for a checked task, and
+`delivery/delivery.ts` runs Workflow v1's "Landing" section:
 
-- Step 2 ticks the box in the work commit when the spec and code share a
-  repository, and in a commit on the claim branch before the checks
-  otherwise. The tick for a spec in another repository is its own commit on
-  that specs branch after the code lands.
-- `pr` mode opens the pull request as `landing.pr` says (draft by default,
-  ready, or auto), with `Closes #N` for a labeled issue. Only `auto` makes
-  Avoozl merge, through the merge API with `sha` set to the checked head; a
-  person merges a draft or ready pull request, or presses Approve or Merge
-  on its Needs you row. With `auto`, Avoozl arms GitHub auto-merge only where
-  rule 17.7 allows it. The task stays
-  claimed while the pull request is open. When the pull request merges, the
-  next read sees the tick on the base and the task is done. When it closes
-  unmerged, the task shows in Needs you with "Delete claim branch".
-- `direct` mode keeps merge batches (`landing/merge-batch.mjs`) and the
-  per-base queue (`landing/landing-queue.mjs`), and pushes a fast-forward.
-- After landing, Avoozl deletes the claim branch it created.
+- The tick is in the work commit when the spec and code share a done branch,
+  or in a commit on the claim branch before the checks. When the done branch
+  is another branch, the tick is its own commit there after the code lands.
+- `direct` mode keeps merge batches (`landing/merge-batch.ts`) and the
+  per-base queue (`landing/landing-queue.ts`), pushes a fast-forward, and
+  deletes the claim branch.
+- `pr` mode opens the pull request as `landing.pr` says (`draft` by default,
+  `ready`, or `auto`), with `Closes #N` for a labeled issue. Only `auto`
+  makes Avoozl merge, through the merge API with `sha` set to the checked
+  head; a person merges a draft or ready pull request. With `auto`, Avoozl
+  arms GitHub auto-merge only where rule 17.7 allows it. The task stays
+  claimed while the pull request is open. When it merges, the next read sees
+  the tick on the base and the task is done. When it closes unmerged, the
+  task shows in Needs you.
+- `off` mode pushes the claim branch only, and a person lands it.
 
-Review output goes on the draft pull request, or on the spec issue in
-`direct` mode, as the landing spec's "Review output" says. Avoozl keeps no
-evidence bundle.
+Review output goes on the pull request, or on the spec issue in `direct`
+mode, as Workflow v1's "Review output" says.
 
 ## D5. Label filters and labeled issues
 
-Repository settings gain:
+Repository settings take:
 
 ```json
 {
@@ -135,10 +137,11 @@ counts only when its newest `labeled` event's actor has write, maintain or
 admin permission (one `GET /repos/{o}/{r}/collaborators/{login}/permission`
 per actor, cached for the pass).
 
-A labeled issue becomes a one-task spec in memory with the landing spec's
-mapping; the issue's body is its one done bullet. Its graph has one node, its claim branch is
-`avoozl/issue-<n>/issue-<n>`, and it lands like any task. Avoozl writes
-nothing to an issue except the closing comment in `direct` mode.
+A labeled issue becomes a one-task spec in the cache with Workflow v1's
+mapping; the issue's body is its one done bullet. Its graph has one node, its
+claim branch is `avoozl/issue-<n>/issue-<n>`, and it lands like any task.
+Avoozl writes nothing to an issue except the closing comment in `direct`
+mode.
 
 ## D6. The server loop
 
@@ -157,16 +160,16 @@ nothing to an issue except the closing comment in `direct` mode.
 }
 ```
 
-`loop` is in this machine's config (`~/.config/avoozl/config.json`), never
-in `.avoozl.json`. With no `loop`, the tick reads and caches but starts
-nothing. With `loop`, each pass calls `runner.next` with `claim` until the
-machine's lanes are full, starts a worker session on each claim through the
-repository's worker harness, and calls `runner.land` for each reported task.
-It uses only operations a caller can also call.
+`loop` is in this machine's config (`~/.config/avoozl/config.json`), and
+config load refuses it in `.avoozl.json`. With no `loop`, the tick reads and
+caches but starts nothing. With `loop`, each pass calls `runner.next` with
+`claim` until the machine's lanes are full, starts a worker session on each
+claim through the repository's worker harness, and calls `runner.land` for
+each reported task. It uses only operations a caller can also call.
 
 Each `avoozl tick` runs the pass, from whatever timer runs it: launchd,
 systemd or cron on a headless machine, the app's tick cron in Kiro Crew, or a
-driver chat (machine-server MS1).
+chat with the `avoozl-drive` skill.
 
 ## D7. The surface
 
@@ -180,29 +183,32 @@ driver chat (machine-server MS1).
 | Read state | `avoozl status`, `show`, `query` | `plans_query`, `plans_view` | any |
 | Lint a spec | `avoozl spec lint [SPEC]` | `plans_lint` | `avoozl-spec` |
 | Rewrite the graph block | `avoozl graph SPEC --write` | none (writes a file; a chat runs the CLI) | `avoozl-spec` |
+| See the lanes | `avoozl lanes` | none (a person reads them) | none |
 | Rebuild the cache | `avoozl rebuild` | none (person) | none |
 
 `plans_land` and `avoozl land` refuse a task the caller did not claim.
-`avoozl spec lint` wraps the `lintSpec` that `scripts/check/spec-lint.mjs`
-calls. Every other MCP tool that reaches a cut operation goes with it.
+`avoozl spec lint` runs the `lintSpec` that `scripts/check/spec-lint.ts`
+calls.
 
 ## D8. One graph builder
 
-`graphOf(store, scope)` in `specs/graph.mjs` returns:
+`graphOf(specs, options)` in `specs/graph.ts`, and `storeGraph(store, scope)`
+over the cache, return:
 
 ```text
-{ scope, specs: [{ name, phases: [{ title, items: [item] }] }],
+{ scope, specs: [{ name, draft, phases: [{ title, items: [item] }] }],
   edges: [{ from, to }] }
-item = { id, title, state, manual, paths }                  a leaf
+item = { id, title, state, manual }                         a leaf
      | { id, title, state, parallel, items: [item] }        a group
 ```
 
 `state` is `landed` (ticked on the specs branch), `claimed` (claim branch
-exists), `ready`, `waiting` or `manual` for a leaf, and `group` for a group.
-`parallel` is true for a group tagged `(**PARALLEL**)`. `edges` are the waits
-between leaves that §D19 derives. The page's Graph (`graph.view`), the CLI
-and `plans_graph` call it. Two printers read its output:
-`graphText(graph, {width: 80})` and `graphMermaid(graph, {state})`.
+exists), `ready`, `waiting`, `manual` or `draft` (its spec is not approved)
+for a leaf, and `group` for a group. `parallel` is true for a group tagged
+`(**PARALLEL**)`. `edges` are the waits between leaves that §D19 derives. The
+page's Graph (`graph.view`), the CLI and `plans_graph` read it. Two printers
+read its output: `graphText(graph, {width: 80})` and
+`graphMermaid(graph, {state})`.
 
 For this `tasks.md`:
 
@@ -229,8 +235,8 @@ Phase 1: Tokens
 ```
 
 Order in the text is order in the list, so the text needs no edge column.
-Children are indented under their group. A title is cut with `...` to fit 80
-columns. Mermaid:
+Children are indented under their group. A title is shortened with `...` to
+fit 80 columns. Mermaid:
 
 ````text
 ```mermaid
@@ -253,12 +259,11 @@ flowchart TD
 A node ID is the task ID with each character outside `[A-Za-z0-9]` written
 as `_`; when two IDs map to one node ID, the later gets `_2`, `_3` in file
 order. A group is a nested `subgraph` whose ID is `g_` and its node ID; a
-spec group's subgraph holds the linked spec's tasks (§D19.2). A
-label is the task ID and its title with the refs and backticks dropped and
-the tag written `(PARALLEL)`; a title's `"` is written `#quot;`. `--format mermaid` on the CLI adds
-`classDef` lines for state; the graph block (§D9) leaves them out. Nothing
-in the repository renders Mermaid today; GitHub and Kiro Crew render it in
-Markdown.
+spec group's subgraph holds the linked spec's tasks (§D19.2). A label is the
+task ID and its title with the refs and backticks dropped and the tag
+written `(PARALLEL)` or `(MANUAL)`; a title's `"` is written `#quot;`. The
+CLI's `--format mermaid` adds `classDef` lines for state; the graph block
+(§D9) leaves them out.
 
 ## D9. The graph block
 
@@ -280,16 +285,18 @@ It goes in `tasks.md`, not `design.md`, because:
 3. Lint already reads `tasks.md` line by line, so it checks the block with no
    second file read.
 
-The block holds IDs, titles, phases, groups and waits, and no state, so landing a
-task does not change it. Lint parses `tasks.md`, builds the block's text and
-compares it to the lines between the markers, ignoring trailing spaces. A
-mismatch is `graph.stale` at the start marker, with the fix `avoozl graph
-SPEC --write`. A start marker with no end marker, or two blocks, is
-`graph.markers`. The task parser skips the lines between the markers.
+The block holds IDs, titles, phases, groups and waits, and no state, so
+landing a task does not change it. Lint parses `tasks.md`, builds the block's
+text and compares it to the lines between the markers, ignoring trailing
+spaces. A mismatch is `graph.stale` at the start marker, with the fix
+`avoozl graph SPEC --write`. A start marker with no end marker, or two
+blocks, is `graph.markers`. The task parser skips the lines between the
+markers. A `tasks.md` with no block lints clean, so specs written by hand or
+by other runners still lint.
 
 ## D10. Roles and skills
 
-The role table (`agents/role-table.mjs`) has five rows. It also holds the
+The role table (`agents/role-table.ts`) has five rows. It also holds the
 `roles` setting each row reads (Settings › Models), and a `roles` entry that
 names any other role is refused, naming it.
 
@@ -297,7 +304,7 @@ names any other role is refused, naming it.
 | --- | --- | --- | --- |
 | `worker` | one task in its worktree on the claim branch | write | yes |
 | `reviewer` | the task's head, read-only, in rounds with the worker until it approves or `reviewRounds` runs out | read | yes; `reviewers: []` turns it off |
-| `responder` | one reply to a discussion or issue the GitHub policy names (`github-respond.mjs`) | read | no; only when the policy names discussions |
+| `responder` | one reply to a discussion or issue the GitHub policy names (`github/github-respond.ts`) | read | no; only when the policy names discussions |
 | `checkDecide` | a plugin check's decide call, offline in a snapshot | read | only for a plugin check with a decide prompt |
 | `assist` | the standalone page's Open chat, in the workspace root | read | only when a person starts it |
 
@@ -308,85 +315,76 @@ reviewer judges each earlier finding against what changed. At `reviewRounds`
 (default 3) the task waits in Needs you with its open findings and does not
 land.
 
-Avoozl runs a commit's checks itself (`delivery/check-runs.mjs`), so no
+Avoozl runs a commit's checks itself (`delivery/check-runs.ts`), so no
 session judges checks; a repository with no checks is judged by its
-reviewers alone. Writing a spec, reviewing a spec or a pull request, a retro
-and an investigation are skills (`avoozl-spec`, `avoozl-spec-review`,
-`avoozl-review`, `avoozl-retro`, `avoozl-investigate`), and Avoozl starts no
-session for them. `hosts/kirocrew/agents/` holds `avoozl-reviewer`,
-`avoozl-responder` and `avoozl-check-decide`; `prompts/` holds `reviewer.md`,
-`responder.md`, `check-decide.md`, `assist.md`, and the `worker.md` and
-`review.md` brief sections.
+reviewers alone. `hosts/kirocrew/agents/` holds `avoozl-reviewer`,
+`avoozl-responder` and `avoozl-check-decide`; `prompts/` holds
+`reviewer.md`, `responder.md`, `check-decide.md`, `assist.md`, and the
+`worker.md` and `review.md` brief sections. A worker chat uses Kiro Crew's
+default agent with the worker brief.
 
-Skills are generated the way the triage removal branch generates
-`avoozl-answer`, `avoozl-review` and `avoozl-triage`: source in
-`prompts/skills/<name>.md`, output in `hosts/kirocrew/skills/<name>/SKILL.md`,
-and `npm run check:hosts` fails on drift. The shipped skill set is
-`avoozl-spec`, `avoozl-work`, `avoozl-review`, `avoozl-spec-review`,
-`avoozl-retro`, `avoozl-investigate`, `avoozl-plugin`, `avoozl-rules`, and
-the `avoozl-answer` and `avoozl-triage` skills the triage removal ships.
-`avoozl-spec` writes the spec in the format of §D19 and §D20: one
-repository per spec in front matter `repo`, each leaf's done bullets, order
-only by the list, `(**PARALLEL**)` and `(**MANUAL**)` tags, and links for
-member specs. It runs `avoozl graph SPEC --write`
-and `avoozl spec lint SPEC`, and stops at a `spec/<name>` branch.
-`avoozl-spec-review` reviews a spec for that same format: tags written
-exactly, a done bullet a person can check on every leaf, order that matches
-what each task needs, links that point at spec folders, and one repository
-per spec. It also flags a branch on origin that has the spec's folder name
-but holds other work (§D21.1). It posts its findings as review output and
-changes no file.
-`avoozl-work` is `prompts/worker.md` plus the claim, report and land calls.
-`avoozl-costs` is cut with provider health.
+Writing a spec, reviewing a spec or a pull request, a retro and an
+investigation are skills, and Avoozl starts no session for them. Each skill's
+source is `prompts/skills/<name>.md`, its output is
+`hosts/kirocrew/skills/<name>/SKILL.md`, and `npm run check:hosts` fails on
+drift. The skills are `avoozl`, `avoozl-answer`, `avoozl-drive`,
+`avoozl-investigate`, `avoozl-plugin`, `avoozl-retro`, `avoozl-review`,
+`avoozl-rules`, `avoozl-spec`, `avoozl-spec-review`, `avoozl-triage` and
+`avoozl-work`.
 
-The generated agents in `hosts/kirocrew/agents/` shrink to `avoozl-reviewer`;
-a worker chat uses Kiro Crew's default agent with the worker brief.
+`avoozl-spec` writes the spec in the format of §D19 and §D20: one repository
+per spec in front matter `repo`, each leaf's done bullets, order only by the
+list, `(**PARALLEL**)` and `(**MANUAL**)` tags, and links for member specs.
+It runs `avoozl graph SPEC --write` and `avoozl spec lint SPEC`, and stops at
+a `spec/<name>` branch. `avoozl-spec-review` reviews a spec for that same
+format: tags written exactly, a done bullet a person can check on every leaf,
+order that matches what each task needs, links that point at spec folders,
+and one repository per spec. It also flags a branch on origin that has the
+spec's folder name but holds other work (§D21.1). It posts its findings as
+review output and changes no file. `avoozl-work` is `prompts/worker.md` plus
+the claim, report and land calls.
 
 ## D11. Plugins
 
-`PARTS` becomes `["rules", "credentials", "checks", "context"]`. `checks` and
-`context` arrive with their own specs (`plugin-checks`, `epic-context`).
-`pack`, `intake`, `template` and `policy` join the refused list with the
-message "<part> is not a plugin part". `plugins/plugin-pack.mjs` goes.
+`PARTS` in `plugins/plugins.ts` is `["rules", "credentials", "checks",
+"context"]`. `checks` and `context` are defined by their own specs
+(`plugin-checks`, `epic-context`). A manifest whose `provides` lists any
+other part is refused with "<part> is not a plugin part."
 
 ## D12. Setup and rebuild
 
 Setup is `avoozl repository configure ID --root PATH`, then `avoozl
 rebuild`. Rebuild reads the specs branch, approvals, ticks, claim branches,
-spec issues and draft pull requests, and fills the cache. It writes nothing
-to GitHub. Branch rules and labels are the repository owner's to set on
-GitHub; Avoozl reads branch rules (`github/github-branch-rules.mjs`) and
-follows them.
+spec issues and pull requests, and fills the cache. It writes nothing to
+GitHub. Branch rules and labels are the repository owner's to set on GitHub;
+Avoozl reads branch rules (`github/github-branch-rules.ts`) and follows them.
 
 ## D13. The page
 
-The page keeps seven views and opens on Insights. Each reads one or two
+The page has seven views and opens on Insights. Each reads one or two
 operations and writes only through operations the CLI or MCP also reach.
+`hosts/kirocrew/ui/src/nav-api.ts` lists them.
 
-| View | What it is for | What it shows | Actions |
+| View | Purpose | Shows | Actions |
 | --- | --- | --- | --- |
-| Insights | See how work is going, read only | `insights.view`: a strip of the Needs you count, claims in flight, ready tasks, main's check state from the line watch and whether `loop` (Autopilot) is on, each linking to its view; each spec's burndown (open and ticked tasks) from the commits that changed its task list on the specs branch; tasks finished per day, lead time per task, time per stage, review rounds and rework from the local telemetry store; filters by spec, repository and 7, 30 or 90 days in the nav; saved retros newest first (`retro.list`), each opening in the file reader (`retro.read`) | Run a retro (Run in a chat with `avoozl-retro`) |
+| Insights | See how work is going, read only | `insights.view`: a strip of the Needs you count, claims in flight, ready tasks, main's check state and whether `loop` (Autopilot) is on; each spec's burndown from the commits that changed its task list; tasks finished per day, lead time, time per stage, review rounds and rework from the local telemetry store; filters by spec, repository and 7, 30 or 90 days; saved retros newest first (`retro.list`), each opening in the file reader (`retro.read`) | Run a retro (Run in a chat with `avoozl-retro`) |
 | Specs | Read specs; approval stays an approver's commit on GitHub | spec list by category; a spec's tabs: Overview (its graph block rendered, counts), Tasks, one tab per file | Run in a chat: write a spec, review a spec |
-| Graph | See what is ready across specs | `graphOf` for a spec, an epic or all, with state colors and drill-in | Run in a chat: work this task |
+| Graph | See what is ready across specs | `graphOf` for a spec or all, with state colors and drill-in | Run in a chat: work this task |
 | In flight | See what runs now | each live session; each claim branch: task, holder, newest commit and age, check state on its head, pull request link; each lane on this machine: role, state, task; integration branch lag | Send message, Stop the line, Open or copy a lane's session, Land (when checked) |
-| Needs you | See what waits on a person | failing checks on a claim head, stop the line, `(**MANUAL**)` tasks ready to do, stale claims, draft pull requests waiting for a person, a pull request closed unmerged, plugin approvals | Mark manual task done, Delete branch, Open on GitHub, Run in a chat |
-| Activity | See what happened | `activity.list` rows newest first: time, source, who, what, target; filters by source, kind and actor in the nav, with Keep activity (days) under them | Open task, open on GitHub |
+| Needs you | See what waits on a person | failing checks on a claim head, stop the line, `(**MANUAL**)` tasks ready to do, stale claims, pull requests waiting for a person, a pull request closed unmerged, closed lanes, plugin approvals | Mark manual task done, Delete branch, Resume a lane, Open on GitHub, Run in a chat |
+| Activity | See what happened | `activity.list` rows newest first: time, source, who, what, target; filters by source, kind and actor, with Keep activity (days) under them | Open task, open on GitHub |
 | Settings | Set this machine and each repository | repositories, landing mode, label filters and claim stale hours (a repository's Spec issues panel), harness per role, owner instructions per role, plugins, content rules, notifications, `loop` (Autopilot) | Save, approve plugin |
 
-The task drawer stays, smaller: title, done bullets, refs, waits-on and blocks
-links, claim
-branch, pull request, checks and landed commit.
+The task drawer shows the title, done bullets, refs, waits-on and blocks
+links, claim branch, pull request, checks and landed commit.
 
-"Run in a chat" opens a chat seeded with a skill name and the item's IDs:
-a Kiro Crew chat when the page runs inside Kiro Crew, else a process session
-of the worker harness. It reuses `chat-api.ts` and `design-chat.ts`.
-Edit spec seeds `avoozl-spec`, Review spec `avoozl-spec-review`, a task
-`avoozl-work`, a Needs you item `avoozl`, and Run a retro `avoozl-retro`. On the standalone page the
-session runs read-only as `assist`, on the worker's harness unless
+"Run in a chat" opens a chat seeded with a skill name and the item's IDs
+(`chat-api.ts`, `design-chat.ts`): a Kiro Crew chat when the page runs inside
+Kiro Crew, else a process session of the worker harness. Edit spec seeds
+`avoozl-spec`, Review spec `avoozl-spec-review`, a task `avoozl-work`, a
+Needs you item `avoozl`, and Run a retro `avoozl-retro`. On the standalone
+page the session runs read-only as `assist`, on the worker's harness unless
 Settings › Models names one for `assist`.
-
-Everything else is a skill or an MCP call: writing and reviewing specs,
-running retros, investigations, code review and Flow numbers.
 
 Insights calls no GitHub API: the strip reads the store, the burndown reads
 git history already fetched, and the charts read `telemetry_spans` and
@@ -395,73 +393,12 @@ report is saved by `retro.save`, the `avoozl-retro` skill's one write, as
 `.avoozl/local/retros/<YYYY-MM-DD-HHMM>-<scope>.md` (UTC); `avoozl retro list`
 and `avoozl retro read NAME` read them.
 
-## D14. Module audit: `src/app`
-
-Verdicts: **keep** (it may shrink as callers go), **cut**, **skill** (deleted
-once its skill ships), **in flight** (deleted by the approval cut-down,
-mirror removal or triage removal before this spec starts).
-
-| Folder | Lines | Keep | Cut | Skill | In flight | Notes |
-| --- | ---: | ---: | ---: | ---: | ---: | --- |
-| `agents/` | 1250 | 671 | 579 | | | cut `prompts.mjs` (retro overrides), `text-diff.mjs`; `role-table.mjs` drops to two rows |
-| `api/` | 5794 | 5775 | 19 | | | cut `panel-view.mjs`; `page-views.mjs` keeps graph, In flight and Needs you reads |
-| `cli/` | 644 | 644 | | | | |
-| `commands/` | 2850 | 2850 | | | | entries for cut features go: `fix`, `integrator`, `gap-report`, `intake`, `planning`, `plan batches`, `plan review`, `plan finding`, `approval`, `seed`, `examples`, `spec offer`, `spec grants`, `setup`, `worker`, `driver`, `task supersede`, `task links`; adds `land`, `graph`, `spec lint` |
-| `content/` | 2825 | 2825 | | | | content rules, hook, privacy scan |
-| `delivery/` | 4644 | 3953 | | 691 | | `investigate.mjs` becomes `avoozl-investigate` |
-| `epics/` | 932 | 932 | | | | `integration-branch.mjs` reads whether the spec's branch exists; `integration-sync.mjs` becomes the merge before a claim (§D21) |
-| `executors/` | 6021 | 6021 | | | | |
-| `flow/` | 8186 | 2311 | 4151 | 1724 | | keep `flow-line.mjs` (stop the line), `flow-checks.mjs`, `flow.mjs` (shrinks to stop-the-line settings); `flow-retro.mjs`, `retro-files.mjs` become `avoozl-retro`; cut build receipts and reports, CI waste, corrections, usage, planning flow, provider health, retro chat, memory and operations |
-| `git/` | 1971 | 1698 | | | 273 | `repo-files.mjs` in flight |
-| `github/` | 8834 | 5816 | 2003 | 148 | 867 | cut `github-intake`, `github-reviews`, `github-setup`, `setup-landing`, `source-backlinks`; keep `github-sources` (it connects a repository to GitHub) and `github-respond` (the responder); `pull-request-snapshot` becomes `avoozl-review`; `github-items`, `github-pages` in flight |
-| `intake/` | 3586 | | 350 | | 3236 | cut `fix.mjs`; intake and triage in flight |
-| `landing/` | 3106 | 2526 | 580 | | | cut `landing-queue-view`, `landing-trailers`, `merge-path`; merge batches stay for `direct` |
-| `mcp/` | 950 | 733 | 217 | | | cut `mcp-views.mjs` (in-chat views) |
-| `mirror/` | 3091 | 47 | | | 3044 | `release-ranking.mjs` moves to `specs/ranking.mjs` |
-| `ops/` | 6246 | 6246 | | | | entries go with their features |
-| `plugins/` | 2542 | 2189 | 353 | | | cut `plugin-pack.mjs` |
-| `reviews/` | 2748 | | 1711 | 1037 | | plan review tower cut; `plan-review-step.mjs` becomes `avoozl-spec-review`, `pr-review.mjs` becomes `avoozl-review` |
-| `serve/` | 705 | 705 | | | | |
-| `sessions/` | 1079 | 1079 | | | | keep `session-open.mjs`: the standalone page's Open chat |
-| `settings/` | 2902 | 2728 | 174 | | | cut `chat-models.mjs`; `role-table.mjs` reads the `roles` setting; `repository-settings.mjs` drops cut keys and gains `labels`, `claims` |
-| `specs/` | 10213 | 3922 | 2263 | 1133 | 2895 | cut `gap-report`, `spec-changed`, `task-outcomes`; the old plan-document model goes last (sim-4.10): `design-extraction`, `plan-archive`, `plan-retire`, `plans.mjs` (old plan files and the approval it holds), `source-sync`; `new-plan`, `spec-steering`, `templates` become `avoozl-spec`; approval and journal files in flight |
-| `store/` | 1722 | 1722 | | | | `activity-log.mjs` stays for Activity and `avoozl activity` |
-| `tasks/` | 2605 | 550 | 2055 | | | keep `manual-tasks`, `scm-links`, `issue-reference`; cut `evidence`, `supersede`, `task-dedup`, `task-files`, `task-notes`, `task-steps`, `task-summary`, `title-repeat` |
-| `tick/` | 2280 | 2280 | | | | the tick plans the loop pass (§D6) |
-| `workers/` | 5453 | 633 | 3027 | | 1793 | keep `runner`, `report-match`, `report-command`, `manual-take`, `worker-briefs`; cut `driver`, `driver-scope`, `working-heads`, `remote-runner`; grants, offers, results and driver generations in flight |
-| `workspace/` | 4545 | 2337 | 2156 | | 52 | cut `demo`, `examples`, `sample-specs`, `instance`, `onboarding`, `repository-kind`, `repository-roles`, `repository-setup`, `setup-access`; `check-isolation.mjs` keeps `run: sandbox` and `unconfined` |
-| **Total** | 97724 | 61015 | 19816 | 4733 | 12160 | |
-
-`src/app/test/` (22571 lines of shared test helpers) loses each fixture its
-feature took with it. `src/app/skills/avoozl/SKILL.md` becomes generated.
-
-## D15. Module audit: the page
-
-Every file in `hosts/kirocrew/ui/src/` (`.tsx` and `.ts`), grouped by view:
-
-| Group | Lines | Verdict | Files |
-| --- | ---: | --- | --- |
-| Insights | 546 | keep | `InsightsView`, `insights-api` |
-| Specs | 4685 | keep | `PlansView`, `plans-api`, `SpecGraph`, `EpicPanel`, `DocumentReader`, `markdown`, `spec-link`, `TaskRefs`, `files-api` |
-| Graph | 2952 | keep | `GraphView`, `graph-layout`, `FocusTree`, `focus-tree`, `EdgeList`, `drag-pan` |
-| In flight | 1891 | keep | `DeliveryView`, `DeliveryDetails`, `delivery-api`, `InFlight`, `InFlightClaims`, `in-flight-api` (from `dashboard-api`), `IntegrationBranches`, `WorkerLink`, `ReviewState`, `StopLine`, `line-api` (the stop-the-line part of `flow-api`) |
-| Activity | 761 | keep | `ActivityView`, `activity-api`, `github-links` |
-| Needs you | 1903 | keep | `WaitingView`, `ConflictsView`, `conflicts-api`, `NeedsYouContext`, `needs-you-context`, `decision-link` |
-| Settings | 7614 | keep | `SettingsView`, `settings-api`, `RepositoriesSettings`, `RepositoryModals`, `repo-edit-tabs`, `repository-rows`, `LandingFields`, `ModelsSettings`, `models-api`, `PluginsSettings`, `plugins-api`, `AddPlugin`, `ContentRulesSettings`, `content-api`, `IsolationPanel`, `isolation-form`, `PromptInstructions`, `NoticesSettings`, `notices`, `FolderPicker`, `SaveFooter`, `FlowSettings` (stop the line only), `DeliverySettings` (Autopilot: it writes `loop`), `SpecIssuesPanel`, `PanelForm` |
-| Task drawer | 1582 | keep, smaller | `TaskDrawer`, `task-api`, `TaskScmLinks`, `drawer-context` |
-| Run in a chat | 133 | keep, reshaped | `chat-api`, `design-chat`, `panel-chat` |
-| Shell and shared parts | 6052 | keep | `App`, nav files, list-detail files, filters, `Picker`, refresh files, `WorkspaceView`, `WorkspacePill`, small parts |
-| Dashboards: Home, Landing queue | 2030 | cut | `DashboardView`, `HomeParts`, `StatTile`, `home-api`, `LandingQueueView`, `landing-queue-api`, `recap-api`, `release-api` |
-| Flow and Retros | 2754 | cut (skill `avoozl-retro`; Insights lists its saved reports) | `FlowView`, `FlowCharts`, `FlowBuilds`, `FlowRail`, `FlowMemory`, `flow-api`, `RetrosView`, `CiFlow`, `PlanningFlow`, `builds-api`, `providers-api` |
-| Plan review | 1310 | cut (skill `avoozl-spec-review`) | `ReviewView`, `review-view`, `PlanReviewDecision`, `PlanReviewSummary` |
-| Task extras | 1824 | cut | `TaskFiles`, `TaskNotes`, `notes-api`, `TaskSteps`, `TaskSummaryBox`, `Evidence`, `evidence-api`, `TaskForm`, `CitedFile` |
-| Setup tower | 2822 | cut | `Onboard`, `onboarding-api`, `SetupWizard`, `setup-api`, `setup-facts`, `Demo`, `demo-api`, `TemplateStart`, `PackImport`, `InstanceName`, `instance-api`, `WorkflowMap`, `workflow-map` |
-| New spec and fix drawers | 1575 | cut (skill `avoozl-spec`) | `NewPlanDrawer`, `new-plan-api`, `spec-builder-api`, `NewFixDrawer`, `fix-api`, `IntakeSources` |
-| Driver | 1028 | cut | `Driver`, `driver-api` |
-| Side panel | 1200 | cut | `Panel`, `PanelParts`, `panel-api` |
-| Removed by in-flight work | 1976 | in flight | `MirrorSetup`, `mirror-setup-api`, `ForwardScreen`, `forward-api`, `SpecPullBox`, `SpecPullDecision`, `spec-pr-api`, `GitHubItemsView`, `github-items-api`, `TriageAgentView`, `TriageSetup` |
-
-The kept groups hold 27358 lines; the cut groups hold 15151.
+Activity links every GitHub thing in a row: repository, pull request and
+issue numbers, commit, claim and integration branch, check run and login.
+`github-links.ts` builds each URL from the row's known GitHub repository,
+never from free text, and the link opens in a new tab with
+`rel="noopener noreferrer"`. A repository with no GitHub remote shows plain
+text. It makes no GitHub call.
 
 ## D16. Example: a large rewrite on an integration branch
 
@@ -517,37 +454,7 @@ A team rewrites its client library, `acme/client`, over several months.
 9. When every member spec is ticked, the tech lead merges `client-v2` into
    `main`. Avoozl never merges it.
 
-The same flow runs under any runner that follows the landing
-spec.
-
-## D17. Order
-
-`sim-0` is a person's gate: a person ticks it once the approval cut-down,
-the mirror removal and the triage removal are on main. Every other task waits
-on it. Order from the list (`sim-2.1`, `sim-2.2`) lands before ranking and
-the graph builder, which read its waits. Runner parts (phase 1) and the graph
-(phase 2) come first, because the
-cuts in phase 4 delete the code they replace. Skills (phase 3) ship before the
-modules they replace are cut. The page (phase 5) changes last, after its
-operations have settled. Docs and the live proof close the spec.
-
-## D18. Rules
-
-1. **The graph block is optional** (SM9.5). Specs written by hand or by
-   other runners still lint, and `avoozl-spec` always writes one.
-2. **A failing plugin `phase` or `branch` check** is a Needs you item with
-   "Run in a chat". PK5.3 changes in its own spec pull request.
-3. **Epic context's "you drive" test** becomes "the spec issue is assigned
-   to this runner's login and the task's claim branch was created by this
-   machine" (`epic-context` EC1).
-4. **The side panel is cut** (1200 lines); Needs you and In flight cover it,
-   and a chat gets the same reads through `plans_query`.
-5. **Activity links every GitHub thing in a row**: repository, pull
-   request and issue numbers, commit, claim and integration branch, check
-   run and login. `github-links.ts` builds each URL from the row's known
-   GitHub repository, never from free text, and opens it in a new tab with
-   `rel="noopener noreferrer"`. A repository with no GitHub remote shows
-   plain text. It makes no GitHub call.
+The same flow runs under any runner that follows Workflow v1.
 
 ## D19. Order from the list
 
@@ -584,7 +491,7 @@ even inside a parallel parent.
 
 ### D19.1 Deriving the waits
 
-`waitsOf(spec)` in `specs/order.mjs` is the one function. For an item `x`:
+`waitsOf(spec)` in `specs/order.ts` is the one function. For an item `x`:
 
 | `x` | `first(x)` | `last(x)` |
 | --- | --- | --- |
@@ -654,47 +561,10 @@ Specs no spec group links do not wait on each other.
 | `link.missing` | A spec group links a spec folder that does not exist, and no earlier unticked task stands in the same list |
 | `link.twice` | One spec is linked as a spec group more than once in the repository |
 | `link.children` | A spec group has sub-items of its own |
-| `facts.removed-key` | Any `$after` fact, with the fix "order tasks by the list; tag a group `(**PARALLEL**)` for tasks that run side by side" |
 
 The tag ends the title and comes after any refs:
 ``- [ ] `ec-2.3` Ways out [EC7] (§D6) (**PARALLEL**)``. A group keeps its ID,
 title and refs; it is never sent to a worker.
-
-### D19.4 Rewriting the specs
-
-`sim-2.2` rewrites every `tasks.md` under `.kiro/specs/` once, by hand with a
-helper script it does not commit:
-
-1. Read the spec's `$after` edges.
-2. Order the leaves so each comes below everything it waited for. Tasks with
-   the same waits that do not wait on each other go under one group tagged
-   `(**PARALLEL**)`, and a serial run inside it becomes an untagged child
-   group.
-3. Where the old graph has no exact list form, add the fewest waits that keep
-   every old one, and list each added wait in the commit message.
-4. Turn each cross-spec `$after` into the order of spec groups in a parent
-   that links both specs, or into a `(**MANUAL**)` gate task at the top of
-   the waiting spec when none does.
-5. Turn each epic item with `$plan` into a spec group linking that spec,
-   preceded by a "Write the spec" task where `$step: design` stood and a
-   `(**MANUAL**)` review task where `$step: review` stood. Delete every
-   `kind`, `epic`, `integrationBranch` and `integrationSync` front-matter
-   key.
-6. Split each `$investigate: true` task into an investigation task whose
-   done bullets name `findings/<id>.md` and the task itself, whose done
-   bullets name that file.
-7. Turn each `$done: X` into the plain bullet `X`, drop any other plain
-   bullet that is a summary rather than a result, and move a `$manual: true`
-   task's tag into its title as `(**MANUAL**)`.
-8. Split a spec whose leaves name more than one `$repo` into one spec per
-   repository, each with front matter `repo`, linked from a parent.
-9. Delete every remaining `$` line and regenerate each graph block.
-
-The same change makes lint refuse every `$` bullet and the removed keys,
-removes their reads, and updates the "Task facts", "Front matter", "Epics",
-"Ready tasks", "Next task", "Investigating first", "Labeled issues",
-"Manual tasks and gates" and "Integration branches" sections of
-`docs/github-workflow.md`.
 
 ## D20. Tasks with no facts
 
@@ -730,11 +600,10 @@ spec per repository, linked from a parent (§D19.2).
 | `category` | the group a spec is listed under |
 | `repo` | the one repository the spec changes |
 
+Lint refuses every `$` sub-bullet as `facts.removed-key` and the other
+front-matter keys below as `frontmatter.removed-key`, with these fixes:
 
-Lint refuses every `$` sub-bullet and the removed front-matter keys with
-these fixes:
-
-| Removed | Fix |
+| Key | Fix |
 | --- | --- |
 | `$done` | write each result as a plain sub-bullet |
 | `$manual` | end the title with `(**MANUAL**)` |
@@ -763,13 +632,7 @@ An investigation is an ordinary task:
 The `avoozl-investigate` skill tells the worker how to write the findings
 file and how a reviewer tries to prove it wrong.
 
-Ranking holds no paths rule, and nothing holds a task back for sharing files
-with a running task (§D3.1).
-
-Flow keeps no fix-work share: `isFixWork`, the per-task `fix` flag,
-`metrics.fixWork`, `fixShare` in the day and week buckets and `fixWork` in
-the retro brief go from `src/app/flow/flow.mjs`, and the "Fix work" chart
-goes with the Flow view (§D15).
+Nothing holds a task back for sharing files with a running task (§D3.1).
 
 ## D21. Integration branches
 
@@ -814,7 +677,7 @@ catch it before any task lands:
 - Spec lint, when it runs with access to origin (`avoozl spec lint` and
   `plans_lint` on a configured repository), reports the warning
   `integration.foreign` for the same case. Lint without origin, such as
-  `scripts/check/spec-lint.mjs` in CI, skips the check.
+  `scripts/check/spec-lint.ts` in CI, skips the check.
 
 A branch holds work that is not the spec's when it has a commit that is not
 on the default branch and is neither a merge of the default branch nor the
@@ -926,7 +789,7 @@ task began, so the previous task's sessions stay readable until then.
 
 ```text
 LANE        ROLE      HARNESS      STATE   TASK      OPEN
-worker-1    worker    kirocrew     busy    sim-3.3   kirocrew://chat/dashboard:avoozl-ws-worker-1
+worker-1    worker    kirocrew     busy    task-1    kirocrew://chat/dashboard:avoozl-ws-worker-1
 worker-2    worker    claude-code  free    -         CLAUDE_CONFIG_DIR=~/.avoozl/lanes/ws/worker-2 claude --resume 5b0c...
 reviewer-1  reviewer  kirocrew     paused  -         Resume in Needs you
 ```

@@ -7,73 +7,38 @@ category: Planning
 ## Introduction
 
 This spec lets a person who runs Avoozl with Claude Code, Codex or another
-agent CLI, and no Kiro Crew, use today's Avoozl page in a browser. Avoozl
+agent CLI, and no Kiro Crew, use the Avoozl page in a browser. Avoozl
 serves the page itself, on `127.0.0.1` only, behind a one-time owner link:
 with `serve.enabled`, each `avoozl tick` keeps the page's server up.
 
 The page looks exactly as it does in Kiro Crew and is not a fork: it is
 built with Kiro Crew's own UI parts, SDK provider and stylesheet, unmodified,
-at a pinned release (SW12). Claims marked **S** were seen in a build of this
-page against Kiro Crew v0.12.2 (design D11).
-
-### Why
-
-The any-harness plan (`.kiro/specs/avoozl/`, Requirements 93 to 98, design
-§4.28) made the work harness-neutral: a `process` child started by
-`avoozl tick` can code, verify and review a task with no Kiro Crew on the
-machine. The page did not follow. Requirement 98 says Kiro Crew stays the
-only UI, and Requirement 98.4 leaves a machine without Kiro Crew with only
-`avoozl status` and `avoozl runner status --json`. A person who never
-installed Kiro Crew can run every role but cannot see Needs you, approve a
-plan or read a process session's log without the CLI.
-
-The page is close to portable already:
-
-- It reaches the host only through `hosts/kirocrew/ui/src/host.ts` (`useAppApi`,
-  `useNavigate`, `useChatLauncher`) and the externals `react`, `react-dom`,
-  `react/jsx-runtime`, `lucide-react`, `@kirocrew/app-sdk` and
-  `@kirocrew/app-sdk/ui` (`hosts/kirocrew/ui/vite.config.ts`).
-- Every view calls one route, `POST /apps/avoozl/api/command`, with an
-  operation name (`COMMAND_PATH` in `hosts/kirocrew/ui/src/workspace-api.ts`).
-- The backend (`src/app/executors/kirocrew/app-backend.mjs`) checks a principal that Kiro Crew's
-  proxy signs (`KIROCREW_PROXY_SECRET`) and authorizes by kind:
-  `owner-session` may run any offered operation, `app-token` and
-  `agent-tool` may only observe (`principalAllows`).
-- Colors are Kiro Crew theme variables (`--border`, `--muted`, `--accent`,
-  `--text`, `--card`, `--danger`, `--ok` and others), and layout uses the
-  utility classes the host's stylesheet defines.
-- Process sessions already have a log tail, Send message and a copyable
-  attach command on the page (Phase 50, proof P60).
+at a pinned release (SW12).
 
 ### What this builds on
 
-`.kiro/specs/avoozl/` stays the product spec. This spec builds on Requirement 98 and design §4.28, and reuses Requirement 95 (one
-supervisor per machine), Requirement 98.1 and 98.2 (process sessions on the
-page), and the operation set in `src/app/api/operations.mjs`. It adds no
-operation for agents.
+`.kiro/specs/avoozl/` is the product spec. This spec reuses the operation
+set in `src/app/api/operations.ts` and adds no operation for agents.
 
 ### Scope
 
 - One person, on the machine that runs Avoozl, in a browser on that same
   machine.
-- The page Kiro Crew shows today, every view, with the Kiro Crew-only parts
+- The page Kiro Crew shows, every view, with the Kiro Crew-only parts
   shown as unavailable (SW10).
-- Kiro Crew's own install keeps working exactly as today. A machine may run
-  both; they share the workspace database.
+- Kiro Crew's own install keeps working. A machine may run both; they share
+  the workspace database.
 
 ### Out of scope
 
 - Remote access of any kind. The page's server binds `127.0.0.1` only and has no
   option to bind anything else. No tunnel, relay, share link, reverse proxy
-  support or TLS is built here. Viewing from another machine needs a later
-  spec with a real identity provider.
+  support or TLS is built here.
 - A second set of views. The standalone page is the same React views built a
   second way, not a new design.
 - Agents using the web page. Agents keep the MCP server and the CLI (SW5.4).
 - A Kiro Crew chat stand-in. Open chat becomes a process session (SW7); it is
   not a chat UI.
-- Kiro Crew's side panel (`hosts/kirocrew/ui/src/Panel.tsx`); it is not built
-  into the standalone bundle.
 - Several people on one server. There is one owner.
 - Kiro Crew's own shell: its sidebar, top bar, chat and toasts. The
   standalone page is the Avoozl page, with Kiro Crew's parts and look, under
@@ -83,11 +48,11 @@ operation for agents.
 
 | Word             | Meaning                                                                                                    |
 | ---------------- | ---------------------------------------------------------------------------------------------------------- |
-| Kiro Crew page   | Today's Avoozl page, `hosts/kirocrew/ui/dist/index.mjs`, rendered inside Kiro Crew                          |
+| Kiro Crew page   | The Avoozl page, `hosts/kirocrew/ui/dist/index.mjs`, rendered inside Kiro Crew                             |
 | Standalone page  | The same views built with Kiro Crew's own parts at the pin and served by Avoozl's page server             |
 | Host shim        | Avoozl's code on the host side of the SDK: the provider's props, navigation, one request header, the theme |
 | Pin              | The Kiro Crew release whose source the standalone build uses, named with a digest (SW12)                  |
-| Owner link       | A one-time `http://127.0.0.1:<port>/login?token=…` URL that signs the browser in                          |
+| Owner link       | A one-time `http://127.0.0.1:<port>/login?token=...` URL that signs the browser in                        |
 | Session cookie   | The cookie the owner link sets; it names one server-side browser session                                 |
 | CSRF token       | A per-session random value the page sends in a header on every write                                     |
 | Server origin    | `http://127.0.0.1:<port>`, exactly                                                                        |
@@ -113,16 +78,15 @@ maintain.
 3. Avoozl SHALL write only the host shim. The standalone entry SHALL mount
    the page inside Kiro Crew's own `AppApiProvider`, giving it the app's
    name and version, the allowed API paths from `app.json`, a navigate
-   function and a notify function (S: these are the props the spike
-   passed, and the page rendered).
-4. The SDK's client sends each request with `fetch` and a relative path
-   (S). The standalone entry SHALL add the CSRF header (SW4.6) to requests
+   function and a notify function.
+4. The SDK's client sends each request with `fetch` and a relative path.
+   The standalone entry SHALL add the CSRF header (SW4.6) to requests
    for the server origin, and SHALL change nothing else about a request or
    its reply, so a non-2xx reply reaches a view exactly as it does in Kiro
    Crew.
 5. The navigate function SHALL move between the page's own paths under
    `/apps/avoozl` with the History API. A path under `/chat`, which the
-   SDK's chat launcher asks for (S), SHALL open the Start a session dialog
+   SDK's chat launcher asks for, SHALL open the Start a session dialog
    (SW7). Any other path SHALL do nothing and log one line.
 6. The notify function SHALL show the notice in the standalone header.
 7. A build test SHALL fail when a file under
@@ -143,28 +107,25 @@ own files, so that the Kiro Crew bundle stays exactly as it is.
    uses and the Kiro Crew modules the page reaches bundled in. React SHALL
    be the version the pin's own lockfile resolves, one copy for the page
    and Kiro Crew's parts. `dist/` stays out of git (AGENTS.md).
-2. The Kiro Crew bundle (`dist/index.mjs`, `dist/panel.mjs`) SHALL keep its
-   externals and SHALL contain none of the standalone entry's code. A build
-   test SHALL compare the bundle's import specifiers before and after this
-   spec's change and require them equal.
+2. The Kiro Crew bundle (`dist/index.mjs`) SHALL keep its externals and
+   SHALL contain none of the standalone entry's code. A build test SHALL
+   compare the bundle's import specifiers with a recorded fixture and
+   require them equal.
 3. The standalone stylesheet SHALL be built from Kiro Crew's own stylesheet
    source at the pin, with the Avoozl page's sources added to what it scans
    for class names, and with no rule of Avoozl's own. The class check in
-   `hosts/kirocrew/ui/test/host-classes.test.mjs` SHALL run against it on
+   `hosts/kirocrew/ui/test/host-classes.test.ts` SHALL run against it on
    every test run, with no skip, and SHALL fail on a class it lacks.
 4. The standalone files SHALL hold no absolute machine path, user name or
    host name. A build test SHALL scan them for the build machine's home
    folder and the worktree path.
 5. The standalone script SHALL load as same-origin files with no inline
    script. Each `<style>` element the page renders SHALL be one the policy
-   of SW4.8 allows by hash; the page renders 23 today (V: `<style` in
-   `hosts/kirocrew/ui/src/*.tsx`).
+   of SW4.8 allows by hash.
 6. The standalone script SHALL hold only the Kiro Crew modules the page's
    imports need, not Kiro Crew's dashboard. What is left out SHALL be left
    out by build configuration alone (SW12.3). The build SHALL fail when the
-   script grows past a budget written down in the build config (S: the two
-   SDK entry files reach the whole dashboard, 27.7 MB of script; with its
-   chat exports left out the script was 2.7 MB).
+   script grows past a budget written down in the build config.
 
 ### Requirement SW3: The page's server on loopback only
 
@@ -173,7 +134,7 @@ so that nobody on my network can reach Avoozl.
 
 #### Acceptance criteria
 
-1. The page's server (`src/app/serve/serve-main.mjs`, which a tick starts
+1. The page's server (`src/app/serve/serve-main.ts`, which a tick starts
    with `serve.enabled`) SHALL listen on `127.0.0.1` only. It SHALL have no
    host or bind option and SHALL read no environment variable for one.
 2. With no `serve.port`, or port 0, the server SHALL take a random free
@@ -191,7 +152,7 @@ so that nobody on my network can reach Avoozl.
 6. A test on Linux, macOS and Windows SHALL start the server and check that
    the listening socket's address is `127.0.0.1` and no other.
 7. `avoozl link` SHALL be refused in a `process` child
-   (`AVOOZL_CHILD=1`, Requirement 95.5), as a person-only command.
+   (`AVOOZL_CHILD=1`), as a person-only command.
 
 ### Requirement SW4: The owner signs in with a one-time link
 
@@ -208,7 +169,7 @@ I visit cannot drive Avoozl.
 2. `avoozl link` SHALL make a new owner link for the running server and
    print it to the terminal that ran it. It SHALL be refused in a `process`
    child.
-3. `GET /login?token=…` with a valid, unused, unexpired token SHALL mark the
+3. `GET /login?token=...` with a valid, unused, unexpired token SHALL mark the
    token used, start a browser session, set the session cookie and redirect
    with 303 to `/apps/avoozl`. Any other token SHALL get 403 with one fixed
    message and no cookie, and the response SHALL NOT say whether the token
@@ -244,7 +205,7 @@ I visit cannot drive Avoozl.
    'self'; connect-src 'self'; base-uri 'none'; form-action 'self';
    frame-ancestors 'none'`, `X-Content-Type-Options: nosniff`,
    `Referrer-Policy: no-referrer` and, for API replies and the login reply,
-   `Cache-Control: no-store`. `<hashes>` is one `'sha256-…'` source for
+   `Cache-Control: no-store`. `<hashes>` is one `'sha256-...'` source for
    each style text the build lists (SW2.5), and nothing wider:
    `'unsafe-inline'` SHALL NOT appear.
 9. `POST /logout` with a valid CSRF header SHALL end the session and clear
@@ -252,7 +213,7 @@ I visit cannot drive Avoozl.
 10. No token, cookie value or CSRF token SHALL appear in a log, an
     error message, `serve.json`, the workspace database, or any GitHub write.
 11. A request body over the app backend's limit SHALL get 413, as the app
-    backend does today.
+    backend does.
 
 ### Requirement SW5: The local owner is the owner
 
@@ -268,8 +229,6 @@ the Kiro Crew page lets me do, and no more, and agents to stay off it.
    one observe operation through each and require the same results.
 2. An operation the app backend does not offer SHALL be refused with the
    same 403 message.
-3. Demo mode (`demo.*`, design §6.11) SHALL work on the standalone page as on
-   the Kiro Crew page.
 4. The standalone server SHALL offer no `app-token` or `agent-tool`
    principal and SHALL accept no bearer token or other credential header. Agents keep the
    MCP server and the CLI, and the CLI works on the workspace database
@@ -277,9 +236,9 @@ the Kiro Crew page lets me do, and no more, and agents to stay off it.
    test SHALL send a request with each of the app backend's principal
    headers, a bearer header and a made-up credential header, and no
    session cookie, and require 401.
-5. The supervisor's sandbox (Requirement 95.6) SHALL keep the machine state
-   folder, which holds `serve.json` and the link records, outside every
-   `process` child's read and write roots. A sandbox test SHALL check it.
+5. The process sandbox SHALL keep the machine state folder, which holds
+   `serve.json` and the link records, outside every `process` child's read
+   and write roots. A sandbox test SHALL check it.
 
 ### Requirement SW6: Kiro Crew's themes
 
@@ -293,17 +252,16 @@ page.
    from Kiro Crew's stylesheet at the pin. Avoozl SHALL define no theme
    variable and no font.
 2. The standalone entry SHALL set the theme attributes on `<html>` the way
-   Kiro Crew does (S: `data-theme` as palette and mode, and `data-mode`),
-   with Kiro Crew's default palette, following `prefers-color-scheme`. A
+   Kiro Crew does (`data-theme` as palette and mode, and `data-mode`), with
+   Kiro Crew's default palette, following `prefers-color-scheme`. A
    control in the standalone header MAY set light, dark or system, and MAY
    offer the other palettes the stylesheet has. The choice SHALL be kept in
    the browser's local storage.
-3. A test SHALL list every `var(--…)` name used under `hosts/kirocrew/ui/src`
-   and fail when the built stylesheet lacks one for the default palette in
-   either mode.
+3. A test SHALL list every `var(--...)` name used under
+   `hosts/kirocrew/ui/src` and fail when the built stylesheet lacks one for
+   the default palette in either mode.
 4. The page's server SHALL serve the fonts the stylesheet uses from the
-   bundle. The page SHALL request no font the bundle does not hold (S: one
-   optional font's address did not resolve in the spike).
+   bundle. The page SHALL request no font the bundle does not hold.
 
 ### Requirement SW7: Open chat becomes a process session
 
@@ -315,10 +273,10 @@ to still do something useful without Kiro Crew.
 1. On the standalone page, `useChatLauncher().openChat({ message, agent,
    autoSend })` SHALL open a Start a session dialog with the message in an
    editable box, the role it maps to, and the harness Settings › Models picks
-   for that role. Start SHALL run a new person-only operation,
-   `session.open`, that asks the `process` executor for a session in the
-   workspace root with the message as its brief, and SHALL then show that
-   session's process view.
+   for that role. Start SHALL run the person-only operation `session.open`,
+   which asks the `process` executor for a session in the workspace root
+   with the message as its brief, and SHALL then show that session's
+   process view.
 2. A session started this way SHALL use the read-only permission class
    unless its role is a write role in Settings › Models. Its role SHALL
    default to `assist`, a read-only role with its prompt in
@@ -326,8 +284,8 @@ to still do something useful without Kiro Crew.
 3. `openChat({ slotKey })` for an existing session SHALL show that
    session's process view when it is a `process` session, and SHALL say
    "This is a Kiro Crew chat; open it in Kiro Crew" otherwise.
-4. The process view SHALL be the one Phase 50 built: status, log tail, cost
-   when known, Send message and the copyable attach command.
+4. The process view SHALL show the session's status, log tail, cost when
+   known, Send message and the copyable attach command.
 5. With no approved harness definition on the machine, the dialog SHALL say
    so, link to Settings › Models, and offer Copy message so the person can
    paste it into their own CLI. It SHALL start nothing.
@@ -347,15 +305,15 @@ if I turn it on, so that I can leave the tab in the background.
 2. When on, the page SHALL show one notice for each new Needs you item it
    sees in `conflicts.view`, with the item's title and no path, and a click
    SHALL open that item. An item SHALL be noticed once per browser.
-3. The page SHALL read Needs you no more often than the Kiro Crew page does
-   today, and only while it is open. No server push, service worker or
+3. The page SHALL read Needs you no more often than the Kiro Crew page
+   does, and only while it is open. No server push, service worker or
    background sync SHALL be built.
 4. With permission denied, the setting SHALL say so and the page SHALL keep
    working.
 
 ### Requirement SW9: Each tick keeps the page up
 
-**User story:** As the owner of a headless worker machine, I want the page
+**User story:** As the owner of a machine with no Kiro Crew, I want the page
 kept up by the tick, so that I do not keep a terminal open for it.
 
 #### Acceptance criteria
@@ -380,22 +338,19 @@ Crew, so that I do not look for a feature that cannot work.
 
 1. These SHALL NOT work without Kiro Crew, and the standalone page SHALL show
    each as unavailable with the reason "Needs Kiro Crew", never as an error:
-   the `kirocrew` executor (choosing it in Settings › Models, and Start for a
-   task pinned to it); Kiro Crew's side panel; Kiro Crew notification
-   channels; opening a Kiro Crew chat; Kiro Crew's model list (the model
-   field becomes free text plus the harness definition's own list); per-turn
-   usage read from Kiro Crew's log; Stop all agents for Kiro Crew chats.
+   the Kiro Crew chat harness in Settings › Models; opening a Kiro Crew chat;
+   Kiro Crew's model list; Reveal in the file manager; Stop all agents for
+   Kiro Crew chats.
 2. The app backend's Kiro Crew readers (`notifier`, `slotReader`,
-   `rowReader`, `usageReader`, `modelSwitcher`, `modelReader`,
-   `crewReader`, `sessionsReader`, `sessionStopper`) SHALL be absent in the
-   standalone server, and every operation that uses one SHALL return a
-   result that says "Needs Kiro Crew", not throw. A test SHALL run each such
-   operation with the readers absent.
-3. `instance.view` SHALL report the host as `standalone` or `kirocrew`, and
-   the page SHALL read SW10.1's states from it, not from the build.
-4. A task pinned to the `kirocrew` executor on a machine with no Kiro Crew
-   SHALL wait with one Needs you item that names the pin. It SHALL NOT fall
-   back to another executor by itself.
+   `rowReader`, `sessionStopper`) SHALL be absent in the standalone server,
+   and every operation that uses one SHALL return a result that says "Needs
+   Kiro Crew", not throw. A test SHALL run each such operation with the
+   readers absent.
+3. `workspaces.list` SHALL report the host as `standalone` or `kirocrew`,
+   and the page SHALL read SW10.1's states from it, not from the build.
+4. A role set to the `kirocrew` executor on a machine with no Kiro Crew
+   SHALL wait with one Needs you item for that role. It SHALL NOT fall back
+   to another executor by itself.
 
 ### Requirement SW12: Kiro Crew's parts as a pinned, unmodified dependency
 
@@ -416,8 +371,7 @@ fork and a new Kiro Crew release is one change.
    still build.
 3. The build SHALL NOT edit a fetched file. What the page does not need
    SHALL be left out by build configuration: an alias or an empty module,
-   each listed in one place with the reason (S: the spike left out six chat
-   exports and the non-English languages this way, and edited no file).
+   each listed in one place with the reason.
 4. A contract test SHALL list every Kiro Crew path and export the build
    depends on, and SHALL fail naming the missing one, so a release that
    moves a file fails on that line and nowhere else.
@@ -427,15 +381,16 @@ fork and a new Kiro Crew release is one change.
    Crew's `LICENSE` and `NOTICE`, the notices of the third-party packages
    bundled with it, and the licenses of its fonts.
    `THIRD_PARTY_NOTICES.md` SHALL list them and
-   `scripts/check/release-scan.mjs` SHALL fail when one is missing.
+   `scripts/check/release-scan.ts` SHALL fail when one is missing.
 7. Moving the pin SHALL be one change: the pin file and the package
    versions. It SHALL pass the contract test, the class check and the
    variable test, and its screenshots SHALL go to the owner as SW12.10
    says.
 8. The pin SHALL be a release the Kiro Crew bundle also runs on: not older
-   than `minKiroCrewVersion` in `hosts/kirocrew/app.json`. The README SHALL
-   name the pin beside the Kiro Crew version it asks for, and say that the
-   two pages match when the installed Kiro Crew is the pinned release.
+   than `minKiroCrewVersion` in `hosts/kirocrew/app.json`.
+   `docs/workspaces.md` SHALL name the pin beside the Kiro Crew version it
+   asks for, and say that the two pages match when the installed Kiro Crew
+   is the pinned release.
 9. The class check SHALL also run against the stylesheet a person gets
    inside Kiro Crew: built from the pin's own stylesheet source with only
    Kiro Crew's sources scanned, without the line that adds the Avoozl page.

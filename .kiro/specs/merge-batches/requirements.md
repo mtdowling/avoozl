@@ -11,15 +11,8 @@ together once, and when that fails, finds the one that broke it and lands
 the rest. A group tested and landed together is a **merge batch**. Merge
 batches are part of `direct` landing and size themselves.
 
-### Why
-
-- **A fixed batch size fails most of the time.** If each change breaks the
-  build with probability p, a batch of n passes with probability
-  (1 − p)^n. At p = 10% a batch of 10 passes 35% of the time, and each
-  failure costs a bisect. The size has to follow the measured failure rate.
-- **One run for several changes.** GitLab's merge trains and GitHub's merge
-  queue test each change on its own run. A merge batch tests several in one
-  run.
+If each change breaks the build with probability p, a batch of n passes with
+probability (1 - p)^n, so the batch size follows the measured failure rate.
 
 ### Scope
 
@@ -54,16 +47,12 @@ branch, so that I do not choose between two systems that do the same thing.
 #### Acceptance criteria
 
 1. `direct` landing SHALL land in merge batches. A merge batch of one member
-   SHALL behave as `direct` landing of one task does today.
-2. The landing mode `train` SHALL be removed. A file that sets `train`
-   SHALL NOT load.
-3. A file that sets the `landing.trains` block SHALL NOT load, and the error
-   SHALL name the file and the key.
+   SHALL land that one task.
+2. The landing modes SHALL be `direct`, `pr` and `off`. A file that sets any
+   other mode SHALL NOT load.
+3. A file that sets an unknown key under `landing` or `machine` SHALL NOT
+   load, and the error SHALL name the file and the key.
 4. A merge batch MAY hold tasks of several specs in this workspace.
-5. The words "train" and "integrator" SHALL NOT appear on the page, in the
-   CLI help or in `README.md` and `docs/*.md`. A test SHALL check this.
-   Dated records under `docs/research/` and `docs/evidence/` are not
-   checked.
 
 ### Requirement MB2: The size sets itself
 
@@ -124,8 +113,8 @@ minutes and not the batch.
 3. The culprit SHALL then be checked alone on the base, with the checks
    that failed.
    - Fails alone: it SHALL go back to its worker with the failing checks
-     and a bounded log excerpt, through the path a landing failure uses
-     today, counted against `conflicts.maxAttempts`.
+     and a bounded log excerpt, through the path a landing failure uses,
+     counted against `conflicts.maxAttempts`.
    - Passes alone: it broke only together with an earlier member. It SHALL
      go back to its worker naming that member, and the earlier member SHALL
      land.
@@ -157,34 +146,3 @@ leave no branches on the remote, so that my CI does not run on them.
    SHALL push only the base branch.
 2. A member SHALL be held as a local ref at its verified commit.
 3. No repository SHALL need a CI change for merge batches.
-
-### Requirement MB7: Visible, and nothing sits silently
-
-**User story:** As the owner, I want to see what waits to land and why, so
-that I can tell when landing is the bottleneck.
-
-#### Acceptance criteria
-
-1. The Landing queue page SHALL show, per base: the waiting members with
-   their wait time, the merge batch being tested and its step, the last
-   merge batches with their outcome and duration, the current size limit and
-   the failure rate.
-2. `avoozl landing status [--json]` and an MCP read SHALL return the same,
-   and none of the three SHALL call GitHub.
-3. A member that has waited longer than 60 minutes SHALL get one Needs you
-   item naming why it waits.
-
-### Requirement MB8: The retro suggests the landing mode
-
-**User story:** As the owner, I want the retro to tell me when landing is
-what slows delivery, so that I change the mode when it matters.
-
-#### Acceptance criteria
-
-1. WHEN, over the retro's window, time waiting to land is more than half of
-   the median lead time for a repository THEN the retro MAY propose a
-   different landing mode for it, with the numbers: `direct` for a
-   repository on `pr` whose checks run on this machine, or `pr` with
-   GitHub's merge queue for one whose platforms can only be tested in CI.
-2. The proposal SHALL go through the retro's existing approve or reject
-   step (Requirement 47) and SHALL change nothing by itself.

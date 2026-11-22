@@ -6,58 +6,15 @@ category: Planning
 
 ## Introduction
 
-The Avoozl page uses six of the 27 components Kiro Crew documents for apps,
-draws its own versions of several others, and writes most of its look as
-class strings and inline styles in each view. This spec moves the page onto
-Kiro Crew's components wherever one exists, and onto a small set of
-Avoozl's own components everywhere else, so that class names and CSS
-variables are written in one folder.
-
-Every claim about today's code carries one label: **V**, read in the file
-cited at `05474af`; or **A**, assumed and not checked, with the reason.
-
-### Why
-
-- Kiro Crew documents 27 components in `@kirocrew/app-sdk/ui` (V: "Shared
-  UI Components" in Kiro Crew's `docs/app-kit/getting-started.md`, release
-  0.12.2). The page imports six: `Btn`, `Card`, `Input`, `EmptyState`,
-  `SegmentedControl` and `Badge` (V: the module declaration in
-  `hosts/kirocrew/ui/src/kirocrew-app-sdk.d.ts` and the imports under
-  `hosts/kirocrew/ui/src`).
-- Where Kiro Crew has a component, the page often draws its own:
-
-  | Kiro Crew documents           | The page has                                                  |
-  | ----------------------------- | ------------------------------------------------------------- |
-  | `Modal`                       | `Modal.tsx`, 206 lines (V)                                    |
-  | `Select`                      | 19 raw `<select>` (V)                                         |
-  | `Toggle`                      | checkboxes among 49 raw `<input>` (V)                         |
-  | `InfoTip`                     | its own `InfoTip` in `controls.tsx` (V)                       |
-  | `StatCard`                    | its own Home tiles (A: read from the page, not traced)        |
-  | `PageHeader`, `CardTitle`     | `SectionHeading`, `ViewHeading` in `controls.tsx` (V)         |
-  | `ErrorNotice`                 | `text-sm text-danger` written 64 times, `text-xs text-danger` 28 (V) |
-  | `MarkdownRenderer`            | `Markdown.tsx`, 171 lines (V)                                 |
-  | `SettingsSection`, `SettingsCard`, `SettingsInput`, `SettingsToggle`, `SettingsSelect` | `FormSection.tsx`, `FieldBox.tsx`, `FieldRow.tsx` (V) |
-  | `Btn`                         | 109 raw `<button>` beside 107 uses of `Btn` (V)               |
-
-- The look is spread over every view: 2,383 `className` attributes with 631
-  distinct strings, 820 inline style objects and 882 uses of a CSS variable,
-  in 121 view files (V: counted under `hosts/kirocrew/ui/src`). A few strings
-  carry most of it: the three muted-text strings `text-xs text-muted`,
-  `text-muted` and `text-sm text-muted` appear 497 times, and
-  `flex flex-col gap-N` about 180 (V).
-- Inside Kiro Crew a utility class works only when Kiro Crew's own pages use
-  it, because Kiro Crew's stylesheet is generated from its own sources (V:
-  the `@source` lines of Kiro Crew's `website/src/index.css`). The check for
-  this, `hosts/kirocrew/ui/test/host-classes.test.mjs`, is skipped unless
-  `KIROCREW_HOST_CSS` is set (V). With 631 distinct strings in 121 files,
-  nothing stops a view from using a class that does nothing inside Kiro
-  Crew.
+The Avoozl page draws with Kiro Crew's components where one fits, and with a
+small set of Avoozl's own components everywhere else. Class names, inline
+styles and CSS variables are written only in `hosts/kirocrew/ui/src/ui/`.
 
 ### What this builds on
 
 - `.kiro/specs/standalone-web/` builds the same page on Kiro Crew's own
-  parts at a pin. Fewer classes and one folder of styled components make its
-  class check and its pin moves smaller. Neither spec waits on the other.
+  parts at a pin. One folder of styled components keeps its class check and
+  its content security policy small.
 - Requirement 92.12 of `.kiro/specs/avoozl/`: a screen change needs phone
   and desktop, light and dark screenshots for the owner's approval before
   it merges. Screenshots are never committed (AGENTS.md).
@@ -68,24 +25,22 @@ cited at `05474af`; or **A**, assumed and not checked, with the reason.
 
 ### Out of scope
 
-- New screens, new behavior, or a redesign. A view looks the same after its
-  move, except where Kiro Crew's component draws a thing differently from
-  Avoozl's own (UC2.3).
+- New screens, new behavior, or a redesign.
 - Kiro Crew's own pages and components. Avoozl changes none of them.
 - The page's text.
 
 ### Words
 
-| Word              | Meaning                                                                                   |
-| ----------------- | ----------------------------------------------------------------------------------------- |
-| Kiro Crew part    | One of the 27 components Kiro Crew documents in `@kirocrew/app-sdk/ui`                    |
-| Avoozl part       | A component in `hosts/kirocrew/ui/src/ui/`, the folder this spec adds                       |
-| View              | Any other file under `hosts/kirocrew/ui/src` that renders                                   |
-| Raw style         | A `className` or `style` written in a view, or a `<style>` element a view renders        |
+| Word | Meaning |
+| --- | --- |
+| Kiro Crew part | A component Kiro Crew exports from `@kirocrew/app-sdk/ui` |
+| Avoozl part | A component in `hosts/kirocrew/ui/src/ui/` |
+| View | Any other file under `hosts/kirocrew/ui/src` that renders |
+| Raw style | A `className` or `style` written in a view, a `<style>` element a view renders, or a `var(--` string in a view |
 
 ## Requirements
 
-### Requirement UC1: Kiro Crew's part where one exists
+### Requirement UC1: Kiro Crew's part where one fits
 
 **User story:** As the owner, I want the page to use Kiro Crew's documented
 components, so that it matches Kiro Crew and depends on Kiro Crew's
@@ -93,18 +48,16 @@ supported surface.
 
 #### Acceptance criteria
 
-1. Where a Kiro Crew part does what a view needs, the view SHALL use it:
-   `Modal`, `Select`, `Toggle`, `InfoTip`, `StatCard`, `PageHeader`,
-   `CardTitle`, `ErrorNotice`, `MarkdownRenderer`, `Skeleton`,
-   `SearchInput` and the `Settings*` parts, as well as the six in use.
+1. The page SHALL use Kiro Crew's `Btn`, `Card`, `Badge`, `Toggle`,
+   `EmptyState`, `SegmentedControl` and `Input`.
 2. A Kiro Crew part SHALL be imported only through the page's own module of
-   that name in `src/ui/`, which re-exports it, as `Badge.tsx` and
-   `Button.tsx` already wrap `Badge` and `Btn` (V). A change of Kiro Crew's
-   part then reaches the page through one file.
-3. Where Avoozl's version does something the Kiro Crew part does not, the
-   task SHALL say what in its pull request and either keep Avoozl's version
-   in `src/ui/` or give up the difference; the owner decides which on the
-   screenshots.
+   that name in `src/ui/`, which wraps or re-exports it, as `Badge.tsx` and
+   `Btn.tsx` wrap `Badge` and `Btn`. A change of Kiro Crew's part then
+   reaches the page through one file. A source test holds that no view
+   imports `@kirocrew/app-sdk/ui`.
+3. Where Kiro Crew's part lacks something the page needs, the page SHALL keep
+   its own version in `src/ui/`: `Modal`, `Markdown`, `SelectField`,
+   `InfoTip` in `controls.tsx`, `Field` and `FieldGroup`.
 4. `hosts/kirocrew/ui/src/kirocrew-app-sdk.d.ts` SHALL declare every Kiro Crew
    part the page uses, with the props Kiro Crew documents.
 
@@ -115,27 +68,27 @@ be components, so that a change of look is one edit.
 
 #### Acceptance criteria
 
-1. `hosts/kirocrew/ui/src/ui/` SHALL hold the Avoozl parts. Each SHALL be
-   named for what it is on the page, not for its classes, and the first set
-   SHALL cover: muted and small text (`Hint`), an error line (`ErrorText`,
-   built on `ErrorNotice` where it fits), a vertical stack with a gap
-   (`Stack`), a wrapping row with a gap (`Row`), a field with its label,
-   help and default line (from `FieldRow.tsx`), a titled group of fields
-   (from `FormSection.tsx` and `FieldBox.tsx`), and a link styled as text.
-2. The existing shared parts (`Button.tsx`, `Badge.tsx`, `Tabs.tsx`,
-   `Tooltip.tsx`, `RadioFold.tsx`, `PairedCards.tsx` and the components in
-   `controls.tsx`) SHALL move into `src/ui/` or be replaced by a Kiro Crew
-   part.
+1. `hosts/kirocrew/ui/src/ui/` SHALL hold the Avoozl parts, each named for
+   what it is on the page, not for its classes. They SHALL include: the
+   layout and text element `Box`, muted text (`Hint`), an error line
+   (`ErrorText`), a vertical stack with a gap (`Stack`), a wrapping row with
+   a gap (`Row`), a field with its label, help and default line (`Field`), a
+   titled group of fields (`FieldGroup`), and a link styled as text
+   (`TextLink`).
+2. The shared parts `Button.tsx`, `Badge.tsx`, `Tabs.tsx`, `Tooltip.tsx`,
+   `RadioFold.tsx`, `PairedCards.tsx` and `controls.tsx` SHALL live in
+   `src/ui/`.
 3. An Avoozl part SHALL take props for what varies (a size, a tone, a gap
-   from a fixed scale), not a `className` or `style` from its caller. A
-   part MAY accept `className` only for layout inside its parent (width,
-   grid placement), and SHALL say so in its type.
-4. Each Avoozl part SHALL have one test that renders it in light and dark.
+   from a fixed scale), not a `className` or `style` from its caller. `Box`
+   takes its look props from the fixed tables in `src/ui/box.json`.
+4. `Hint`, `ErrorText`, `Stack`, `Row` and `TextLink` SHALL each have a test
+   that renders it in light and dark
+   (`hosts/kirocrew/ui/test/ui-parts.test.ts`).
 
 ### Requirement UC3: Views write no raw style
 
 **User story:** As the maintainer, I want a test to keep raw styles out of
-views, so that the move does not slide back.
+views, so that the page does not slide back.
 
 #### Acceptance criteria
 
@@ -143,13 +96,13 @@ views, so that the move does not slide back.
    allow-list. The list SHALL name each file with its count, and SHALL only
    shrink: a change that adds to a file's count fails.
 2. When a view reaches zero, it SHALL leave the list, and the test SHALL
-   then hold it at zero.
+   then hold it at zero. The list is empty, so every view is held at zero.
 3. A view SHALL NOT write a CSS variable. Only `src/ui/` SHALL.
-4. The `<style>` elements views render today (23, V) SHALL move into
-   `src/ui/`, each a constant text, so the standalone page's content
-   security policy can list them by hash (`standalone-web`, SW2.5).
+4. The page's `<style>` elements SHALL live in `src/ui/`, each a constant
+   text, so the standalone page's content security policy can list them by
+   hash (`standalone-web`, SW2.5).
 
-### Requirement UC4: The class check runs, against Kiro Crew's own stylesheet
+### Requirement UC4: The class check runs against Kiro Crew's stylesheet
 
 **User story:** As the owner, I want to know before a merge when the page
 uses a class Kiro Crew's stylesheet does not have, so that nothing goes
@@ -157,31 +110,12 @@ missing quietly inside Kiro Crew.
 
 #### Acceptance criteria
 
-1. CI SHALL run `host-classes.test.mjs` on every change to
-   `hosts/kirocrew/ui/src`, against a stylesheet built from Kiro Crew's own
-   stylesheet source at the `standalone-web` pin, with only Kiro Crew's
-   sources scanned. It SHALL NOT be skipped.
-2. Until the pin's fetch exists (`standalone-web`, sw-1.2), the test SHALL
-   run against a Kiro Crew stylesheet named in the repository by release
-   and digest, fetched by the test the same way.
-3. The test SHALL name each missing class with the files that use it. A
-   class that only `src/ui/` uses and that Kiro Crew lacks SHALL be defined
+1. `hosts/kirocrew/ui/test/host-classes.test.ts` SHALL run on every test
+   run, with no skip, against the Kiro Crew stylesheet that
+   `hosts/kirocrew/ui/test/kirocrew-css.json` names by release, package and
+   digest. A stylesheet with another digest SHALL be refused.
+2. The test SHALL name each missing class with the files that use it. The
+   classes the stylesheet lacks SHALL be listed in
+   `host-classes-known.json`, and the list SHALL only shrink.
+3. A class that only `src/ui/` uses and that Kiro Crew lacks SHALL be defined
    in `src/ui/` as a style rule of that part, not added to a view.
-
-### Requirement UC5: Moved in small steps, each approved
-
-**User story:** As the owner, I want the move made view by view, so that
-each change is small enough to look at.
-
-#### Acceptance criteria
-
-1. Each task SHALL move one Kiro Crew part into use, one Avoozl part into
-   being, or one group of views onto them, and SHALL change no behavior.
-2. Each task that changes a screen SHALL give the owner screenshots of the
-   views it touched, at 390 and 1280 px, light and dark, before and after,
-   in Kiro Crew at the release `hosts/kirocrew/app.json` names in
-   `minKiroCrewVersion` or later (R92.12).
-3. The existing page tests SHALL pass with their assertions unchanged,
-   except where a test reads a class or an element that a Kiro Crew part
-   replaces; such a test SHALL be changed to read the part's role, label or
-   `data-` attribute, and the pull request SHALL list it.

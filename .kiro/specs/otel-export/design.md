@@ -1,8 +1,7 @@
 # Design: OpenTelemetry recording and export of task timing
 
-`OT` numbers are in this spec's `requirements.md`. `SM` numbers and `§D`
-sections of the `simplify` spec are in `.kiro/specs/simplify/`. Paths under
-`src/app/` are in the Avoozl repository.
+`OT` numbers are in this spec's `requirements.md`. Paths under `src/app/`
+are in the Avoozl repository.
 
 ## D1. Shape (OT1, OT13)
 
@@ -16,7 +15,7 @@ flowchart LR
   api --> sqlite[SQLite exporter]
   api -.-> otlp[OTLP exporter]
   sqlite --> tables[(Local tables)]
-  tables --> flow[Flow reads]
+  tables --> reads[Insights and Flow reads]
   otlp --> backend[OTLP endpoint]
 ```
 
@@ -24,23 +23,23 @@ The dotted line is the opt-in path. The folder `src/app/telemetry/` holds:
 
 | File | Job |
 | --- | --- |
-| `stages.mjs` | `STAGES`, the closed list of stage names |
-| `record.mjs` | The recording API, the allowlist and the exporter list |
-| `sqlite-exporter.mjs` | Writes and prunes the local tables; the reads Flow uses |
-| `usage.mjs` | Reads a session's usage rows and records them as points |
-| `otlp.mjs` | Builds OTLP JSON bodies from recorded spans and points |
-| `queue.mjs` | Holds items in memory, bounded, oldest dropped first |
-| `send.mjs` | Posts a batch, retries, classifies failures, keeps the counters |
-| `config.mjs` | Reads the machine setting and the `OTEL_EXPORTER_OTLP_*` environment |
-| `state.mjs` | Reads and writes the instance ID in the state folder |
-| `index.mjs` | `startTelemetry(context)`: registers the exporters and the send timer |
+| `stages.ts` | `STAGES`, the closed list of stage names |
+| `record.ts` | The recording API, the allowlist and the exporter list |
+| `sqlite-exporter.ts` | Writes and prunes the local tables; `listStageSpans` for Flow |
+| `usage.ts` | Reads a session's usage rows and records them as points |
+| `otlp.ts` | Builds OTLP JSON bodies from recorded spans and points |
+| `queue.ts` | Holds items in memory, bounded, oldest dropped first |
+| `send.ts` | Posts a batch, retries, classifies failures, keeps the counters |
+| `config.ts` | Reads the machine setting and the `OTEL_EXPORTER_OTLP_*` environment |
+| `state.ts` | Reads and writes the instance ID in the state folder |
+| `index.ts` | `startTelemetry(context)`: registers the exporters and the send timer |
 
 Flow imports from `src/app/telemetry/`, and `src/app/telemetry/` imports
-nothing from `src/app/flow/`. Outside itself it reads session bindings, the
-session executor's usage call (`gatewayUsageTurns`), the host config's state
-folder and the store handle. Nothing here reads planning flow, corrections,
-build receipts, retros or the fix-work flag. What Flow keeps (`taskTiming`,
-the stop-the-line code, the Flow numbers MCP call) reads the tables in §D4.
+nothing from `src/app/flow/`. Outside itself it imports session bindings, the
+telemetry settings validator and the store; the app backend passes it the
+executor's usage reader (`gatewayUsageTurns`). Insights
+(`src/app/insights/insights.ts`) queries the tables directly, and Flow reads
+them through `listStageSpans` (§D4).
 
 ## D2. The recording API (OT1)
 
@@ -90,15 +89,16 @@ transaction. The OTLP exporter's hooks run after the commit, in a
 
 ### Instance ID
 
-`state.mjs` makes `service.instance.id` once with `crypto.randomUUID()` and
+`state.ts` makes `service.instance.id` once with `crypto.randomUUID()` and
 keeps it in `<state folder>/telemetry.json`, the state folder that
-`host-config.mjs` names. It lives outside SQLite, so a rebuild keeps it.
+`src/app/settings/host-config.ts` names. It lives outside SQLite, so a
+rebuild keeps it.
 
 ## D3. The local tables (OT2)
 
 The tables are generic. A span names a trace, its parent and a task. A point
-names a metric and a task. Dimensions Flow filters on are columns; the rest of
-a point's attributes are one JSON text.
+names a metric and a task. Dimensions Insights filters on are columns; the
+rest of a point's attributes are one JSON text.
 
 ```sql
 CREATE TABLE IF NOT EXISTS telemetry_spans(
@@ -169,30 +169,30 @@ refuses, is refused (§D8).
 `event`, written with `JSON.stringify` and read only through the point's
 name.
 
-## D4. How Flow reads move (OT3)
+## D4. Readers and writers (OT3)
 
-Flow keeps its function names and return shapes. Their bodies read the local
-tables, and the writers call the API.
+Insights' `telemetryInsights` queries `telemetry_spans` and
+`telemetry_points` for finished tasks per day, lead time, time per stage,
+review rounds and rework. Flow's code reads and writes through the API:
 
-| Flow code | Reads or writes | Moves to |
-| --- | --- | --- |
-| `listSpans(store, {taskId})` | `flow_spans` | `SELECT` on `telemetry_spans` where `parent_span_id IS NOT NULL` (and `task_id=?`), ordered by `started_at, span_id`, with `key` returned as `id` and `ended_at` as `endedAt` |
-| `recordSpan(store, span)` | | `telemetry.span`, with the task's repository and spec |
-| A dropped span in the tool-call path | | `telemetry.dropSpan` |
-| `taskTiming` | `listSpans`, `task_deliveries` | Unchanged |
-| A finished task in Flow's pass | | `telemetry.finishTask`, once per task with a stage span here |
-| `putStop(store, stop)` | `flow_stops` | `flow_stops` as before, plus `telemetry.point` for `avoozl.stop_the_line.events` when a stop opens or closes |
+| Flow code (`src/app/flow/flow.ts`) | Reads or writes |
+| --- | --- |
+| `listSpans(store, {taskId})` | `listStageSpans`: stage spans of `telemetry_spans`, ordered by `started_at, span_id`, with `key` returned as `id` and `ended_at` as `endedAt` |
+| `recordSpan(store, span)` | `telemetry.span`, with the task's repository and spec |
+| A dropped span in the tool-call path | `telemetry.dropSpan` |
+| `taskTiming` | `listSpans` and `task_deliveries` |
+| A finished task in Flow's pass | `telemetry.finishTask`, once per task with a stage span here |
+| `putStop(store, stop)` | `flow_stops`, plus `telemetry.point` for `avoozl.stop_the_line.events` when a stop opens or closes |
 
-Every writer of a span calls `recordSpan`: Flow's report, decision,
-tool-call and sync paths in `flow.mjs`, the check runs in
-`delivery/check-runs.mjs`, the plugin check decision in
-`plugins/check-decide.mjs`, the manual task in `tasks/manual-tasks.mjs`, the
-worker's phase mark and the rebuild from landing trailers in
-`api/operations.mjs`. `recordSpan` hands `telemetry.span` the same fields, a
-`key` equal to the id the writer builds, and the task's repository and spec,
-so every span of one task names one trace.
+Every writer of a span calls `recordSpan`: Flow's report (including the
+worker's phase marks), decision, tool-call and sync paths in `flow.ts`, the
+check runs in `delivery/check-runs.ts`, the plugin check decision in
+`plugins/check-decide.ts` and the manual task in `tasks/manual-tasks.ts`.
+`recordSpan` hands `telemetry.span` the same fields, a `key` equal to the id
+the writer builds, and the task's repository and spec, so every span of one
+task names one trace.
 
-Tokens and credits come from `usage.mjs`. On each app backend pass, for each
+Tokens and credits come from `usage.ts`. On each app backend pass, for each
 session the tick opened, it calls `gatewayUsageTurns(slot)` until the
 session ends, and for each turn row it records up to three points:
 `avoozl.tokens` with `direction` `input`, `avoozl.tokens` with `direction`
@@ -203,12 +203,11 @@ is the stage span of the binding's attempt that holds `ts`, or
 `unattributed`. Without a gateway there is no usage call and no point. Only
 counts are recorded, never row text.
 
-Flow's tests seed spans through `recordSpan`, and their assertions stay as
-they are (OT3.2).
+Flow's tests seed spans through `recordSpan` (OT3.2).
 
 ## D5. Retention, size and rebuild (OT2)
 
-Retention is two fixed values and two caps in `sqlite-exporter.mjs`:
+Retention is two fixed values and two caps in `sqlite-exporter.ts`:
 
 | Table | Age limit | Cap | Pruned to |
 | --- | --- | --- | --- |
@@ -231,12 +230,10 @@ Pruning runs once when the database opens and then after every 500 writes, at
 most once in 10 minutes, as its own transaction after the write's commit.
 
 The tables are a local cache of what happened on this machine. `avoozl
-rebuild` makes a fresh database from git: the points table starts empty, and
-the spans table holds the stage spans each landing commit carries in its
-`Avoozl-Span` trailers. Flow's next pass records those tasks' roots and
-task points again. The OTLP
-exporter keeps nothing in SQLite, so a rebuild does not touch it, and the
-instance ID in the state folder is kept.
+rebuild` makes a fresh database from git, and both tables start empty: no
+timing is read back from git, GitHub or sessions. The OTLP exporter keeps
+nothing in SQLite, so a rebuild does not touch it, and the instance ID in
+the state folder is kept.
 
 ## D6. The OTLP setting and the environment (OT4, OT5, OT6)
 
@@ -268,11 +265,11 @@ Header values come from the environment and not from the credentials plugin:
 that plugin hands out GitHub tokens per owner and host, and has no slot for
 an OTLP header.
 
-`config.mjs` returns `{enabled, endpoints, endpoint, endpointFrom, protocol,
+`config.ts` returns `{enabled, endpoints, endpoint, endpointFrom, protocol,
 headerNames, missingHeaders, headers, timeoutMs, saved, status}`.
 `endpointFrom` is `environment`, `machine` or null. `saved` is the saved
 endpoint, protocol and header names, for the form. `headers` stays inside
-`send.mjs`'s closure and is not part of any value `status()` returns.
+`send.ts`'s closure and is not part of any value `status()` returns.
 
 | Case | `status` |
 | --- | --- |
@@ -291,12 +288,13 @@ it registers the OTLP exporter and sends; when the setting is off it
 unregisters the exporter and empties its queue. Any other process, such as a
 CLI call or the MCP server, records to SQLite only.
 
-`validateTelemetry(value)` sits beside `validateServe`. It refuses a key
+`validateTelemetry(value)` in `src/app/settings/telemetry-config.ts` sits
+beside `validateServe`. It refuses a key
 other than the four above, an `enabled` that is not a boolean, an endpoint
 that OT12.1 refuses or that holds a user, password, query or fragment, a
 protocol other than `http/json`, and a `headers` entry that is not a header
 name. `assertNoMachineKeys` in
-`landing-config.mjs` gains `telemetry`, so a `.avoozl.json` that holds it
+`landing-config.ts` gains `telemetry`, so a `.avoozl.json` that holds it
 fails with the file and the machine config path, as `serve` and
 `notifications` do. Plugin lint refuses a manifest key `telemetry`. The
 operation `telemetry.configure` is a `person(...)` entry in the operation
@@ -382,7 +380,7 @@ points name one model.
 
 ## D8. The allowlist (OT1, OT9)
 
-`record.mjs` holds one table, and no other code adds a field:
+`record.ts` holds one table, and no other code adds a field:
 
 ```js
 const FIELDS = {
@@ -403,8 +401,8 @@ characters or holds a control character; a `spec` holds a character outside
 model does not match `A-Za-z0-9._:/-`. The caller passes the spec's folder
 name (`task.planId`), never a path.
 
-`detail` is a check or command name that passes the content rules, as Flow
-shows it. It is recorded and never exported: `export` lists every attribute the
+`detail` is a check or command name that passes the content rules. It is
+recorded and never exported: `export` lists every attribute the
 OTLP exporter may build, and `detail` and `taskId` on a metric are not in it.
 
 The canary tests (OT9.5) check the list: they seed each forbidden field and
@@ -588,7 +586,7 @@ headers beyond content type and user agent.
 
 Credentials (OT6.4): the header values live in the process environment, and
 machine config holds only their names. They
-sit in a closure in `send.mjs`. No logger, status, error, state file or table
+sit in a closure in `send.ts`. No logger, status, error, state file or table
 receives them. A test sets a header value to a canary and greps the log, the
 state file, the status reply and every table.
 
@@ -600,7 +598,7 @@ Exposure rule: the exporters open no listening socket and add no route. The
 OTLP exporter makes outbound requests to the one endpoint the owner sets, so
 nothing here makes Avoozl reachable by another machine.
 
-## D13. Why Avoozl's own recording API and a hand-written OTLP exporter (OT14)
+## D13. Own recording API and hand-written OTLP exporter (OT14)
 
 Three choices:
 
@@ -617,28 +615,22 @@ This spec takes 3. Choice 1 does not fit the data Avoozl records.
 
 | Need | Official SDK as the recording path |
 | --- | --- |
-| Flow shows a stage that is still open | A `SpanExporter` sees a span only when it ends. Only a `SpanProcessor.onStart` sees an open one, and it cannot see a later change |
-| Flow rewrites and drops spans after the fact: the tool-call sync replaces a span's times and removes spans it no longer finds | An ended SDK span is immutable. A change is a second span, which an OTLP backend shows as a duplicate |
+| Flow tracks a stage that is still open | A `SpanExporter` sees a span only when it ends. Only a `SpanProcessor.onStart` sees an open one, and it cannot see a later change |
+| Flow rewrites and drops spans after the fact: the tool-call sync replaces a span's times and removes spans it does not find | An ended SDK span is immutable. A change is a second span, which an OTLP backend shows as a duplicate |
 | A span has the ID of its key, so a repeated trace replaces the earlier one | The tracer picks random IDs. A custom `IdGenerator` cannot see the key, and the span's parent is a live context, not a stored ID |
 | Most spans are built after the work, from stored times | Spans take explicit start and end times; this works |
 | A metric point keeps its task ID in the local table and loses it on export | The SDK aggregates in process. A task ID attribute makes one series per task, and a `PushMetricExporter` gets the aggregate, not each observation. A view drops the attribute for every exporter, not only OTLP |
 | A usage row is recorded at the time of its turn, hours later | Instruments record at the time of the call, with no timestamp argument |
 
 Choice 2 keeps those answers and swaps the wire code. It adds about 13
-packages: `api`, `api-logs`, `core`, `resources`, `sdk-trace`, `sdk-trace-base`,
-`sdk-metrics`, `sdk-logs`, `otlp-transformer`, `otlp-exporter-base`,
-`semantic-conventions` and the two exporters. The current exporter packages
-(0.301.x, on `sdk-trace` and `sdk-metrics` 3.1.x) declare Node 22.15 or later,
-and Avoozl declares 22.13. The 0.x exporters and the 2.x and 3.x SDK
-packages move on separate version numbers. Avoozl would build its objects in
-the SDK's `ReadableSpan` and `ResourceMetrics` shapes, which are the SDK's
-internal data types, and the exporters add their own headers, compression
-and retry rules that OT12 pins down.
+`@opentelemetry/*` packages. Avoozl would build its objects in the SDK's
+`ReadableSpan` and `ResourceMetrics` shapes, which are the SDK's internal
+data types, and the exporters add their own headers, compression and retry
+rules that OT12 pins down.
 
 | | Official exporters (choice 2) | Hand-written OTLP/HTTP JSON (choice 3) |
 | --- | --- | --- |
 | Runtime dependencies | About 13 packages, in a package whose backend has none | None |
-| Node floor | 22.15 | Avoozl's 22.13 |
 | Wire correctness | Maintained upstream | The OTLP/JSON shape for traces and metrics is small and stable; a test checks it |
 | `OTEL_EXPORTER_OTLP_*` | Read by the package, including variables Avoozl does not want, such as certificate and compression settings | Read by Avoozl: the eight names OT6 lists |
 | Limits OT10 and OT12 set (`https` or loopback, no redirect, header names only, bounded queue, drop oldest, counters) | Wrapped around the package, or checked by tests of its behavior | Written into the exporter and tested directly |
@@ -649,9 +641,8 @@ and retry rules that OT12 pins down.
 The cost of choice 3 is that protobuf and gRPC endpoints need a collector in
 front, which every backend accepts, and that Avoozl follows the OTLP JSON
 rules itself: lowercase hex IDs, 64-bit integers as strings, `camelCase`
-field names. The exporter is two small files (`otlp.mjs`, `send.mjs`), and the
-recording API and the exporter interface stay the same if a later change
-swaps them for the official packages (§D15).
+field names. The exporter is two small files (`otlp.ts`, `send.ts`), and the
+recording API and the exporter interface do not depend on them (§D15).
 
 ## D14. Tests and the proof (OT1 to OT14)
 
@@ -674,9 +665,8 @@ collector to hold its reply open and lands a third task. It passes when the
 task lands while the collector's request is still unanswered, which shows
 landing never waits on the export. It then makes the collector answer `503`
 and checks `telemetry.status` says **Backing off**. Last it runs `avoozl
-rebuild` on an empty database and checks the points table is empty, the
-spans table holds only the landing trailers' spans, and the instance ID is
-unchanged.
+rebuild` on an empty database and checks both tables are empty and the
+instance ID is unchanged.
 
 ## D15. Limits and choices
 
@@ -691,4 +681,4 @@ unchanged.
 | Protocols | `http/json` only. `http/protobuf` and gRPC need a collector in front |
 | Outbox | None. The queue is in memory, and the local tables hold the full record |
 | Local retention and caps | Fixed values in code (§D5), with no setting |
-| Official exporter packages | Not used (§D13). `otlp.mjs` and `send.mjs` are the only files that hold wire code, and the recording API does not depend on them |
+| Official exporter packages | Not used (§D13). `otlp.ts` and `send.ts` are the only files that hold wire code, and the recording API does not depend on them |

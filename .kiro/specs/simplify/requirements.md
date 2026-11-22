@@ -2,38 +2,25 @@
 category: Core
 ---
 
-# Requirements: Avoozl as the landing spec's reference runner
+# Requirements: Avoozl as a Workflow v1 runner
 
 ## Introduction
 
-`docs/github-workflow.md` is the landing spec: the public protocol any runner
-follows to run specs on GitHub. It defines the spec format, approval, the
-ready rule, claim branches, next-task ranking, landing, label filters and
-labeled issues. Its "Avoozl status" section lists the parts Avoozl does not
-do yet.
-
-This spec makes Avoozl that protocol's reference runner and little else.
-Avoozl keeps what a runner needs: spec format and lint, the task graph and
-next-task ranking, claims, landing, spec issues and assignees, approval as an
-approver's commit, a server loop that runs when configured, a CLI and MCP
-surface, three plugin parts, skills and a small page. Everything else in
-Avoozl is cut or becomes a skill.
+`docs/github-workflow.md` is Workflow v1: the public rules any runner follows
+to claim, check and land tasks from specs on GitHub. Avoozl runs it through a
+CLI, an MCP server, a server loop, skills and a small page.
 
 Any agent, chat or other harness can drive Avoozl through a skill plus MCP,
 and use it only for the graph and the next task. Avoozl's own server loop is
 one more caller of the same operations.
 
-`design.md` holds the per-module audit (§D14, §D15), with a keep, cut or
-becomes-a-skill verdict and a line count for every `src/app` folder and every
-page view.
-
 ### Glossary
 
 | Term | Meaning |
 | --- | --- |
-| Landing spec | `docs/github-workflow.md` |
-| Runner | As in the landing spec: a program that reads specs, claims ready tasks, has them done, checks and lands them |
-| Claim branch | `avoozl/<spec>/<task>`, as in the landing spec |
+| Workflow v1 | `docs/github-workflow.md` |
+| Runner | As in Workflow v1: a program that reads specs, claims ready tasks, has them done, checks and lands them |
+| Claim branch | `avoozl/<spec>/<task>`, as in Workflow v1 |
 | Server loop | Avoozl's own tick, run by the supervisor or the Kiro Crew app backend, that claims and starts tasks without a person |
 | Caller | Anything that drives Avoozl through the CLI or MCP: a person, a chat, another harness, or the server loop |
 | Graph block | The generated Mermaid block in a spec's `tasks.md` (§D9) |
@@ -43,31 +30,21 @@ page view.
 | Wait | A task that must be ticked before another can start, derived from the list (§D19) |
 | Lane | One long-lived worker or reviewer session on a machine, reused task after task (§D22) |
 
-### Order
-
-This spec's tasks start after three changes that are open on branches today
-and remove code this spec would otherwise touch: the approval cut-down
-(branch `spec/approval-cutdown`), the mirror removal (branch
-`spec/drop-mirror-5`) and the triage removal (branch `task/drop-triage`).
-Task `sim-0` is the manual gate a person ticks once all three are on main.
-
 ## Requirements
 
-### Requirement SM1: Reference runner
+### Requirement SM1: Workflow v1 runner
 
-**User story:** As someone who writes another runner, I want Avoozl to do
-every part of the landing spec exactly as written, so that I can read its
-code as the example.
+**User story:** As someone who writes another runner, I want Avoozl to follow
+Workflow v1 as written, so that I can read its code as an example.
 
 #### Acceptance criteria
 
-1. Avoozl SHALL do every part the landing spec's "Optional parts" table lists,
-   required and optional.
-2. WHEN this spec's tasks are done THEN the landing spec's "Avoozl status"
-   section SHALL list nothing.
-3. Avoozl's docs SHALL describe Avoozl in the landing spec's terms (runner,
-   claim branch, base, specs branch) and SHALL NOT describe a step the landing
-   spec forbids a runner.
+1. Avoozl SHALL follow every rule the "Required rules" table of Workflow v1's
+   Conformance section lists, and the rules of every part its "Optional
+   parts" table lists.
+3. Avoozl's docs SHALL describe Avoozl in Workflow v1's terms (runner, claim
+   branch, base, specs branch) and SHALL NOT describe a step Workflow v1
+   forbids a runner.
 
 ### Requirement SM2: Claims
 
@@ -77,17 +54,17 @@ task taken by exactly one of them, so that no work is done twice.
 #### Acceptance criteria
 
 1. Avoozl SHALL claim a task by creating its claim branch at the base's
-   current head through the GitHub refs create call, before any agent or
-   person starts on it.
+   current head through the GitHub refs create call, and then taking a lease
+   on it, before any agent or person starts on it.
 2. WHEN the create is refused because the branch exists THEN Avoozl SHALL NOT
    work on that task and SHALL offer the next ready task.
-3. A task SHALL be ready only when no claim branch for it exists, as the
-   landing spec's ready rule says.
+3. A task SHALL be ready only when no claim branch for it exists, as
+   Workflow v1's ready rule says.
 4. A claim branch with no new commit for `claims.staleHours` hours (default
    24) SHALL show as stale in Needs you for the spec's assignee. Avoozl SHALL
    NOT delete another runner's claim branch; a person deletes it.
-5. The claim branch SHALL be the only record of who holds a task. Avoozl SHALL
-   keep no driver, generation, grant or offer table.
+5. The claim branch and its leases SHALL be the only record of who holds a
+   task.
 
 ### Requirement SM3: Next task
 
@@ -112,10 +89,10 @@ holds unchecked work or a stale task list.
 
 #### Acceptance criteria
 
-1. Landing SHALL follow the landing spec's five steps: merge the base in, tick
-   the task in the same commit or one before the checks, run the checks on the
-   exact head, land by mode, delete the claim branch once the work is on the
-   base.
+1. Landing SHALL follow Workflow v1's "Landing" section: merge the base in,
+   tick the task in the same commit or one before the checks, run the checks
+   on the exact head, land by mode, and delete the claim branch and its
+   leases once the work is on the base.
 2. In `direct` mode Avoozl SHALL push the checked head to the base as a
    fast-forward, and SHALL go back to step 1 when the base moved.
 3. In `pr` mode Avoozl SHALL open a pull request from the claim branch as
@@ -124,12 +101,13 @@ holds unchecked work or a stale task list.
    Avoozl merges it once the checks pass on its head, guarded by that head.
    Avoozl SHALL NOT merge a `draft` or `ready` pull request on its own. With
    `auto` it MAY arm GitHub auto-merge instead, only where workflow rule 17.7
-   allows it. WHEN the base moves under it THEN Avoozl
-   SHALL merge the base in and run the checks again.
+   allows it. WHEN the base moves under it THEN Avoozl SHALL merge the base
+   in and run the checks again.
 4. Avoozl SHALL never force push, rebase a claim branch or add a trailer or
    attribution to a commit.
-5. Review output and evidence SHALL go only where the landing spec's "Review
-   output" section says: the pull request, or the spec issue.
+5. Review output SHALL go only where Workflow v1's "Review output" section
+   says: the pull request, or the spec issue.
+6. In `off` mode Avoozl SHALL push the claim branch only.
 
 ### Requirement SM5: Label filters and labeled issues
 
@@ -140,14 +118,14 @@ hand work to agents with one label.
 #### Acceptance criteria
 
 1. A repository's settings SHALL accept `labels.require` and `labels.exclude`,
-   and Avoozl SHALL run a spec only when its spec issue passes them, as the
-   landing spec says.
+   and Avoozl SHALL run a spec only when its spec issue passes them, as
+   Workflow v1 says.
 2. An open issue with a `require` label, in a repository with no spec for it,
-   SHALL be a one-task spec named `issue-<number>`, as the landing spec says.
+   SHALL be a one-task spec named `issue-<number>`, as Workflow v1 says.
 3. Avoozl SHALL read each `labeled` event's actor and count the label only
    when that actor is a writer.
-4. A labeled issue's landing record SHALL be the issue closing, as the landing
-   spec says.
+4. A labeled issue's landing record SHALL be the issue closing, as Workflow
+   v1 says.
 
 ### Requirement SM6: Server loop
 
@@ -156,10 +134,11 @@ assigned work by itself when I turn it on, and do nothing when I don't.
 
 #### Acceptance criteria
 
-1. The server loop SHALL be off until this machine's config sets `loop`.
+1. The server loop SHALL be off until this machine's config sets `loop`. A
+   `loop` in `.avoozl.json` SHALL be refused, naming the machine file.
 2. `loop.run` SHALL take `specs` (every assigned spec that passes the label
-   filters), `epics` (only members of the listed epic folders) and `issues`
-   (labeled issues), in any combination.
+   filters), `epics` (only the specs `loop.epics` names and the specs they
+   link) and `issues` (labeled issues), in any combination.
 3. The server loop SHALL claim, start, check and land through the same
    operations the CLI and MCP call, and SHALL hold no state they lack.
 4. With the loop off, Avoozl SHALL still answer every read, graph and next
@@ -173,17 +152,18 @@ behind a command and an MCP tool, so that a skill can drive it with no page.
 #### Acceptance criteria
 
 1. The CLI SHALL offer `avoozl next [--claim]`, `avoozl runner report
-   TASK done|blocked`, `avoozl land TASK`, `avoozl graph`, `avoozl status`,
-   `avoozl show`, `avoozl query`, `avoozl spec lint` and `avoozl rebuild`.
+   TASK done|blocked`, `avoozl land TASK`, `avoozl graph`, `avoozl lanes`,
+   `avoozl status`, `avoozl show`, `avoozl query`, `avoozl spec lint` and
+   `avoozl rebuild`.
 2. `avoozl next --claim` SHALL claim the top-ranked ready task, prepare its
    worktree on the claim branch, and print the task, the worktree path and
    the brief.
-3. Each command SHALL have an MCP tool over the same operation, except the
-   person-only acts the operation table marks `person`.
+3. Each operation SHALL have an MCP route, unless it is person-only or has a
+   written reason in `mcp-policy.ts` for having none.
 4. Every page action SHALL be an operation an MCP tool or a CLI command
    reaches, with the same person-only rules.
-5. A test SHALL check that every operation is reached by a CLI command or an
-   MCP tool, or is marked `person`.
+5. A test SHALL check that every operation has an MCP route, is person-only,
+   or has a written reason for having none.
 
 ### Requirement SM8: Graph output
 
@@ -192,12 +172,12 @@ graph without the page, so that I can tell what is ready and what waits.
 
 #### Acceptance criteria
 
-1. `avoozl graph [SPEC|EPIC]` SHALL print the graph of one spec, one epic, or
-   every spec when none is named.
+1. `avoozl graph [SPEC]` SHALL print the graph of one spec, with the specs it
+   links inside their spec groups, or of every spec when none is named.
 2. `--format text`, the default, SHALL print tasks by phase with each task's
-   state (`landed`, `claimed`, `ready`, `waiting`, `manual`, `group`),
-   indented as in the list, in lines of at most 80 columns, with no
-   color.
+   state (`landed`, `claimed`, `ready`, `waiting`, `manual`, `draft`,
+   `group`), indented as in the list, in lines of at most 80 columns, with
+   no color.
 3. `--format mermaid` SHALL print one Mermaid `flowchart` of the same tasks,
    phases, groups and waits.
 4. An MCP read tool SHALL return the same text and Mermaid output, so a chat
@@ -218,7 +198,8 @@ tasks that cannot drift, so that I review the plan's shape with its text.
    waits. It SHALL NOT hold state, so a tick does not change it.
 3. WHEN a `tasks.md` has a graph block that differs from what the graph
    builder makes from its tasks THEN spec lint SHALL report `graph.stale` at
-   the block's first line.
+   the block's first line, and `graph.markers` for an unclosed or second
+   block.
 4. `avoozl graph SPEC --write` SHALL replace the block with the builder's
    output, and add it at the end of `tasks.md` when it is missing.
 5. A `tasks.md` with no graph block SHALL lint clean.
@@ -234,11 +215,21 @@ runner needs, so that every other agent step is a skill any harness can run.
    `checkDecide` and `assist`. The reviewer SHALL be on by default, and a
    repository SHALL turn it off with `reviewers: []`. A `roles` setting that
    names another role SHALL be refused, naming it.
-2. Avoozl SHALL ship these skills: `avoozl-spec` (write a spec), `avoozl-work`
-   (work a task), `avoozl-review` (review a pull request), `avoozl-spec-review`
-   (review a spec), `avoozl-retro` (a retrospective over landed work) and
-   `avoozl-investigate` (how to write an investigation as a task whose done
-   bullets name its findings file).
+2. Avoozl SHALL ship these skills:
+   - `avoozl` (plan work as a dependency graph and deliver ready leaves
+     through Kiro Crew);
+   - `avoozl-answer` (answer a GitHub issue with one comment);
+   - `avoozl-drive` (drive Avoozl from a chat that wakes on a schedule);
+   - `avoozl-investigate` (write an investigation as a task whose done
+     bullets name its findings file, and try to prove findings wrong);
+   - `avoozl-plugin` (design, write and test a plugin);
+   - `avoozl-retro` (a retrospective over landed work, saved for Insights);
+   - `avoozl-review` (review a pull request as one comment-only review);
+   - `avoozl-rules` (plan a content rule set);
+   - `avoozl-spec` (write a spec);
+   - `avoozl-spec-review` (review a spec);
+   - `avoozl-triage` (label a new issue from the repository's labels);
+   - `avoozl-work` (work a task).
 3. Each skill SHALL be generated from `prompts/skills/<name>.md`, and
    `npm run check:hosts` SHALL fail when a generated skill differs from its
    source.
@@ -248,14 +239,14 @@ runner needs, so that every other agent step is a skill any harness can run.
 ### Requirement SM11: Plugins
 
 **User story:** As a tools owner, I want plugins to add checks, credentials,
-context and content rules, and nothing that rebuilds a removed feature.
+context and content rules.
 
 #### Acceptance criteria
 
 1. Plugin `provides` SHALL accept `checks`, `credentials`, `context` and
    `rules`.
-2. A manifest that lists `pack`, `intake`, `template` or `policy` SHALL be
-   refused, naming the part and saying it is not a plugin part.
+2. A manifest that lists any other part SHALL be refused with
+   "<part> is not a plugin part."
 3. The `checks` part SHALL be the one `.kiro/specs/plugin-checks/` defines,
    and the `context` part the one `.kiro/specs/epic-context/` defines.
 
@@ -269,8 +260,6 @@ have it rebuild everything from git, so that setup is one step.
 1. `avoozl repository configure ID --root PATH` SHALL add a local checkout,
    and Avoozl SHALL then rebuild its cache from git and GitHub
    (`avoozl rebuild`) with no other step.
-2. Avoozl SHALL ship no demo mode, example installer, sample specs, instance
-   publish or onboarding wizard.
 3. Avoozl SHALL write nothing to GitHub during setup. A high-risk GitHub job
    SHALL keep its confirm popup and CLI prompt.
 
@@ -288,37 +277,18 @@ me, and hand everything else to a chat.
    only through them.
 3. A "Run in a chat" action SHALL open a chat seeded with the matching skill
    and the item's IDs, on Kiro Crew or as a process session.
-4. Every view §D15 marks cut SHALL be gone, with its API file and tests.
-
-### Requirement SM14: Cuts
-
-**User story:** As a maintainer, I want each cut module gone with all its
-traces, so that no dead code or setting stays behind.
-
-#### Acceptance criteria
-
-1. Each module §D14 marks cut SHALL be deleted with its tests, its operation
-   entries, CLI commands, MCP tools, settings keys and schema properties.
-2. A settings key that names a cut feature SHALL be refused by config load,
-   naming the key.
-3. WHEN a cut lowers the clone count THEN `scripts/check/dup-baseline.json`
-   SHALL be lowered in the same change.
-4. Each module §D14 marks becomes-a-skill SHALL be deleted once its skill
-   ships, and the skill SHALL do its job through MCP and the CLI only.
 
 ### Requirement SM15: Safety kept
 
 **User story:** As the owner, I want every guard that keeps private data and
-person-only acts safe to stay, so that the cut makes Avoozl smaller, not
-weaker.
+person-only acts safe to hold, so that agents cannot reach them.
 
 #### Acceptance criteria
 
 1. Content rules, the privacy scan, person-only operations, harness
    refusals, the worker sandbox, the command allow-list and the high-risk
-   GitHub confirm SHALL stay, with their tests.
-2. A test SHALL check that no cut removes a person-only operation's refusal
-   over MCP.
+   GitHub confirm SHALL be in place, with their tests.
+2. A test SHALL check that every person-only operation is refused over MCP.
 
 ### Requirement SM16: Order from the list
 
@@ -348,14 +318,11 @@ runs first, so that I never write or check a dependency fact.
 7. Specs linked from a parent spec (SM18) SHALL be ordered by the same
    rules as the parent's tasks. No task SHALL name a task of another spec.
 8. A leaf SHALL be ready only when every task it waits for is ticked on the
-   specs branch, with the landing spec's other ready conditions.
+   specs branch, with Workflow v1's other ready conditions.
 9. One function SHALL derive the waits, and the ready rule, ranking, the
    graph builder and lint SHALL read only it.
 10. Every spec in this repository SHALL use this form, and
     `docs/github-workflow.md` SHALL describe it.
-11. WHEN an old `$after` graph has no exact list form THEN the rewrite SHALL
-    add the fewest extra waits that keep every old one, and SHALL list each
-    added wait in its commit message.
 
 ### Requirement SM17: Tasks hold no facts
 
@@ -386,17 +353,15 @@ bullets that say when it is done, so that a spec reads as plain Markdown.
    - `manual.tag` WHEN a title holds the word `manual`, in any casing, in
      parentheses or bold other than exactly `(**MANUAL**)` at its end;
    - `manual.group` WHEN a group carries `(**MANUAL**)`.
-6. Ranking SHALL hold no paths rule, and Avoozl SHALL hold no task back for
-   sharing files with a running task. Landing's merge of the base into the
-   claim branch SHALL be where two tasks' changes meet.
+6. Avoozl SHALL hold no task back for sharing files with a running task.
+   Landing's merge of the base into the claim branch SHALL be where two
+   tasks' changes meet.
 7. An investigation SHALL be an ordinary task whose done bullets name the
    file it writes, such as `findings/ec-2.0.md`. A task that uses the
    findings SHALL name that file. A decision a person makes on them SHALL be
    a `(**MANUAL**)` task.
-8. Flow SHALL keep no fix-work share: no task SHALL be marked fix work, and
-   no metric, chart or retro input SHALL count fix work.
-9. `docs/github-workflow.md` SHALL describe tasks with
-   no facts, the two tags, and the keys of SM17.4 and no other.
+9. `docs/github-workflow.md` SHALL describe tasks with no facts, the two
+   tags, and the keys of SM17.4 and no other.
 
 ### Requirement SM18: Linked specs
 

@@ -9,7 +9,7 @@ repo: avoozl
 
 - [x] `dl-2` Open existing worker attempts [DL1, DL3] (§D1, §D2)
   - In flight and task detail open the exact local or remote attempt when configured. Verify live output in a real Remote Crew chat and steer the same running turn on a supported harness. Cover starting and superseded attempts. Cover disconnected and missing destinations as well as process logs. Reads leave GitHub and both task and worker state untouched.
-  - Add the host-specific chat actions. Update WP6.1 for read-only links.
+  - Add the host-specific chat actions.
 
 - [ ] `dl-3` Verify clickable Kiro Crew DMs [DL2, DL3] (§D3) (**MANUAL**)
   - An enabled owner DM opens the exact decision after sign-in on a Kiro Crew build with bridge link support. Delivery and the dashboard notice still work with the current bridge or no HTTPS address.

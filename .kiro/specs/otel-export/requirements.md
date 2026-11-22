@@ -8,8 +8,8 @@ category: Flow
 
 Avoozl records each task's timing as OpenTelemetry spans and metric points,
 through one recording API. Two exporters receive what is recorded. The SQLite
-exporter is built in and always on: it writes Avoozl's local store, and Flow
-reads from it. The OTLP exporter is a second, opt-in exporter beside it: it
+exporter is built in and always on: it writes Avoozl's local store, and
+Insights and Flow read from it. The OTLP exporter is a second, opt-in exporter beside it: it
 sends the same data to any backend that takes OTLP, such as Grafana,
 Honeycomb, Datadog or CloudWatch, so a team that runs Avoozl on several
 machines can follow the flow of work in one place.
@@ -23,13 +23,13 @@ says what the work was. Avoozl holds no code for any one backend.
 
 | Term | Meaning |
 | --- | --- |
-| Recording API | The functions in `src/app/telemetry/record.mjs` that every writer of timing calls: `span`, `dropSpan`, `point` and `finishTask` |
+| Recording API | The functions in `src/app/telemetry/record.ts` that every writer of timing calls: `span`, `dropSpan`, `point` and `finishTask` |
 | Exporter | A sink the recording API hands each recorded span and point to |
 | SQLite exporter | The built-in exporter. It writes `telemetry_spans` and `telemetry_points` in Avoozl's database |
 | OTLP exporter | The opt-in exporter. It sends OTLP/HTTP JSON to an endpoint |
 | OTLP | The OpenTelemetry protocol: the JSON body a backend or collector accepts at `/v1/traces` and `/v1/metrics` |
 | Point | One observation of a metric: a name, a value, a time and attributes |
-| Stage | One of the names in `STAGES`: `queued`, `investigate`, `falsify`, `coding`, `tests`, `commands`, `checks`, `ci-wait`, `review`, `rework`, `merge`, `waiting` |
+| Stage | One of the names in `STAGES`: `queued`, `coding`, `tests`, `commands`, `checks`, `ci-wait`, `review`, `rework`, `merge`, `waiting` |
 | Stage span | A span for one stage of one task attempt, a child of the task's root span |
 | Finished task | A task that landed, or a manual task a person marked done |
 | Machine config | The `config.json` in this machine's Avoozl config folder, which `.avoozl.json` cannot set |
@@ -37,13 +37,10 @@ says what the work was. Avoozl holds no code for any one backend.
 
 ### Scope
 
-In scope: the recording API, the local tables and their retention, Flow's
-reads, the OTLP exporter and its machine setting, status in Settings and the
+In scope: the recording API, the local tables and their retention, the
+Insights reads, the OTLP exporter and its machine setting, status in Settings and the
 CLI, and tests. Out of scope: logs, a pull-based metrics endpoint, protobuf
 or gRPC, sampling, and any exporter other than these two.
-
-Nothing here reads a Flow page, retro, build receipt, fix-work flag or
-`flow_usage` row, so it fits what the `simplify` spec keeps of Flow (§D1).
 
 ## Requirements
 
@@ -73,14 +70,12 @@ API, so that the local store and any exporter see the same data.
 6. A failure in an exporter other than the SQLite exporter SHALL NOT make a
    call to the API throw or wait. A SQLite write failure SHALL throw to the
    caller, as a database write does.
-7. `grep` for `putSpan`, `deleteSpan`, `flow_spans` and `flow_usage` in
-   `src/` SHALL find nothing outside the store's list of tables an old
-   database drops.
 
 ### Requirement OT2: The local store
 
-**User story:** As someone who reads Flow, I want timing kept on this machine
-without any setup, so that Flow works before anyone has heard of OTLP.
+**User story:** As someone who reads Insights, I want timing kept on this
+machine without any setup, so that Insights works before anyone has heard of
+OTLP.
 
 #### Acceptance criteria
 
@@ -89,7 +84,7 @@ without any setup, so that Flow works before anyone has heard of OTLP.
    with trace ID, parent, task ID, stage and times; points keyed by ID, with
    name, kind, value, time, task ID and stage.
 2. A span row SHALL hold the check or command name a stage ran in `detail`,
-   as Flow shows it, and the OTLP exporter SHALL NOT send it.
+   and the OTLP exporter SHALL NOT send it.
 3. Avoozl SHALL delete a finished trace whose newest time is older than 90
    days, and a point older than 90 days.
 4. WHEN a table holds more than its cap THEN Avoozl SHALL delete the oldest
@@ -98,25 +93,24 @@ without any setup, so that Flow works before anyone has heard of OTLP.
    delete a trace that has an open span and was active in the last 7 days.
 5. Pruning SHALL run when the database opens and then after 500 writes, at
    most once in 10 minutes, and SHALL NOT run inside a write's transaction.
-6. `avoozl rebuild` SHALL give a database whose points table is empty and
-   whose spans table holds only the stage spans the landing commits'
-   `Avoozl-Span` trailers carry. Avoozl SHALL NOT recreate timing from
-   GitHub or sessions.
+6. `avoozl rebuild` SHALL give a database whose spans and points tables are
+   empty. Avoozl SHALL NOT recreate timing from git, GitHub or sessions.
 7. The retention and caps SHALL be fixed values in code with no setting.
 
-### Requirement OT3: Flow reads the local store
+### Requirement OT3: Insights reads the local store
 
-**User story:** As someone who reads Flow, I want its numbers to come from the
-same records an exporter sends, so that a backend and Flow agree.
+**User story:** As someone who reads Insights, I want its numbers to come from
+the same records an exporter sends, so that a backend and Insights agree.
 
 #### Acceptance criteria
 
-1. Flow's reads of lead time, time per stage and first-pass rate SHALL be
-   queries on `telemetry_spans`. These are the Flow page, the Flow numbers
-   MCP call, and the CLI.
-2. `listSpans` and `taskTiming` SHALL return the shapes
-   Flow's callers and tests expect, and those tests SHALL pass with only
-   their seeding going through the recording API.
+1. Insights' finished tasks, lead time, time per stage, review rounds and
+   first-pass rate SHALL be queries on `telemetry_spans` and
+   `telemetry_points`. These are the Insights view, the `insights.view`
+   operation on MCP, and `avoozl insights`.
+2. Flow's `listSpans` and `taskTiming`, which `flow.view` and `avoozl flow`
+   read, SHALL read `telemetry_spans` through `listStageSpans`, and Flow's
+   tests SHALL seed spans only through the recording API.
 3. Stop-the-line state SHALL stay in `flow_stops`. Each stop and each resume
    SHALL also be recorded as a point.
 4. Flow SHALL write no timing of its own. A Flow pass that finds a finished
@@ -393,22 +387,19 @@ channel I can name, so that I can sign off.
 6. The exporter SHALL make no other network call: no DNS lookup of any name
    but the endpoint's, no update check, and no call home.
 
-### Requirement OT13: Fits what simplify keeps
+### Requirement OT13: Telemetry stands apart from Flow
 
-**User story:** As the owner of the `simplify` spec, I want this spec to need
-only what simplify keeps, so that neither blocks the other.
+**User story:** As a maintainer, I want the telemetry code to depend on as
+little as possible, so that a change to Flow or Insights cannot break it.
 
 #### Acceptance criteria
 
 1. Code under `src/app/telemetry/` SHALL import nothing from `src/app/flow/`.
    Flow SHALL import the recording API and the reads from it. `STAGES` SHALL
-   live in `src/app/telemetry/stages.mjs`.
-2. Code under `src/app/telemetry/` SHALL read, outside itself, only session
-   bindings, the session executor's usage call, the host config's state
-   folder and the store handle.
-3. Nothing here SHALL read `flow_usage`, retro files, build receipts,
-   corrections, planning flow, provider health, the fix-work flag or
-   `$investigate`.
+   live in `src/app/telemetry/stages.ts`.
+2. Code under `src/app/telemetry/` SHALL import, outside itself, only the
+   session bindings, the telemetry settings validator and the store, and
+   SHALL get the executor's usage rows from a reader its caller passes.
 4. WHEN a stage is added to or removed from `STAGES` THEN recording and export
    SHALL follow it with no other change, and a test SHALL fail when a recorded
    stage name is not in `STAGES`.

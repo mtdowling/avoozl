@@ -4,27 +4,22 @@ repo: avoozl
 # Tasks: GitHub-native Avoozl
 
 Tasks run in list order, and each phase waits for the one above it. Requirement
-numbers are in brackets (`GN1` to `GN8`, in `requirements.md`); `D` sections
+numbers are in brackets (`GN1` to `GN5`, in `requirements.md`); `D` sections
 refer to this spec's `design.md`.
 
 Rules for every task: work in a task worktree; tests use isolated temporary
 workspaces, real git with a bare remote and a fake GitHub; Avoozl runs the
-repository's checks; no real workspace data, machine configuration,
-credentials or personal plans in the repository (AGENTS.md). Screen changes
-need phone and desktop, light and dark screenshots for owner approval before
-merge, shown to the owner and never committed. Public text names no company
-or internal tool.
+repository's checks (AGENTS.md).
 
-## Phase 1: Worker machines go
+## Phase 1: Claim branches
 
-- [x] `gn-1.1` Remove worker machines [GN1] (§D1)
-  - No worker offer, grant, result step, `worker` command, `spec offer` or `spec grants` command or operation is left in `src/` or `hosts/kirocrew/`
-  - `runner report` from a manual take and from a local session still records
+- [x] `gn-1.1` Share specs through claim branches only [GN1] (§D1)
+  - `runner report` from a manual take and from a local session records
 
 ## Phase 2: No trailers
 
 - [x] `gn-2.1` Landing commits with no trailers; rebuild reads the tick [GN2] (§D2)
-  - A direct landing, a batch landing and a pull request landing write no trailer line, and `landing-trailers.mjs` is gone
+  - A direct landing, a batch landing and a pull request landing write no trailer line
   - A rebuilt workspace takes each ticked task's tick commit as its landing commit
 
 ## Phase 3: Publishing on approval
@@ -40,12 +35,7 @@ or internal tool.
 - [x] `gn-4.2` Post failing checks the same way [GN5.3] (§D4)
   - A failing check run is one comment with each failing check's command, exit code and output tail, and no passing check
 
-## Phase 5: The other specs
-
-- [x] `gn-7.1` Delete what this spec removes from the other specs [GN8] (§D5)
-  - Each requirement and criterion GN8 names is deleted or changed, with no dated note; `node scripts/check/spec-lint.mjs` reports 0 errors
-
-## Phase 6: Proof
+## Phase 5: Proof
 
 - [ ] `gn-p1` Proof: a merged spec PR publishes its issue, and review output reaches GitHub [GN3, GN5] (§D3, §D4) (**MANUAL**)
   - Setup: an isolated workspace and a scratch GitHub repository with one task on `landing: pr` and one on `landing: direct`, and a second login that is not an approver

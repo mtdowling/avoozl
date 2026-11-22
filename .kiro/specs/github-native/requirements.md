@@ -6,18 +6,16 @@ category: Planning
 
 ## Introduction
 
-Avoozl keeps less of its own machinery where git and GitHub already have a
-normal way to do the same thing. `docs/github-workflow.md` (workflow v1) is
-the contract; this spec covers the parts of it that moved Avoozl's own
-records onto GitHub.
+Avoozl keeps its records where git and GitHub already have a normal way to
+hold them. `docs/github-workflow.md` (workflow v1) is the contract; this
+spec covers runner sharing, landing commits, spec issues and review output.
 
 | #   | Rule                                                                         | Requirement |
 | --- | ---------------------------------------------------------------------------- | ----------- |
-| 1   | No worker machines: no offers, grants or result steps                        | GN1         |
+| 1   | Runners share a spec through claim branches and leases                       | GN1         |
 | 2   | No `Avoozl-*` trailers on landing commits. Rebuild reads the tick           | GN2         |
 | 3   | An adopted approval publishes its spec issue, with the approving pull request's assignees | GN3 |
 | 4   | Review rounds and failing checks are comments on the pull request or spec issue | GN5      |
-| 5   | The other specs say the same thing                                           | GN8         |
 
 ### Words
 
@@ -29,19 +27,17 @@ records onto GitHub.
 
 ## Requirements
 
-### Requirement GN1: No worker machines
+### Requirement GN1: Runners share a spec through claim branches
 
-**User story:** As the owner, I want no second kind of machine that takes
-tasks from a driver, so that there is one trust boundary and no claim
-protocol beside workflow v1's claim branches.
+**User story:** As the owner, I want one trust boundary and one claim
+protocol, so that every runner takes work the same way.
 
 #### Acceptance criteria
 
-1. Avoozl SHALL have no worker offers, grant branches, claim
-   acknowledgments, worker result step, `worker` commands, `spec offer` or
-   `spec grants` commands, or their operations. A call to one SHALL be
-   refused as unknown.
-2. `avoozl runner report` and the manual take SHALL stay.
+1. Several runners SHALL share a spec only through workflow v1's claim
+   branches and leases (section 15).
+2. `avoozl runner report` SHALL record a report from a manual take and from
+   a local session.
 
 ### Requirement GN2: Landing commits carry no Avoozl trailers
 
@@ -83,8 +79,7 @@ see what is planned and who runs it.
 5. A rebuild, and an approval this workspace did not adopt or make, SHALL
    publish nothing.
 6. A failed publish SHALL be tried again on the next tick and named in the
-   tick's failure notices. `avoozl spec publish` SHALL stay as a person's
-   retry.
+   tick's failure notices. `avoozl spec publish` SHALL be a person's retry.
 7. In local-only mode approval SHALL publish nothing.
 8. Tests with a fake GitHub SHALL show: the merger of an approving pull
    request publishes one issue with that pull request's assignees, once; a
@@ -123,18 +118,3 @@ read them without Avoozl's page.
    comment, once; a task with a pull request gets it there; a failing check
    run is posted with its command and tail; refused text is held; and a
    failed post is tried again.
-
-### Requirement GN8: The other specs say the same thing
-
-**User story:** As the maintainer, I want the specs to describe what is
-built, so that a later reader does not rebuild a removed part.
-
-#### Acceptance criteria
-
-1. In `.kiro/specs/avoozl/`, the landing trailer criteria of Requirement
-   114, the trailer and retro parts of rebuild and import, and the rule
-   that publishing is only a person's act (Requirements 102.2 and 116.5)
-   SHALL be deleted or changed to GN2 and GN3.
-2. In `.kiro/specs/worker-paths/`, WP3.1's "task on a worker machine" kind
-   and WP3.4 SHALL be deleted.
-3. `node scripts/check/spec-lint.mjs` SHALL report 0 errors.

@@ -6,62 +6,28 @@ category: Planning
 
 ## Introduction
 
-A worker session today gets the task folder, its harness's own config, the
-repository's `isolation.readable` folders and the loopback ports its
-repository names (V: `processExecutor`, `src/app/executors/process.mjs:78`).
-A team's real work often needs more: a skill that says how the team writes
-a module, a folder of design notes outside the repository, an MCP server
-that answers research questions, a documentation host. Today a person can
-only widen the sandbox for every session and check of a repository.
-
-This spec adds **epic context**: extra skills, read folders and MCP
-servers that Avoozl gives to one worker session, and only when
-that session does the person's own approved epic work. Two sources supply
-it, and both live only on this machine: an `epicContext` block in this
-machine's config, and a new plugin part, `context`, honored only from this
-machine's `plugins.json`. A task gets it only when three tests pass (EC1).
-Nothing in a spec, an issue, a pull request or a repository file can turn
-it on.
-
-Nothing here changes code
-until its tasks run.
-
-Every claim about today's code carries one label: **V**, read in the file
-cited at `a8a22391`; or **A**, assumed and not checked, with the reason.
-
-### Why
-
-- **The owner's work needs the team's context.** A worker that cannot read
-  the team's notes or ask its research service guesses, and a person fixes
-  the guess in review.
-- **A repository-wide setting gives too much.** `isolation.readable` applies
-  to every session and check of the repository (V: `readable:
-  repository.isolation?.readable`, `process.mjs:112`), so it also reaches
-  every check and every other task of the repository.
-- **Only this machine may decide.** A repository file is written by anyone
-  whose pull request lands. If it could turn context on, a stranger's pull
-  request could widen what the next worker reads.
+**Epic context** is the extra skills, read folders and MCP servers that
+Avoozl gives one worker session, and only when that session does the
+person's own approved spec work. Two sources supply it, and both live only on
+this machine: an `epicContext` block in this machine's config, and the plugin
+part `context`, honored only from this machine's `plugins.json`. A task gets
+it only when two tests pass (EC1). Nothing in a spec, an issue, a pull
+request or a repository file can turn it on.
 
 ### What this builds on
 
-- `.kiro/specs/avoozl/` Requirement 114 (an approval is a commit on main by
-  an allowed approver; V: `approvalCommits` and `approverCheck`,
-  `src/app/git/git-approvals.mjs:64` and `:301`), Requirement 66 (one driver
-  per spec), Requirement 40 (content rules) and Requirement 34 (plugin
-  approval by hash).
-- The driver state (V: `driverStatus`, `src/app/workers/driver.mjs`): the
-  spec issue's one assignee says who drives a spec, and a spec with no
-  spec issue drives here as "Not shared".
-- `.kiro/specs/plugin-credentials/` PC2.2: a plugin part that only this
+- `.kiro/specs/avoozl/` Requirement 114 (git is the source of truth;
+  approvals are commits read by `approvalCommits` and `approverCheck` in
+  `src/app/git/git-approvals.ts`), Requirement 40 (content rules) and
+  Requirement 34 (plugin approval by hash).
+- `.kiro/specs/plugin-credentials/` PC2: a plugin part that only this
   machine's `plugins.json` may declare.
 - `.kiro/specs/plugin-checks/` PK10: MCP servers named by alias, mapped on
   this machine with environment variable names and no credential values.
-- Intake tasks have IDs `intake-` plus 16 hex characters (V: `intakeTaskId`,
-  `src/app/intake/intake.mjs:50`).
 
 ### Scope
 
-- The three tests, their record, and when they run.
+- The two tests, their record, and when they run.
 - The machine `epicContext` block and the `context` plugin part.
 - Approval of a context part, its `ask` answers and its MCP mapping.
 - What a `process` session gets: reads, skills and MCP servers through a
@@ -73,7 +39,7 @@ cited at `a8a22391`; or **A**, assumed and not checked, with the reason.
 
 - Context for reviews, verdicts, responders and planners
   (D11, question 2).
-- Credentials for GitHub. Workers still get no GitHub token (PC6.6).
+- Credentials for GitHub. Workers get no GitHub token (PC6).
 - A shared, hosted context service. Context stays on each machine.
 - Kiro Crew chat MCP servers set per session (EC8).
 
@@ -83,56 +49,49 @@ cited at `a8a22391`; or **A**, assumed and not checked, with the reason.
 | --- | --- |
 | Epic context | The skills, read folders and MCP servers one session gets beyond its normal sandbox |
 | Context source | The machine `epicContext` block, or one approved `context` part of a machine plugin |
-| The three tests | EC1's checks; all three pass or the session gets no epic context |
-| Specs branch | The spec repository's base branch that approvals land on (V: `approvalBase`, `git-approvals.mjs:106`) |
-| This person | The git `user.email` and the `gh` login of this machine |
+| The two tests | EC1's checks; both pass or the session gets no epic context |
+| Specs branch | The spec repository's base branch that approvals land on (`approvalBase` in `src/app/git/git-approvals.ts`) |
 | Ask | A value a context part needs from each person, such as the folder of a local clone, filled once on this machine |
 | MCP relay | Avoozl's small stdio program that the harness starts in place of an MCP server; it forwards to the real server, which runs outside the sandbox |
 
 ## Requirements
 
-### Requirement EC1: The three tests
+### Requirement EC1: The two tests
 
 **User story:** As the owner, I want epic context only on my own approved
-epic work, so that a stranger, a coworker's spec or a repository file can
-never widen what a worker reaches.
+spec work, so that a stranger or a repository file can never widen what a
+worker reaches.
 
 #### Acceptance criteria
 
-1. A session SHALL get epic context only WHEN all three tests pass for its
-   task, at the time the session starts or resumes:
+1. A session SHALL get epic context only WHEN both tests pass for its task,
+   at the time the session starts or resumes:
    - **approved**: the task is a task of a spec whose approved revision is
      on the specs branch, and the task is in that revision's `tasks.md`.
      A task whose ID starts with `intake-` (an intake task), and any task
-     made outside a spec (a fix, `avoozl fix`),
-     SHALL fail this test.
+     made outside a spec, SHALL fail this test.
    - **approver**: the commit that approved that revision is by an allowed
      approver, read with the git approval reader (`approvalCommits` with
      `approverCheck`, Requirement 114).
-   - **you drive**: this workspace drives the spec as this person: the spec
-     issue's one assignee is this machine's `gh` login ("This workspace
-     drives it"), or the spec has no spec issue ("Not shared").
-2. WHEN any test fails THEN the session SHALL start with its normal sandbox,
-   exactly as it would with no context source at all.
-3. A test that cannot be read (a git error, an unread spec issue) SHALL
-   count as failed.
+2. WHEN either test fails THEN the session SHALL start with its normal
+   sandbox, exactly as it would with no context source at all.
+3. A test that cannot be read (a git error) SHALL count as failed.
 4. The tests SHALL read only Avoozl's own records and git: the approved
-   revision, the approval commit and the driver state in the workspace
-   cache. No fact in `tasks.md`, no text in a spec, an
-   issue, a pull request or a comment, and no repository file SHALL change
-   the result.
+   revision and the approval commit. No fact in `tasks.md`, no text in a
+   spec, an issue, a pull request or a comment, and no repository file SHALL
+   change the result.
 5. `tasks.md` SHALL have no fact that asks for epic context. Spec lint
-   already refuses an unknown fact; a test SHALL check that `$context` and
+   refuses an unknown fact; a test SHALL check that `$context` and
    `$epicContext` are refused.
 6. The tests SHALL run again on every resume. WHEN one fails on a resume
    THEN the session SHALL resume with its normal sandbox, and Activity SHALL
-   name the test that now fails.
-7. A comment from a login that does not count under the repository's
+   name the test that fails.
+7. A message from a login that does not count under the repository's
    `allowedActors` and `minimumPermission` SHALL NOT be sent into a session
    that holds epic context. A message queued for a session names its author
-   in `from`. WHEN such text would reach the session THEN Avoozl SHALL end
-   that session's use of epic context and start the follow-up as a new
-   session with its normal sandbox and no epic context.
+   in `from`. WHEN such text would reach the session THEN Avoozl SHALL stop
+   that session and start the follow-up as a new session with its normal
+   sandbox and no epic context.
 
 ### Requirement EC2: The machine block
 
@@ -148,19 +107,18 @@ for my own setup.
    - `repos`: 1 to 50 GitHub repository names, `owner/name` or `owner/*`,
      compared without case, or registered repository IDs. Required.
    - `reads`: up to 20 folders, absolute or under `~/`.
-   - `mcp`: up to 10 servers by alias (PK10.1's alias rule), each
+   - `mcp`: up to 10 servers by alias (PK10's alias rule), each
      `{about, command, env?}`: `about` 1 to 200 characters, `command` an
      argv list, `env` the environment variable names the server may read.
-   - `contentSets`: content rule set IDs (EC9.3).
-2. A `repository`'s `.avoozl.json` SHALL refuse an `epicContext` key,
-   naming the file and the key. A layered workspace config SHALL refuse it
-   too: it is read only from this machine's `config.json`.
-3. Only a person SHALL change `epicContext`, in Settings › Epic context or
-   with `avoozl context set`. The MCP tools, an agent session, a process
-   child and the tick SHALL be refused.
-4. The block SHALL hold no credential value. Credential-like keys and
-   values SHALL be refused as plugin `config` refuses them (V:
-   `checkConfig`, `plugins.mjs:137`).
+   - `contentSets`: up to 20 content rule set IDs (EC9.3).
+2. A repository's `.avoozl.json` SHALL refuse an `epicContext` key, naming
+   the file and the key. A layered workspace config SHALL refuse it too: it
+   is read only from this machine's `config.json`.
+3. Only a person SHALL change `epicContext`, in Settings > Epic context or
+   with `avoozl context set`. The MCP tools and an agent session SHALL be
+   refused.
+4. The block SHALL hold no credential value. A credential-like key, and a
+   `command` item that looks like a credential, SHALL be refused.
 
 ### Requirement EC3: The context plugin part
 
@@ -170,16 +128,17 @@ and approves exactly what it gives.
 
 #### Acceptance criteria
 
-1. `PARTS` SHALL gain `context`, a data part like `policy`: a plugin that
-   provides only `context` SHALL have no `entry` (V: `validateManifest`,
-   `plugins.mjs:313`).
+1. `context` SHALL be one of the plugin parts in `PARTS`
+   (`src/app/plugins/plugins.ts`). It is a data part: a plugin that provides
+   only data parts SHALL have no `entry`.
 2. A manifest that provides `context` SHALL hold
    `context: {repos, skills?, reads?, ask?, mcp?, contentSets?}`.
    Any other key SHALL be refused naming the key, and `context` SHALL be
    refused when `provides` does not list it.
    - `repos`: as EC2.1, required.
    - `skills`: a folder inside the plugin holding up to 20 folders, each
-     with one `SKILL.md` whose front matter has `name` and `description`.
+     with one `SKILL.md` of at most 64 KB whose front matter has `name` (the
+     folder name) and `description` (1 to 300 characters).
    - `reads`: up to 20 `{id, about, path}`. `path` MAY hold `{ask:NAME}`
      placeholders and SHALL be absolute or under `~/` once they are filled.
    - `ask`: `NAME` to a question of 1 to 200 characters. Every
@@ -191,9 +150,9 @@ and approves exactly what it gives.
    - `contentSets`: content rule set IDs (EC9.3).
 3. A `context` part SHALL count only from a plugin declared in this
    machine's `plugins.json` and approved here. A `context` part of a plugin
-   that `.avoozl.json` declares SHALL be ignored, and Settings › Plugins
+   that `.avoozl.json` declares SHALL be ignored, and Settings > Plugins
    SHALL say "context ignored: declared in .avoozl.json". Its other parts
-   SHALL work as before.
+   SHALL still work.
 4. A `command` that is a single shell string SHALL be refused.
 
 ### Requirement EC4: Approving a context part
@@ -204,48 +163,49 @@ approving is real consent.
 
 #### Acceptance criteria
 
-1. The approval view, the Add plugin preview and the Settings › Plugins row
+1. The approval view, the Add plugin preview and the Settings > Plugins row
    SHALL list, for a `context` part: `repos`; each skill's name, description
-   and file hash; each read's `about`, its path as written and as filled on
-   this machine; each MCP alias's `about`, `command` and this machine's
-   mapping (EC4.3); and the `contentSets`.
-2. Each `ask` SHALL be answered once on this machine, in Settings › Plugins
+   and `SKILL.md` hash; each read's `about`, its path as written and as
+   filled on this machine; each ask with its answer; each MCP alias's
+   `about`, `command` and this machine's mapping (EC4.3); and the
+   `contentSets`.
+2. Each `ask` SHALL be answered once on this machine, in Settings > Plugins
    or `avoozl plugins answer ID NAME VALUE`, and stored in `plugins.json`.
    Until every ask is answered, the part SHALL give nothing, and one Needs
    you item SHALL name the plugin and the unanswered questions.
 3. Each MCP alias SHALL get this machine's mapping in `plugins.json`, as
-   PK10.2 holds it: `{env, command?}`, `env` the environment variable names
+   PK10 holds it: `{env, command?}`, `env` the environment variable names
    the server may read and an optional `command` that replaces the plugin's.
-   The mapping SHALL hold no credential value. A sign-in the server keeps
-   itself (its own token file) SHALL stay the server's own.
-4. The approval SHALL bind the plugin's content hash (Requirement 34.4), the
+   Until every alias is mapped, the part SHALL give nothing. The mapping
+   SHALL hold no credential value. A sign-in the server keeps itself (its
+   own token file) SHALL stay the server's own.
+4. The approval SHALL bind the plugin's content hash (Requirement 34), the
    ask answers and the MCP mappings. WHEN any of them changes THEN the part
    SHALL give nothing until a person approves again.
-5. Answering, mapping and approving SHALL be person-only. The MCP tools, an
-   agent session, a process child and the tick SHALL be refused.
+5. Answering, mapping and approving SHALL be person-only. The MCP tools and
+   an agent session SHALL be refused.
 
 ### Requirement EC5: What a session gets
 
-**User story:** As the owner, I want a session that passes the three tests
+**User story:** As the owner, I want a session that passes the two tests
 to get the context its repository's sources name, and nothing more.
 
 #### Acceptance criteria
 
-1. WHEN the three tests pass THEN the session's context SHALL be the union
+1. WHEN the two tests pass THEN the session's context SHALL be the union
    of every context source whose `repos` names the task's repository. A
-   source that names none of it SHALL give nothing.
+   source that names none of it SHALL give nothing. A repository with no
+   GitHub remote SHALL match only by its registered ID.
 2. WHEN two sources give one MCP alias THEN neither SHALL give it, and one
    Needs you item SHALL name both. Reads and skills SHALL be merged without
    repeats.
-3. A read SHALL be refused, naming it, when it is, holds or is inside a path
-   the sandbox denies (V: `sandboxSecretPaths`,
-   `src/app/executors/sandbox.mjs:91`), Avoozl's config or state folder, or
-   the person's home folder itself. A refused read SHALL be left out; the
-   rest SHALL still be given.
+3. A read SHALL be left out, with its reason, when it is, holds or is inside
+   a path the sandbox denies (`sandboxSecretPaths`,
+   `src/app/executors/sandbox.ts`), Avoozl's config or state folder, or
+   the person's home folder itself. The rest SHALL still be given.
 4. A read that does not exist at session start SHALL be left out and named
    in the session record.
-5. Only the `worker` role SHALL get epic context in this spec (D11,
-   question 2).
+5. Only the `worker` role SHALL get epic context (D11, question 2).
 
 ### Requirement EC6: Reads and skills in a process session
 
@@ -254,15 +214,16 @@ and skills, and to change none of them.
 
 #### Acceptance criteria
 
-1. Each read SHALL be added to the session's read-only folders, as
-   `readable` is today. No read SHALL be writable.
-2. Avoozl SHALL copy each skill folder of an approved part into a
-   session context folder outside the task folder, after checking each
-   file's hash against the approval, and SHALL add that folder read-only.
+1. Each read SHALL be added to the session's read-only folders. No read
+   SHALL be writable.
+2. Avoozl SHALL copy each skill folder of an approved part into a session
+   context folder outside the task folder, after checking each file's hash
+   against the approval, and SHALL add that folder read-only. A skill with a
+   changed file SHALL be left out.
 3. The brief SHALL list each skill's name, description and `SKILL.md` path,
-   and each read's `about` and path, under a heading that says this is the
-   person's epic context, and SHALL tell the worker to read a skill before
-   work it covers.
+   each read's `about` and path, and each MCP alias given, under an "Epic
+   context" heading that says this is the person's epic context, and SHALL
+   tell the worker to read a skill before work it covers.
 4. The session context folder SHALL be removed when the session ends.
 
 ### Requirement EC7: MCP servers through a relay
@@ -277,20 +238,21 @@ servers without the worker ever holding their sign-in.
    `{context_mcp}`. A harness without it SHALL get no MCP servers, and the
    session record SHALL say so.
 2. Avoozl SHALL write `{context_mcp}` with one stdio server per alias, each
-   run as the MCP relay with the session and alias. The file SHALL hold no
-   environment value.
-3. The relay SHALL connect to a Unix socket in a `0700` folder that only
-   its session's sandbox can reach. The supervisor, outside the sandbox,
-   SHALL start the real server on the first connection and pipe the two.
+   run as the MCP relay with the session's socket, token and alias. The file
+   SHALL hold no environment value.
+3. The relay SHALL connect to a Unix socket in a `0700` folder of its own.
+   A broker process Avoozl starts for the session, outside the sandbox,
+   SHALL check the token and the alias, start the real server on the
+   connection and pipe the two.
 4. The real server SHALL run outside every sandbox with the check
-   environment basics plus its mapping's `env` names, a scratch working
-   folder and the network, as PK10.11 runs a check's server. It SHALL NOT
-   open a network listener; one that does SHALL be stopped and its plugin
-   marked broken (PK7.5).
+   environment basics plus its mapping's `env` names, in a scratch working
+   folder, as PK10 runs a check's server. It SHALL NOT open a network
+   listener; one that does SHALL be stopped and its plugin marked broken
+   (PK7.5).
 5. Each server SHALL stop when its session ends. Each tool call SHALL be
-   recorded in the session's evidence: alias, tool name, time, bytes and
-   any error, never the arguments or the reply.
-6. MCP replies SHALL be untrusted data (Requirement 34.6).
+   recorded in Activity: alias, tool name, time, bytes and any error, never
+   the arguments or the reply.
+6. MCP replies SHALL be untrusted data (Requirement 34).
 
 ### Requirement EC8: Kiro Crew chat workers
 
@@ -299,15 +261,13 @@ chat worker, which runs as me.
 
 #### Acceptance criteria
 
-1. A `kirocrew` worker that passes the three tests SHALL get the skills and
-   reads named in its brief (EC6.3) and SHALL get no MCP servers and no
-   hosts. The task row SHALL say "Epic context (brief only)".
+1. A `kirocrew` worker that passes the two tests SHALL get the skills and
+   reads named in its brief (EC6.3) and SHALL get no MCP servers. The task
+   row SHALL say "Epic context (brief only)".
 2. The docs SHALL say plainly: a chat runs as the person, outside Avoozl's
-   sandbox, so the three tests decide only what Avoozl tells the chat, not
-   what it can reach. A chat can already read the person's files and the
-   network. Avoozl cannot add an MCP server to one chat (A: Kiro Crew agent
-   files are built ahead of time), and cannot hold a chat to the hosts or
-   folders listed.
+   sandbox, so the two tests decide only what Avoozl tells the chat, not
+   what it can reach. Avoozl cannot add an MCP server to one chat, and
+   cannot hold a chat to the folders listed.
 3. A chat worker that fails a test SHALL get a brief with no epic context
    section.
 
@@ -318,26 +278,25 @@ why, and I want the context kept out of commits and GitHub.
 
 #### Acceptance criteria
 
-1. A task whose current session has epic context SHALL show an **Epic
+1. A task whose last session got epic context SHALL show an **Epic
    context** chip on its row and in its drawer, naming the sources.
 2. Activity SHALL record, at each session start and resume where some
-   source names the task's repository, each of the three tests with passed
-   or failed and the reason, and what was given: source names, skill
-   names, read IDs and MCP aliases. It SHALL record no read path's
+   source names the task's repository, each of the two tests with passed
+   or failed and the reason, and what was given: skill names, read IDs and
+   MCP aliases, and what was left out. It SHALL record no read path's
    contents, no MCP argument and no environment value.
-3. The task's diff, its GitHub writes and its briefs SHALL pass the
-   repository's content rules as today (Requirement 40), plus every set
-   that a giving source names in `contentSets`, at the `diff`, `github`
-   and `brief` boundaries. A named set this machine does not have SHALL
-   block as a missing terms file does.
-4. Settings › Epic context SHALL show this machine's own context as a form
-   (repos, folders to read, tools and content rule sets) with no raw JSON
-   editor, each machine plugin's context part read-only with its plugin
-   name and state, and the last ten sessions that got context, with their
-   tests. The form SHALL check each field before Save and show each problem
-   next to its field. A save SHALL refuse a folder that does not exist on
-   this machine.
-5. `avoozl show TASK --json` and the MCP task read SHALL return the three
+3. The context brief SHALL pass the repository's content rules (Requirement
+   40) plus every set that a giving source names in `contentSets`, at the
+   `brief` boundary, and the task's diff and GitHub writes SHALL pass those
+   sets at the `diff` and `github` boundaries. A brief the rules block SHALL
+   give no context.
+4. Settings > Epic context SHALL show this machine's own context as a form
+   (repos, folders to read, tools and content rule sets), each machine
+   plugin's context part read-only with its state, and the last ten
+   sessions that got context, with their tests. The form SHALL check each
+   field before Save and show each problem next to its field. A save SHALL
+   refuse a folder that does not exist on this machine.
+5. `avoozl show TASK --json` and the MCP task read SHALL return the two
    tests and what was given for the last session, without paths' contents.
 
 ### Requirement EC10: Security
@@ -349,12 +308,12 @@ named with what stops it, and each stop tested.
 
 1. The design SHALL state the threats and what stops each (D8): a
    repository trying to turn context on, a comment that does not count, a
-   coworker's spec,
-   a plugin widening access, and context leaking out through commits,
+   plugin widening access, and context leaking out through commits,
    GitHub writes or MCP calls.
 2. Each stop SHALL have a test.
 3. A session without epic context SHALL have the same sandbox, brief and
-   harness argv, byte for byte, as before this spec, which a test checks.
+   harness argv, byte for byte, as a session with no context source, which
+   a test checks.
 
 ### Requirement EC11: Tests, the live proof and the docs
 
@@ -368,12 +327,11 @@ gate holds and the context arrives.
    read refusal, the relay's socket and stop and the byte-for-byte check of
    EC10.3.
 2. A live proof (ec-p1) SHALL run on scratch repositories with a fake MCP
-   server and show the context given to an approved, driven spec task and
-   withheld from an intake task, a coworker-driven spec and a repository
-   that tries to turn it on.
-3. `docs/plugins.md` SHALL gain a Context part section; a new
-   `docs/epic-context.md` SHALL describe the three tests, the machine
-   block, the relay, the Kiro Crew limits and the threats; and
-   the shipped `avoozl-plugin` skill SHALL know the part.
+   server and show the context given to an approved spec task and withheld
+   from an intake task and a repository that tries to turn it on.
+3. `docs/plugins.md` SHALL have a Context part section;
+   `docs/epic-context.md` SHALL describe the two tests, the machine block,
+   the relay, the Kiro Crew limits and the threats; and the shipped
+   `avoozl-plugin` skill SHALL know the part.
 4. Examples SHALL use only neutral names: `acme/*`, the `research` alias and
    the `team-context` plugin.

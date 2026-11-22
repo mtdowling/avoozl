@@ -1,8 +1,7 @@
 # Design: one tick pass, any timer, thin front ends
 
 `MS` numbers are in this spec's `requirements.md`; `R` numbers and `§`
-sections without a `D` are in `.kiro/specs/avoozl/`. **V** marks a claim read
-in the file cited.
+sections without a `D` are in `.kiro/specs/avoozl/`.
 
 ## D1. Shape
 
@@ -25,20 +24,26 @@ in the file cited.
  its wrapper, and a broker when it has context MCP servers), and the page
 ```
 
-`avoozl tick` (V: `runPass`, `src/app/tick/tick-pass.mjs`) is the only place
+`avoozl tick` (`runPass`, `src/app/tick/tick-pass.ts`) is the only place
 delivery runs. The CLI, the page and every `avoozl mcp` run operations on the
 workspace database in their own process. SQLite and the in-database work
-lock make that safe (V: `withWorkLock`, `src/app/git/git.mjs`).
+lock make that safe (`withWorkLock`, `src/app/git/git.ts`).
 
 ## D2. One pass (MS1)
 
 | Step | Code | Lock |
 | --- | --- | --- |
-| Supervisor pass: record running children, reap ended ones, resume those with a queued message | `openSupervisor().pass()`, `src/app/executors/supervisor.mjs` | supervisor pass lock |
-| For each enabled catalog workspace, or the one named: `workspace.tick`, the harness readiness step, `drainProcessRequests`, `drainCheckRuns`, the Needs Kiro Crew step, `notifications.deliver` | `tickWorkspace`, `tick-pass.mjs` | workspace pass lock, and the tick's own work lock inside |
+| Supervisor pass: record running children, reap ended ones, resume those with a queued message | `openSupervisor().pass()`, `src/app/executors/supervisor.ts` | supervisor pass lock |
+| For each enabled catalog workspace, or the one named: `workspace.tick`, the harness readiness step, `drainProcessRequests`, `startCheckRunners`, the Needs Kiro Crew step, `notifications.deliver` | `tickWorkspace`, `tick-pass.ts` | workspace pass lock, and the tick's own work lock inside |
 | Supervisor pass again: start what the tick requested | `pass()` | supervisor pass lock |
-| Record each workspace's result for `avoozl status` | `recordPasses`, `src/app/executors/tick-passes.mjs` | none |
-| Page step | `hostPage`, `src/app/executors/page-child.mjs` | none |
+| Record each workspace's result for `avoozl status` | `recordPasses`, `src/app/executors/tick-passes.ts` | none |
+| Page step | `hostPage`, `src/app/executors/page-child.ts` | none |
+
+A repository's checks may run longer than a timer's interval, so
+`startCheckRunners` (`src/app/delivery/check-runner.ts`) starts one
+detached runner per repository with queued checks. Each runner drains that
+repository's queue with `drainCheckRuns`, records the results, and exits;
+the next tick judges them.
 
 The first supervisor pass runs before the tick so the tick reads each child's
 end in the same pass. The second starts children the tick asked for without
@@ -57,7 +62,7 @@ Who calls it:
 ## D3. The pass locks (MS2)
 
 A pass lock is an exclusive SQLite transaction that is never ended until the
-step is done (V: `tryLock`, `src/app/executors/pass-lock.mjs`):
+step is done (`tryLock`, `src/app/executors/pass-lock.ts`):
 `PRAGMA busy_timeout = 0; locking_mode = EXCLUSIVE; BEGIN EXCLUSIVE`. SQLite
 holds it with `fcntl` locks on macOS and Linux and `LockFileEx` on Windows,
 and the system drops it when the process ends in any way, so a killed tick
@@ -70,8 +75,8 @@ Two locks, each for a reason a test shows:
    database, with `<database>.loop-lock.json` naming its holder (written
    only after the lock is held, and only ever read as information). The
    tick's in-database work lock covers `workspace.tick`, but the drain after
-   it does not run under it, and its in-flight guards (V: `inFlight` in
-   `src/app/delivery/check-runs.mjs`) are per process. Two ticks from two
+   it does not run under it, and its in-flight guards (`inFlight` in
+   `src/app/delivery/check-runs.ts`) are per process. Two ticks from two
    timers, or from two state folders on one workspace, would each drain.
 2. **Supervisor pass lock**, `supervisor/pass.lock` in the machine state
    folder. Two passes at once would both read a child as `requested` and
@@ -97,24 +102,24 @@ Each is one entry in `src/app/commands/`, as AGENTS.md asks.
 The backend keeps its page, its readers and its push to Kiro Crew's channels.
 It runs no tick, no drain and no supervisor pass, and starts no process.
 
-The cron is the Kiro Crew machine's timer. Its call (V: `createAppMcp`,
-`src/app/executors/kirocrew/app-mcp.mjs`) runs the machine's pass first,
-with `KIROCREW_PROXY_SECRET` and `KIROCREW_GATEWAY_ORIGIN_PROOF` removed from
+The cron is the Kiro Crew machine's timer. Its call (`createAppMcp`,
+`src/app/executors/kirocrew/app-mcp.ts`) runs the machine's pass first,
+with `KIROCREW_PROXY_SECRET` and `KIROCREW_GATEWAY_ORIGIN_PROOF` dropped from
 the environment the pass's children inherit, and then:
 
 1. records the observations the cron brings (session statuses from the
    cron's roster);
 2. reads the `kirocrew` work the pass released: session requests for the
    `kirocrew` executor, queued messages to its chats, and the live chats to
-   re-trust (V: `cronIntents`, `src/app/executors/kirocrew/cron-intents.mjs`);
+   re-trust (`cronIntents`, `src/app/executors/kirocrew/cron-intents.ts`);
 3. returns those as `dispatch`, `messages` and `observe`, the shape
    `tick.py` reads.
 
 The cron must be the one to carry them out. Kiro Crew lets only the cron job
 that opened a chat send to it or set its mode, and the app backend's token
-gets 403 on the chat routes with today's grants (avoozl design F129).
-Widening the grants would let Avoozl reach every chat the person opened,
-which the owner did not accept.
+gets 403 on the chat routes with the grants it has (avoozl design F129).
+Avoozl asks for no wider grant, which would reach every chat the person
+opened.
 
 ## D6. Unattended children (MS5, MS6)
 
@@ -126,21 +131,21 @@ environment. Two things then fail quietly: the harness program is not on
   `PATH` (MS4.1).
 - Model access: `machine.env` in the machine config folder, `KEY=value`
   lines, read by the supervisor pass. Only names in a definition's
-  `keepEnv` are passed to that child (V: `withKeptValues`,
-  `src/app/executors/machine-env.mjs`). The file is outside every child's
+  `keepEnv` are passed to that child (`withKeptValues`,
+  `src/app/executors/machine-env.ts`). The file is outside every child's
   read roots because the whole Avoozl config folder is (R95.6).
 - Cloud sign-in: a definition's `homeFiles` are copied into the child's own
   home (a lane's or the probe's) before each start, so Claude Code's
   `settings.json` and Codex's `config.toml` carry their provider settings
   to the child. A `reads` entry under `~/.aws` is the one secret folder a
-  child may read, read only, for an AWS profile (V: `harnessSecretReads`,
-  `src/app/executors/harness-definitions.mjs`).
+  child may read, read only, for an AWS profile (`harnessSecretReads`,
+  `src/app/executors/harness-definitions.ts`).
 - Sign-in probe: the definition's `probe` argv (no placeholders) runs in a
   fresh temp folder with a seeded home, the definition's `keepEnv`, `reads`
   and the worker's sandbox and egress. Its answer is kept in
   `harness-probes.json` in the machine config folder, keyed on the
   definition hash and a hash of `machine.env`, and read by
-  `listHarnessDefinitions` (V: `probeHarness`,
+  `listHarnessDefinitions` (`probeHarness`,
   `src/app/executors/harness-probe.ts`).
 - Egress (MS5.5): `harnessNetwork` runs the definition's
   `credentialExport` and starts `egress-proxy-main.ts`, a detached process,
@@ -149,7 +154,7 @@ environment. Two things then fail quietly: the harness program is not on
   folder, and ends when the run's exit file appears. The supervisor records
   its pid in `egress.json` and stops it with the session's context. The
   child gets `HTTPS_PROXY`, the exported keys and `setEnv`, and its sandbox
-  network gets `localhost:PORT` (V: `src/app/executors/egress-proxy.ts`,
+  network gets `localhost:PORT` (`src/app/executors/egress-proxy.ts`,
   `src/app/executors/harness-network.ts`).
 - Readiness: one function per definition answers "can this start here?"
   and both `avoozl status` and Settings › Models show it per role (MS5.3).
@@ -160,24 +165,23 @@ environment. Two things then fail quietly: the harness program is not on
   (`$SHELL -l -c /usr/bin/env`, a fixed argv, 3 second timeout, cached per
   process, skipped on Windows). The supervisor spawns the file that lookup
   returns and gives the child the `PATH` it was found on, so the check and
-  the spawn agree (V: `findProgram`, `src/app/executors/harness-ready.mjs`).
+  the spawn agree (`findProgram`, `src/app/executors/harness-ready.ts`).
 
-**Roles.** `scripts/proofs/proof-ms-roles-live.mjs --harness NAME` drives the
-rows of `scripts/proofs/ms-roles-rows.mjs` on a scratch repository and prints
+**Roles.** `scripts/proofs/proof-ms-roles-live.ts --harness NAME` drives the
+rows of `scripts/proofs/ms-roles-rows.ts` on a scratch repository and prints
 one line per row; a test fails when a `ROLE_TABLE` row with `process: true`
 has no row there, or a row drives a role `ROLE_TABLE` does not have. The
-machine's `loop` is on, so the tick starts and lands the work. The script runs `avoozl tick` every 10 seconds, each as its
-own process, as a timer would, with no front end open.
-`scripts/proofs/run-ms-owner-proofs.mjs` runs it for ms-p2 and ms-p3 from the
+machine's `loop` is on, so the tick starts and lands the work. The script
+runs `avoozl tick` every 10 seconds, each as its own process, as a timer
+would, with no front end open. It pushes a failing commit to the scratch
+main for the line watch row, and reads the `command` sink's file.
+`scripts/proofs/run-ms-owner-proofs.ts` runs it for ms-p2 and ms-p3 from the
 owner's terminal and drafts the receipts.
 
 | Row | Scenario | Result kind |
 | --- | --- | --- |
 | worker | one-file task | commit by Avoozl, landed |
-| verifier | a task in a repository with no checks | verdict (not driven: the scratch repository has checks, which Avoozl runs itself) |
 | reviewer | the review role every repository gets | verdict |
-| planner | New plan request | spec folder that lints clean |
-| retro | a retrospective | reply (not driven: retros run as the `avoozl-retro` skill, so nothing starts a retro child) |
 | responder | a new discussion in the category the policy names | posted reply |
 | assist | Ask for help on the page | answer, no file |
 | check decide | a plugin check that needs a decision | answer (not driven: no plugin check is installed) |
@@ -190,11 +194,11 @@ Codex's own sandbox cannot nest inside Avoozl's on macOS: with
 (P58, `docs/evidence/p58-codex-by-definition.md`). R94.4d therefore lets
 `permission.write` be `danger-full-access` inside Avoozl's sandbox only. A
 read role on Codex hits the same wall, so MS7.1 extends the same rule to
-`permission.read`. The read class's write roots exclude the task folder (V:
-`harnessPermission`, `src/app/executors/harness-definitions.mjs`), so the
+`permission.read`. The read class's write roots exclude the task folder
+(`harnessPermission`, `src/app/executors/harness-definitions.ts`), so the
 read role still cannot change code. Only Avoozl's sandbox enforces that.
 
-That is why MS8 exists. One module, `src/app/sandbox-probes.mjs`, lists each
+That is why MS8 exists. One module, `src/app/sandbox-probes.ts`, lists each
 probe as `{id, class, argv, expect: "refused"}` with argv lists only. The CI
 test runs a stand-in harness (a Node script) under `confineChild` on the
 macOS and Linux legs and asserts every probe is refused. The live proof gives
@@ -207,8 +211,8 @@ or the receipt must name it as a finding. On Linux the CI leg installs
 ## D8. What outlives the tick (MS3)
 
 **Children.** The supervisor pass starts each child as
-`node supervisor-child.mjs <exit-file> [--stdin FILE] <confined argv>`,
-detached, with its output in its own log (V: `start` in `openSupervisor`).
+`node supervisor-child.ts <exit-file> [--stdin FILE] <confined argv>`,
+detached, with its output in its own log (`start` in `openSupervisor`).
 Before the pass ends it records, in `supervisor/supervisor.sqlite`, the
 session id (`process-<uuid>`, which is also the harness's own session id for
 resume), the wrapper's pid and the operating system's start time for that
@@ -231,7 +235,7 @@ off Windows after checking the start time.
 
 **Brokers.** A child with epic context MCP servers reaches them through a
 relay and a broker (epic-context D6). The broker must outlive the tick, so
-the pass starts it as its own detached process (`context-broker-main.mjs`)
+the pass starts it as its own detached process (`context-broker-main.ts`)
 with the tick's environment, which holds the values a server's `env` names;
 the child's confined environment never does. Its spec file names the
 session, the servers by command and variable names only, the socket in a
@@ -239,7 +243,7 @@ session, the servers by command and variable names only, the socket in a
 file appears or the pass that records the child's end signals it.
 
 **The page.** With `serve.enabled`, each pass's page step reads
-`supervisor/page.json` (pid, start time, port). It starts `serve-main.mjs`
+`supervisor/page.json` (pid, start time, port). It starts `serve-main.ts`
 detached when that process is not alive, and stops it when `serve.enabled` is
 off or `serve.port` changed. On Windows a detached child would inherit the
 tick caller's handles and hold its output open, so the page starts through
@@ -250,12 +254,12 @@ tick caller's handles and hold its output open, so the page starts through
 ```text
 prompts/<role>.md   prompts/skills/<name>.md   roles.json
           \             |             /
-           npm run build:hosts (scripts/build-hosts.mjs)
+           npm run build:hosts (scripts/bundle/build-hosts.ts)
                /                      \
       hosts/kirocrew/            hosts/claude-code/
 ```
 
-Each host has one small adapter in `scripts/build-hosts.mjs` that maps the
+Each host has one small adapter in `scripts/bundle/build-hosts.ts` that maps the
 source to that host's files. `--check` builds into memory and compares byte
 for byte, naming each file that differs. Generated files carry no marker;
 the check is the guard. Hand-written host files (the Kiro Crew manifest, the
@@ -271,7 +275,7 @@ guard. Both packages carry `avoozl-drive`.
 
 **Exposure.** Avoozl adds no listener here. `avoozl tick` and `avoozl mcp`
 listen on nothing (a test checks the tick process). The page keeps its own
-reviewed loopback listener (standalone-web D10), now started by the tick.
+reviewed loopback listener (standalone-web D10), started by the tick.
 Each context broker listens on one Unix socket in a `0700` folder of its
 own, with a per-session token (epic-context D6). No container, port publish,
 tunnel or remote access is built.
@@ -326,22 +330,14 @@ socket, a test, or explained in the pull request.
    code. The containment proof (MS8) is the check.
 2. **The page and the CLI stay on the database (D1).** No front end reaches
    delivery through another process.
-3. **nk-p2 of `without-kirocrew`.** ms-p2 and ms-p3 cover its steps on both
-   harnesses, and ms-p2 includes its command sink step. nk-p2 is ticked as
-   proved by those two receipts.
+3. **The proof of `without-kirocrew`.** ms-p2 and ms-p3 run every role
+   with no Kiro Crew on both harnesses, and ms-p2 includes the command sink
+   step of that spec's NK7.
 4. **`machine.env` holds model keys (MS5.2).** Keys never go in timer lines.
 5. **Timers are the person's (MS4.2).** Avoozl prints none and installs
    none; the docs hold the lines.
 6. **The page stays opt-in (`serve.enabled`).** No listener is added unless
    asked for.
-
-## D13. What does not change
-
-- The tick's planner, delivery, landing and acceptance.
-- The executor seam (R93), harness definitions and their approval by hash
-  (R94), one way to finish (R96), and the sandbox's rules (R95.5, R95.6).
-- The page and its owner link (standalone-web).
-- What a Kiro Crew chat sees: its agents, skills and MCP tools.
 
 ## D14. Risks
 

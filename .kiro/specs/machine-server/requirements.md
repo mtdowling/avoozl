@@ -47,8 +47,8 @@ supervisor pass's children and the sandbox) and 96 (one way to finish). It
 sets Requirement 95.1, 95.3 and 98 (MS13), worker-paths WP1.1 and
 standalone-web SW9 (MS13).
 
-The `without-kirocrew` spec made every role run as a child; its open proof
-nk-p2 is covered by ms-p2 and ms-p3 (design D12, rule 3).
+ms-p2 and ms-p3 also prove the `without-kirocrew` spec on both harnesses
+(design D12, rule 3).
 
 ### Scope
 
@@ -89,8 +89,9 @@ up.
 #### Acceptance criteria
 
 1. `avoozl tick` SHALL run one tick pass and exit: a supervisor pass, then
-   for every enabled workspace in the machine catalog the tick, the hand-off
-   of `process` session requests, the queued check runs, the Needs Kiro Crew
+   for every enabled workspace in the machine catalog the tick, the harness
+   readiness step, the hand-off of `process` session requests, a detached
+   check runner for each repository with queued checks, the Needs Kiro Crew
    step and the notifications to the machine's sinks, then a supervisor pass
    again, then the page step (MS3.4). With `--workspace PATH` it SHALL pass
    only that workspace.
@@ -98,8 +99,9 @@ up.
    result and time for `avoozl status`, and exit 1 when a workspace's tick
    failed, naming it.
 3. A source test SHALL fail when a module other than the tick pass calls
-   `drainProcessRequests` or `drainCheckRuns`, or when any module runs the
-   tick or the pass on a timer of its own.
+   `drainProcessRequests` or `startCheckRunners`, when a module other than
+   the check runner calls `drainCheckRuns`, or when any module runs the tick
+   or the pass on a timer of its own.
 4. The Kiro Crew app backend SHALL run no tick, no drain and no supervisor
    pass, and SHALL start no process for them.
 5. `avoozl status` SHALL show each workspace's last pass, the `process`
@@ -119,9 +121,9 @@ work once, so that I can run the tick from more than one place.
 2. For each workspace, the pass SHALL hold the workspace pass lock beside
    that workspace's database for the tick and the drain after it, and SHALL
    report a held one as skipped, naming the holder's pid. The drain runs
-   outside the tick's in-database work lock (V: `WORKSPACE_LOCK`,
-   `src/app/tick/tick.mjs`) and its in-flight guards are per process, so
-   two drains at once could start a check run or send a notification twice.
+   outside the tick's in-database work lock (`WORKSPACE_LOCK`,
+   `src/app/tick/tick.ts`) and its in-flight guards are per process, so
+   two drains at once could start a child or send a notification twice.
 3. The supervisor pass SHALL hold the supervisor's pass lock. Two passes at
    once would start each requested child twice.
 4. The in-database work lock of the tick SHALL stay. It serializes a tick
@@ -208,19 +210,19 @@ that unattended work does not fail on a missing login.
    and its answer SHALL be cached per definition hash and `machine.env`.
    Neither the tick nor a page read SHALL run it; a person runs it with
    Check again in Settings › Models or `avoozl harness probe NAME`.
-   A failed probe SHALL show the harness's own error text, cut and with
+   A failed probe SHALL show the harness's own error text, shortened, with
    every given value and anything shaped like a credential redacted, and
    one line on how to fix it. A harness with no probe answer yet SHALL not
-   be held back. The
-   program SHALL be looked up, in order, as an absolute path in the
-   definition, on `machine.env`'s `PATH`, on the tick's `PATH`, then on the
-   person's login-shell `PATH` (read once per process; not on Windows). The
-   supervisor SHALL spawn the path that lookup finds, with the `PATH` it was
-   found on. A program found nowhere SHALL be named with each place looked
-   and the fix: set `PATH` in `machine.env`, or give an absolute path. A request for it SHALL open one Needs you item, not repeat a
-   failed start.
+   be held back. The program SHALL be looked up, in order, as an absolute
+   path in the definition, on `machine.env`'s `PATH`, on the tick's `PATH`,
+   then on the person's login-shell `PATH` (read once per process; not on
+   Windows). The supervisor SHALL spawn the path that lookup finds, with the
+   `PATH` it was found on. A program found nowhere SHALL be named with each
+   place looked and the fix: set `PATH` in `machine.env`, or give an
+   absolute path. A request for it SHALL open one Needs you item, not
+   repeat a failed start.
 4. A login kept only in the macOS keychain is out of a child's reach, since
-   the sandbox denies the keychain (V: `src/app/executors/sandbox.mjs`). The
+   the sandbox denies the keychain (`src/app/executors/sandbox.ts`). The
    docs SHALL say to use an API key, a cloud provider's short-lived
    credentials in `machine.env`, or a model proxy.
 5. A definition with `egress` SHALL get its own egress proxy per session,
@@ -244,16 +246,14 @@ with no front end open, so that Kiro Crew is optional.
 
 #### Acceptance criteria
 
-1. Every row of the role table that runs as a child (V: `process: true` in
-   `src/app/agents/role-table.mjs`: worker, verifier, reviewer, planner,
-   retro, falsifier, responder, task summary, plan reviewer, plan answer,
-   pull request review, assist) SHALL run on the `claude-code` definition as
-   a child of a tick a timer ran, with no front end driving it (no
-   interactive Claude Code or Codex session, and no Kiro Crew in the run's
-   home), and SHALL reach its result kind.
-2. The line watch has no agent session (avoozl task 49.1). The proof SHALL
-   show that no watch session is requested and that the line watch still
-   acts on a red head.
+1. Every row of the role table that runs as a child (`process: true` in
+   `src/app/agents/role-table.ts`: worker, reviewer, responder, check
+   decide, assist) SHALL run on the `claude-code` definition as a child of
+   a tick a timer ran, with no front end driving it (no interactive Claude
+   Code or Codex session, and no Kiro Crew in the run's home), and SHALL
+   reach its result kind.
+2. The line watch has no agent session. The proof SHALL show that no watch
+   session is requested and that the line watch still acts on a red head.
 3. A test SHALL fail when a role table row with `process: true` is missing
    from the proof script's role list, so a new role cannot skip the proof.
 
@@ -272,7 +272,7 @@ I can pick either harness per role.
 2. `examples/harnesses/codex.json` SHALL use it for the read class.
 3. Every row of MS6.1 SHALL run on the `codex` definition and reach its
    result kind. A role that needs a served model SHALL read it from Codex's
-   output, or SHALL record "no served model" with the reason, as nk-3.1 does.
+   output, or SHALL record "no served model" with the reason.
 4. `codex.json`'s `proved` SHALL list what the proof showed, and no more.
 5. On Windows, or wherever no Avoozl sandbox runs, `codex` SHALL be refused
    for every role with the reason. A test checks it.
@@ -339,7 +339,7 @@ running to read and plan, and starting a chat starts nothing.
    own and SHALL never loop.
 2. A caller block in a message SHALL be read only by `avoozl mcp
    --kirocrew`, where Kiro Crew's gateway attaches it and picks the
-   workspace by today's rules (V: `src/app/executors/kirocrew/app-mcp.mjs`).
+   workspace by the rules in `src/app/executors/kirocrew/app-mcp.ts`.
    Any other server SHALL drop it, since any client could send one.
 3. Its one tick tool, `plans_maintain` `tick`, SHALL run one tick pass for
    the caller's workspace and return its result. The Kiro Crew cron's call
@@ -388,7 +388,7 @@ needs nothing else running.
 2. `tick.py` SHALL carry out only those three.
 3. The reason SHALL be recorded in the design: Kiro Crew lets only the cron
    job that opened a chat control it, and the app backend gets 403 opening
-   chats with today's grants (F129).
+   chats with the grants it has (product design F129).
 4. Tests: a Python test of `tick.py` with a fake context; a Node test that
    the cron's call runs the pass and returns what the pass released.
 
@@ -410,7 +410,6 @@ names a server that does not exist.
 3. `README.md`, `docs/getting-started.md`, `docs/person-only.md`,
    `docs/glossary.md`, `docs/workspaces.md` and `docs/scale-out.md` SHALL
    describe `avoozl tick`, the timer lines, `avoozl mcp`, the drive skill,
-   `machine.env` and the host packages, and SHALL name no `avoozl
-   supervisor`, `avoozl serve`, `avoozl start` or `avoozl stop` command.
+   `machine.env` and the host packages.
 4. Research under `docs/research/` and receipts under `docs/evidence/`
    SHALL NOT be rewritten (AGENTS.md).

@@ -1,25 +1,23 @@
 # Design: GitHub-native Avoozl
 
-`GN` numbers are in this spec's `requirements.md`; `R` numbers and `§`
-sections without a `D` are in `.kiro/specs/avoozl/`; `WP` numbers are in
-`.kiro/specs/worker-paths/`. Rule numbers are workflow v1's
-(`docs/github-workflow.md`).
+`GN` numbers are in this spec's `requirements.md`. Rule numbers are workflow
+v1's (`docs/github-workflow.md`).
 
-## D1. No worker machines
+## D1. Claim branches
 
-Worker offers, grant branches, claim acknowledgments, the driver's result
-step and their commands and operations are gone. Workflow v1's claim
-branches and leases (section 15) are how several runners share a spec.
-`avoozl runner report` (`report-command.mjs`) and the manual take
-(`manual-take.mjs`) stay.
+Workflow v1's claim branches and leases (section 15) are how several runners
+share a spec. `avoozl runner report` (`src/app/workers/report-command.ts`)
+records a report from a manual take (`src/app/workers/manual-take.ts`) or a
+local session.
 
 ## D2. Landing from the tick
 
 A landing commit's message is the task's subject, or a batch's list of
-subjects, with no trailer (`merge-batch.mjs`, `landing-pulls.mjs`).
-`avoozl rebuild` runs `Operations.readFromGit`, whose `applyBaseTicks` takes
-each ticked task's tick commit as its landing commit. Start times, tries,
-models and Flow spans stay only in the database that recorded them.
+subjects, with no trailer (`src/app/landing/merge-batch.ts`,
+`src/app/landing/landing-pulls.ts`). `avoozl rebuild` runs
+`Operations.readFromGit`, whose `applyBaseTicks` takes each ticked task's
+tick commit as its landing commit. Start times, tries, models and telemetry
+spans stay only in the database that recorded them.
 
 ## D3. Publishing on approval
 
@@ -44,12 +42,11 @@ keeps the approving pull request's number as `pull`, so its assignees cost
 one pull request read. The create goes through the `spec-issues` job.
 
 Only approvals adopted or made in this workspace are queued, so a rebuild
-(`readFromGit`, which calls `adoptApprovals` directly) and specs approved
-before this change publish nothing.
+(`readFromGit`, which calls `adoptApprovals` directly) publishes nothing.
 
 ## D4. Where review output goes
 
-`postReviewOutput` (`src/app/delivery/review-output.mjs`) runs on each tick
+`postReviewOutput` (`src/app/delivery/review-output.ts`) runs on each tick
 with GitHub, under the `review-output` job:
 
 | Source | Due when | Comment |
@@ -67,7 +64,3 @@ way it is not posted again.
 The first pass that finds any output stores `review-output.since` and posts
 nothing, so turning this on does not post every review a workspace already
 holds, and a pass with no output writes nothing.
-
-## D5. Edits to other specs
-
-`gn-7.1` makes the edits GN8 names.

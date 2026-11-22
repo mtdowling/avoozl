@@ -6,44 +6,20 @@ category: Planning
 
 ## Introduction
 
-An organization often wants every engineer's machine to run the same extra
-checks on certain repositories: a parity check that asks an outside review
-service, a license scan, a slow compatibility run. Written into each
-repository's `checks` (`docs/checks.md`), such a check would live in the
-files it should stay out of.
-
-The `checks` plugin part does this instead. A privately hosted plugin
-(Requirement 34.12) ships check definitions, their scripts and optional
-decide prompts. A check's step is either a script in the plugin (a run
-step) or a fixed sequence of calls to an outside service's MCP server (an
-MCP step): open a task, poll it, read the answer. A person on each machine
-adds and approves the plugin once, and maps each MCP server it names to a
-server command on that machine.
-Nothing of the plugin is written to the repositories the checks run on.
+The `checks` plugin part lets an organization run the same extra checks on
+certain repositories from every engineer's machine, without writing them
+into those repositories. A privately hosted plugin (Requirement 34.12) ships
+check definitions, their scripts and optional decide prompts. A check's step
+is either a script in the plugin (a run step) or a fixed sequence of calls to
+an outside service's MCP server (an MCP step): open a task, poll it, read the
+answer. A person on each machine adds and approves the plugin once, and maps
+each MCP server it names to a server command on that machine. Nothing of the
+plugin is written to the repositories the checks run on.
 
 Each plugin check filters itself cheaply before it runs: by repository, by
 changed paths, by an optional decide prompt that a small read-only model
 call answers, and by a result cache. A check also names its stage: a task's
-landing, a phase's combined changes, or the merge of an integration branch.
-
-Claims about code carry one label: **V**, read in the file cited at
-`eed9d8d3`; or **A**, assumed and not checked, with the reason.
-
-### Why
-
-- **The check belongs to the organization, not the repository.** A team
-  that owns many repositories wants one definition, one update and one
-  approval per machine. Copying it into each repository's settings means
-  one edit per repository per change, and the copy shows the script's
-  location to everyone who reads the repository.
-- **Some checks are slow or cost money.** An outside review service can
-  take many minutes per call. Running it on every task wastes time and
-  quota when most tasks do not touch what it checks. Paths alone cannot
-  say "this change touches the public API", so a short model call decides,
-  and a cache skips content it already judged.
-- **Some checks only make sense over more than one task.** A parity check
-  over a whole phase, or before an integration branch lands, sees the
-  complete change; per task it sees half of one.
+landing, a phase's combined changes, or the head of an integration branch.
 
 ### Scope
 
@@ -64,18 +40,18 @@ Claims about code carry one label: **V**, read in the file cited at
 
 ### Words
 
-| Word           | Meaning                                                                                       |
-| -------------- | --------------------------------------------------------------------------------------------- |
-| Plugin check   | One check a plugin's `checks` part defines                                                    |
-| Repository check | One check in a repository's own `checks` setting, as today                                  |
-| Decide prompt  | A Markdown file in the plugin that asks whether a check is needed                              |
-| Decide call    | One read-only model call with the decide prompt, answering `{needed, reason}`                  |
-| Run step       | A check step that runs a script inside the plugin folder                                      |
-| MCP step       | A check step of fixed MCP tool calls: start, poll, result                                     |
-| Server alias   | A name a plugin gives an MCP server it needs; this machine maps it to a server command        |
-| Stage          | When a plugin check runs and what it blocks: `task`, `phase` or `branch`                       |
-| Result cache   | This machine's record of a plugin check's result for one content key                          |
-| Content key    | A hash of the check's identity and the content of the files its `paths` match                  |
+| Word | Meaning |
+| --- | --- |
+| Plugin check | One check a plugin's `checks` part defines |
+| Repository check | One check in a repository's own `checks` setting |
+| Decide prompt | A Markdown file in the plugin that asks whether a check is needed |
+| Decide call | One read-only model call with the decide prompt, answering `{needed, reason}` |
+| Run step | A check step that runs a script inside the plugin folder |
+| MCP step | A check step of fixed MCP tool calls: start, poll, result |
+| Server alias | A name a plugin gives an MCP server it needs; this machine maps it to a server command |
+| Stage | When a plugin check runs and what it blocks: `task`, `phase` or `branch` |
+| Result cache | This machine's record of a plugin check's result for one content key |
+| Content key | A hash of the check's identity and the content of the files its `paths` match |
 
 ## Requirements
 
@@ -87,15 +63,16 @@ approval carries them.
 
 #### Acceptance criteria
 
-1. `PARTS` SHALL gain `checks`. A manifest MAY list `checks` in `provides`
-   with any other part. The part SHALL run as no Node child (it has no
-   code kind) and needs no `entry`; its commands run as checks (PK7).
+1. `checks` SHALL be one of the plugin parts in `PARTS`
+   (`src/app/plugins/plugins.ts`). A manifest MAY list `checks` in
+   `provides` with any other part. The part SHALL run as no Node child and
+   needs no `entry`; its commands run as checks (PK7).
 2. The manifest's `checks` key SHALL map a check name to its definition.
    It SHALL be refused when `provides` does not list `checks`, and a
    `provides` that lists `checks` SHALL have at least one check.
-3. A check's name SHALL follow the repository check name rule
-   (`CHECK_NAME`, V: `src/app/workspace/repository-checks.mjs:9`). A plugin
-   SHALL hold at most 20 checks.
+3. A check's name SHALL be lowercase letters, digits and dashes, starting
+   with a letter, at most 40 characters. A plugin SHALL hold at most 20
+   checks.
 4. A definition SHALL hold `repos` and exactly one step, `run` or `mcp`
    (PK10), and MAY hold `paths`, `env`, `network`, `timeout`, `decide`,
    `decideAt` and `stage`. Any other key SHALL be refused naming the key.
@@ -106,9 +83,8 @@ approval carries them.
      a bare command name looked up on `PATH`. A `.mjs` or `.js` file SHALL
      run with Avoozl's own Node; any other file SHALL run directly. Later
      items MAY hold `{commit}`, `{base}` and `{repo}`.
-   - `env`: environment variable names, as `checksEnv` takes them. Run
-     steps only; an MCP server's environment is the machine's mapping
-     (PK10.2).
+   - `env`: environment variable names. Run steps only; an MCP server's
+     environment is the machine's mapping (PK10.2).
    - `network`: `true` or `false`, default `false`. Run steps only; it
      SHALL be refused on an MCP step.
    - `timeout`: whole seconds, 1 to 7200.
@@ -119,8 +95,7 @@ approval carries them.
 5. Every file a definition names SHALL exist in the plugin folder, and so
    SHALL be covered by the plugin's content hash (Requirement 34.4).
 6. An invalid `checks` part SHALL make the whole plugin invalid, with the
-   reason, and it SHALL NOT be approvable, as for an invalid pack
-   (Requirement 55.4).
+   reason, and it SHALL NOT be approvable.
 
 ### Requirement PK2: Which repositories and changes
 
@@ -133,8 +108,7 @@ repositories and files it is meant for, so that it costs nothing elsewhere.
    GitHub `owner/name` matches one of its `repos` globs. A repository with
    no GitHub name SHALL match by its Avoozl repository ID.
 2. A plugin check with `paths` SHALL apply to a change only when the
-   change's diff touches one of them, by the same rule as repository checks
-   (`checkApplies`).
+   change's diff touches one of them, by the same rule as repository checks.
 3. A plugin check whose name equals a repository check's name in that
    repository SHALL NOT run there. The repository check SHALL run, and the
    plugin check SHALL show as shadowed in Settings, naming the repository.
@@ -158,17 +132,15 @@ question first, so that it runs only on the changes that need it.
      task's title and text.
    - `diff`: once per task commit, when the task's diff is ready for its
      check run, with the diff.
-2. The decide call SHALL be one read-only model call: the decide prompt,
-   then the input as data. It SHALL have no tools, no file writes outside
-   its one output, and no network except the model's own route. Its only
-   output SHALL be JSON `{"needed": true|false, "reason": "..."}` with a
-   reason of 1 to 300 characters.
+2. The decide call SHALL be one read-only, offline `check-decide` session:
+   the decide prompt, then the input as data. Its only answer SHALL be
+   `{"needed": true|false, "reason": "..."}` with a reason of 1 to 300
+   characters, sent through `plans_submit_decide` or its output file.
 3. The check SHALL apply to the task when any decide call answered
    `needed: true`. A `true` at `approve` SHALL skip the `diff` call.
-4. A call that fails, times out, has no model to run on, or writes output
-   that is not exactly that shape SHALL count as `needed: true`, with the
-   cause as its reason. An input over 200 KB SHALL count as `needed: true`
-   without a call.
+4. A call that fails, times out, has no model to run on, or answers in any
+   other shape SHALL count as `needed: true`, with the cause as its reason.
+   An input over 200 KB SHALL count as `needed: true` without a call.
 5. The task's page SHALL show each answer with its point and reason. A
    person SHALL be able to flip it: **Run it** makes the check apply,
    **Skip it** makes it not apply. Flipping SHALL be person-only. A flip
@@ -180,9 +152,9 @@ question first, so that it runs only on the changes that need it.
    such in the call's brief. The call's answer SHALL decide only whether
    that one check applies to that one task. It SHALL NOT change any other
    check, task, setting or state.
-8. The decide call SHALL run off the tick's path, as check runs do. The
-   tick SHALL stay a pure planner with no model call. A check waiting on its decide
-   answer SHALL show **Deciding** on the task.
+8. The tick SHALL only queue and dispatch decide calls; it SHALL make no
+   model call. A check run waiting on a decide answer SHALL stay queued and
+   record `deciding` with the names of the checks it waits on.
 
 ### Requirement PK4: Stages
 
@@ -191,25 +163,23 @@ its failure holds, so that a whole-phase check does not block single tasks.
 
 #### Acceptance criteria
 
-1. `task` SHALL behave as a repository check does today: it runs on the
-   task's commit and on any merge batch candidate holding the task
-   (`merge-batches` MB3.2), and its failure blocks that task's landing.
+1. `task` SHALL behave as a repository check does: it runs on the task's
+   commit and on any merge batch candidate holding the task
+   (`merge-batches` MB3), and its failure blocks that task's landing.
 2. `phase` SHALL run once WHEN every task of a phase in one plan and one
-   repository has landed. It SHALL run at the base branch commit the
-   phase's last task landed as, with `{base}` set to the base commit before
-   the phase's first task landed, and it SHALL apply when the combined
-   diff passes PK2 and, with `decide`, any of the phase's tasks had
-   `needed: true`.
-3. WHEN a `phase` check fails THEN Avoozl SHALL propose one fix (design
-   §4.12 of `avoozl`) for that plan and phase, holding the check's name and the bounded output excerpt
-   as untrusted text, in one Needs you item. A person's **Start** SHALL
-   create the fix in that phase, since starting a fix is its approval. WHEN the fix lands THEN the phase check SHALL
-   run again over the phase's changes and the fix.
+   repository has landed. It SHALL run at the commit the phase's last task
+   landed as, with `{base}` set to the parent of the phase's first landing,
+   and it SHALL apply when the combined diff passes PK2 and, with `decide`,
+   any of the phase's tasks had `needed: true` or no answer.
+3. WHEN a `phase` check fails THEN Avoozl SHALL raise one Needs you item for
+   that plan and phase that holds a proposed fix: the check's name and its
+   bounded output excerpt as untrusted text. The check SHALL run again when
+   the phase's next task lands.
 4. `branch` SHALL run on each new head of an epic's integration branch
-   (V: `src/app/epics/integration-branch.mjs`) and SHALL count in that head's acceptance state
-   (V: `headState` in `src/app/epics/integration-head.mjs`). A red or
-   missing result SHALL keep the head from being green, and so SHALL hold
-   only the request to land that branch.
+   (`src/app/epics/integration-branch.ts`) and SHALL count in that head's
+   state (`src/app/epics/integration-head.ts`). A red or missing result
+   SHALL keep the head from being green, and so SHALL hold only the request
+   to land that branch.
 5. A `phase` or `branch` check SHALL NOT block or delay any task's landing.
 6. A `phase` or `branch` check's result SHALL show on the Epics page beside
    its phase or branch.
@@ -227,17 +197,16 @@ did, so that a rerun or a rebase costs nothing.
 2. The content key SHALL hash the plugin's id, version and content hash,
    the check's name, and the path and blob ID of every file at the checked
    commit that the check's `paths` match (every tracked file without
-   `paths`). WHEN `run` uses `{base}` THEN the key SHALL also hash the same
-   at the base commit.
+   `paths`). WHEN the step uses `{base}` or `{diff_path}` THEN the key SHALL
+   also hash the same at the base commit.
 3. WHEN the cache holds a passed or failed result for the content key THEN
    Avoozl SHALL use it without running the command, and the record SHALL say
    **cached** with the commit it was first made at. A not-run result SHALL
    never be cached.
-4. A merge batch's rerun of a failed check (`merge-batches` MB4.1) SHALL run
+4. A merge batch's rerun of a failed check (`merge-batches` MB4) SHALL run
    the command, and its result SHALL replace the cached one.
 5. The cache SHALL be local to this machine, SHALL keep at most 5,000
    entries, oldest dropped first, and SHALL drop entries older than 30 days.
-   `avoozl rebuild` MAY drop it.
 
 ### Requirement PK6: Nothing in the repository
 
@@ -262,16 +231,11 @@ private and my files stay mine.
    name and GitHub shows no check of that name on the head after its other
    checks finished THEN the task SHALL wait, with one Needs you item that
    names the check and says no machine here can run it.
-5. Set up's branch rule check (V: `mergePath` in
-   `src/app/landing/merge-path.mjs`) SHALL NOT ask for a GitHub branch rule
-   for a required name that an approved plugin check on this machine
-   provides.
 6. Plugin check results SHALL never be posted to GitHub: no commit status,
    no check run, no comment, no review, under any setting. The check runs on
-   one person's machine with that person's credentials; posting would put
-   the plugin's check name and output on a possibly public repository and
-   make GitHub branch protection depend on a private plugin. A test SHALL
-   assert that no GitHub write carries a plugin check's result.
+   one person's machine with that person's credentials, so posting would put
+   the plugin's check name and output on a possibly public repository. A
+   test SHALL assert that no GitHub write carries a plugin check's result.
 
 ### Requirement PK7: Outside code, held as such
 
@@ -284,7 +248,7 @@ credentials or my network.
 1. A plugin check SHALL run only after a person approved the plugin's id,
    version, content hash and, for git, commit (Requirements 34.4, 34.14).
    Any change SHALL ask again. A local-folder plugin SHALL be hashed again
-   just before each run, as plugin processes are (R83.6).
+   just before each run.
 2. The approval view SHALL show, per check: its name, `repos`, `paths`,
    its step (`run` with `env` and `network`, or `mcp` with every tool, its
    arguments and the full text of each `{file:NAME}` it sends), `timeout`,
@@ -295,8 +259,9 @@ credentials or my network.
    and Avoozl's own tokens SHALL never reach it, even when listed, as for
    repository checks.
 4. A run step SHALL run in the repository's `isolation` (`sandbox` or
-   `unconfined`), with the plugin folder readable and not writable. Its network SHALL be off unless its own `network` is `true`.
-   An MCP step's server runs as PK10.11 says.
+   `unconfined`), with the plugin folder readable and not writable. Its
+   network SHALL be off unless its own `network` is `true`. An MCP step's
+   server runs as PK10.11 says.
 5. A plugin check, and any process it starts, SHALL NOT open a network
    listener. One that does SHALL be stopped, recorded as failed with that
    reason, and its plugin marked broken until approved again.
@@ -320,7 +285,7 @@ were skipped and why, so that I can trust the result.
    its result (`passed`, `failed`, `not run`, `cached`, `skipped`), and for
    `skipped` the filter that skipped it (`repos`, `paths`, `decide`).
 2. `avoozl show TASK --json` and the MCP task read SHALL return the same.
-3. Settings › Plugins SHALL list each plugin's checks with their stage and
+3. Settings > Plugins SHALL list each plugin's checks with their stage and
    the repositories they apply to on this workspace.
 4. Flow SHALL count plugin check time in the `checks` stage, and decide
    calls in the same stage, by name.
@@ -332,7 +297,7 @@ part, so that I can ship one without reading Avoozl's code.
 
 #### Acceptance criteria
 
-1. `docs/plugins.md` SHALL gain a Checks part section with a complete
+1. `docs/plugins.md` SHALL have a Checks part section with a complete
    example manifest, a decide prompt, a script, an MCP step and its machine
    mapping, using only neutral names.
 2. `docs/checks.md` SHALL say that checks may also come from a plugin, and
@@ -356,17 +321,18 @@ that I ship no script and no model picks what is called.
    map each alias of an approved plugin to `{command, env}`: `command` an
    argv list for a local stdio MCP server, `env` the environment variable
    names the server may read. The mapping SHALL hold no credential value;
-   credential-like keys and values SHALL be refused as in plugin `config`
-   (Requirement 34.2). Neither the plugin nor any repository SHALL hold it.
-3. Only a person SHALL set a mapping, in Settings › Plugins or the CLI. The
-   plugin's approval SHALL bind a hash of its mappings. WHEN a mapping
-   changes THEN the plugin SHALL need a new approval before its checks run,
-   as for a content hash change (Requirement 34.4). A check whose alias has
-   no mapping SHALL be not run, naming the alias.
+   credential-like keys and values SHALL be refused. Neither the plugin nor
+   any repository SHALL hold it.
+3. Only a person SHALL set a mapping, in Settings > Plugins or with
+   `avoozl plugins map`. The plugin's approval SHALL bind a hash of its
+   mappings. WHEN a mapping changes THEN the plugin SHALL need a new approval
+   before its checks run, as for a content hash change (Requirement 34.4). A
+   check whose alias has no mapping SHALL be not run, naming the alias.
 4. An MCP step SHALL be
    `{"mcp": {"server", "start", "poll"?, "result"}}`:
    - `start`: `{tool, args, id?}`. Avoozl SHALL call `tool` once with
      `args`, and `id` SHALL be a path into its reply naming the task id.
+     `id` is required when the step polls.
    - `poll`: `{tool, args, everySeconds, until}`. Avoozl SHALL call `tool`
      every `everySeconds` (5 to 3600, default 30) until `until` holds or the
      check's timeout fires. `until` SHALL be `{path, in: [values]}`. Without
@@ -377,8 +343,8 @@ that I ship no script and no model picks what is called.
 5. Arguments SHALL be JSON values in which strings MAY hold `{repo}`,
    `{commit}`, `{base}`, `{diff_path}` (a file Avoozl writes with the
    change's diff), `{id}` (poll only) and `{file:NAME}` (the text of a
-   file inside the plugin folder, such as `{file:ask.md}`). Any other
-   placeholder SHALL be refused at validation.
+   file of at most 64 KB inside the plugin folder, such as
+   `{file:ask.md}`). Any other placeholder SHALL be refused at validation.
 6. A path SHALL be `$` followed by `.key` and `[index]` parts only. Avoozl
    SHALL read a reply's `structuredContent`, else the first text content
    parsed as JSON.
@@ -400,10 +366,11 @@ that I ship no script and no model picks what is called.
     stages and the check's timeout SHALL apply to an MCP step as to a run
     step. The content key SHALL also hash the step and the alias's mapping.
 11. The MCP server SHALL run outside the worker sandbox, as a child of the
-    app backend, as other checks run outside it. It SHALL get the check
-    environment basics plus its mapping's `env` names, never push or GitHub
-    credentials or the gateway secrets, a scratch folder as its working
-    folder, and network access. It SHALL NOT open a network listener; one
-    that does SHALL be stopped and its plugin marked broken (PK7.5).
+    check runner, started for one check and stopped after it. It SHALL get
+    the check environment basics plus its mapping's `env` names, never push
+    or GitHub credentials or the gateway secrets, a scratch folder as its
+    working folder, and network access. It SHALL NOT open a network
+    listener; one that does SHALL be stopped and its plugin marked broken
+    (PK7.5).
 12. A started task's id SHALL be stored on the check run record, so that a
     backend restart resumes polling that task and does not start a second.

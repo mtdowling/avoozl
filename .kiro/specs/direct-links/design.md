@@ -22,9 +22,8 @@ permissions. Avoozl only opens the destination.
 If no supported destination is known, show the worker name and last
 known state. For process workers use the existing log view where available.
 
-Amend WP6.1 of the worker-paths spec to allow read-only links to an
-existing chat on another Crew. WP6's local-only session creation still
-applies.
+WP6.1 of the worker-paths spec allows read-only links to an existing chat
+on another Crew. Avoozl creates sessions only on this machine.
 
 ## D3. Decision alerts
 
@@ -40,8 +39,8 @@ On Kiro Crew 0.13 the app notification URL is a dashboard-relative path.
 The DM bridge prints that path as text. Clickable native DMs need a Kiro
 Crew bridge change to turn validated dashboard paths into links using the
 owner's configured HTTPS dashboard address. The gateway owns that
-conversion. Until it supports links, keep the native alert and its
-dashboard link. Keep the existing standalone command and webhook sinks
+conversion. Without link support, the native alert and its dashboard
+link still arrive. Keep the existing standalone command and webhook sinks
 and give them the same exact target when a reachable standalone address
 is configured. DMs carry a short summary. Private details stay behind
 sign-in in Avoozl.
