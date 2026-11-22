@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Content rules (tasks 10.1–10.7, design §4.9, Requirement 40): the matcher,
 // policy validation, terms files, the time limit, the pre-push hook, the
 // guarded GitHub client and rules plugins. Every term is fake.
@@ -6,7 +5,7 @@ import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import {
   addedLines,
   bindContentRules,
@@ -24,7 +23,16 @@ import {
 } from "../content-rules.ts";
 import { checkReply } from "../../plugins/plugin-contract.ts";
 import { Store } from "../../store/store.ts";
+import { found } from "../../test/view-shapes.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
+
+// A content rules set as Settings describes it.
+interface DescribedSet {
+  available: boolean;
+  reason?: string;
+  ruleCount?: number;
+}
+const setsOf = (store: Store): DescribedSet[] => describeSets(store).sets;
 
 process.env.XDG_CONFIG_HOME = temporaryDirectory("avoozl-xdg-");
 // This machine's own Git settings (a global ignore file) stay out.
@@ -34,10 +42,14 @@ process.env.GIT_CONFIG_GLOBAL = path.join(
 );
 fs.writeFileSync(process.env.GIT_CONFIG_GLOBAL, "");
 
-const git = (cwd, ...args) =>
+const git = (cwd: string, ...args: string[]) =>
   execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
 
-function workspace(t, sets, terms = {}) {
+function workspace(
+  t: TestContext,
+  sets: Record<string, unknown>[],
+  terms: Record<string, string> = {},
+) {
   const root = temporaryDirectory("avoozl-cr-"),
     store = new Store(path.join(root, "workspace.sqlite"));
   t.after(() => store.close());
@@ -73,7 +85,7 @@ test("validation refuses rules in .avoozl.json, reserved ids, unknown boundaries
       ["b", "report", ["diff"]],
     ],
   );
-  for (const [value, pattern] of [
+  const refused: [Record<string, unknown>, RegExp][] = [
     [{ sets: [{ id: "a", terms: ["x"] }] }, /could hold a rule/],
     [{ terms: { a: "x" }, sets: [] }, /could hold a rule/],
     [{ sets: [{ id: "a", patterns: [] }] }, /could hold a rule/],
@@ -81,7 +93,8 @@ test("validation refuses rules in .avoozl.json, reserved ids, unknown boundaries
     [{ sets: [{ id: "a" }, { id: "a" }] }, /named twice/],
     [{ sets: [{ id: "a", boundaries: ["email"] }] }, /may list only/],
     [{ sets: [{ id: "a", action: "redact" }] }, /block or report/],
-  ])
+  ];
+  for (const [value, pattern] of refused)
     assert.throws(() => validateContentRules(value), pattern);
   assert.throws(
     () =>
@@ -133,9 +146,9 @@ test("the matcher finds encoded terms per line and never returns the text", (t) 
 
 test("a terms file Git tracks or does not ignore is refused; a missing one fails closed", (t) => {
   const { root, store } = workspace(t, [{ id: "fake-terms" }]);
-  let [set] = describeSets(store).sets;
+  let set = found(setsOf(store)[0]);
   assert.equal(set.available, false);
-  assert.match(set.reason, /no terms file/);
+  assert.match(set.reason ?? "", /no terms file/);
   const result = enforce(store, { boundary: "brief", target: "b", text: "x" });
   assert.equal(result.ok, false);
   assert.deepEqual(
@@ -152,17 +165,17 @@ test("a terms file Git tracks or does not ignore is refused; a missing one fails
   );
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, "codename: zorblat\n");
-  assert.match(gitExposure(file), /not ignored/);
+  assert.match(gitExposure(file) ?? "", /not ignored/);
   fs.writeFileSync(path.join(root, ".gitignore"), ".avoozl/local/\n");
   assert.equal(gitExposure(file), null);
-  [set] = describeSets(store).sets;
+  set = found(setsOf(store)[0]);
   assert.equal(set.available, true);
   assert.equal(set.ruleCount, 1);
   assert.equal(JSON.stringify(describeSets(store)).includes("zorblat"), false);
   git(root, "add", "-f", file);
   assert.equal(gitExposure(file), "Git tracks it");
-  [set] = describeSets(store).sets;
-  assert.match(set.reason, /refused: Git tracks it/);
+  set = found(setsOf(store)[0]);
+  assert.match(set.reason ?? "", /refused: Git tracks it/);
   assert.equal(parseTerms("a: b").length, 1);
   assert.throws(() => parseTerms("nothing"), /rule: regex/);
 });
@@ -178,7 +191,7 @@ test("a terms file outside Git is not exposed; one linked into a repository is",
   fs.writeFileSync(path.join(repo, "terms", "terms.txt"), "codename: x\n");
   const link = path.join(outside, "linked");
   fs.symlinkSync(path.join(repo, "terms"), link, "junction");
-  assert.match(gitExposure(path.join(link, "terms.txt")), /not ignored/);
+  assert.match(gitExposure(path.join(link, "terms.txt")) ?? "", /not ignored/);
 });
 
 test("added lines only: a line already in the base never matches", () => {
@@ -278,12 +291,13 @@ test("the guarded GitHub client blocks a matching write and lets the rest throug
       "fake-terms": "codename: \\bzorblat\\b\n",
     },
   );
-  const writes = [];
+  const writes: string[] = [];
   const github = guardGitHub(
     {
-      createIssue: async (config, input) => (
-        writes.push(input.title), { number: 1 }
-      ),
+      createIssue: async (
+        _config: { id: string },
+        input: { title: string; body: string },
+      ) => (writes.push(input.title), { number: 1 }),
       issue: async () => ({ title: "zorblat may be read" }),
     },
     store,
@@ -293,7 +307,8 @@ test("the guarded GitHub client blocks a matching write and lets the rest throug
       { id: "example/app" },
       { title: "Ship zorblat", body: "" },
     ),
-    (error) => error.contentBlocked === true && !/zorblat/.test(error.message),
+    (error: Error & { contentBlocked?: boolean }) =>
+      error.contentBlocked === true && !/zorblat/.test(error.message),
   );
   await github.createIssue(
     { id: "example/app" },
@@ -301,7 +316,7 @@ test("the guarded GitHub client blocks a matching write and lets the rest throug
   );
   assert.deepEqual(writes, ["Ship it"]);
   assert.equal((await github.issue()).title, "zorblat may be read");
-  const [decision] = store.list("content_decisions");
+  const decision = found(store.list("content_decisions")[0]);
   assert.deepEqual(
     [decision.kind, decision.set, decision.rules, decision.boundary],
     ["match", "fake-terms", ["codename"], "github"],
@@ -337,15 +352,17 @@ test("allow: cancels any rule's match on the same line; other lines still block"
   const { store } = workspace(t, [{ id: "fake-terms" }], {
     "fake-terms": ALLOW_TERMS,
   });
-  const found = (text) =>
+  const findings = (text: string) =>
     check(store, { boundary: "plan", target: "x.md", text }).findings.map(
       (f) => [f.rule, f.line],
     );
   // Allowed on its own line, even encoded and in any case.
-  assert.deepEqual(found("ship ZORBLAT-public"), []);
-  assert.deepEqual(found("ship zorbl&#97;t-public"), []);
+  assert.deepEqual(findings("ship ZORBLAT-public"), []);
+  assert.deepEqual(findings("ship zorbl&#97;t-public"), []);
   // A line the allow pattern does not match still blocks.
-  assert.deepEqual(found("zorblat-public\nzorblat alone"), [["codename", 2]]);
+  assert.deepEqual(findings("zorblat-public\nzorblat alone"), [
+    ["codename", 2],
+  ]);
   const result = enforce(store, {
     boundary: "plan",
     target: "x.md",
@@ -379,28 +396,29 @@ test("allow <rule>: cancels only that rule's match", (t) => {
   const { store } = workspace(t, [{ id: "fake-terms" }], {
     "fake-terms": ALLOW_TERMS,
   });
-  const found = (text) =>
+  const findings = (text: string) =>
     check(store, { boundary: "brief", target: "b", text }).findings.map(
       (f) => f.rule,
     );
-  assert.deepEqual(found("build0.corp.example"), []);
-  assert.deepEqual(found("build7.corp.example"), ["host"]);
+  assert.deepEqual(findings("build0.corp.example"), []);
+  assert.deepEqual(findings("build7.corp.example"), ["host"]);
   // The host allow does not cancel the codename rule on the same line.
-  assert.deepEqual(found("build0.corp.example zorblat"), ["codename"]);
+  assert.deepEqual(findings("build0.corp.example zorblat"), ["codename"]);
 });
 
 test("a bad allow line makes the set unavailable and never repeats its text", (t) => {
-  for (const [terms, line] of [
+  const bad: [string, number][] = [
     ["codename: zorblat\nallow nosuchrule: quartz\n", 2],
     ["codename: zorblat\n\nallow: quartz(\n", 3],
     ["codename: zorblat\nallow:\n", 2],
-  ]) {
+  ];
+  for (const [terms, line] of bad) {
     const { store } = workspace(t, [{ id: "fake-terms" }], {
       "fake-terms": terms,
     });
-    const [set] = describeSets(store).sets;
+    const set = found(setsOf(store)[0]);
     assert.equal(set.available, false, terms);
-    assert.match(set.reason, new RegExp(`line ${line}\\b`), terms);
+    assert.match(set.reason ?? "", new RegExp(`line ${line}\\b`), terms);
     assert.doesNotMatch(
       JSON.stringify(describeSets(store)),
       /zorblat|quartz|nosuchrule/,

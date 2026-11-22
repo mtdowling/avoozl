@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The activity log (tasks 29.1–29.3, design §4.19, Requirement 71): one
 // table, one helper, screening and redaction, local actions, the tick's
 // GitHub and plugin events, retention and the MCP read. Every term and
@@ -6,7 +5,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import {
   DEFAULT_RETENTION_DAYS,
   REDACTED_SUMMARY,
@@ -24,11 +23,32 @@ import { Store } from "../store.ts";
 import { snapshot } from "../../test/fixtures.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
 import { leaf as fixtureLeaf } from "../../test/delivery-fixture.ts";
+import type { Refusal } from "../../test/refusal.ts";
+import { found } from "../../test/view-shapes.ts";
 
-const leaf = (id, extra = {}) =>
+// activity.list, for the fields these tests read.
+interface ActivityList {
+  items: {
+    kind: string;
+    summary: string;
+    task?: boolean;
+    repository: string | null;
+  }[];
+  total: number;
+  retentionDays: number;
+  counts: Record<"source" | "kind" | "actor", Record<string, number>>;
+  repositories: string[];
+}
+// A settings read: the value and the hash a save names.
+interface Settings {
+  retentionDays: number;
+  hash: string;
+}
+
+const leaf = (id: string, extra: Parameters<typeof fixtureLeaf>[1] = {}) =>
   fixtureLeaf(id, { repository: "r1", ...extra });
 
-function setup(t, config = {}) {
+function setup(t: TestContext, config: Record<string, unknown> = {}) {
   const root = temporaryDirectory("avoozl-activity-"),
     store = new Store(path.join(root, "workspace.sqlite"));
   t.after(() => store.close());
@@ -58,7 +78,7 @@ function setup(t, config = {}) {
 }
 
 // Every stored column of every row, as one string.
-const everything = (store) =>
+const everything = (store: Store) =>
   JSON.stringify(store.db.prepare("SELECT * FROM activity_log").all());
 
 test("a row holds time, source, actor, kind, summary, target and link", (t) => {
@@ -71,7 +91,7 @@ test("a row holds time, source, actor, kind, summary, target and link", (t) => {
     targetId: "a1",
     link: "https://github.com/acme/app/issues/4",
   });
-  assert.equal(row.redacted, false);
+  assert.equal(row?.redacted, false);
   const [item] = listActivity(store).items;
   assert.equal(item.source, "github");
   assert.equal(item.actor, "octocat");
@@ -247,7 +267,9 @@ test("pruning removes rows older than the retention", (t) => {
 
 test("local actions record one row with the person, and MCP calls the session", async (t) => {
   const { store, ops } = setup(t);
-  const { stop } = await ops.execute("flow.stop", {
+  const { stop } = await ops.execute<{
+    stop: { id: string; by: { name: string } };
+  }>("flow.stop", {
     scope: "task",
     taskId: "a1",
     reason: "a private text reason",
@@ -281,19 +303,19 @@ test("local actions record one row with the person, and MCP calls the session", 
 
 test("a settings save and a Deferred stop are recorded", async (t) => {
   const { store, ops } = setup(t);
-  const settings = await ops.execute("activity.settings.get", {});
+  const settings = await ops.execute<Settings>("activity.settings.get", {});
   assert.equal(settings.retentionDays, DEFAULT_RETENTION_DAYS);
   await ops.execute("activity.settings.update", {
     retentionDays: 7,
     expectedHash: settings.hash,
   });
   assert.equal(
-    (await ops.execute("activity.settings.get", {})).retentionDays,
+    (await ops.execute<Settings>("activity.settings.get", {})).retentionDays,
     7,
   );
   await ops.execute("task.update", { id: "a2", status: "deferred" });
   // Settings › Models is a settings save too (the writer model, R71.2).
-  const models = await ops.execute("models.settings.get", {});
+  const models = await ops.execute<{ hash: string }>("models.settings.get", {});
   await ops.execute("models.settings.update", {
     roles: { worker: { model: "m1" } },
     expectedHash: models.hash,
@@ -307,7 +329,7 @@ test("retention is a person's setting, bounded, and the tick prunes by it", asyn
   const { store, ops } = setup(t, { activity: { retentionDays: 1 } });
   assert.equal(classifyOperation("activity.list"), "observe");
   assert.equal(classifyOperation("activity.settings.update"), "protect");
-  const { hash } = await ops.execute("activity.settings.get", {});
+  const { hash } = await ops.execute<Settings>("activity.settings.get", {});
   await assert.rejects(
     ops.execute(
       "activity.settings.update",
@@ -315,7 +337,7 @@ test("retention is a person's setting, bounded, and the tick prunes by it", asyn
       undefined,
       { mcp: true },
     ),
-    (error) => error.status === 403,
+    (error: Refusal) => error.status === 403,
   );
   await assert.rejects(
     ops.execute("activity.settings.update", {
@@ -340,25 +362,27 @@ test("plans_view action activity reads the log; recent keeps the Dashboard timel
     input: {},
   });
   assert.equal(
-    groupedCall("plans_view", { action: "recent" }).operation,
+    groupedCall("plans_view", { action: "recent" })?.operation,
     "activity.recent",
   );
   const { store, ops } = setup(t);
   recordActivity(store, { source: "local", kind: "dispatch", summary: "one" });
-  const read = await ops.execute(
+  const read = await ops.execute<ActivityList>(
     "activity.list",
     { source: "local" },
     undefined,
     { mcp: true },
   );
-  assert.equal(read.items[0].summary, "one");
+  assert.equal(read.items[0]?.summary, "one");
   recordActivity(store, {
     source: "local",
     kind: "dispatch",
     summary: "Dispatched a1",
     targetId: "a1",
   });
-  const [row] = (await ops.execute("activity.list", {})).items;
+  const row = found(
+    (await ops.execute<ActivityList>("activity.list", {})).items[0],
+  );
   assert.equal(row.task, true, "a task target opens the drawer");
   assert.equal(read.retentionDays, DEFAULT_RETENTION_DAYS);
 });
@@ -374,7 +398,9 @@ test("activity.list counts each source, kind and actor over the whole log", asyn
     summary: "c",
   });
   // A filter narrows the rows, not the counts: each choice keeps its size.
-  const read = await ops.execute("activity.list", { source: "github" });
+  const read = await ops.execute<ActivityList>("activity.list", {
+    source: "github",
+  });
   assert.equal(read.total, 1);
   assert.deepEqual(read.counts.source, { local: 2, github: 1 });
   assert.deepEqual(read.counts.kind, { dispatch: 2, "github.close": 1 });
@@ -391,7 +417,7 @@ test("activity.list gives each row its known GitHub repository, none in local mo
   });
   recordActivity(store, { source: "local", kind: "dispatch", summary: "x" });
   // No GitHub remote: no repositories, so the page shows text.
-  let read = await ops.execute("activity.list", {});
+  let read = await ops.execute<ActivityList>("activity.list", {});
   assert.deepEqual(read.repositories, []);
   assert.deepEqual(
     read.items.map((row) => row.repository),
@@ -399,7 +425,7 @@ test("activity.list gives each row its known GitHub repository, none in local mo
   );
   // One remote: every row uses it.
   store.put("repositories", { id: "r1", github: "o/app" });
-  read = await ops.execute("activity.list", {});
+  read = await ops.execute<ActivityList>("activity.list", {});
   assert.deepEqual(read.repositories, ["o/app"]);
   assert.deepEqual(
     read.items.map((row) => row.repository),
@@ -409,7 +435,7 @@ test("activity.list gives each row its known GitHub repository, none in local mo
   // owner/name is never offered.
   store.put("repositories", { id: "r2", github: "../evil" });
   store.put("github_repositories", { id: "o/plans" });
-  read = await ops.execute("activity.list", {});
+  read = await ops.execute<ActivityList>("activity.list", {});
   assert.deepEqual(read.repositories, ["o/app", "o/plans"]);
   assert.deepEqual(
     Object.fromEntries(read.items.map((row) => [row.kind, row.repository])),
@@ -472,11 +498,11 @@ test("the tick's snapshot diff records each GitHub and intake change once", (t) 
     "Private ticket title",
   ])
     assert.ok(!stored.includes(text), text);
-  const merged = items.find((item) => item.kind === "github.pr-merged");
+  const merged = found(items.find((item) => item.kind === "github.pr-merged"));
   assert.equal(merged.targetId, "a1");
   assert.equal(merged.link, "https://github.com/acme/app/pull/7");
   assert.equal(
-    items.find((item) => item.kind === "github.close").actor,
+    items.find((item) => item.kind === "github.close")?.actor,
     "octocat",
   );
 });
@@ -495,7 +521,9 @@ test("a new GitHub intake item keeps the item's own link", (t) => {
     },
   });
   recordTickChanges(store, before, tickSnapshot(store));
-  const item = listActivity(store).items.find((i) => i.kind === "intake.item");
+  const item = found(
+    listActivity(store).items.find((i) => i.kind === "intake.item"),
+  );
   assert.equal(item.summary, "New pr nupp-lang/foo#12 from github");
   assert.equal(item.link, "https://github.com/nupp-lang/foo/pull/12");
 });

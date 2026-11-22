@@ -1,11 +1,10 @@
-// @ts-nocheck: typing debt
 // A landing commit ticks its task in tasks.md (Requirement 113.8 to 113.11).
 // Real git: a bare origin, a checkout, a second machine's clone.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { digest } from "../../../model.ts";
 import { Store } from "../../store/store.ts";
 import { integrateVerified } from "../../delivery/delivery.ts";
@@ -15,10 +14,11 @@ import { tickedText } from "../spec-ticks.ts";
 import { checkedItems, specHash } from "../spec-plans.ts";
 import { snapshot } from "../../test/fixtures.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
+import { found, storedRow } from "../../test/view-shapes.ts";
 
 process.env.XDG_CONFIG_HOME ??= temporaryDirectory("avoozl-xdg-");
 
-const git = (cwd, ...args) =>
+const git = (cwd: string, ...args: string[]) =>
   execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
 const TASKS = [
   "# Tasks",
@@ -31,17 +31,21 @@ const TASKS = [
   "    - It works",
   "",
 ].join("\n");
-const mainOf = (w) => git(w.origin, "rev-parse", "main");
-const tick = (text, n) => text.replace(`- [ ] 1.${n} `, `- [x] 1.${n} `);
+const mainOf = (w: { origin: string }) => git(w.origin, "rev-parse", "main");
+const tick = (text: string, n: number) =>
+  text.replace(`- [ ] 1.${n} `, `- [x] 1.${n} `);
 
 // Another machine: its own database and a fresh clone of `origin` (the code
 // repository's unless named) at `branch`, after one read of the ticks.
 // Returns the store and its tasks by ID.
 async function machine(
-  t,
-  w,
-  name,
-  { origin = w.origin, branch = "main" } = {},
+  t: TestContext,
+  w: { root: string; origin: string },
+  name: string,
+  {
+    origin = w.origin,
+    branch = "main",
+  }: { origin?: string; branch?: string } = {},
 ) {
   const clone = path.join(w.root, name),
     store = new Store(path.join(w.root, `${name}.sqlite`));
@@ -64,12 +68,12 @@ async function machine(
   await new Operations(store, { workspaceRoot: clone }).applyBaseTicks();
   return {
     store,
-    task: (id) => store.read().tasks.find((x) => x.id === id),
+    task: (id: string) => found(store.read().tasks.find((x) => x.id === id)),
   };
 }
 const MAPPING = { "s.1.1": "t1", "s.1.2": "t2" };
 const FILE = ".kiro/specs/s/tasks.md";
-const leaf = (id) => ({
+const leaf = (id: string) => ({
   id,
   title: "Task " + id,
   scope: "catalog",
@@ -82,12 +86,12 @@ const leaf = (id) => ({
   planId: "s",
 });
 const CHECK = [process.execPath, "-e", "process.exit(0)"];
-const identity = (dir) => {
+const identity = (dir: string) => {
   git(dir, "config", "user.name", "Test");
   git(dir, "config", "user.email", "test@example.com");
 };
 
-function repo(root, name, files) {
+function repo(root: string, name: string, files: Record<string, string>) {
   const origin = path.join(root, `${name}.git`),
     checkout = path.join(root, name);
   git(root, "init", "--bare", "-b", "main", origin);
@@ -103,7 +107,7 @@ function repo(root, name, files) {
   return { origin, checkout: fs.realpathSync.native(checkout) };
 }
 
-async function workspace(t, { specInCode = true } = {}) {
+async function workspace(t: TestContext, { specInCode = true } = {}) {
   const root = temporaryDirectory("avoozl-tickland-"),
     app = repo(root, "app", {
       "README.md": "app\n",
@@ -137,7 +141,10 @@ async function workspace(t, { specInCode = true } = {}) {
   return { root, store, ...app };
 }
 
-function verified(w, taskId) {
+// A workspace from workspace().
+type Workspace = Awaited<ReturnType<typeof workspace>>;
+
+function verified(w: Workspace, taskId: string) {
   const wt = path.join(w.root, "wt", taskId);
   git(
     w.checkout,
@@ -177,12 +184,12 @@ function verified(w, taskId) {
   });
 }
 
-const land = async (w, taskId) => {
+const land = async (w: Workspace, taskId: string) => {
   verified(w, taskId);
   await integrateVerified(w.store);
   return landDirect(w.store, { workspaceRoot: w.root, rounds: 2, machine: {} });
 };
-const show = (dir, ref, file = FILE) =>
+const show = (dir: string, ref: string, file = FILE) =>
   execFileSync("git", ["show", `${ref}:${file}`], {
     cwd: dir,
     encoding: "utf8",
@@ -223,15 +230,15 @@ test("landing ticks the task in the same commit, touches only its line, and tick
 
 test("a person's Built: note names the landed work, and $built is refused", () => {
   const sha = "0123456789abcdef0123456789abcdef01234567",
-    note = (line) =>
+    note = (line: string) =>
       tick(TASKS, 1).replace(
         "    - It works\n    - A summary.",
         `    - It works\n    - ${line}\n    - A summary.`,
       ),
     text = note(`Built: ${sha.slice(0, 12)}`);
-  assert.equal(checkedItems("s", text).get("s.1.1").built, sha.slice(0, 12));
+  assert.equal(checkedItems("s", text).get("s.1.1")?.built, sha.slice(0, 12));
   assert.equal(
-    checkedItems("s", note(`$built: ${sha.slice(0, 12)}`)).get("s.1.1").built,
+    checkedItems("s", note(`$built: ${sha.slice(0, 12)}`)).get("s.1.1")?.built,
     null,
   );
   // A tick alone leaves the hash.
@@ -253,10 +260,13 @@ test("a second machine reading origin marks the task done; the landing machine r
       .all()
       .map((row) => row.kind);
   assert.ok(!kinds().includes("task.ticked"));
-  assert.equal(w.store.get("session_bindings", "slot-t1").status, "working");
+  assert.equal(
+    storedRow(w.store, "session_bindings", "slot-t1").status,
+    "working",
+  );
   const landing = mainOf(w);
   assert.equal(
-    w.store.read().tasks.find((x) => x.id === "t1").integration.commit,
+    found(w.store.read().tasks.find((x) => x.id === "t1")).integration?.commit,
     landing,
   );
   const other = await machine(t, w, "second"),
@@ -301,7 +311,7 @@ test("a direct push and a squash-merged pull request each resolve to their tick 
   for (const m of [one, again]) {
     assert.equal(m.task("t1").tickCommit, direct);
     assert.equal(m.task("t2").tickCommit, squash);
-    assert.equal(m.task("t2").integration.commit, squash);
+    assert.equal(m.task("t2").integration?.commit, squash);
   }
 });
 
@@ -401,7 +411,7 @@ const IDENTITY = {
   who: "Test <test@example.com> | Test <test@example.com>",
   attribution: false,
 };
-const whoAndTrailers = (dir, ref) => {
+const whoAndTrailers = (dir: string, ref: string) => {
   const [who, ...trailers] = git(
     dir,
     "log",

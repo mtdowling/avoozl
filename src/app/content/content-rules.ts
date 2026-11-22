@@ -377,7 +377,10 @@ export const RULE_SET_KEYS = [
 // the ids the set may name.
 export function validateContentRules(
   value,
-  { pluginIds = null, repositories = null } = {},
+  {
+    pluginIds = null,
+    repositories = null,
+  }: { pluginIds?: string[] | null; repositories?: string[] | null } = {},
 ) {
   if (value === undefined || value === null) return { sets: [] };
   refuseRuleKeys(value, "contentRules");
