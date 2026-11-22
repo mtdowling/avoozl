@@ -4,7 +4,6 @@
 import { notOnMcp, person } from "../api/operation-policy.ts";
 import { contentBinding } from "../content/content-rules.ts";
 import { contextView, setAnswer } from "../context/plugin-context.ts";
-import type { ContextPlugin } from "../context/plugin-context.ts";
 import {
   checkReadsExist,
   readEpicContext,
@@ -21,7 +20,6 @@ import type {
 } from "../api/operations.ts";
 
 // A plugin as the loader inspects it, as far as these reads go.
-type Inspected = ContextPlugin & { version?: string; [key: string]: unknown };
 
 const refuseAgent = (context: OperationContext, what: string) => {
   if (context.caller || context.mcp)
@@ -46,7 +44,7 @@ export const entries = [
           ? readEpicContext(this.configDirectory)
           : null,
         plugins: settings
-          ? (inspectPlugins(options) as Inspected[])
+          ? inspectPlugins(options)
               .filter((plugin) => plugin.context)
               .map((plugin) => ({
                 id: plugin.id,
@@ -84,9 +82,9 @@ export const entries = [
       const plugin = setAnswer(
         options,
         (input ?? {}) as Parameters<typeof setAnswer>[1],
-      ) as Inspected;
+      );
       contentBinding(this.store)?.plugins.clear();
-      const { manifest: _m, entry: _e, ...shown } = plugin;
+      const { manifest: _m, entry: _e, ...shown } = plugin ?? {};
       return shown;
     },
   },

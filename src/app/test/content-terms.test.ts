@@ -277,9 +277,9 @@ test("plugin.preview reads a folder's manifest without declaring it", async (t) 
   const missing = await previewPlugin(options, {
     path: path.join(root, "nope"),
   });
-  assert.match(missing.error, /No avoozl-plugin\.json/);
+  assert.match(missing.error ?? "", /No avoozl-plugin\.json/);
   const pkg = await previewPlugin(options, { package: "made-up-pkg" });
-  assert.match(pkg.error, /not installed/);
+  assert.match(pkg.error ?? "", /not installed/);
   await assert.rejects(previewPlugin(options, {}), /exactly one/);
   // A git source resolves to a commit and is not fetched.
   const repo = path.join(root, "repo");
