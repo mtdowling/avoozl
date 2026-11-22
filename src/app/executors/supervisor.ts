@@ -135,10 +135,10 @@ type Values = Record<string, unknown> & {
   repository_cache_dirs?: string[];
 };
 type StartTime = (pid: number) => string | null;
-const messageOf = (error: unknown) =>
+export const messageOf = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
 // A value's own fields, or none when it is not an object.
-const fieldsOf = (value: unknown): Record<string, unknown> =>
+export const fieldsOf = (value: unknown): Record<string, unknown> =>
   value && typeof value === "object" && !Array.isArray(value)
     ? Object.fromEntries(Object.entries(value))
     : {};

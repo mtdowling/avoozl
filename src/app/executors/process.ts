@@ -17,6 +17,8 @@ import {
   childResult,
   readChildOutput,
   childStatus,
+  fieldsOf,
+  messageOf,
   openSupervisorDatabase,
   requestChild,
   sendChild,
@@ -130,13 +132,6 @@ type SessionContextGrant = {
 const bindingOf = (store: Store, slot: string) =>
   store.get<SessionBinding>("session_bindings", slot) ??
   fail(`No session ${slot}.`, 404);
-const messageOf = (error: unknown) =>
-  error instanceof Error ? error.message : String(error);
-// A value's own fields, or none when it is not an object.
-const fieldsOf = (value: unknown): Record<string, unknown> =>
-  value && typeof value === "object" && !Array.isArray(value)
-    ? Object.fromEntries(Object.entries(value))
-    : {};
 
 function withDatabase<T>(stateDirectory: string, use: (db: DatabaseSync) => T) {
   const db = openSupervisorDatabase(stateDirectory);
