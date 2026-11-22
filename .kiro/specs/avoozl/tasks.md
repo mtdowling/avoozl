@@ -22,18 +22,18 @@ Each task's plain sub-bullets say what done means.
 
 - [x] `1.1` Add `avoozl app-backend`: HTTP on `127.0.0.1` only, health route, every other route requires a valid gateway-signed principal and returns 401 otherwise. [R1, R20.4] (§4.1, §4.7)
   - Add `avoozl app-backend`: HTTP on `127.0.0.1` only, health route, every other route requires a valid gateway-signed principal and returns 401 otherwise.
-- [x] `1.2` Add `avoozl mcp` as the app's stdio MCP server, keeping every `plans_*` tool name. [R24.5] (§4.1)
-  - Add `avoozl mcp` as the app's stdio MCP server, keeping every `plans_*` tool name.
+- [x] `1.2` Add `avoozl mcp` as the app's stdio MCP server. [R24.5] (§4.1)
+  - `avoozl mcp` serves the grouped `plans_*` tools over stdio.
 - [x] `1.3` Replace `hosts/kirocrew/app.json` with the manifest in §4.2: node backend with `signedPrincipal`, `mcpServers`, script cron, notification channels, agents, skill, optional `gh`. [R1, R26.3]
   - Replace `hosts/kirocrew/app.json` with the manifest in §4.2: node backend with `signedPrincipal`, `mcpServers`, script cron, notification channels, agents, skill, optional `gh`.
-- [x] `1.4` Ship `crons/tick.py:run` that calls `plans_tick`, opens and messages sessions from the returned intents, and raises `Skip` when there is nothing to do. [R26.2–26.5] (§4.6)
-  - Ship `crons/tick.py:run` that calls `plans_tick`, opens and messages sessions from the returned intents, and raises `Skip` when there is nothing to do.
+- [x] `1.4` Ship `crons/tick.py:run` that calls `plans_maintain` action `tick`, opens and messages sessions from the returned intents, and raises `Skip` when there is nothing to do. [R26.2–26.5] (§4.6)
+  - `crons/tick.py:run` calls `plans_maintain` action `tick`, opens and messages sessions from the returned intents, and raises `Skip` when there is nothing to do.
 - [x] `1.5` Implement `workspace.tick` with the lock, policy load, and an empty intent list; prove two ticks in a row write nothing. [R26.4, R26.5] (§4.5)
   - Implement `workspace.tick` with the lock, policy load, and an empty intent list; prove two ticks in a row write nothing.
 - [x] `1.6` Build the Workspace view: workspace list from the machine catalog, add or initialize workspace, repository registration, tick health. [R3, R20] (§8)
   - Build the Workspace view: workspace list from the machine catalog, add or initialize workspace, repository registration, tick health.
-- [x] `1.7` Add `plans_bind_session` and session-title rediscovery (`avoozl:<task-id> …`). [R1.2] (§3.3, §8)
-  - Add `plans_bind_session` and session-title rediscovery (`avoozl:<task-id> …`).
+- [x] `1.7` Session binding and session-title rediscovery (`avoozl:<task-id> …`). [R1.2] (§3.3, §8)
+  - `plans_session` actions `bind` and `rediscover` bind a slot to a task and rebuild lost bindings from session titles.
 - [x] `avoozl-p1` P1 Proof: real Avoozl backend inside Kiro Crew [R1, R20.4]
   - Expected: the page loads data through `useAppApi`; the direct call gets 401; the only Avoozl listener is on `127.0.0.1`.
   - A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict.
@@ -60,23 +60,19 @@ Each task's plain sub-bullets say what done means.
 
 - [x] `2.1` Extend the work model with `kind`, `authority`, `route`, `completion`, and edge completion conditions [R4.3–4.6, R19.2] (§4.3)
   - Extend the work model with `kind`, `authority`, `route`, `completion`, and edge completion conditions
-  - Readiness per §4.3. A row linked to an issue reads as `github`; any other row reads as `local` (§3.2).
-- [x] `2.4` Extend deterministic validation [R4.5, R4.7, R30.4, R30.5] (§5, §6.8)
-  - Extend deterministic validation
-  - Leaf boundedness (one repository, acceptance, checks, completion), cycles, unknown references, duplicate IDs. Add a spec-folder reader that turns `tasks.md` plus `avoozl/manifest.json` into the task list `lintPlan` checks, and refuse a missing folder, a missing file, neither or both of `requirements.md` and `bugfix.md`, an item with no ID, a duplicate ID, and a manifest entry with no item or an item with no entry. `extractPlan` stays a read path for migration only.
-  - Impact (R30): `lintPlan` and the work-model checks stay; they gain a second input. `extractPlan` keeps parsing old plan files and is called only by migration and legacy reads. Its current callers (`plan.save`, `plan.lint`, `plan.propose`, extraction in `operations.mjs`) move to the spec reader for new plans. `plan.propose` must stop appending fenced blocks to a plan and add a `tasks.md` item and manifest entry instead.
-- [x] `2.3` Ship the `avoozl-planner` agent and update the `avoozl` skill for goal capture [R4.1, R30.7] (§5, §6.8)
-  - Ship the `avoozl-planner` agent and update the `avoozl` skill for goal capture
-  - Drafting one Kiro spec folder (`requirements.md` or `bugfix.md`, `design.md`, `tasks.md` with an ID on every item, `avoozl/manifest.json`), and critique into `avoozl/critique.md` in a second, isolated session.
-- [x] `2.5` Build the Plans view: Kiro spec folders (feature and bugfix), manifest, critique findings, diagnostics, approve the exact revision (hash of the folder's files), draft-chat launcher. [R4.8, R20, R30] (§8)
-  - Build the Plans view: Kiro spec folders (feature and bugfix), manifest, critique findings, diagnostics, approve the exact revision (hash of the folder's files), draft-chat launcher.
-  - Impact (R30): `plan.create` and `plan.save` hold one Markdown text per plan today; for spec folders they take the folder's files and one folder hash as `expectedHash`.
-- [x] `2.6` Add `plans_prepare_worktree` (branch `avoozl/<task-id>`, isolated worktree) and `plans_report` (`progress`, `done` with commit SHA, `blocked`, `question`). [R6.6] (§4.6, §5)
+  - Readiness per §4.3. A row linked to an issue reads as `github`; any other row reads as `local`.
+- [x] `2.4` Extend deterministic validation [R4.5, R30.4, R30.5] (§5, §6.8)
+  - Leaf boundedness (one repository, acceptance, checks, completion), cycles, unknown references and duplicate IDs; a spec-folder reader turns `tasks.md` into the task list `lintPlan` checks, and refuses a missing folder, a missing task list, an item with no ID and a duplicate ID.
+- [x] `2.3` Ship the `avoozl-spec` and `avoozl-spec-review` skills for goal capture [R4.1, R30.7] (§5, §6.8)
+  - `avoozl-spec` drafts one Kiro spec folder (`requirements.md` or `bugfix.md`, `design.md`, `tasks.md` with an ID on every item); `avoozl-spec-review` reviews it in a separate session.
+- [x] `2.5` Build the Plans view: Kiro spec folders (feature and bugfix), diagnostics, approve the exact revision (hash of the folder's files). [R20, R30] (§8)
+  - The Plans view lists Kiro spec folders (feature and bugfix) with their diagnostics and approves the exact revision (hash of the folder's files).
+- [x] `2.6` Add `plans_prepare_worktree` (branch `avoozl/<task-id>`, isolated worktree) and `plans_report` (`progress`, `done` with commit SHA, `blocked`, `question`). (§4.6, §5)
   - Add `plans_prepare_worktree` (branch `avoozl/<task-id>`, isolated worktree) and `plans_report` (`progress`, `done` with commit SHA, `blocked`, `question`).
 - [x] `2.7` Dispatch ready local leaves in the tick by priority and graph order within per-repository and per-workspace limits. [R6.1–6.3, R26.7] (§4.5)
   - Dispatch ready local leaves in the tick by priority and graph order within per-repository and per-workspace limits.
-- [x] `2.8` Ship the `avoozl-verifier` agent; open a verifier session per `done` report; accept only matching SHA and passing declared checks. [R7.1] (§5)
-  - Ship the `avoozl-verifier` agent; open a verifier session per `done` report; accept only matching SHA and passing declared checks.
+- [x] `2.8` Verify each `done` report; accept only a matching SHA and passing declared checks. [R7.1] (§5)
+  - Avoozl verifies each `done` report and accepts only a matching SHA and passing declared checks.
 - [x] `2.9` Integrate verified commits with `integrateRun`; support an optional `integrationBranch`; record the integrated commit. [R7.2, R2.2] (§5)
   - Integrate verified commits with `integrateRun`; support an optional `integrationBranch`; record the integrated commit.
 - [x] `2.10` Release dependents in the same tick; complete packages and epics from children; keep whole-head acceptance a separate action. [R7.3, R7.4] (§5)
@@ -88,8 +84,7 @@ Each task's plain sub-bullets say what done means.
 - [x] `2.13` Build the Graph, Delivery, and Conflicts views for local tasks. [R20, R21] (§8)
   - Build the Graph, Delivery, and Conflicts views for local tasks.
 - [x] `2.15` Plans table grouped by category [R30.9, R20] (§6.8, §8)
-  - Plans table grouped by category
-  - One row per plan with status, a progress bar (done over total leaves; "no tasks" when there are none), ready, running and needs-you counts, epics, last change, and Open docs, Graph, Delivery, Review, and Plan a change buttons. Category comes only from `category:` in the spec's front-matter; remove the title-based guess.
+  - One row per plan with status, a progress bar (done over total leaves; "no tasks" when there are none), ready, running and needs-you counts, epics, last change, and a Change spec button. Category comes only from `category:` in the spec's front-matter.
 - [x] `avoozl-p4` P4 Proof: one local parent decomposes into dependent leaves [R4]
   - Expected: one Kiro spec folder that passes validation; one epic and at least three leaves with stable IDs, `requires` edges loader → validator → flag, a critique record from a separate session, validation passing; the second and third ticks write nothing until something changes.
   - A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict.
@@ -116,32 +111,22 @@ Each task's plain sub-bullets say what done means.
 
 - [x] `3.1` Remove the private-only check; allow public and private repositories. [R10.2]
   - Remove the private-only check; allow public and private repositories.
-- [x] `3.2` Implement the `.avoozl.json` repository policy schema and validation in §4.4, replacing single-label intake and label behaviors. [R10, R11] (§4.4)
-  - Implement the `.avoozl.json` repository policy schema and validation in §4.4, replacing single-label intake and label behaviors.
-- [x] `3.3` Generalize the rule matcher: `labelsAll`, `labelsAny`, `labelsNone`, assignee, author, newest triggering event's actor and permission; ignore and do not write for disallowed actors. [R10.4, R10.5, R11.2]
-  - Generalize the rule matcher: `labelsAll`, `labelsAny`, `labelsNone`, assignee, author, newest triggering event's actor and permission; ignore and do not write for disallowed actors.
-- [x] `3.4` Keep snapshot freeze and quarantine on body change for every matched rule. [R12.1, R12.2]
-  - Keep snapshot freeze and quarantine on body change for every matched rule.
+- [x] `3.2` Implement the `.avoozl.json` repository policy schema and validation in §4.4. [R10] (§4.4)
+  - The `.avoozl.json` repository policy schema and its validation follow §4.4.
+- [x] `3.4` Keep snapshot freeze and quarantine on body change for every incoming item. (§4.12)
+  - An incoming item's snapshot is frozen when a task starts from it, and a later body change quarantines the task.
 - [x] `3.5` Implement marker version 2 with an opaque namespace ID (generated by `avoozl init`, stored in `.avoozl.json`), hash-only source pins, and `applied` hashes [R10.7] (§3.4)
   - Implement marker version 2 with an opaque namespace ID (generated by `avoozl init`, stored in `.avoozl.json`), hash-only source pins, and `applied` hashes
   - Reject markers containing paths, repository names of the planning workspace, or credential patterns. Add the `order` field (closer, close reason, close time) for a close without code by an allowed actor, removed on reopen.
 - [x] `3.10` Implement `avoozl rebuild` from GitHub markers, sub-issues, dependencies, labels, and Project fields. (§3.3)
   - Implement `avoozl rebuild` from GitHub markers, sub-issues, dependencies, labels, and Project fields.
-- [x] `3.13` Settings view for `.avoozl.json` [R11, R20, R28] (§4.4, §8)
-  - Settings view for `.avoozl.json`
-  - Mode, planning repository, default authority, Project and fields, epic issue type, repository policy, with validation. GitHub objects (labels, Project, fields) are created by the wizard in 3.18, not here.
+- [x] `3.13` Settings view for `.avoozl.json` [R20, R28] (§4.4, §8)
+  - The Settings view edits `.avoozl.json` with validation. GitHub objects (labels, Project, fields) are created by the wizard in 3.18, not here.
 - [x] `3.16` Read plans only from Kiro spec folders in the mode's repository (planning repository, code repository, or the workspace's planning repository) [R30] (§6.8)
   - Read plans only from Kiro spec folders in the mode's repository (planning repository, code repository, or the workspace's planning repository)
   - Map `tasks.md` IDs to issues; ignore Kiro's task waves and checkbox marks; refuse an approved ID whose item text changed without approval.
 - [x] `3.17` Marker and leak rules for plans-repo mode: the marker never names the planning repository; Avoozl writes links only between planning issues and adds only planning issues to the Project. [R28.7] (§3.4, §6.6)
   - Marker and leak rules for plans-repo mode: the marker never names the planning repository; Avoozl writes links only between planning issues and adds only planning issues to the Project.
-- [x] `avoozl-p7` P7 Proof: configurable GitHub label intake on a public repository [R10, R11] (**MANUAL**)
-  - Expected: only the combinations the rules describe match; the disallowed account's labels cause no match and no write; the edited issue is quarantined; trigger and managed labels never overlap.
-  - A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict.
-  - Setup: a new public test repository; policy with one `deliver` rule (`labelsAll` two labels, `labelsNone` a pause label, assignee filter) and one `respond` rule; an allowed actor and a second account without permission.
-  - Action: apply labels in eight combinations, including from the disallowed account, then edit one matched issue's body.
-  - Failure means: the rules engine or actor check is wrong.
-  - Next decision: decide whether a GitHub search query form is needed beyond structured rules.
 - [x] `avoozl-p9` P9 Proof: cross-repository dependencies and fresh-workspace recovery [R19]
   - Expected: GitHub shows the cross-repository blocker; only the first leaf is ready; after rebuild every task, edge, status, and managed baseline matches the earlier state and no issue is duplicated.
   - A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict.
@@ -170,8 +155,6 @@ Each task's plain sub-bullets say what done means.
   - Ship the `avoozl-responder` agent (read-only tools) and `plans_post_reply` with secret and path screening; responding label added and removed by Avoozl.
 - [x] `4.5` Priority order by configured labels, then graph order, under the concurrency cap. (§4.5)
   - Priority order by configured labels, then graph order, under the concurrency cap.
-- [x] `4.6` Optional `dependencyText` parsing of `depends on #N`, written back as native edges after approval.
-  - Optional `dependencyText` parsing of `depends on #N`, written back as native edges after approval.
 - [x] `4.8` Leak screen [R28.7, R28.8] (§6.6)
   - Leak screen
   - Each tick searches candidate pull request titles, bodies, and commit messages for the planning repository's `owner/name`, URL, and `owner/name#`; a hit opens a decision, blocks completion, and asks the worker to edit.
@@ -180,8 +163,6 @@ Each task's plain sub-bullets say what done means.
 
 - [x] `7.1` Rewrite README and docs around installing the Kiro Crew app; no host-era instructions. [R24.1] (§13)
   - Rewrite README and docs around installing the Kiro Crew app; no host-era instructions.
-- [x] `7.2` Ship no default trigger rule; document example policies. [R24.3] (§13)
-  - Ship no default trigger rule; document example policies.
 - [x] `7.3` License audit of bundled third-party code with notices. [R24.4] (§13)
   - License audit of bundled third-party code with notices.
 - [x] `7.4` Secret, private-name, company-internal-tool-name, and absolute-path scans over the tree and history [R24.2, R34.10] (§13)
@@ -192,8 +173,6 @@ Each task's plain sub-bullets say what done means.
 - [ ] `7.6` Publish the npm package, the app package, and a signed GitHub release. (§13) (**MANUAL**)
   - Publish the npm package, the app package, and a signed GitHub release.
   - The report names what was done and where the result is.
-  - Publishes packages and a release; spends no code change in this repository.
-  - Open: Not done; nothing is published.
 - [x] `avoozl-p15` P15 Proof: open-source installation on a clean machine [R24] (**MANUAL**)
   - Expected: local delivery completes with no GitHub; GitHub features report unavailable until `gh` or a token exists, then work; no step needs private context.
   - A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict.
@@ -214,60 +193,45 @@ Each task's plain sub-bullets say what done means.
 - [x] `8.9` Plugin update checks, after 8.6 [R34.17] (§4.8)
   - Plugin update checks, after 8.6
   - A daily check per plugin and Check now: git `ls-remote`, package dist-tags, folder hash; an update badge and one Needs you row per plugin; a quiet "couldn't check"; `updateChecks` in `plugins.json`; tests cover a moved branch, a newer tag, nothing newer, a failure, the setting off, and that nothing is fetched.
-- [x] `8.2` Deferred GitHub features, each behind its own proof: stacked pull requests on an open blocker, Discussions answering, comment-mention steering.
-  - Deferred GitHub features, each behind its own proof: stacked pull requests on an open blocker, Discussions answering, comment-mention steering.
-- [x] `8.5` Add MCP App views (`ui://` resources) to `plans_graph`, `plans_preview`, `plans_project_preview`, and `plans_decision` (**MANUAL**)
-  - Add MCP App views (`ui://` resources) to `plans_graph`, `plans_preview`, `plans_project_preview`, and `plans_decision`
-  - Buttons call the same operations with expected revisions. [R20] (§8.1) Optional: only for small focused views; the app page stays the main view. Proof below.
-- [x] `avoozl-p8b` P8b Proof: Avoozl views render and act inside chat [R20] (**MANUAL**)
-  - Expected: the preview renders in the chat; the first Approve records the exact revision; the second is refused as stale; the chat shows the result.
-  - A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict.
-  - Setup: the Avoozl app installed with its MCP server; the server routed in MCP Management; the P4 draft plan.
-  - Action: in an ordinary chat, ask to preview the plan; press Approve in the view; edit the plan in another window and press Approve again.
-  - Failure means: app-shipped servers cannot render views, or view writes bypass revision checks.
-  - Next decision: ask users to add the server in Connections, or keep approval in the app page only.
+- [x] `8.2` Discussions answering, behind its own proof.
+  - The responder answers GitHub Discussions the repository policy names.
 
 ## Phase 9: Review gates
 
-- [x] `9.1` Review roles in policy [R36.1–R36.4, R6.3] (§5.2, F59, F65)
+- [x] `9.1` Review roles in policy [R36.1–R36.4, R6.3] (§5.2)
   - Review roles in policy
   - `delivery.model` and `delivery.reviewers` (`id`, `focus`, `agent`, `model`, `distinctFrom` `model` by default or `session`), replaceable per repository; validation per §5.2, including a refused `auto` or equal model for `distinctFrom: model`; `tick.py` passes `model` to `open_session`; `runner.take` takes the worker's model; every binding records the model it was opened on. No new writer limit: per-repository `concurrency: 1` is the one-writer rule, and review sessions do not count against it.
-- [x] `9.2` Roles on one delivery [R36.2–R36.8, R37.1, R37.2] (§5.2, F56)
+- [x] `9.2` Roles on one delivery [R36.2–R36.8, R37.1, R37.2] (§5.2)
   - Roles on one delivery
   - The checks role (today's verifier, id `checks`) and each review role get one session per round on the delivery's commit, all at once; refuse to dispatch a review whose model is unknown or not distinct and open a decision; ship the `avoozl-reviewer` agent (read-only tools, detached worktree at the commit, focus and open findings from the brief, quoted text is data); `plans_report` `done` from a review role takes `verdict`, `findings`, and `closures` and refuses a wrong commit, a pathless finding, `approved` with a defect, and `changes-requested` without one; store verdicts on `verifications` with `role`, `model`, and commit; `verified` only when every role approved the current commit.
-- [x] `9.3` Rework [R36.10, R37.6] (§5.2, F57)
-  - Rework
-  - A `changes-requested` verdict fails the writer attempt for that commit with its findings as the cause; the retry brief quotes every open finding as data; every role reviews the new commit; roles still running on the old commit finish as history. `plans_retry_delivery` takes `dismiss: [{finding, reason}]` from a person only.
+- [x] `9.3` Rework [R36.10, R37.6] (§5.2)
+  - A `changes-requested` verdict fails the writer attempt for that commit with its findings as the cause; the retry brief quotes every open finding as data; every role reviews the new commit; roles still running on the old commit finish as history. `plans_task` action `retry` takes `dismiss: [{finding, reason}]` from a person only.
 - [x] `9.4` Findings closure [R37.3–R37.5] (§5.2)
   - Findings closure
   - Open findings per role and delivery, referenced `<attempt>:<role>:<id>`; refuse a verdict that leaves one without a closure; check `fixed` and `unchanged` with the task-diff patch-id per path between the two subject commits; a defect closed `unchanged` stays open.
-- [x] `9.5` Not-run checks [R38.1–R38.3] (§5.2, F62)
+- [x] `9.5` Not-run checks [R38.1–R38.3] (§5.2)
   - Not-run checks
   - A checks report entry may carry `notRun` with `exitCode: null`; a null code, 126, 127, a not-run entry, or a declared check left out fails the checks session, not the writer attempt, and is retried within `retries`, then opens a decision.
-- [x] `9.6` Integration waits for the reviewed commit [R36.7–R36.9] (§5.2, F63)
+- [x] `9.6` Integration waits for the reviewed commit [R36.7–R36.9] (§5.2)
   - Integration waits for the reviewed commit
   - Integrate a `verified` delivery only by fast-forwarding the commit every role approved; when the base moved, rebase in the task's worktree and, if the head changed, open a new round on it instead of merging.
-- [x] `9.8` Supersede by hand [R39] (§5.2, F64)
-  - Supersede by hand
-  - `task.supersede` (CLI, `plans_supersede_task`, a Delivery view action) per §5.2; status `superseded` (not complete, hidden by default); the ready rule resolves edges through `supersededBy`; plan approval leaves the chain and status alone; refuse cycles and GitHub or plugin authority with 409; no new dispatch for a superseded task, and a running session is left alone.
 - [x] `9.9` Delivery view: per round, each role's verdict, model, subject commit, stale mark, and findings with closure state; links to each session. Graph-specific only; no pull-request or CI view (§8). [R36.12] (§5.2, §8)
   - Delivery view: per round, each role's verdict, model, subject commit, stale mark, and findings with closure state; links to each session. Graph-specific only; no pull-request or CI view.
 - [x] `9.10` Optional, later [R36.13] (§5.2)
   - Optional, later, after 3.11
   - For GitHub-route leaves, read pull-request reviews on the head SHA as verdicts from reviewers the repository policy allows (`APPROVED`, `CHANGES_REQUESTED`), stale when the head moves, shown in the Delivery view. Not needed for P27.
-- [x] `avoozl-p27` P27 Proof: review gates with fake writers and reviewers [R36, R37, R38, R39] (§5.2)
-  - Expected: (1) `w2` does not start while `w1`'s writer is live; three role sessions open on C1 with three different models; (2) `d1` stays waiting, the attempt fails, and the retry brief quotes F1; (3) the `unchanged` approval is refused in-session; the not-run check fails only the checks session and is retried, and no writer attempt is spent; (4) the rebase produces C3, nothing merges, and all three roles review C3, with F1 still closed; after they approve, C3 fast-forwards and `d1` dispatches; (5) both calls are refused, and `w1` is accepted only from validation recorded at its integrated commit; (6) policy validation refuses `fake-a`, and `auto` opens a decision instead of a review; (7) `d2` waits on `w2b`, not `w2`, `w2` stays `superseded` after re-approval, and its history is intact. Every earlier verdict stays on the delivery.
+- [x] `avoozl-p27` P27 Proof: review gates with fake writers and reviewers [R36, R37, R38] (§5.2)
+  - Expected: (1) `w2` does not start while `w1`'s writer is live; three role sessions open on C1 with three different models; (2) `d1` stays waiting, the attempt fails, and the retry brief quotes F1; (3) the `unchanged` approval is refused in-session; the not-run check fails only the checks session and is retried, and no writer attempt is spent; (4) the rebase produces C3, nothing merges, and all three roles review C3, with F1 still closed; after they approve, C3 fast-forwards and `d1` dispatches; (5) both calls are refused, and `w1` is accepted only from validation recorded at its integrated commit; (6) policy validation refuses `fake-a`, and `auto` opens a decision instead of a review. Every earlier verdict stays on the delivery.
   - A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict.
   - Setup: an isolated temporary workspace and sample repository in the test tree; delivery policy with `concurrency: 1`, writer model `fake-a`, and two review roles (`conventions` on `fake-b`, `correctness` on `fake-c`); a test-only fake session driver that plays worker, checks, and reviewer sessions from scripts; an approved spec with leaves `w1 -> d1` and an independent `w2 -> d2`, all in that repository; a declared check `scripts/validate.sh` standing in for that repository's validation script.
-  - Action: (1) tick until `w1` reports commit C1; (2) `conventions` approves C1, `correctness` requests changes with defect F1 on `src/a.txt`; (3) the next attempt reports C2 that changes `src/a.txt`; both roles review C2, `correctness` first tries `approved` closing F1 `unchanged`, then closes it `fixed` and approves; the checks role first reports `scripts/validate.sh` as not run, then passes; (4) move the base branch by hand before integration; (5) try `task.update` with a typed `integration` on `d1`, and `task.accept` with typed evidence on `w1`; (6) set a reviewer's model to `fake-a`, and separately to `auto`; (7) supersede `w2` by `w2b`, then re-approve the unchanged plan.
+  - Action: (1) tick until `w1` reports commit C1; (2) `conventions` approves C1, `correctness` requests changes with defect F1 on `src/a.txt`; (3) the next attempt reports C2 that changes `src/a.txt`; both roles review C2, `correctness` first tries `approved` closing F1 `unchanged`, then closes it `fixed` and approves; the checks role first reports `scripts/validate.sh` as not run, then passes; (4) move the base branch by hand before integration; (5) try `task.update` with a typed `integration` on `d1`, and `task.accept` with typed evidence on `w1`; (6) set a reviewer's model to `fake-a`, and separately to `auto`.
   - Failure means: reviews cannot be gates on one delivery without breaking retry, integration, or readiness.
   - Next decision: model reviews as separate graph tasks with integration-free acceptance (the handoff's first design), or drop rebase re-review and gate on the pre-rebase commit.
 
 ## Phase 10: Content rules
 
 - [x] `10.1` Matcher [R40.2, R40.4, R40.11, R40.13] (§4.9, F67, F68)
-  - Matcher
-  - New `src/app/content/content-rules.mjs` with the terms parser moved from `scripts/check/release-scan.mjs` (`rule: regex`, `#` comments, per line, ignoring case), the decoder moved from `github-plans-repo.mjs`, and `check({boundary, repository, target, text, added})` returning `{set, rule, boundary, target, line}` and never the matched text; run each check in a `worker_threads` worker with a time limit (default 2 seconds) and treat a timeout or a rule that does not compile as unavailable; the release scan imports the parser and matcher, keeps its public rules and terms file location, and prints only rule id, file, and line for private-term findings.
+  - `src/app/content/content-rules.ts` holds the terms parser (`rule: regex`, `#` comments, per line, ignoring case), the decoder, and `check({boundary, repository, target, text, added})` returning `{set, rule, boundary, target, line}` and never the matched text; each check runs in a `worker_threads` worker with a time limit (default 2 seconds), and a timeout or a rule that does not compile is unavailable; `scripts/check/release-scan.ts` imports the parser and matcher, keeps its public rules and terms file location, and prints only rule id, file, and line for private-term findings.
 - [x] `10.2` Policy [R40.1, R40.2, R40.10] (§4.4, §4.9, F74)
   - Policy
   - `contentRules.sets` in `.avoozl.json` (`id`, `action` `block` by default or `report`, optional `boundaries` from `plan`, `github`, `brief`, `diff`, optional `repositories`, optional `plugin`) with validation per §4.4 and §4.9; terms from machine-local `contentRules.terms.<id>`, else `.avoozl/local/content-rules/<id>.txt`; refuse a terms file Git tracks or would track (`git ls-files`, `git check-ignore`); an unavailable set fails closed at every boundary it covers and opens one decision naming the set and the reason, and the tick finishes the rest; Settings lists each set with its source kind and availability, never its rules.
@@ -276,14 +240,14 @@ Each task's plain sub-bullets say what done means.
   - Put `findPlanningLeak` (`builtin:planning-repository`), `screenReply` (`builtin:reply-safety`), and `secretReason` with `validateMarker`'s path and planning-repository checks (`builtin:published-secrets`) behind `check`, at today's boundaries with today's patterns, decoding, and refusal messages; configuration cannot turn them off; every existing test for these screens passes unchanged.
 - [x] `10.4` Local boundaries [R40.3, R40.5] (§4.9)
   - Local boundaries
-  - `plan.create`, `plan.save`, and `plan.propose` refuse a planner draft in-call with set, rule, file, and line and record the refusal; `lintSpec` adds `content.match` diagnostics over every spec file and `avoozl/manifest.json` so approval is refused and a decision opens; worker, verifier, and reviewer briefs are checked before they are sent; `plans_report` `done` refuses a commit whose added lines match; `plans_prepare_worktree` installs a `pre-push` hook (`avoozl content check --push`) in that worktree only, not the main checkout's hooks (settle the Inferred note in §4.9); local integration holds a matching diff with a decision; lines already in the base never match.
+  - `plan.create`, `plan.save`, and `plan.propose` refuse a planner draft in-call with set, rule, file, and line and record the refusal; `lintSpec` adds `content.match` diagnostics over every spec file and `avoozl/manifest.json` so approval is refused and a decision opens; worker, verifier, and reviewer briefs are checked before they are sent; `plans_report` `done` refuses a commit whose added lines match; `plans_prepare_worktree` installs a `pre-push` hook (`avoozl content check --push`) in that worktree only, not the main checkout's hooks; local integration holds a matching diff with a decision; lines already in the base never match.
 - [x] `10.5` Decisions and allow once [R40.5–R40.8] (§4.9)
   - Decisions and allow once
   - One decision per set and target; **Allow once** with a reason from the app page or CLI only (the MCP tools sessions call get 403; the tick and example installation cannot), recording who, why, when, rule, target, and the SHA-256 of the exact content, used up by one write; the decision view reads the matched line again from its source on demand and stores nothing; `report` sets write and record the finding in the Delivery view with one Kiro Crew notification; a test greps SQLite, events, decisions, and notification payloads for each fake term, plain and encoded, and finds none.
 - [x] `10.6` GitHub boundaries, after 4.3, 4.8 [R40.3, R40.5] (§4.9)
   - GitHub boundaries, after 3.7, 3.15, 4.3, 4.4, 4.8
   - Issue titles and whole bodies before each create or update in projection; Release and Iteration values before each Project field write; every comment Avoozl writes (breakdown previews, published summaries, steering replies) and responder replies; candidate pull request titles, bodies, commit messages, and added diff lines each tick, which block completion and open a decision as 4.8 does. A match writes nothing for that issue, item, or comment and the tick goes on.
-- [x] `10.7` Rules plugins, after 8.6 [R40.9, R40.14, R34] (§4.8, §4.9, F73)
+- [x] `10.7` Rules plugins, after 8.6 [R40.9, R40.14, R34] (§4.8, §4.9)
   - Rules plugins, after 8.6
   - Plugin kind `rules` beside `route` and `tracker`; contract call `ruleSets()` returning `[{id, version, rules: [{id, pattern}]}]`, schema-checked; the usual consent, child process, and time limit; rules kept in memory only, never in SQLite, receipts, or Git, and findings record the set `version`; a fake rules plugin under `test/fixtures/plugins/`, covered by the 7.4 and 8.8 scans.
 - [x] `10.8` Allowed patterns [R40.15, R40.13] (§4.9)
@@ -300,8 +264,7 @@ Each task's plain sub-bullets say what done means.
 ## Phase 12: Flow
 
 - [x] `12.1` Timing store and event spans [R43.1–R43.3, R43.6–R43.8] (§4.11, F96)
-  - Timing store and event spans
-  - New `flow_spans` table (`task_id`, `attempt`, `role`, `stage`, `started_at`, `ended_at`, `source`, `detail`) and `src/app/flow/flow.mjs`; spans for `queued`, `review`, `rework`, `merge`, and `waiting` from readiness, bindings, reports, verdicts, retries, and integration; no setting; open spans close at the next ending event after a restart; `detail` passes the content rules; no prompts, output, tokens, or cost; old `usage_samples` and `provider_events` untouched.
+  - A `flow_spans` table (`task_id`, `attempt`, `role`, `stage`, `started_at`, `ended_at`, `source`, `detail`) and `src/app/flow/flow.ts`; spans for `queued`, `review`, `rework`, `merge`, and `waiting` from readiness, bindings, reports, verdicts, retries, and integration; no setting; open spans close at the next ending event after a restart; `detail` passes the content rules; no prompts, output, tokens, or cost.
 - [x] `12.2` Tool-call reader, after 12.1 [R43.4] (§4.11, F90–F94)
   - Tool-call reader, after 12.1
   - First read one live tick-opened worker slot with `GET /api/chat/slots/<slot>?cursor=1` and record in the receipt whether tool rows carry `meta.kind` and `meta.input`, settling F91 live; then read each live tick-opened worker once per tick beside the status read, keep only `kind`, the command's first words, and `ts`; a shell call running a declared check is `tests`, other shell calls `commands`, the rest `coding`; source `tool-calls`.
@@ -310,10 +273,9 @@ Each task's plain sub-bullets say what done means.
   - `plans_report` `progress` takes optional `phase` (`coding`, `tests`, `commands`, `ci-wait`), stamped on receipt; the brief asks for markers only when Avoozl cannot read the session's tool calls (Crew Mode, remote, or no read); verifier entries and `done` check lists gain `durationMs`; unmarked worker time is `coding`; source `markers`.
 - [x] `12.4` GitHub timing, after 12.1 [R43.3] (§4.11, F95)
   - GitHub timing, after 12.1, 3.11
-  - `ci-wait` from the first check run requested to the last required check completed on each pushed head, and GitHub `review` spans from request to `submitted_at`, through the reads completion already makes (§6.5); no new poller; "CI only" failures recorded when CI fails on a commit with a local pass.
+  - `ci-wait` from the first check run requested to the last required check completed on each pushed head, and GitHub `review` spans from request to `submitted_at`, through the reads completion already makes; no new poller; "CI only" failures recorded when CI fails on a commit with a local pass.
 - [x] `12.5` Metrics, after 12.1 [R43.7] (§4.11)
-  - Metrics, after 12.1
-  - Lead time, flow efficiency, first-pass rate, time to fix, change failure rate, and integrations per day, per task and per window, computed on read; `flow.view` observe operation for the UI, CLI `avoozl flow`, and MCP `plans_flow`.
+  - Lead time, flow efficiency, first-pass rate, time to fix, change failure rate, and integrations per day, per task and per window, computed on read by the `flow.view` operation, CLI `avoozl flow`, and MCP `plans_view` action `flow`.
 - [x] `12.6` Stop the line, after 12.1, 9.5 [R44] (§4.11)
   - Stop the line, after 12.1, 9.5
   - Trigger on a passed check failing on the landing branch after one rerun, and on a failed verification that also fails on the task's base; flaky record; culprit by range, bisect in a scratch worktree up to 8 runs, else unknown; pause by `flow.stopTheLine.scope` (default `dependents`); stopped check not judged on other commits; one fix task `<culprit-id>.fix-<n>` first in line, revert allowed; resume on green with time to fix and one notification.
@@ -322,82 +284,32 @@ Each task's plain sub-bullets say what done means.
   - Local checks first, after 12.3, 4.7, 10.4
   - `flow.localChecksFirst` (default `true`); briefs for pushing sessions say to run the declared checks before each push; `done` for a pushed commit refused without a passing check list for that commit; the 10.4 pre-push hook also refuses a push with no recorded local pass and does not rerun checks; local delivery unchanged.
 - [x] `avoozl-p30` P30 Proof: flow with fake workers and scripted timings [R43–R46] (§4.11)
-  - Expected: (1) `c1` shows `coding`, `commands`, and `tests` spans from tool calls, the check counted as `tests`, and no output stored; (2) `b1`'s spans come from markers and show as coarse; (5) the culprit is `a1`, the line stops, `d1` is not dispatched, `c2` keeps running, `c2`'s result for that check after its rebase is not judged and costs no attempt, a fix task is first in line, and the red banner names the check, `main`, `a1`, the fix task, and the paused count; Needs you stays empty; (6) a flaky record and no stop; (7) green on `main` resumes `d1`, records time to fix, and notifies once; `a1` stays accepted; (8) dispatch resumes with the stop still shown and who pressed it; the agent call gets 403; (9) the push without a pass is refused by the hook and the `done` is refused; the CI failure is recorded as "CI only" with a `ci-wait` span from the feed; (10) the retro names the biggest bottleneck with numbers; the content-rules proposal is dropped with a reason; Approve writes the proposed setting with an expected revision and nothing else changes; (11) PDCA marks "did not help" and the next retro carries a revert proposal; (12) the open span closes at its next ending event, not at the restart; (13) validation refuses the file and names the key. The Flow tab and drawer show each of these, and lead time, flow efficiency, first-pass rate, and time to fix match values computed by hand from the script.
+  - Expected: (1) `c1` shows `coding`, `commands`, and `tests` spans from tool calls, the check counted as `tests`, and no output stored; (2) `b1`'s spans come from markers and show as coarse; (5) the culprit is `a1`, the line stops, `d1` is not dispatched, `c2` keeps running, `c2`'s result for that check after its rebase is not judged and costs no attempt, a fix task is first in line, and the red banner names the check, `main`, `a1`, the fix task, and the paused count; Needs you stays empty; (6) a flaky record and no stop; (7) green on `main` resumes `d1`, records time to fix, and notifies once; `a1` stays accepted; (8) dispatch resumes with the stop still shown and who pressed it; the agent call gets 403; (9) the push without a pass is refused by the hook and the `done` is refused; the CI failure is recorded as "CI only" with a `ci-wait` span from the feed; (12) the open span closes at its next ending event, not at the restart. Lead time, flow efficiency, first-pass rate, and time to fix from `flow.view` match values computed by hand from the script.
   - A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict.
-  - Setup: an isolated temporary workspace with a sample repository in the test tree, integration branch `main`, one declared check `node test/check.mjs`, an approved spec with epic `e1` holding leaves `a1`, `a2`, `a3`, `a4`, and `b1`, `c1`, `c2` (independent), and `d1` (requires `a1`); fake workers that follow a script of tool rows, phase markers, reports, and sleeps on a fake clock; a fake GitHub check-run feed for one plans-repo leaf `g1`; the fake retro model.
-  - Action: (1) run `c1` as a tick-opened worker whose script has 2 edits, `npm install`, and the check, then `done`; (2) run `b1` as a Crew Mode worker that sends phase markers only; (5) integrate `a1`'s retried commit, which breaks the check on `main`, with `c2` running and `d1` ready; (6) script a one-time failure of the check on a later commit; (7) let the fix task revert the break; (8) open a second stop and press Run anyway as the owner, then call Run anyway from an agent session; (9) push `g1` once without a local pass and once with one, and have CI fail on the passing commit; (10) finish 10 tasks so a retro starts, and have the fake model propose a Flow setting change and a forbidden content-rules change; approve the first; (11) finish 10 more tasks with lead time unchanged; (12) restart the backend with a span open; (13) put `flow.retro.instructions` in the repository's `.avoozl.json`.
+  - Setup: an isolated temporary workspace with a sample repository in the test tree, integration branch `main`, one declared check `node test/check.mjs`, an approved spec with epic `e1` holding leaves `a1`, `a2`, `a3`, `a4`, and `b1`, `c1`, `c2` (independent), and `d1` (requires `a1`); fake workers that follow a script of tool rows, phase markers, reports, and sleeps on a fake clock; a fake GitHub check-run feed for one plans-repo leaf `g1`.
+  - Action: (1) run `c1` as a tick-opened worker whose script has 2 edits, `npm install`, and the check, then `done`; (2) run `b1` as a Crew Mode worker that sends phase markers only; (5) integrate `a1`'s retried commit, which breaks the check on `main`, with `c2` running and `d1` ready; (6) script a one-time failure of the check on a later commit; (7) let the fix task revert the break; (8) open a second stop and press Run anyway as the owner, then call Run anyway from an agent session; (9) push `g1` once without a local pass and once with one, and have CI fail on the passing commit; (12) restart the backend with a span open.
   - Failure means: timing cannot be trusted to show where time went, or stop the line costs writers attempts or loses work.
-  - Next decision: keep timing and stop the line and drop retrospectives, or move retrospectives to a by-hand button only.
+  - Next decision: keep timing and stop the line, or drop the tool-call reader and keep markers only.
 
 ## Phase 14: Incoming items
 
 - [x] `14.1` Incoming-item record and storage [R50.1–R50.3] (§4.12, F112)
   - Incoming-item record and storage
   - `incoming_items` and `intake_sources` store tables; the record shape with the trust-boundary checks of R50.2 (bad items refused alone, with the field named); dedup on source plus ID by content hash; stale `updatedAt` ignored and reported; a quiet pass writes nothing.
-- [x] `14.2` Source settings, after 3.13 [R50.6, R50.11, R50.20] (§4.12, §4.4)
-  - Source settings, after 3.13
-  - `intake.sources` in `.avoozl.json` and in machine-local settings, validated like `plugins` entries: reserved `github` and `local`, `via` naming a `plugins` entry with `poll` or `mcp`, a registered `repository`, `labelFields`, `assigneeField`, `allowedActors`, `minimumPermission` (default `write`); one Settings group with the public-repository warning and plain "(optional)" markers; a `respond` rule with a non-GitHub `source:` refused.
+- [x] `14.2` Source settings, after 3.13 [R50.6, R50.20] (§4.12, §4.4)
+  - `intake.sources` in `.avoozl.json` and in machine-local settings, validated like `plugins` entries: reserved `github` and `local`, `via` naming a `plugins` entry with `poll` or `mcp`, a registered `repository`, `labelFields`, `assigneeField`, `allowedActors`, `minimumPermission` (default `write`); one Settings group with the public-repository warning and plain "(optional)" markers.
 - [x] `14.3` `intake.submit`, `intake.list`, `intake.view`, after 14.1, 14.2 [R50.5, R50.8] (§4.12)
-  - `intake.submit`, `intake.list`, `intake.view`, after 14.1, 14.2
-  - Operations in `operations.mjs`; CLI `avoozl intake submit|list|view`; MCP `plans_intake_submit`, `plans_intake_list`, `plans_intake_view` with no existing `plans_*` name changed; submit only to an `mcp` source, 1–100 items, per-item results; run under the workspace tick lock.
-- [x] `14.4` Pipeline, after 14.3, 10.6 [R50.9–R50.11, R50.19] (§4.12, §4.9, F107, F109, F110)
-  - Pipeline, after 14.3, 10.6
-  - The `intake` content boundary (block quarantines with a decision that never names the text; report records), off unless a set names it; `source:` in `parseMatch` (one per rule; absent means GitHub; refused in an Untriaged filter); `labelFields` and `assigneeField` mapping; actions by today's precedence; `deliver`/`execute` make a pinned local leaf in the source's repository and `plan` an inbox task through `task.capture`; `review` items skipped by deliver, execute, plan, and respond rules.
-- [x] `14.5` Who counts per source, after 14.4 [R50.12–R50.14] (§4.12, F106–F108)
-  - Who counts per source, after 14.4
-  - GitHub unchanged; a plugin source's `trigger.actor` and `trigger.permission` checked by `actorAllowed` against the source's settings; no `actor` capability means no allowed actor; an MCP caller's items meet only `pause` and `quarantine` rules, and its claimed author and trigger are stored as claims.
-- [x] `14.6` Plugin `poll`, after 14.4 [R50.7] (§4.8, §4.12, F104, F105)
-  - Plugin `poll`, after 8.7, 14.4
-  - New tracker capability `poll` and reply check (`items`, `cursor` of at most 2,000 characters, `more`, at most 500 items); the tick opens every plugin a declared source names; one poll per source per tick; the cursor stored after every item is handled; a failed or invalid poll keeps the cursor and items and shows the error; a poll-only plugin is never asked to project, read, list, or close; the fake tracker plugin gains `poll`.
-  - Part built in 16.4: the `poll` capability and its reply check. This task still owns calling it from the tick and storing the cursor and items.
-- [x] `14.7` GitHub intake on the record, after 14.4 [R50.4] (§4.12, F101)
-  - GitHub intake on the record, after 14.4
-  - `syncGitHubIssues` writes each listed issue as a `github` item and points its `github_issues` row at it; listing by label, events, permissions, snapshot freeze, and results unchanged; the existing GitHub intake tests pass unchanged.
+  - Operations in `operations.ts`; CLI `avoozl intake submit|list|view`; MCP `plans_intake` actions `submit_items`, `items` and `item`; submit only to an `mcp` source, 1–100 items, per-item results; run under the workspace tick lock.
+- [x] `14.4` Pipeline, after 14.3, 10.6 [R50.9, R50.10] (§4.12, §4.9)
+  - The `intake` content boundary (block quarantines with a decision that never names the text; report records), off unless a set names it; `labelFields` and `assigneeField` mapping; no label or rule starts work: a person starts a task from an item with Plan this (an inbox task through `task.capture`) or Deliver this (a pinned local leaf in the source's repository); `review` items are never delivered or planned.
+- [x] `14.5` Who counts for an MCP source, after 14.4 [R50.14] (§4.12, F108)
+  - An MCP caller's claimed author and trigger are stored as claims, and a close it reports holds the dependents with a decision.
+- [x] `14.7` GitHub intake on the record, after 14.4 [R50.4] (§4.12)
+  - The open items read (`refreshOpenItems` in `src/app/github/github-open-read.ts`) stores each listed issue as a `github` item in `incoming_items`.
 - [x] `14.9` Updates and closes, after 14.5 [R50.17, R50.18, R50.21] (§4.12)
-  - Updates and closes, after 14.5
-  - Title and labels follow to the tied task and rules run again, with withdrawal when no allowed match is left; a body change after the snapshot quarantines; closes follow the allowed-close rule (order, brief note, never verified; otherwise hold and a decision; never reopen); a reopen withdraws the order and leaves running sessions alone; untied closed items deleted after 30 days.
-- [x] `14.12` Docs and leak scan, after 14.3, 14.6 [R50.22] (§4.8, §13)
-  - Docs and leak scan, after 14.3, 14.6
-  - The plugin guide gains `poll` with the fake plugin as its example; a short guide to `plans_intake_submit` from a Kiro Crew cron job using a fake source; sources named only generically; the 7.4 scan covers the new docs and fixtures.
-- [x] `avoozl-p32` P32 Proof: incoming items from a fake plugin source and a fake MCP caller [R50] (§4.12)
-  - Expected: (1) `T1`, `T5`, and `T6` each become one pinned local leaf in `o/app`; `T2` is untriaged (eve lacks `write`); `T3` untriaged; `R1` untriaged with **Code review** and no leaf; issue 1 delivers and issue 2 is untriaged, as before; (2) nothing written; (3) the cursor and items stay, the error shows on the source, and the rest of the tick runs; after restore the next page is read and no item is duplicated; (4) `S1` is listed, not delivered (an MCP claim meets no starting rule); `S2` is paused; the bad link is refused with the field named while the others are stored; the replay is `unchanged` and the older one `stale`; (5) both refused; (6) `T4` is quarantined with a decision naming the set and rule and not the term; (7) the tab lists items from `github`, `tickets`, and `script` with a Source filter, non-GitHub rows link to their items and show no Issue Radar button; the page press makes one pinned leaf, and the MCP call gets 403; (8) `T1`'s task is quarantined until re-triggered or confirmed; (9) `T5`'s close is an order: `d5` is released with the brief note, and `T5`'s leaf has no verified completion; `T6`'s close holds `d6` and opens a decision, Avoozl does not reopen it, and the reopen lifts the hold with running sessions untouched; (10) the closed untied item is gone and tied ones stay; (11) every P31 expectation holds, and `untriaged.json` is not written.
-  - A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict.
-  - Setup: an isolated temporary workspace in single-repo mode with repository `o/app`, managed labels `avoozl:managed` and `avoozl:ready`, and rules `deliver` `label:go source:tickets`, `pause` `label:hold source:script`, `deliver` `label:go source:script`, and `deliver` `label:go` (GitHub); a fake GitHub with issue 1 (`go`, labeled by an allowed actor) and issue 2 (no labels); the fake tracker plugin from `test/fixtures/plugins/` with `poll` and `actor`, declared as source `tickets` (`labelFields: ["component"]`, `minimumPermission: write`), with items `T1` (`go`, trigger actor `bob`, permission `write`), `T2` (`go`, trigger actor `eve`, permission `read`), `T3` (no labels), `T5` and `T6` (`go`, trigger `bob`, `write`, each with a local task `d5` or `d6` that requires its leaf), and `R1` (kind `review`, `go`, trigger `bob`, `write`); source `script` with `via: mcp`; a content rule set naming the `intake` boundary with one fake term in `T4`'s body; the same GitHub fixtures and expected results as P31.
-  - Action: (1) tick; (2) tick again with no change; (3) make `poll` fail and tick, then restore it and tick; (4) through MCP, `plans_intake_submit` to `script` items `S1` (`go`, author `alice`, trigger actor `alice`, permission `admin`), `S2` (`hold`), and one item with a `javascript:` link, then submit `S1` again unchanged, then once with an older `updatedAt`; (5) submit to `tickets` and to `github` through MCP; (6) add `T4` to the fake source and tick; (7) open the Untriaged tab; press **Deliver this** on `S1` from the page, then call the same operation from MCP; (8) change `T1`'s body and tick; (9) before either leaf finishes, close `T5` as `bob`, close `T6` as `eve`, then reopen `T6`; (10) wait past 30 days on the fake clock for a closed untied item; (11) run the P31 actions against the GitHub fixtures.
-  - Failure means: one record cannot carry every source without changing GitHub behavior, or an unverifiable caller can start work.
-  - Next decision: keep MCP submit list-only and drop plugin-source rules, or keep plugin sources and drop the MCP way in.
-
-## Phase 15: Pull request feedback
-
-- [x] `15.1` Pull request read [R54.1, R54.2] (§4.13, F114)
-  - Pull request read
-  - For each covered leaf (plans-repo, or single-repo `coder: worker`) with an open pull request on its branch, one GraphQL read per repository per tick: head SHA, check runs and statuses on the head, reviews, unresolved review threads with comments, `mergeable`, and `autoMergeRequest`; skipped when `updatedAt` is unchanged; a failed read keeps the last state and shows the error.
-- [x] `15.2` Feedback events and receipts, after 15.1 [R54.3–R54.5, R54.11, R54.12] (§4.13, F116)
-  - Feedback events and receipts
-  - Events per R54.3; reviews and comments filtered by `actorAllowed` with the repository's policy, others counted only; receipt key pull request, head SHA, and GitHub event ID; a comment that is also a steering mention sent once; a CI failure after a local pass still records "CI only".
-- [x] `15.3` Relay, after 15.2 [R54.6, R54.7, R54.9, R54.10] (§4.13, F115)
-  - Relay
-  - One message per pull request per tick, quoted with `fence()`, failed checks with conclusion and details link and the `gh run view --log-failed` hint, task ID and title only in plans-repo mode, through the `brief` content boundary and the leak screen; to `intents.messages` for a live tick-opened worker, to `next` for a Crew Mode worker, else a new attempt on the same branch with a resume brief, the kept agent and model (R53.6), counted against the R8 retry bound; an unreachable crew waits; Avoozl writes nothing to GitHub.
-- [x] `15.4` Bounds and decisions, after 15.3 [R54.8, R54.14] (§4.13)
-  - Bounds and decisions
-  - `delivery.feedbackRounds` (default 5) and `delivery.prFeedback` (default on) per repository and workspace, validated; a round counted on send or attempt; stop and one **Needs you** decision on the bound, on the same check failing on 3 head commits in a row, or on `blocked`.
-- [x] `15.5` Delivery view, after 15.4 [R54.4, R54.13] (§4.13, §8)
-  - Delivery view
-  - Each covered leaf shows its latest event, rounds used out of the bound, the session the last round went to, and a count with links for comments not relayed. Check the page by drawing it and looking at it.
-- [x] `avoozl-p34` P34 Proof: pull request feedback with a fake GitHub and fake workers [R54] (§4.13)
-  - Proof: pull request feedback with a fake GitHub and fake workers
-  - Expected: (1) nothing is sent; (2) `a`'s worker gets one message naming both checks with links, `b`'s worker gets `alice`'s review quoted as data, `mallory`'s comment is not sent and is counted in the Delivery view, and the second tick sends nothing new; (3) a new attempt opens on `c`'s branch with the same agent and model and a resume brief naming the conflict and auto-merge; (4) after the third head, one decision opens and nothing more is sent for `a`; (5) one decision opens for `b`; (6) nothing is sent for `d`; (7) nothing is sent for `c`. No message names the planning repository; the fake GitHub records no write by Avoozl.
-  - Setup: an isolated temporary workspace in plans-repo mode with code repository `o/app` (allowed actor `alice`) and one single-repo repository `o/lib` with `coder: worker`; a fake GitHub; leaves `a` and `b` in `o/app`, `c` in `o/lib`, and `d` on the Issue Radar route; fake workers that push a new head when messaged.
-  - Action: (1) open pull requests for `a`, `b`, `c`, and `d`, all green; tick; (2) fail checks `test` and `lint` on `a`'s head, and add a changes-requested review by `alice` and a comment by `mallory` on `b`; tick twice; (3) make `c` conflict with its base and turn its auto-merge off; end `c`'s worker session; tick; (4) fail `test` on `a` for three heads in a row; (5) on `b`, use up 5 rounds; (6) fail a check on `d`; (7) set `delivery.prFeedback: false` on `o/lib` and fail a check on `c`.
-  - Failure means: the tick cannot keep a worker on its pull request without spamming it or trusting outside text.
-  - Next decision: send only failed checks and drop review relay.
-
-## Phase 16: Plugin bundles
-
-- [x] `16.4` Intake contract hook [R50.2, R50.7] (§4.8)
-  - Intake contract hook, after 8.7
-  - Tracker capability `poll` and its reply check; each item checked per R50.2; tracker rebuild asks only plugins that provide `tracker`.
-  - Tracker capability `poll` and its reply check (`items` at most 500, `cursor` at most 2,000 characters, `more`); each item checked per R50.2 and refused by field while the rest are kept; tracker rebuild asks only plugins that provide `tracker`.
+  - Title and labels follow to the tied task; a body change after the snapshot quarantines; closes follow the allowed-close rule (order, brief note, never verified; otherwise hold and a decision; never reopen); a reopen withdraws the order and leaves running sessions alone; untied closed items deleted after 30 days.
+- [x] `14.12` Docs and leak scan, after 14.3 [R50.22] (§13)
+  - A short guide to `plans_intake` action `submit_items` from a Kiro Crew cron job using a fake source; sources named only generically; the 7.4 scan covers the docs and fixtures.
 
 ## Phase 17: MCP tool groups
 
@@ -410,43 +322,20 @@ Each task's plain sub-bullets say what done means.
 
 Requirement 59, design §6.9.
 
-- [x] `21.1` Epic folders and the `epic:` key, after Phase 3's proofs [R59.1–R59.4, R59.7] (§6.9)
-  - Epic folders and the `epic:` key, after Phase 3's proofs
-  - An epic folder is known by its manifest's top-level kind, lists member plans, and is refused with the §6.9 codes; `epic:` front-matter is read like `category:`; `kind: "epic"`, per-entry `epic`, a plan's `epics` list and `memberPlan` are validation errors and never load under another name.
-  - The spec reader knows an epic folder by its manifest's top-level `"kind": "epic"`, reads members from `plan`, reads `epic:` front-matter like `category:`, and reports the §6.9 validation codes; `kind: "epic"`, per-entry `epic`, a plan's `epics` list and `memberPlan` are errors, never loaded under another name.
+- [x] `21.1` Parent specs link their member specs, after Phase 3's proofs [R59.1–R59.3] (§6.9)
+  - A task title's Markdown link to `<specs.path>/<name>/tasks.md` makes that task a spec group (`specGroupOf` in `src/app/specs/spec-plans.ts`); lint refuses a link to a missing folder, a spec linked twice and a spec group with sub-items, and refuses the `kind` and `epic` front-matter keys.
 - [x] `21.2` Phases from the manifest and `tasks.md` headings, after 21.1 [R59.5, R59.6] (§6.9)
   - Phases from the manifest and `tasks.md` headings, after 21.1
   - Every task has a phase from its manifest value, else its heading, else No phase; the store keeps only cross-plan epics; no `doc:` epic is created anywhere.
   - Each task gets a phase from its `phase` value, else its nearest level-2-or-lower heading, else No phase; the store keeps cross-plan epics only and tasks lose `epic`; capture and catalog paths stop making `doc:` epics, and `specOf` reads the plan or source reference.
-- [x] `21.3` Epic and phase reads on the page, CLI, and MCP, after 21.2 [R59.4, R59.10] (§6.9, §8)
+- [x] `21.3` Epic and phase reads on the page, CLI, and MCP, after 21.2 [R59.10] (§6.9, §8)
   - Epic and phase reads on the page, CLI, and MCP, after 21.2
   - An epic read lists member plans with computed status and progress and open decisions; plan and task reads carry epic and phase; the reads are reachable through the grouped MCP tools.
   - An epic read gives goal, what done means, member plans with status and progress, and open decisions; plan and task reads carry epic and phase; progress is computed, never stored; reads join the grouped MCP tools (R56).
-- [x] `21.4` Epic and plan issues on GitHub, after 21.2 [R59.8, R59.9, R59.15] (§6.9)
-  - Epic and plan issues on GitHub, after 21.2
-  - Projection makes the epic issue with the epic type, plan issues as its sub-issues and task issues under them; the phase line and optional Project field are written; the tick closes plan then epic issues; a second preview writes nothing; `github.subIssues.maxPerParent` (default 100) is validated, shown in GitHub modes only, and checked against each parent's existing sub-issue total; children past the cap and refused links show in the preview and Delivery.
-  - Projection creates the epic issue with `epicIssueType`, one plan issue per plan as its sub-issue, and task issues under the plan issue or package; writes the phase line and the optional `phase` Project field; the tick closes plan and epic issues from children; `github.subIssues.maxPerParent` (default 100) is read, validated, shown in Settings > GitHub setup in GitHub modes only, and checked against each parent's `subIssuesSummary.total`; children past the cap and refused links show in the preview and Delivery.
 - [x] `21.5` Views use epic and phase, after 21.3 [R59.6, R59.10] (§6.9, §8)
-  - Views use epic and phase, after 21.3
-  - Graph drills All > Epic > Plan > Phase > task with back navigation; Graph, Delivery, Flow, and Plans have separate Epic and Phase filters; Progress by epic counts all member plans; the plan left column and the epic page show epic and phases; no view shows a `doc:` ID or path.
-  - Graph levels All > Epic > Plan > Phase > task with the back stack; separate Epic and Phase filters in Graph, Delivery, Flow, and Plans; Dashboard Progress by epic across member plans; the plan left column shows its epic link and phases; the epic page; no `doc:` ID or path shown anywhere.
-- [x] `21.6` The New plan fields, after 21.2, 19.1 [R59.11, R59.14] (§6.9)
-  - New plan has Epic and Phases fields; the planner agent and skill write epic folders, the `epic:` key, and phase headings.
-  - The New plan drawer has Epic (pick) and Phases; the planner agent and skill write epic folders, the `epic:` key, and phase headings.
-- [x] `avoozl-p36` P36 Proof: one epic over two member plans, and old forms refused [R59] (§6.9)
-  - Proof: one epic over two member plans, and old forms refused
-  - Expected: membership needs both sides; phases come from headings; no `doc:` group appears; three levels of sub-issues project, children past `github.subIssues.maxPerParent` stay unlinked and are shown, and a second preview writes nothing; plan then epic issues close from children; every old form is a validation error.
-  - Setup: an isolated temporary workspace in plans-repo mode with a fake GitHub; an epic folder `rewrite` listing plans `alpha` and `beta`; `alpha` has `epic: rewrite` and two `## ` headings, one task under none; `beta` has `epic: rewrite`, manifest `phase` values and a `phases` title; a third plan `gamma` says `epic: rewrite` but is not listed; `github.subIssues.maxPerParent` set to 2, and `beta` has three tasks outside packages. A fourth folder `old` has an entry with `kind: "epic"`, per-entry `epic` values and an `epics` list; a fifth, `old-epic`, is an epic folder with `memberPlan` entries.
-  - Action: (1) lint and approve `rewrite`, `alpha`, `beta` and `gamma`; (2) list `beta` as a member while it names no epic, then restore; (3) read the epic, the Graph levels, Delivery, Flow, and Plans with each filter, and the Dashboard; (4) preview projection, apply it, preview again; (5) close every `alpha` and `beta` task issue; (6) lint `old` and `old-epic`; (7) open Settings in Local only, then in plans-repo mode.
-  - Expected: (1) 0 errors; `gamma` gets `spec.epic-unknown` and shows under No epic; (2) `spec.epic-member-unconfirmed` blocks only the epic's approval; (3) the epic lists `alpha` then `beta` with computed progress; phases come from headings; the headless task is under No phase; no response contains `doc:` or a file path as a group name; (4) one epic issue with the epic type, two plan issues as its sub-issues, task issues under them, the phase line in each body; `beta`'s third task is unlinked, names its plan issue in the marker, and shows "Over the sub-issue limit"; the second preview writes nothing; (5) the tick closes both plan issues, then the epic issue; (6) `facts.removed-key`, `facts.unknown-key` and `spec.epic-task-fields` errors naming each entry, and neither folder can be approved; (7) the sub-issue cap shows only in plans-repo mode.
-  - Failure means: one word still means two things, a group is still made up from a path, or an old form still loads.
-  - Next decision: keep phases as Avoozl-only groups and project only epics and tasks.
-- [x] `21.7` Rewrite the owner's plans once, after avoozl-p36 [R59.12] (§6.9)
-  - Rewrite the owner's plans once, after avoozl-p36
-  - A one-time script, kept in the task's report and not in `src/`, runs through existing operations on a copy and then live after a sha256 backup; per-plan epics become phases, `doc:` tasks go to their section or No phase, orphaned tasks are archived as "plan removed", old manifest forms are rewritten, every plan lints with 0 errors, a second run changes nothing, spec edits are local commits, and nothing is approved, started, written to GitHub, or pushed.
-  - A script kept in the task's report, not in `src/`, run through existing operations: first on a copy of the database and spec repositories, then live after a sha256 backup; per-plan epics to phases, `doc:` epics to their `tasks.md` section or No phase, orphaned tasks archived with `task.archive` reason "plan removed", old manifest forms rewritten in Nupp's plans (the rewrite epic folder and the native runtime plan) and checked in Avoozl's own spec; every plan lints with 0 errors; a second run changes nothing; spec edits are local commits; nothing is approved, started, written to GitHub or pushed.
+  - Graph levels All > Epic > Plan > Phase > task with the back stack; separate Epic and Phase filters in Graph, Delivery, and Plans; the plan left column shows its epic link and phases; the epic page; no `doc:` ID or path shown anywhere.
 
-## Phase 22: Templates, manual tasks, and links and notes
+## Phase 22: Manual tasks
 
 Requirement 61, design §4.16.
 
@@ -454,40 +343,10 @@ Requirement 61, design §4.16.
   - Manual leaves in lint and the tick, after 21.1
   - A manual leaf lints only with no run fields; it is never dispatched; it shows in Blocked or waiting, then Needs you tagged Manual; only a person marks it Done or Skipped or reopens it, and either releases its dependents; MCP calls are refused.
   - `manual: true`; `spec.manual-field`; left out of ready, verification, review and integration; dependents wait until it is done; Blocked or waiting, then Needs you tagged Manual; `task.manual.complete` (Done or Skipped, outcome) and `task.manual.reopen` person only, refused over MCP; Flow counts waiting on a person and skips first-pass rate and time to fix.
-- [x] `22.3` Links and notes store, operations, CLI, and MCP, after 17.1, avoozl-p28 [R61.16–R61.18, R61.20–R61.22] (§4.16, §4.9)
-  - Links and notes store, operations, CLI, and MCP, after 17.1, avoozl-p28
-  - Links and notes are stored in SQLite with the §4.16 limits; the `notes` boundary blocks a banned term for sessions and persons; a session adds only to its bound task and cannot edit or remove; briefs carry the newest entries and blockers' outcomes as data; the plan revision does not change.
-  - `task_notes` table; field limits refused by name; `notes` content-rule boundary on by default with Allow once for a person; `task.notes.list` observe, `task.notes.add` for a session's bound task only, `edit`, `remove` and `show` person only; CLI `avoozl task notes`; briefs get the newest 20 entries within 8,000 characters as data, and dependents get blockers' outcome entries; adding an entry changes no plan revision.
-- [x] `22.4` Task drawer Links and notes and the Mark done dialog, after 22.1, 22.3 [R61.12, R61.19] (§4.16, §8)
-  - Task drawer Links and notes and the Mark done dialog, after 22.1, 22.3
-  - The drawer lists links and notes newest first with author and time, adds, edits and removes them after a confirm, and shows a manual leaf's acceptance with a Mark done dialog that saves an outcome and Done or Skipped.
-  - Drawer section newest first with author and time, Add link and Add note, edit, and remove after a confirm; a manual leaf shows its acceptance and Mark done with outcome note, links, and Done or Skipped; checked by drawing the page and looking at it.
-- [x] `22.5` Links and notes on the issue, after 22.3 [R61.23] (§4.16, §3.3)
-  - Links and notes on the issue, after 22.2, 22.3
-  - Only entries a person marks Show on the issue reach the managed body, after the `github` boundary; edits there are conflicts; a rebuild restores shown entries.
-  - Show on the issue, person only and off by default, lists the entry in the managed body under Links and notes after the `github` boundary; others' edits there are conflicts; rebuild restores shown entries and the rebuild test allows unshown ones to be missing.
-- [x] `22.6` Template plugin part and checks, after 16.3, 21.2 [R61.1–R61.6] (§4.16)
-  - Template plugin part and checks, after 16.3, 21.2
-  - A plugin can provide templates without code; a template with an unknown key, an unknown placeholder, a starter that does not lint, phases that do not match, or an invalid pack or flow makes its plugin invalid; only approved plugins' templates are listed.
-  - `template` in `provides`, running as nothing; `avoozl-template.json` keys, inputs, `{{input}}` placeholders replaced as text, unknown keys and names refused; the starter lints with sample values; `phases` match headings or `phase` values; `pack` and `flow` pass their validators; an invalid template makes its plugin invalid; `template.list` and `template.preview` read approved templates only.
-- [x] `22.7` From template in the New plan drawer, after 22.6, 21.6, 19.1 [R61.6–R61.8] (§4.16)
-  - From template in the New plan drawer, after 22.6, 21.6, 19.1
-  - From template lists approved templates, fills their inputs, seeds the planner chat, and returns a draft plan that records the template; settings import only when ticked, through the pack preview hash; a picked epic gets a draft revision; nothing is approved, started or pushed.
-  - Blank or From template as radio fold-outs; template inputs as fields beside Name, Category and Epic; `plan.new` takes `template` and `inputs`, checks required inputs, reads a file input in the page up to 200 KB, and runs content rules on the seed; the pack preview with Import these settings unticked; the draft records the template; a picked epic gets its own draft revision; nothing approved, started or pushed.
-- [x] `22.8` Sample SDK rewrite template, docs, and skills, after 22.7, 22.4 [R61.24] (§4.16)
-  - Sample SDK rewrite template, docs, and skills, after 22.7, 22.4
-  - The sample SDK rewrite template lints and loads; the docs and the plugin and planner skills describe templates, manual leaves, and links and notes; the sample names no private system or company.
-  - A template-only sample plugin in the test tree with the §4.16 SDK rewrite template, its six phases, the manual Review with team leaf that cutover requires, two proof kinds and the flow defaults, naming no private system or company; `docs/plugins.md`, the plugin skill and the planner skill cover templates, manual leaves and links and notes.
-- [x] `avoozl-p37` P37 Proof: an SDK rewrite plan from a template, gated by a manual team review, with links and notes [R61] (§4.16)
-  - Proof: an SDK rewrite plan from a template, gated by a manual team review, with links and notes
-  - Expected: the template makes a draft that joins an epic and imports no setting unless ticked; the manual review is never dispatched and gates cutover; only a person in the app or an allowed GitHub closer completes it; links and notes are refused by content rules and field limits, reach the dependent's brief as data, and reach the issue only when shown.
-  - Setup: an isolated temporary workspace in single-repo mode with one repository `o/sdk`, a fake GitHub with an allowed actor `alice` and a reader `bob`, a fake terms file banning `secretword`, an epic folder `sdk-target`, and the sample template plugin from the test tree.
-  - Action: (1) add and approve the plugin; open New plan, From template, SDK rewrite; submit with no SDK name, then with `sdk: widgets`, the target repository, a gap list file and epic `sdk-target`, leaving Import these settings unticked; let a fake planner write the folder; (2) lint and approve the plan and the epic's new revision; project; (3) finish every task before the review; (4) as a session, mark the review done, add a note to the review, add a note to another task, and edit the person's note; (5) as a person, save a note with `secretword`, a link `javascript:x`, a link with a user name, then a valid outcome note and link, and Mark done with Done; (6) read the first cutover task's brief; (7) tick Show on the issue on the outcome link and run the tick; rebuild; (8) reopen the review in Avoozl; have `bob` close its issue, then `alice`.
-  - Expected: (1) refused naming `sdk`, nothing recorded; then a draft plan with six phases and the template recorded, the epic's own draft revision, no setting imported, nothing approved or started; (2) 0 errors; the review issue says a person closes it and never gets a ready or trigger label; (3) the review is in Needs you tagged Manual and no session opens for it; cutover tasks wait; (4) the mark done and the edit refused, the note on the review saved with the session's ID, the other task's note refused; (5) the first three refused naming the rule or field, the last saved; the issue closes as completed and cutover tasks become ready; (6) the brief carries the outcome note and link as data; (7) only the shown link is in the managed body, and it is back after the rebuild; (8) dependents wait again; `bob`'s close opens a decision and is not reopened; `alice`'s close completes it.
-  - Failure means: a repeated workflow cannot start from one install, a person's step cannot gate agent work, or what a review decided does not reach the next task.
-  - Next decision: keep templates as starter folders in a planning repository and drop the plugin part.
+- [x] `22.4` The Mark done dialog for a manual leaf, after 22.1 [R61.12] (§4.16, §8)
+  - The task drawer shows a manual leaf's acceptance and Mark done, a dialog that saves an outcome note and Done, Skipped or Refused; checked by drawing the page and looking at it.
 
-## Phase 23: The Specs name
+## Phase 23: Specs name
 
 Requirement 62, design §8.7.
 
@@ -495,33 +354,21 @@ Requirement 62, design §8.7.
   - Say spec on the page, in docs and in skills, after 19.1
   - Every user-facing plan word reads spec; the compatibility names are unchanged; a page-source test fails on any plan word outside its allowlist.
   - Every user-facing plan word becomes spec; Plan a change becomes Change spec; `plans_*`, `plan.*`, CLI, `.avoozl.json` keys, SQLite, the Plans repo mode and `avoozl-planner` are unchanged; a page-source test fails on any `plan` or `plans` word outside its allowlist.
-- [x] `avoozl-p38` P38 Proof: the Specs name and ideas [R62] (§8.7)
-  - Proof: the Specs name and ideas
-  - Expected: no user-facing plan word outside the allowlist and compat names unchanged; bad idea fields and blocked text refused; ideas never start work or count as untriaged; a session cannot archive or graduate; riff only appends; Make it a spec prefills New spec and graduates the idea; archived ideas survive the purge.
-  - Setup: an isolated temporary workspace with one repository, a trigger rule with no `source:` term and one with `source:local`, a fake terms file banning `secretword`, a fake chat opener and the New spec entry point.
-  - Action: (1) run the page-source test; list MCP tools and CLI commands; (2) as a person, add an idea with a title, a note and a link; over MCP, capture one with no title, one with a `javascript:` link, one with `secretword`, then a valid one; as a session, capture one and append a note to it; (3) tick; read the Intake tab and its Untriaged count; call Plan this and Deliver this on an idea; (4) as a session, archive an idea and graduate one; (5) Riff on this, and from the riff chat append a link; (6) Make it a spec, cancel, then submit; (7) archive and restore; move the clock 31 days and run the purge.
-  - Expected: (1) no plan word outside the allowlist; every `plans_*` tool and CLI command still answers; (2) the bad three refused by field or rule with nothing recorded; the session idea and note name the session; (3) no task, no rule match and an unchanged Untriaged count; both actions refused; (4) refused with 403; (5) the seed holds the idea as data and asks for no edits; only the link is added; (6) the cancel changes nothing; the submit prefills New spec and the idea shows Graduated with the spec name; (7) the archived and graduated ideas are still there.
-  - Failure means: an idea can start work, or the page still says plan.
-  - Next decision: keep ideas as a separate local list instead of intake items.
 
 ## Phase 24: Pull the Andon cord
 
 Requirement 64, design §4.11.
 
 - [x] `24.1` Pulled stops in the backend, CLI and MCP, after 12.6 [R64.2–R64.5, R64.7–R64.11] (§4.11)
-  - Pulled stops in the backend, CLI and MCP, after 12.6
-  - `flow.stop` records a pulled stop after the `brief` content rules and pauses dispatch in its scope; `flow.resume` is person only and recorded; a pulled stop never closes by itself; MCP `stop_line`, `avoozl flow stop` and `avoozl flow resume` work; Flow and the retro carry the pull.
-  - `flow.stop` {scope, repository?, spec?, taskId?, reason} records a `manual` row in `flow_stops` after the `brief` content rules; `flow.resume` {stopId} is person only and records who resumed; dispatch skips every task in scope, fix tasks included; the line watch never closes a pulled stop; Resume refuses an automatic stop and Run anyway a pulled one; `plans_session` action `stop_line`; `avoozl flow stop` and `avoozl flow resume`; Flow and the retro carry the pull.
-- [x] `24.2` Stop the line on the Dashboard, after 24.1 [R64.1, R64.6, R64.7] (§4.11)
-  - Stop the line on the Dashboard, after 24.1
-  - The red header button, its dialog and the banner with Resume work at 375 and 1280 px in light and dark.
-  - A red Stop the line button in the Dashboard header opens a dialog with a scope, its target and a required reason; the Line stopped banner shows who, when, scope, reason and the paused count, with a Resume button that asks first; checked by drawing the page at 375 and 1280 px in light and dark.
+  - `flow.stop` {scope, repository?, spec?, taskId?, reason} records a `manual` row in `flow_stops` after the `brief` content rules; `flow.resume` {stopId} is person only and records who resumed; dispatch skips every task in scope, fix tasks included; the line watch never closes a pulled stop; Resume refuses an automatic stop and Run anyway a pulled one; `plans_session` action `stop_line`; `avoozl flow stop` and `avoozl flow resume`; `flow.view` carries the pull.
+- [x] `24.2` Stop the line in the In flight heading, after 24.1 [R64.1, R64.6, R64.7] (§4.11)
+  - `StopLine.tsx`: a Stop the line button in the In flight heading opens a dialog with a scope, its target and a required reason; the Line stopped banner in the app shell shows who, when, scope, reason and the paused count, with a Resume button that asks first; checked by drawing the page at 375 and 1280 px in light and dark.
 - [x] `avoozl-p39` P39 Proof: pull the Andon cord [R64] (§4.11)
   - Proof: pull the Andon cord
-  - Expected: a pulled stop pauses its scope and leaves running sessions alone; bad pulls are refused with nothing recorded; only a person resumes; nothing else closes a pulled stop; Flow, the retro and the CLI see each pull.
+  - Expected: a pulled stop pauses its scope and leaves running sessions alone; bad pulls are refused with nothing recorded; only a person resumes; nothing else closes a pulled stop; `flow.view` and the CLI see each pull.
   - Setup: an isolated temporary workspace with repositories `r1` and `r2`, an approved spec `s1` with leaves `a1` and `a2` (`a2` requires `a1`) in `r1` and `b1` in `r2`, a fake terms file banning `secretword`, and fake workers.
-  - Action: (1) as a person, pull with scope `task` on `a1` and reason `bad base`; tick; (2) pull with no reason, a two-line reason, scope `repo` naming `r9`, and reason `secretword here`; (3) from an agent session, pull with scope `repo` on `r2`; (4) let the stopped check pass and the fix task integrate; tick; (5) call Resume from an agent session and from the app token; (6) press Run anyway on the pulled stop; press Resume on an automatic stop; (7) press Resume as the owner on both pulled stops; tick; (8) read Flow and the retro payload; run `avoozl flow stop` and `avoozl flow resume` from the CLI.
-  - Expected: (1) `a1` and `a2` are not dispatched, `b1` is, a running session is untouched, and the banner shows the owner, the time, the scope and `bad base`; (2) each refused by field, the unknown repository named, the content rule named without the matched text, nothing recorded; (3) the stop names the session, `b1` waits, the owner is notified once; (4) both pulled stops stay open; (5) both refused with 403; (6) both refused; (7) dispatch resumes in each scope and each stop records who resumed it; (8) both pulls are listed and counted with a time to fix, the retro sees their scope and reason, and the CLI pulls and resumes the same way.
+  - Action: (1) as a person, pull with scope `task` on `a1` and reason `bad base`; tick; (2) pull with no reason, a two-line reason, scope `repo` naming `r9`, and reason `secretword here`; (3) from an agent session, pull with scope `repo` on `r2`; (4) let the stopped check pass and the fix task integrate; tick; (5) call Resume from an agent session and from the app token; (6) press Run anyway on the pulled stop; press Resume on an automatic stop; (7) press Resume as the owner on both pulled stops; tick; (8) read `flow.view`; run `avoozl flow stop` and `avoozl flow resume` from the CLI.
+  - Expected: (1) `a1` and `a2` are not dispatched, `b1` is, a running session is untouched, and the banner shows the owner, the time, the scope and `bad base`; (2) each refused by field, the unknown repository named, the content rule named without the matched text, nothing recorded; (3) the stop names the session, `b1` waits, the owner is notified once; (4) both pulled stops stay open; (5) both refused with 403; (6) both refused; (7) dispatch resumes in each scope and each stop records who resumed it; (8) both pulls are listed and counted with a time to fix, and the CLI pulls and resumes the same way.
   - Failure means: a person cannot stop new work by hand, or a pulled stop resumes without a person.
   - Next decision: keep the pull as a person-only button and drop the MCP action.
 
@@ -532,15 +379,15 @@ Requirement 71, design §4.19.
 - [x] `29.1` Activity table, helper and screening, after 10.4 [R71.1, R71.4, R71.5, R71.8] (§4.19)
   - Activity table, helper and screening, after 10.4
   - An activity_log table and one recordActivity helper validate, trim and screen each row with the built-in secret and path screens and the activity content boundary; a matched or unchecked row is saved redacted; a test fails if a secret-shaped value is saved.
-  - `activity_log` with a unique `key` for derived rows; `recordActivity` in `src/app/store/activity-log.mjs` validates source and kind, trims the summary to 200 characters, keeps only plain target IDs and `https:` links, screens with the built-in secret and path screens and the `activity` content boundary, and saves a matched or unchecked row redacted; a test fails if a secret-shaped value is saved.
+  - `activity_log` with a unique `key` for derived rows; `recordActivity` in `src/app/store/activity-log.ts` validates source and kind, trims the summary to 200 characters, keeps only plain target IDs and `https:` links, screens with the built-in secret and path screens and the `activity` content boundary, and saves a matched or unchecked row redacted; a test fails if a secret-shaped value is saved.
 - [x] `29.2` Local actions and tick events, after 29.1 [R71.2, R71.3] (§4.19)
   - Local actions and tick events, after 29.1, 14.10
   - The listed local actions record one row each with source local or mcp; the tick records GitHub and plugin closes, board orders, label orders, incoming items, conflicts and reverts once each; recording never fails an action.
   - `execute` records the listed operations with source `local` or `mcp` and the actor; the tick diffs a snapshot of verdicts, Project item orders, label events, incoming items and conflicts and records each change once by key; the Wave write-back is recorded where it is written; recording never fails the action.
 - [x] `29.3` Retention, `activity.list` and MCP, after 29.2 [R71.6, R71.9] (§4.19)
   - Retention, activity.list and MCP, after 29.2
-  - activity.retentionDays defaults to 30 and is saved by a person only; each tick prunes older rows; activity.list filters and pages 100 rows; plans_view action activity reads it and recent keeps the Dashboard timeline.
-  - `activity.retentionDays` (default 30, 1–365) with `activity.settings.get` and person-only `activity.settings.update`; `pruneActivity` on every `workspace.tick`; `activity.list` with filters, 100-row pages and its facets; `plans_view` action `activity` reads it and `recent` keeps the Dashboard timeline.
+  - activity.retentionDays defaults to 30 and is saved by a person only; each tick prunes older rows; activity.list filters and pages 100 rows; plans_view action activity reads it and recent keeps the recent-events timeline.
+  - `activity.retentionDays` (default 30, 1–365) with `activity.settings.get` and person-only `activity.settings.update`; `pruneActivity` on every `workspace.tick`; `activity.list` with filters, 100-row pages and its facets; `plans_view` action `activity` reads it and `recent` keeps the recent-events timeline.
 - [x] `29.4` Activity tab and the retention setting, after 29.3, 12.11 [R71.7] (§4.19)
   - Activity tab and the retention setting, after 29.3, 12.11
   - The Activity tab uses the shared heading, filter panel and 100-row pages; task rows open the drawer and GitHub links open in a new tab with noopener noreferrer; the tab's Keep activity field sets the retention.
@@ -549,8 +396,8 @@ Requirement 71, design §4.19.
   - Proof: activity log
   - Expected: every listed local action and tick event makes one row, a change seen twice makes one, secret-shaped and rule-matched values are saved redacted, old rows are pruned on the tick, and the tab and plans_view read the same rows.
   - Setup: an isolated temporary workspace with one repository, a fake GitHub in single-repo mode with a Project, an approved spec with leaves `a1` and `a2` (`a2` requires `a1`), a fake tracker plugin, and a fake terms file banning `secretword` for every boundary.
-  - Action: (1) from the page press Start now on `a1`, pull the Andon cord, resume it, set `a2` to Deferred, save Flow settings, approve the plugin and change the writer model; (2) do one dispatch through MCP; (3) on the fake GitHub merge `a1`'s closing pull request, move `a2` to Deferred as an allowed actor and as another actor, set Wave by hand, apply a trigger label, and edit a managed title; tick twice; (4) add a tracker conflict and a new plugin incoming item; tick; (5) record a row whose summary holds `ghp_` plus 36 letters, and one holding `secretword`; (6) set retention to 1 day, age a row 2 days, and tick; (7) read the Activity tab and `plans_view` action `activity`, filtered by source `github`.
-  - Expected: (1) one `local` row each, with the person as actor; (2) one `mcp` row naming the session; (3) one row each for the merge, the order, the ignored move, the revert, the label and the conflict, the same after the second tick; (4) one `plugin` row each; (5) both saved redacted, and no row holds either value; (6) the old row is gone; (7) the tab and MCP show the same rows newest first, a task row opens the drawer and a GitHub row opens a new tab.
+  - Action: (1) from the page press Start now on `a1`, pull the Andon cord, resume it, set `a2` to Deferred, save Flow settings, approve the plugin and change the writer model; (2) do one dispatch through MCP; (3) on the fake GitHub merge `a1`'s closing pull request, move `a2` to Deferred as an allowed actor and as another actor, set Wave by hand, and edit a managed title; tick twice; (4) add a tracker conflict and a new plugin incoming item; tick; (5) record a row whose summary holds `ghp_` plus 36 letters, and one holding `secretword`; (6) set retention to 1 day, age a row 2 days, and tick; (7) read the Activity tab and `plans_view` action `activity`, filtered by source `github`.
+  - Expected: (1) one `local` row each, with the person as actor; (2) one `mcp` row naming the session; (3) one row each for the merge, the order, the ignored move, the revert and the conflict, the same after the second tick; (4) one `plugin` row each; (5) both saved redacted, and no row holds either value; (6) the old row is gone; (7) the tab and MCP show the same rows newest first, a task row opens the drawer and a GitHub row opens a new tab.
   - Failure means: something that changed the workspace leaves no row, or the log can hold a secret or a private term.
   - Next decision: record from each step instead of a snapshot diff, or keep redacted rows out of the log.
 
@@ -571,50 +418,21 @@ Requirements 64.12–64.16 and 73, design §4.11 and §8.9.
   - Every task and spec choice uses one keyboard-accessible combobox that matches ID, title and spec, shows state, and stays fast with 5,000 tasks.
   - `Picker.tsx` combobox with ID, title and spec matching, state badges, the keys and ARIA of §8.9, and at most 50 rendered results; used in the Stop the line target, the filter panels and Start now; a test filters 5,000 tasks.
 
-## Phase 34: Investigate first, evidence, staying current, rules, fix share, who merges
+## Phase 34: Staying current and who merges
 
-Requirements 75–80, design §4.11 and §4.21–§4.25.
+Requirements 77 and 80, design §4.23 and §4.25.
 
-- [x] `34.1` Findings, falsifier and the confidence gate, after 12.9 [R75] (§4.21)
-  - Findings, falsifier and the confidence gate
-  - A leaf's worker reports findings with no file changes, a read-only falsifier on another model replies, and coding starts only when both reach the confidence gate; otherwise the task waits in Needs you.
-  - `plans_report` kind `findings`; the `falsifier` role and session; the gate; the Needs you item with Go ahead, Investigate again and Stop; `delivery.investigate` settings and manifest `investigate`; Flow spans and budget.
-- [x] `34.3` Bring pull requests up to date, after 15.4 [R77] (§4.23)
-  - Bring pull requests up to date
-  - When the base branch moves, each conflicting or behind pull request's writer gets one message to merge it in, and no brief can ask for a force push.
-  - Base head tracking, the `base-moved` feedback message, the force-push refusal, and the local merge-forward.
-- [x] `34.6` Who merges a pull request (`landing.pr`), after 15.4 [R80] (§4.25)
+- [x] `34.3` Bring pull requests up to date [R77] (§4.23)
+  - When the base branch moves, each conflicting or behind pull request's writer gets one `base-moved` message to merge it in, and no brief can ask for a force push.
+- [x] `34.6` Who merges a pull request (`landing.pr`) [R80] (§4.25)
   - `landing.pr` (draft, ready, auto) is the one merge setting, for the workspace with a per-repository override; a draft waits for Ready for review or Approve and is never merged; with draft or ready a person merges on GitHub or with Merge for the exact head; with auto Avoozl merges after exact-head checks; Approve and Merge are person only; every `createPullRequest` call site says whether it opens a draft.
-  - `landing-config.mjs`, `landing-pulls.mjs`, `landing-queue-view.mjs`, `landing.ready` and `landing.merge` in `ops/delivery.mjs`, `markPullRequestReadyForReview` in `github.mjs`, `PullAction` in `ConflictsView.tsx`, `PrModeFields` in `LandingFields.tsx`, the Who merges section in `DeliverySettings.tsx`.
-- [x] `avoozl-p45` P45 Proof: investigate first and staying current [R75, R77] (§4.21, §4.23)
-  - P45 Proof
-  - P45 passes with fake workers, a fake falsifier and a fake GitHub.
-  - Setup: an isolated temporary workspace in single-repo mode on a fake GitHub with leaves `a1` (plain), `a2` (`investigate: false`) and `a3` (plain), a bugfix spec with leaf `f1`, fake workers and a fake falsifier.
-  - Action: (1) dispatch `a1` with findings at `high` and a `stands` reply; (2) dispatch `a3` with a `refuted` reply; press Investigate again, then Go ahead; (3) dispatch `a2`; (4) attach a screenshot and a 30 MB file to `a1`; (5) move the base branch so `a1`'s pull request conflicts; (6) request changes with the same point on `a1` and `a3`; run the retro; approve its rule; (7) finish `f1`; read Flow.
-  - Expected: (1) no file changes before the gate, then coding; (2) the task waits in Needs you, one new round, then coding; (3) no investigation; (4) the screenshot is in the drawer and the comment, the large file refused; (5) one `base-moved` message, a merge commit and no force push; (6) one rule proposal naming both corrections and one steering leaf; (7) fix-work share 1 of 3.
-  - Failure means: coding starts on refuted findings, or a writer force pushes.
-  - Next decision: keep the falsifier only for large tasks, or drop the PR comment and keep evidence local.
-
-## Phase 35: Review a task's changes in the drawer
-
-Requirement 81, design §8.10.
-
-- [x] `35.1` Read a task's changed files and diffs, after 2.6 [R81.4–R81.6]
-  - Read a task's changed files and diffs, after 2.6
-  - task.files and task.diff read with Git only, refuse paths outside the task's worktree and option-shaped inputs, cap their output, and MCP may call both.
-  - `task.files` and `task.diff` in `src/app/tasks/task-files.mjs`, observe-classified so MCP and app tokens may call them; path and argument rules; size caps; `src/app/tasks/test/task-files.test.mjs`.
-- [x] `35.2` Files fold in the task drawer, after 35.1 [R81.1–R81.3]
-  - Files fold in the task drawer, after 35.1
-  - The drawer's Files fold shows the changed-file tree with badges and counts, Show all files, unified and split diffs with summaries for binaries and large files, Open in editor links (Kiro by default), and the GitHub branch for remote tasks.
-  - `TaskFiles.tsx` and `files-api.ts`: the tree with badges and counts, Show all files, unified and split diffs, summaries, Open in editor with the editor choice, and the GitHub branch link; `hosts/kirocrew/ui/test/task-files.test.mjs`, `task-files-browser.test.mjs`, screenshots in `docs/evidence/task-files/`.
-- [x] `avoozl-p46` P46 Proof: review a task's changes in the drawer [R81]
-  - Proof: review a task's changes in the drawer
-  - Expected: each change has its badge and counts; text diffs show and binaries, large files and links are summarized; every path or option-shaped input outside the rules is refused and nothing outside the worktree is read or written; a removed worktree reads the branch; MCP gets both reads; the fold draws unified and split diffs and editor links follow the choice.
-  - Setup: an isolated temporary workspace with one repository and task `a`'s worktree with a file added, changed, deleted, renamed, a binary and an untracked file; the harness page for the fold.
-  - Action: (1) read `task.files`, with and without `all`; (2) read each file's `task.diff`; (3) ask for paths with `..`, absolute, drive, backslash, `.`, empty, NUL, `.git`, pathspec magic and option shapes, and a link out; set an option-shaped base branch; (4) remove the worktree and read again; call both from MCP; (5) open the fold, click a file, choose Split, switch the editor and Show all files.
-  - Expected: (1) each change has its badge and counts; (2) text diffs show, binaries, large files and links are summarized; (3) each is refused and nothing outside is read or written; (4) the branch is read and MCP gets both; (5) the diff draws both ways and every editor link follows the choice.
-  - Failure means: a read leaves the worktree or an input reaches Git as an option.
-  - Next decision: drop untracked files, or read diffs through a provider instead of local Git.
+  - `landing-config.ts`, `landing-pulls.ts`, `landing-view.ts`, `landing.ready` and `landing.merge` in `ops/delivery.ts`, `markPullRequestReadyForReview` in `github.ts`, `PullAction` in `ConflictsView.tsx`, `LandingFields.tsx`, `DeliverySettings.tsx`.
+- [x] `avoozl-p45` P45 Proof: staying current [R77] (§4.23)
+  - Setup: an isolated temporary workspace in single-repo mode on a fake GitHub with leaf `a1` and a fake worker.
+  - Action: dispatch `a1`, then move the base branch so `a1`'s pull request conflicts.
+  - Expected: one `base-moved` message, a merge commit and no force push.
+  - Failure means: a writer force pushes or is never told the base moved.
+  - Next decision: merge the base in from the tick instead of the writer.
 
 ## Phase 37: Security follow-ups
 
@@ -623,19 +441,19 @@ Requirement 83, design §6.12.
 - [x] `37.1` CLI refuses person-only operations in an agent session [R83.1, R83.2] (§6.12)
   - CLI refuses person-only operations in an agent session
   - The CLI refuses person-only operations in an agent session unless --as-person is given.
-  - `agentSession`, `cliRefusal`, `--as-person`; `src/app/cli/test/cli-person-only.test.mjs`; request draft in `docs/kirocrew-requests/`.
+  - `agentSession`, `cliRefusal`, `--as-person`; `src/app/cli/test/cli-person-only.test.ts`.
 - [x] `37.2` Private folder, database, backups and exports [R83.3] (§6.12)
   - Private folder, database, backups and exports
   - The folder, database, backups and exports are private files.
-  - `Store`, `privateFile`; `src/app/test/security-audit.test.mjs`.
+  - `Store`, `privateFile`; `src/app/test/security-audit.test.ts`.
 - [x] `37.3` Name repository-owned code; approve the worktree helper's hash [R83.4] (§6.12)
   - Name repository-owned code; approve the worktree helper's hash
   - Repository-owned code is named in docs/checks.md, and the worktree helper runs only at its approved hash.
-  - `docs/checks.md`; `worktreeHelper` in `git.mjs` and repository settings; same test file.
+  - `docs/checks.md`; `worktreeHelper` in `git.ts` and repository settings; same test file.
 - [x] `37.4` Hash a local plugin again before it starts [R83.6] (§6.12)
   - Hash a local plugin again before it starts
   - A local plugin is hashed again before it starts.
-  - `pluginHost`; `src/app/plugins/test/plugins.test.mjs`.
+  - `pluginHost`; `src/app/plugins/test/plugins.test.ts`.
 - [x] `37.5` Opt-in `checksEnv` allowlist [R83.5] (§6.12)
   - Opt-in `checksEnv` allowlist
   - Checks see only the environment variables the opt-in checksEnv allowlist names.
@@ -650,7 +468,7 @@ Requirements 93, 97, design §4.28.
   - Contract tests cover the calls and allowed status values; the interface carries no Kiro Crew folder, project or agent-file detail. The comprehensive boundary test runs at P56 after 46.2–46.4 move the existing references.
 - [x] `46.2` The `kirocrew` executor holds today's session calls from `tick.py`, after 46.1 [R93.2] (§4.28)
   - The `kirocrew` executor holds today's session calls from `tick.py`
-  - All Kiro Crew folder and project handling becomes the executor's private detail, including callers outside `tick.py`. Preserve existing behavior coverage; only assertions about retired request fields may change (R93.6).
+  - All Kiro Crew folder and project handling becomes the executor's private detail, including callers outside `tick.py`. Preserve existing behavior coverage; the tests keep covering the same behavior.
 - [x] `46.3` The tick writes session requests that name an executor; each executor takes only its own, after 46.2 [R93.3, R93.4] (§4.28)
   - The tick writes session requests that name an executor; each executor takes only its own
   - Planner requests carry no Kiro Crew folder, project or agent-file details.
@@ -659,7 +477,7 @@ Requirements 93, 97, design §4.28.
   - Runtime prompt readers use the prompt files, not generated agent JSON. A test fails when a built agent differs from its prompt.
 - [x] `avoozl-p56` P56 Proof: the seam is named and nothing else changed, after 46.1, 46.2, 46.3, 46.4 [R93, R97] (§4.28)
   - Proof: the seam is named and nothing else changed
-  - Expected: the suite passes with behavior coverage retained under R93.6; the worker opens and reports as before; no code outside the executor names a Kiro Crew folder or agent file.
+  - Expected: the suite passes with its behavior coverage kept; the worker opens and reports as before; no code outside the executor names a Kiro Crew folder or agent file.
   - A boundary test fails on any code path outside the `kirocrew` executor naming a Kiro Crew folder, project or agent file.
   - Setup: main before and after the change.
   - Action: run the existing suite and a boundary test that fails on any code path outside the `kirocrew` executor naming a Kiro Crew folder, project or agent file; open one worker through the executor on a scratch repository.
@@ -670,7 +488,7 @@ Requirements 93, 97, design §4.28.
   - `lanes.local` default 3; a fourth ready task waits.
 - [x] `40.4` Prepare with the worktree helper and clean up after landing, after avoozl-p56 [R88.6] (§4.26)
   - Prepare with the worktree helper and clean up after landing
-  - First caller of `createWorktree` in `src/app/git/git.mjs`; worktree and local branch removed after landing, kept otherwise.
+  - First caller of `createWorktree` in `src/app/git/git.ts`; worktree and local branch removed after landing, kept otherwise.
 - [x] `40.3` Trust mode set at open and again every tick, after avoozl-p56 [R88.1] (§4.26)
   - Trust mode set at open and again every tick
   - A fake Kiro Crew that drops trust on restart; the next tick sets it again, once per chat.
@@ -686,30 +504,20 @@ Requirements 93, 97, design §4.28.
 - [x] `40.5` Verify: warm checks off the tick, per-check timeouts, declared and protected paths, after 40.1 [R86.6, R86.7] (§4.26)
   - Verify: warm checks off the tick, per-check timeouts, declared and protected paths
   - Checks run as their own job in the task worktree; a timeout fails with its reason; a file outside declared paths is refused; a protected path goes to Needs you.
-- [x] `41.2` Per-base landing queue with brief integration locks, after 40.5 [R87.5, R102.9] (§4.32)
+- [x] `41.2` Per-base landing queue with brief integration locks, after 40.5 [R87.5] (§4.32)
   - Per-base landing queue with brief integration locks
   - Preserve order on Stop the line; perform checks outside the integration lock, guard only ref movement and push. Test a concurrent base move cannot land an unchecked candidate.
-- [x] `41.3` Direct portions and bounded landing trains, after 41.2 [R87.1, R87.2, R87.4, R87.9, R102.8, R102.9] (§4.32)
+- [x] `41.3` Direct portions and bounded landing trains, after 41.2 [R87.1, R87.2, R87.4, R87.9, R102.8] (§4.32)
   - Direct portions and bounded landing trains
   - Select exact verified portions, merge/check the current base and guard the fast-forward. Up to four tasks per train; bisect failures. Merge declared append-only union paths only in the landing worktree. Check outgoing data before every push; never force push.
-- [ ] `41.7` Nupp setup: `direct` on public `core-dev` with the repository's helper and check, after 41.3 (§4.26)
-  - Nupp setup: `direct` on public `core-dev` with the repository's helper and check
-  - `scripts/worktree` approved by hash, `scripts/test-changed` as the check; plans stay in a private planning workspace; no mirror or forward.
-- [ ] `41.8` Nupp AGENTS.md clause for Avoozl-run work, after 41.3 [R94.4a] (§4.26)
-  - Nupp AGENTS.md clause for Avoozl-run work
-  - A proposed Nupp AGENTS.md clause, checked against the core-dev copy, says Avoozl-run work edits, commits nothing or only locally, and stops: no merge, push or worktree removal.
-  - Nupp's AGENTS.md tells agents to rebase, fast-forward merge, push and delete the worktree. Propose a clause for work Avoozl runs: edit, commit nothing (or only locally, as the repository config says), and stop; no merge, push or worktree removal. Check the copy on `core-dev`, not only `main`. Proposed as a Nupp change, not made from Avoozl's repository.
-- [x] `41.6` Restore the Delivery page and the Files and diff view, after 41.3 [R88.7] (§4.26)
-  - Restore the Delivery page, Settings › Budgets and the Files and diff view
-  - From ba04389 and 70c2236, updated to the new loop; screenshots for the owner.
-  - From ba04389 and 70c2236, updated to the new loop; not Routing; screenshots for the owner.
-- [x] `41.5` Prepare from spec working heads and merge landed bases back, after 41.3 [R87.7, R102.4, R102.9] (§4.32)
+- [x] `41.6` The In flight page for the loop, after 41.3 (§4.26)
+  - In flight lists the running sessions and their tasks; screenshots for the owner.
+- [x] `41.5` Prepare from spec working heads and merge landed bases back, after 41.3 [R102.4] (§4.32)
   - Prepare from spec working heads and merge landed bases back
   - Generalize RC16 from epic-only integration; Prepare and qualified-ref resolution agree on the exact spec base. Merge the landed target back with a merge commit; preserve verified but unlanded portions and unfinished task refs.
-- [x] `41.4` Conflicts go back to the same chat, bounded; remove the resolver chat, after 41.3 [R87.6] (§4.26)
-  - Conflicts go back to the same chat, bounded; remove the resolver chat
-  - The conflicted file list in the brief; `landing.conflictRounds` default 2; then Needs you; `avoozl-conflict-fix` removed.
-- [x] `41.1` Schedule spec drivers with repository-wide path holds, after 40.5 [R86.2, R86.5, R86.9, R102.3] (§4.32)
+- [x] `41.4` Conflicts go back to the same chat, bounded, after 41.3 [R87.6] (§4.26)
+  - The conflicted file list in the brief; `conflicts.maxAttempts` rounds (default 2), then Needs you.
+- [x] `41.1` Schedule spec drivers with repository-wide path holds, after 40.5 [R86.2, R86.5, R102.3] (§4.32)
   - Schedule spec drivers with repository-wide path holds
   - Use unblock ranking, current spec authority, and repository-wide path holds. A dependency releases its successors once its tick reaches the base branch.
 
@@ -728,7 +536,7 @@ recovers, and a backend restart mid-run.
   - Write roots: task folder, temp, repository cache dirs; read-only roles read-only; a test loads definitions with `bypassPermissions`, `danger-full-access` and a `--dangerously-*` flag and sees each refused; the per-machine opt-in is person-only.
 - [x] `47.11` Avoozl's worker commit never stages a path under `.avoozl/`, and landing refuses a worker commit that holds one [R94.4a, R96.1, R96.3] (§4.28)
   - Avoozl's worker commit never stages a path under `.avoozl/`, and landing refuses a worker commit that holds one
-  - Whatever the repository's .gitignore says. 47.7 commits through `commitWorkerChanges` (`src/app/git/git.mjs`); `integrateRun` refuses a branch whose commits touch `.avoozl/` with the paths named; tests in `src/app/test/worker-commit.test.mjs`.
+  - Whatever the repository's .gitignore says. 47.7 commits through `commitWorkerChanges` (`src/app/git/git.ts`); `integrateRun` refuses a branch whose commits touch `.avoozl/` with the paths named; tests in `src/app/test/worker-commit.test.ts`.
 - [x] `47.8` Per-repository command allow-list; `git push` never allowed, after 47.2 [R94.4c] (§4.28)
   - Per-repository command allow-list; `git push` never allowed
   - Unattended children run the repository's build and test commands without a prompt; adding git push is refused.
@@ -740,14 +548,10 @@ recovers, and a backend restart mid-run.
   - `avoozl supervisor`: one per machine, owns pid, exit code and log; started by the app backend
   - Finds its children again after a restart; a missing one is `gone`.
 - [x] `47.4` The `process` executor and the Claude Code definition, after 47.2, 47.3 [R93.2, R93.5] (§4.28)
-  - The `process` executor and the Claude Code definition
-  - Default for the Nupp compiler repository.
+  - The `process` executor starts a Claude Code child from its approved definition file.
 - [x] `47.7` Avoozl commits after the child exits, after 47.4 [R94.4a] (§4.28)
   - Avoozl commits after the child exits
   - The child only edits; Avoozl commits in the worktree from the changed files and checks the diff.
-- [x] `47.9` Plan-quota stop, after 47.4 [R94.6a] (§4.28)
-  - Spend cap from the task budget and the plan-quota stop
-  - No new session starts on a harness whose plan quota reads low.
 - [x] `47.5` Child marker; the CLI refuses person-only commands in a child, after 47.3 [R95.5] (§4.28)
   - Child marker; the CLI refuses person-only commands in a child
   - Refused even with `--as-person`.
@@ -755,7 +559,7 @@ recovers, and a backend restart mid-run.
   - Finish: exit code plus `.avoozl/result.json` read by the supervisor; `runner report` for chats
   - A missing or bad result file, or done with a non-zero exit, takes the retry path.
   - A missing or bad result file, or `done` with a non-zero exit, takes the retry path.
-- [x] `avoozl-p57` P57 Proof: a Claude Code chain runs under the supervisor and survives faults, after 47.1, 47.2, 47.3, 47.4, 47.5, 47.6, 47.7, 47.8, 47.9, 47.10, 47.11 [R93, R94, R95, R96] (§4.28)
+- [x] `avoozl-p57` P57 Proof: a Claude Code chain runs under the supervisor and survives faults, after 47.1, 47.2, 47.3, 47.4, 47.5, 47.6, 47.7, 47.8, 47.10, 47.11 [R93, R94, R95, R96] (§4.28)
   - Proof: a Claude Code chain runs under the supervisor and survives faults
   - Expected: (1) all 3 tasks finish with an exit code and a result file, and Avoozl commits each one; (2) the resume argv delivers the feedback and the task passes; (3) the killed child is `exited` or `gone` and its task recovers on the retry path; (4) the supervisor keeps or finds its children and nothing runs twice; (5) refused.
   - Setup: a scratch repository with a bare remote, a 3-task chain, the Claude Code definition approved, the `process` executor.
@@ -789,8 +593,7 @@ Requirement 94.7 (design §4.28). Exit: Codex runs a task with no code change.
 
 Requirement 97.3 (design §4.28).
 
-- [x] `49.1` Verifier, reviewer, planner, retro and watch run on `process`, after avoozl-p57 [R97.3, R94.4] (§4.28)
-  - Verifier, reviewer, planner, retro and watch run on `process`
+- [x] `49.1` Every role runs on `process`, after avoozl-p57 [R97.3, R94.4] (§4.28)
   - Read-only roles get the read-only class.
 - [x] `avoozl-p59` P59 Proof: each role runs on either executor, after 49.1 [R97] (§4.28)
   - Proof: each role runs on either executor
@@ -808,9 +611,8 @@ Requirement 97.3 (design §4.28).
   - Send message queues a `send`
 - [x] `50.3` Settings › Models picks harness and model per role, after avoozl-p57 [R98.3] (§4.28)
   - Settings › Models picks harness and model per role
-- [x] `50.4` One `roles` table for harness, agent and model; Settings › Models is the only place to pick them, after 50.3 [R98.5, R98.6, R98.7, R98.8, R98.9] (§4.28)
-  - One `roles` table for harness, agent and model; Settings › Models is the only place to pick them
-  - `resolveRoles` in `chat-models.mjs` maps the older keys silently; `chatModel`, `roleHarness` and the delivery policy read through it; `roles` in the config schema; Settings › Models gains the worker's and falsifier's rows; Settings › Delivery loses Writer; screenshots in `docs/evidence/simplify-roles/`.
+- [x] `50.4` One `roles` table for harness, agent and model; Settings › Models is the only place to pick them, after 50.3 [R98.5, R98.6, R98.8] (§4.28)
+  - `resolveRoles` in `repository-settings.ts` reads the `roles` table; `roles` is in the config schema; Settings › Models picks each role's harness, agent and model.
 - [x] `avoozl-p60` P60 Proof: a process session is watched and steered from the Avoozl page, after 50.1, 50.2, 50.3 [R98] (§4.28)
   - Proof: a process session is watched and steered from the Avoozl page
   - Expected: status, log tail and cost show; the message reaches the child through `send`; the next task of that role uses the new harness; screenshots at 390 and 1280 px, light and dark.
@@ -855,7 +657,7 @@ Requirement 96.4 (design §4.28).
 
 Requirement 102, design §4.32.
 
-- [x] `56.1` Task outcomes, legacy values and branch-progress semantics [R102.3, R102.14] (§4.32)
+- [x] `56.1` Task outcomes, legacy values and branch-progress semantics [R102.3] (§4.32)
   - Task outcomes, legacy values and branch-progress semantics
   - Define the task-definition digest and latest valid outcome reducer; done/skipped/landed complete, refused/reopened/unverified/stale hold. Explicitly carry forward unchanged evidence only on new approval.
   - Accept route: github and merged-pr without rewriting approved files. Branch checkmarks remain outside the revision hash and only verified in-spec dependencies may advance; cross-spec dependencies wait for accepted outcomes. Tests cover every outcome and unchanged source hashes.
@@ -866,11 +668,7 @@ Requirement 102, design §4.32.
   - Independent refresh and held reconstruction
   - Cache repository hashes separately from assignee/review/check reads. Use conditional reads; unchanged definitions are not reparsed. Reassignment is observed with no branch commit.
   - Rebuild from the spec folders, approvals, ticks and landing commits; unknown spend is never zero. Tests cover a lost database and an unavailable fork.
-- [x] `56.7` Epic design/review/implement rows and approval evidence, after 56.2 [R59, R102.12] (§4.32)
-  - Epic design/review/implement rows and approval evidence
-  - Extend epic entries with step, default implement. Allow one row per (plan, step), forbid task fields/dispatch, derive design/review/implement from current member state; never hand-tick lifecycle rows.
-  - Keep current merge-commit re-hash; persist actual approving reviewers separately from requester/merger/time after merge. Local approval is explicit. Request configured spec reviewers or honor CODEOWNERS/policy; add no universal second-person rule. Public PRs link only public spec issues.
-- [x] `42.1` PR portions from target repositories or forks, after 41.3, 56.7 [R87.3, R87.4, R102.6, R102.12] (§4.32)
+- [x] `42.1` PR portions from target repositories or forks, after 41.3 [R87.3, R87.4, R102.6] (§4.32)
   - PR portions from target repositories or forks
   - Open/reuse the PR from an exact verified source head without an upstream copy. Update only the queue head and writable source. Enforce that PR head's required checks and standing reviews; record actual approvers and merger. Without target merge permission, observe an authorized maintainer's merge. No protected-review trains.
 - [x] `42.6` The tick lands `pr` portions through the landing queue, after 42.1, 42.3, 41.4 [R87.3, R87.4, R87.5, R87.6] (§4.26)
@@ -887,13 +685,6 @@ Requirement 102, design §4.32.
   - Action: (1) start the chain and leave it; (2) restart the gateway while task 2 works; (3) let the tick push the base.
   - Failure means: the loop still needs a person, or the push policy blocks the tick.
   - Next decision: if the policy blocks the tick, land with `pr` only until Kiro Crew allows it.
-- [ ] `avoozl-p51` P51 Proof: the 13 Nupp pilot tasks land direct, after 41.1, 41.2, 41.3, 41.4, 41.5, 41.6, 41.7, 41.8, avoozl-p50 [R86, R87] (§4.26)
-  - Proof: the 13 Nupp pilot tasks land direct
-  - Expected: each task lands on public `core-dev` after its checks; no private text in any commit message, branch name or added line; a receipt per task with owner minutes, credits and wall-clock.
-  - Setup: the Nupp compiler checkout, a private planning workspace with the 13 pilot tasks approved, landing `direct` on `core-dev`.
-  - Action: release the pilot and leave it running.
-  - Failure means: the loop needs the owner more than it saves, or something private reached the public branch.
-  - Next decision: tune lanes, checks or the brief from the receipts, or stop direct landing for Nupp.
 - [x] `avoozl-p52` P52 Proof: ten tasks land through pull requests on a repository with a required check, after 42.1, 42.2, 42.3, 42.6, 42.7 [R87] (§4.26)
   - Proof: ten tasks land through pull requests on a repository with a required check
   - Expected: ten pull requests merge one at a time after the check passes on each head; the moved base is merged in and checked again; the failed task goes back to its chat; no force push; setup run again changes nothing.
@@ -901,50 +692,39 @@ Requirement 102, design §4.32.
   - Action: release ten tasks; move the base during one; make one check fail.
   - Failure means: a merge on an unchecked head, a second ruleset rule, or a force push.
   - Next decision: keep `pr` as the default for repositories with required checks.
-- [x] `42.4` Review Avoozl repository settings against owner policy, after 42.3 [R87.8] (§4.26) (**MANUAL**)
+- [x] `42.4` Review Avoozl repository settings against owner policy, after 42.3 (§4.26) (**MANUAL**)
   - Review Avoozl repository settings against owner policy
   - Owner-only: preview and report the current landing/check policy. Preserve the owner's disabled required-CI gate; do not restore three required checks automatically. Apply a real settings change only if explicitly authorized.
-- [x] `56.8` GitHub intake with proportionate plans and private-safe status, after 56.2, 56.7 [R102.13] (§4.32)
-  - GitHub intake with proportionate plans and private-safe status
-  - Accept GitHub starts in plan/deliver. Bounded fixes use a compact versioned acceptance definition and the existing issue, without a full spec; coordinated design uses a proportionate spec. Reuse an issue only when home/visibility match.
-  - Initial intake makes at most two idempotent writes: ownership label and safe status comment; never name a private spec on a public input. Only same-repository Deliver this uses Fixes; closure is withdrawal. Validate the ownership label excludes independent issue crews in a scratch proof before unattended rollout. The ownership label is crew:avoozl; intake-created issues carry it at create, and the status comment carries no Radar claim marker.
 - [x] `56.11` Privacy enforcement for checkpoints and public metadata, after 56.2 [R87.9, R102.7, R102.16, R102.17, R102.18] (§4.32)
   - Privacy enforcement for checkpoints and public metadata
   - Reuse existing content scanning in process before every outgoing push range and every externally visible intake/PR/status write. Check ref names, commit messages, added lines and public metadata, without raw logs, commands, paths or private identifiers.
   - Tests insert made-up private names into branch names, commit messages, PR bodies, check summaries, records and artifacts and refuse publication before the first write. Preserve useful opaque IDs and public commit/check references. Private-plan mappings and sensitive controls remain private; hidden HTML grants no secrecy.
   - No internal information on public writes: refuse hostname and IP literals, *.corp/*.internal/*.local/*.lan and the owner's private machine-local internal-domain list, home paths, and this machine's own hostname and username before the first write. Public writes name a machine only by its public label (machine config; never the hostname). Tests insert a made-up hostname and username into every public field and expect refusal with nothing written.
-- [x] `56.3` Qualified working heads, fork checkpoints and verified integration, after 56.2, 56.11, 40.5 [R102.4, R102.5, R102.6, R102.9] (§4.32)
+- [x] `56.3` Qualified working heads, fork checkpoints and verified integration, after 56.2, 56.11, 40.5 [R102.4, R102.5, R102.6] (§4.32)
   - Qualified working heads, fork checkpoints and verified integration
   - Generalize spec homes and integration branches to source repository/ref/SHA and target/base. Discover PR fork heads; accept trusted owner-published pre-PR refs. Fetch only registered sources, validate relationships and exact commits; no arbitrary issue URLs or commands.
   - Driver creates one spec working branch per affected repository, integrates checked task refs serially, and keeps unfinished checkpoints separate. A fork needs no upstream branch copy. Content checks apply to all checkpoints; acceptance gates apply to verified integrations. Test recovery after database loss, fork deletion/rewrites, two identical branch names and absent upstream push access; sandboxed agents never receive push credentials.
-- [x] `44.1` One link set per spec and task from stored records, after 40.4, 41.2, 42.6, 56.2, 56.3, 56.8 [R92.1, R92.2, R92.3] (§4.27)
+- [x] `44.1` One link set per spec and task from stored records, after 40.4, 41.2, 42.6, 56.2, 56.3 [R92.1, R92.2, R92.3] (§4.27)
   - One link set per spec and task from stored records
   - Pure read model over the spec issue, spec working branch, task branch and worktree, task PR and check state from landing, landed commit from delivery records, and intake/escalation issues. URLs come from validated repository, number, ref and SHA fields only.
   - Missing records show as none; check state carries head SHA and age, and a non-current head is never shown as current. A counting-client test asserts the GitHub call count is unchanged with link sets on.
-- [x] `44.6` Radar back-links through intake, after 44.1, 56.11 [R92.10] (§4.27)
-  - Radar back-links through intake
-  - Spec shows its Radar source issues. The intake status comment names the spec issue where visibility permits, so GitHub shows a cross-reference. Tests: a public Radar issue never names a private spec; no Radar API, grant or import; no new GitHub write.
-- [x] `44.5` Landing queue page under Dashboards, after 44.1 [R92.7, R92.2, R92.12] (§4.27)
-  - Landing queue page under Dashboards
-  - A Dashboards page next to CI, not a nav pill. Per target base, items in landing order with each hold reason; full-width rows at 390 px. No GitHub call; Refresh redraws.
-- [x] `44.4` PR and branch chips on In flight rows, after 44.1 [R92.6, R92.9, R92.12] (§4.27)
+- [x] `44.4` PR and branch chips on In flight rows, after 44.1 [R92.6, R92.9] (§4.27)
   - PR and branch chips on In flight rows
   - `PR #N` with a check dot, and the branch. Chips fit a 390 px row.
-- [x] `44.3` Links box in the task details view and the Graph modal, after 44.1 [R92.5, R92.9, R92.10, R92.12] (§4.27)
+- [x] `44.3` Links box in the task details view and the Graph modal, after 44.1 [R92.5, R92.9, R92.10] (§4.27)
   - Links box in the task details view and the Graph modal
   - Branch, PR, checks, landed commit and issue; the Graph modal reuses the same view. A worktree path shows as local text only.
-- [x] `44.2` Links box in the spec details panel, after 44.1 [R92.4, R92.9, R92.10, R92.12] (§4.27)
+- [x] `44.2` Links box in the spec details panel, after 44.1 [R92.4, R92.9, R92.10] (§4.27)
   - Links box in the spec details panel
   - Spec issue, working branch, open PRs with a check dot each, Radar issues it came from. Links open with target=_blank rel="noopener noreferrer"; a private spec issue renders only locally.
-- [x] `avoozl-p54` P54 Proof: links and the landing queue on real GitHub, after 44.1, 44.2, 44.3, 44.4, 44.5, 44.6 [R92, R102.5, R102.7] (§4.27)
-  - P54 Proof: links and the landing queue on real GitHub
-  - Setup: isolated scratch workspace with two registered targets, one PR from a fork, a spec created from a scratch Radar-style issue, one landed and one held task; no real workspace tick.
-  - Action: open the spec details panel, a task's details and its Graph modal, In flight and the Landing queue at 390 and 1280 px, light and dark; follow each link; count GitHub calls before and after.
-  - Expected: every link reaches the right GitHub item in a new tab; held items show the right reason; opening and refreshing the views adds zero calls; the scratch Radar issue shows the spec link only when the spec is public. Private spec references, host names, usernames and paths never render on a public surface.
+- [x] `avoozl-p54` P54 Proof: links on real GitHub, after 44.1, 44.2, 44.3, 44.4 [R92, R102.5, R102.7] (§4.27)
+  - Setup: isolated scratch workspace with two registered targets, one PR from a fork, one landed and one held task; no real workspace tick.
+  - Action: open the spec details panel, a task's details and its Graph modal, and In flight at 390 and 1280 px, light and dark; follow each link; count GitHub calls before and after.
+  - Expected: every link reaches the right GitHub item in a new tab; opening and refreshing the views adds zero calls. Private spec references, host names, usernames and paths never render on a public surface.
   - Also record: screenshots, exact source and target SHAs, call counts and owner screenshot approval. Live receipt under docs/evidence/; wait for owner approval before ticking.
   - Failure means: a wrong or stale link shown as current, a leaked private reference, an extra GitHub call or an unusable mobile layout.
-  - Next decision: owner approves the screenshots and remaining shared projection deletion, or names the link or queue detail to change.
-- [x] `avoozl-p67` P67 Proof: fork source and upstream permissions, after 42.1, 42.2 [R102.5, R102.6, R102.7, R102.13] (§4.32) (**MANUAL**)
+  - Next decision: owner approves the screenshots, or names the link detail to change.
+- [x] `avoozl-p67` P67 Proof: fork source and upstream permissions, after 42.1, 42.2 [R102.5, R102.6, R102.7] (§4.32) (**MANUAL**)
   - P67 Proof: fork source and upstream permissions
   - Setup: isolated scratch upstream and authorized fork, a contributor login without upstream push/merge rights and an authorized maintainer login, plus public and private scratch spec homes. Owner supplies needed accounts; use no real repository settings.
   - Action: register a pre-PR fork head, checkpoint there, then discover a fork PR head. Land from both while keeping the source branch out of upstream. Move the base and require a refreshed check/review; let the maintainer merge. Try an unregistered source and a private-plan reference on every public surface. Export twice; exercise a divergent mirror import.
@@ -953,42 +733,34 @@ Requirement 102, design §4.32.
   - Write a live docs/evidence/ receipt; do not tick from tests or unavailable second-account behavior. Failure means a permission bypass, assumed upstream source branch, stale head or private disclosure.
   - Next decision: enable fork heads by default, or fix source resolution and permissions first.
 
-## Phase 58: A role per repository replaces Where tasks live
+## Phase 58: A role per repository
 
-Requirement 105, design §4.34.
+Design §4.34.
 
-- [x] `58.1` Repository roles replace Where tasks live, after 20.2 [R105.1, R105.2, R105.3, R105.4, R105.5, R105.6, R105.7, R105.8, R105.9, R105.10, R28.1] (§4.34)
-  - Repository roles replace Where tasks live, after 3.14, 20.2
-  - Repository setup shows an in-place role picker per repository (local, code, planning, both); the mode and planningRepository derive from roles through one resolver that also reads old files without writing; mixed roles are refused; the Where tasks live page is gone with its link opening Repository setup and workspace-wide settings in Settings › Workspaces. Tests cover the mapping, migration and screens, and screenshots (phone and desktop, light and dark, full app shell) are under docs/evidence/repo-roles/.
-  - One resolver in `github-policy.mjs` maps roles to mode and `planningRepository` and back, refuses mixed roles, and runs in the config loader; the schema gains `role` and keeps `mode` and `planningRepository`. Repository setup shows an in-place role picker per repository, the "Tasks live in" line and a synthesized "GitHub only" planning row; the Where tasks live page and tab are removed, the workspace-wide settings move to Settings › Workspaces, and the old link opens Repository setup. Tests for the mapping, migration, refused mixes and screens; screenshots (phone and desktop, light and dark, in the full app shell) under `docs/evidence/repo-roles/`.
+- [x] `58.1` A role per repository in Repository setup, after 20.2 [R28.1] (§4.34)
+  - Repository setup shows each repository's role (local, code, planning, both), derived from `github.mode` and `github.planningRepository` in `hosts/kirocrew/ui/src/settings-api.ts`; choosing `planning` for one repository turns the old planning repository into `code`.
 
-## Phase 59: Trace moves into task details
+## Phase 59: Task Timeline
 
 Requirement 106, design §4.35.
 
-- [x] `59.1` Remove Trace; task details get a Timeline of Avoozl's task steps, after 55.4 [R106.1, R106.2, R106.3, R106.4, R106.5, R106.6, R106.7, R106.8, R106.9] (§4.35)
-  - Remove Trace; task details get a Timeline of Avoozl's task steps, after 55.4
-  - The Timeline box in task details lists spec approved, ready, started (attempt N), failed attempts, checks, landed, builds and integrated from stored records only, each with its time and the wait before it; the Trace nav entry, page, drawer, Done work list, radar.trace and trace.done are gone; an old trace link opens Delivery or the task's details; tests cover the steps, redirects, nav and zero GitHub calls, and screenshots (phone and desktop, light and dark, full app shell) are under docs/evidence/trace-into-task/.
-  - `task-steps.mjs` builds the steps from stored records and `taskDetailView` returns them; the Timeline box shows them above the history list, with builds by phase. The Trace nav entry, page, drawer, Done work list, `radar.trace`, `trace.done` and the Trace buttons are removed; old links open Delivery or the task's details. Tests for the steps, redirects, nav and zero GitHub calls; screenshots (phone and desktop, light and dark, full app shell) under `docs/evidence/trace-into-task/`.
+- [x] `59.1` Task details get a Timeline of Avoozl's task steps, after 55.4 [R106.1, R106.2] (§4.35)
+  - The task drawer's Timeline tab lists the task row's last change, each session's start and status, evidence, delivery states and the integration commit, each with its time; `taskTimeline` in `src/app/api/page-views.ts` builds it from stored records and makes no GitHub call.
 
 ## Phase 63: One intake list
 
 Requirement 110, design §4.39.
 
-- [x] `63.1` GitHub sources in `intake.sources` replace `github.issueIntake` and `github.queue`, after 14.2, 56.8, 44.6 [R110.1, R110.2, R110.3, R110.6, R110.7, R110.9, R50.6] (§4.39)
-  - GitHub sources in `intake.sources` replace `github.issueIntake` and `github.queue`, after 14.2, 56.8, 56.14, 44.6
-  - `intake.sources` takes `via: github` with the old issue intake keys and refuses the wrong keys per kind; an old `github.issueIntake` loads as a source and an old `github.queue` is ignored, with no warning and no apply flag; Avoozl's next write moves old entries into `intake.sources` once; `github configure` and Repository setup write a source; Radar intake, escalations and back-links still work on a migrated repository; Intake sources lists each GitHub source in the shared box with a link to Repository setup; tests cover each case, and screenshots are checked outside git, not kept in it.
-  - `github-sources.mjs` reads `via: github` entries and old `github.issueIntake` entries as one list and writes sources, moving old keys once on the first write; `validateSource` takes the GitHub kind; `sourceMap` leaves it out; `github configure` and Repository setup write a source. `github.queue` is ignored. Intake sources lists each GitHub source in the shared box with a link to Repository setup. Tests; before and after screenshots checked outside git, not kept in it.
+- [x] `63.1` GitHub sources in `intake.sources`, after 14.2 [R110.1, R110.2, R110.3, R110.6, R50.6] (§4.39)
+  - `github-sources.ts` reads and writes `via: github` entries; `validateSource` takes the GitHub kind and refuses the wrong keys per kind; `sourceMap` leaves it out; `github configure` and Repository setup write a source; `github.queue` is ignored. Intake sources lists each GitHub source in the shared box with a link to Repository setup. Tests cover each case.
 
 ## Phase 64: Task facts move into tasks.md
 
 Requirement 111, design §4.40.
 
-- [x] `64.1` Facts bullets replace `avoozl/manifest.json`, convert this repository's specs [R111.1, R111.2, R111.3, R111.4, R111.5, R111.6, R111.7, R111.8, R111.9, R111.10, R111.11] (§4.40)
-  - Facts bullets replace avoozl/manifest.json, convert this repository's specs
-  - `spec-facts.mjs` reads `Facts:` bullets and front-matter into the parse; lint refuses each bad shape with its file and line; a leftover manifest is an error; the revision hash is unchanged by a pure conversion; every spec here is converted and its manifest deleted; tests cover each rule and the before and after parse.
-  - `spec-facts.mjs` reads `Facts:` bullets and front-matter into the object `parseSpec` read from the manifest, with lint codes and lines; `specHash` stops reading the manifest and hashes prose plus canonical parsed facts, so a converted spec keeps its hash; the manifest readers, `spec-manifest.mjs`, the manifest review tab, the planner prompt and the steering file change; every spec here is converted once and its `manifest.json` deleted; tests cover each rule and the before and after parse.
-- [x] `64.2` Convert the Nupp plans to Facts bullets, after 64.1 [R111.10] (§4.40)
+- [x] `64.1` Facts bullets in `tasks.md` [R111.1, R111.2, R111.3, R111.4, R111.5, R111.6, R111.7, R111.9] (§4.40)
+  - `spec-facts.ts` reads facts bullets and front-matter into the parse, with lint codes and lines for each bad shape; a leftover `avoozl/manifest.json` is an error; `specHash` hashes prose plus canonical parsed facts; tests cover each rule.
+- [x] `64.2` Convert the Nupp plans to Facts bullets, after 64.1 (§4.40)
   - Convert the Nupp plans to Facts bullets, after 64.1
   - The Nupp plans branch `avoozl-plans` is converted in one pull request, tested on a copy first, merged after its checks, with no Nupp code repository touched.
   - In the Nupp plans repository, branch `avoozl-plans`, run the converter on a copy, check the parse and the hashes, convert in one pull request and merge it after its checks. Touch no Nupp code repository. Report a question if those specs fall under person-only approval.
@@ -997,22 +769,16 @@ Requirement 111, design §4.40.
 
 Requirement 113, design §4.41.
 
-- [x] `65.1` A tick on the base branch marks the task done, no re-approval, after 64.1 [R113.1, R113.2, R113.3, R113.4, R113.5, R113.6, R113.7, R113.8] (§4.41)
+- [x] `65.1` A tick on the base branch marks the task done, no re-approval, after 64.1 [R113.1, R113.2, R113.3, R113.4, R113.5, R113.6, R113.8] (§4.41)
   - A tick on the base branch marks the task done, no re-approval
   - Each workspace tick reads tasks.md from the base branch; a `[x]` item completes its task with the tick's commit, releases its worker session, and keeps the hash; an untick waits in Needs you with Reopen and Keep done; a ticked item with no ID is a lint error; tests cover each.
-  - `spec-ticks.mjs` and `applyBaseTicks` in `operations.mjs`; `conflicts.settle` takes `reopen` and `keep`; the Conflicts page shows the `untick` item.
-- [x] `65.2` Landing ticks its task in the landing commit, ticks are the shared state, after 65.1 [R113.8, R113.9, R113.10, R113.11, R113.12, R113.13] (§4.41)
-  - Landing ticks its task in the landing commit, ticks are the shared state, after 65.1
+  - `spec-ticks.ts` and `applyBaseTicks` in `operations.ts`; `conflicts.settle` takes `reopen` and `keep`; the Conflicts page shows the `untick` item.
+- [x] `65.2` Landing ticks its task in the landing commit, ticks are the shared state, after 65.1 [R113.8, R113.9, R113.10, R113.11, R113.12] (§4.41)
   - A direct landing's merge commit carries the task's `[x]` and changes no other byte; a parent ticks after its last child; a spec in a plans repository gets its own guarded commit with retry; the landing machine records no duplicate; a second machine reading origin marks the task done; tests cover each.
   - `tickEntry` in `stackMembers`, `tickPlansRepo` after the push, `baseTasks` reads `origin/<base>`.
-- [x] `65.3` The tick writes a Built line, and receipts are read by commit, after 65.2 [R113.8, R113.14] (§4.41)
-  - The tick writes a Built line, and receipts are read by commit, after 65.2
-  - After a landing's push, one `[skip ci]` commit adds `Built: <main commit>` to the task's Facts block and the hash does not change; every commit reaching the base branch has its push run's receipts read once by that commit; a pull request head's receipts count under the commit it landed as; Flow and the task show one CI time per main commit; tests cover a direct push and a squash-merged pull request.
-  - `builtText` and `recordBuilt` write the line, `readFacts` skips it, `applyTicks` keeps `task.built`, `readReceipts` reads base-branch push heads, `pr_ci.mergeCommit` links a head to its main commit, `observationsAtMain` and `buildRows` give one CI time per commit.
-- [x] `65.4` The tick commit is a task's landing commit; Avoozl writes no Built line, after 65.3 [R113.8, R113.14] (§4.41)
-  - The tick commit is a task's landing commit; Avoozl writes no Built line, after 65.3
-  - A landing makes one commit that ticks; each ticked task keeps the base-branch commit that ticked it, found by first-parent blame and kept in SQLite; receipts and Flow look its CI up by it; a person's Built line is still read; tests cover a direct push, a squash merge and a rebuild from git.
-  - `recordBuilt` and `builtText` are gone; `tickCommits` blames `tasks.md`; `applyTicks` keeps `task.tickCommit`; `observationsForTask` reads it.
+- [x] `65.4` The tick commit is a task's landing commit, after 65.2 [R113.8, R113.14] (§4.41)
+  - A landing makes one commit that ticks; each ticked task keeps the base-branch commit that ticked it, found by first-parent blame and kept in SQLite; receipts look its CI up by it; a person's `Built:` line is still read; tests cover a direct push, a squash merge and a rebuild from git.
+  - `tickCommits` in `spec-ticks.ts` blames `tasks.md`; `applyTicks` keeps `task.tickCommit`.
 
 ## Phase 66: Git is the source of truth
 
@@ -1020,13 +786,13 @@ Requirement 114, design §4.42.
 
 - [x] `66.1` Approvals are approvers' authored commits on main, after 65.2 [R114.1, R114.2, R114.3, R114.4, R114.5] (§4.42)
   - A commit on main whose author email is an approver approves the spec as its tree holds it, whatever its committer; Avoozl's and its agents' commits use the checkout's git identity with no Co-authored-by, and spec drafts reach main only through Approve; Approve writes and pushes the person's commit; no Status line, marker or decision record is written.
-  - `git-approvals.mjs`, `approveInGit` in `operations.mjs`, `spec-approval.mjs`.
+  - `git-approvals.ts`, `approveInGit` in `operations.ts`, `spec-approval.ts`.
 - [x] `66.2` Recoverable intake and `avoozl rebuild`, after 66.1 [R114.7, R114.8] (§4.42)
   - Intake tasks name their item with `source:`; dismissed items carry `avoozl:dismissed`; MCP pushes become GitHub issues; a deleted database rebuilds to the same plans, approvals and tasks.
-  - `intake.mjs` `submitItems`, `workspace.rebuild`, `src/app/git/test/git-approvals.test.mjs`.
+  - `submitItems` in `intake.ts`, `workspace.rebuild`, `src/app/git/test/git-approvals.test.ts`.
 - [x] `66.4` The tick adopts approvals that reach main with no click, after 66.2 [R114.12] (§4.42)
   - An approver-authored spec commit on main, such as a GitHub squash merge, approves the spec on the next tick as rebuild would; a non-approver's commit approves nothing; a later non-approver edit needs approval again; a click adds no second Activity row.
-  - `applyMainApprovals` and `adoptApprovals` in `operations.mjs`, `baseHead` in `spec-ticks.mjs`, `src/app/git/test/git-approvals.test.mjs`.
+  - `applyMainApprovals` and `adoptApprovals` in `operations.ts`, `src/app/git/test/git-approvals.test.ts`.
 
 ## Phase 67: Task IDs and refs in tasks.md
 
@@ -1034,7 +800,7 @@ Requirement 115, design §4.43.
 
 - [x] `67.1` Checked, linked requirement and design refs, and optional backticked task IDs [R115] (§4.43)
   - A ref the spec does not define is a lint error naming the ref, file and line; a task ID reads the same bare or backticked; refs are left out of the title and shown as chips that open their section; every spec under `.kiro/specs/` lints clean.
-  - `spec-refs.mjs`, `specItems` and `parseSpec` in `spec-plans.mjs`, `PhaseTasks` in `PlansView.tsx`.
+  - `spec-refs.ts`, `specItems` and `parseSpec` in `spec-plans.ts`, `PhaseTasks` in `PlansView.tsx`.
 
 ## Phase FS: Flexible spec folders
 
@@ -1042,55 +808,48 @@ Requirement FS1, design §FS1.
 
 - [x] `fs-1` specs.path, only tasks.md required, other Markdown as spec text [FS1] (§FS1)
   - `specs.path` in `.avoozl.json` names the specs folder (default `.kiro/specs`) and is refused when absolute, with `.` or `..`, or through a symlink out of the checkout; only `tasks.md` is required; every other `.md` file in a spec folder is part of the revision hash and named to workers; a requirement or design ref is checked only when its file exists and otherwise names the missing file; Kiro's three-file layout hashes and lints as before.
-  - `specs-path.mjs`, `readSpecFolder` and `revisionFiles` in `spec-plans.mjs`, `resolveRefs` in `spec-refs.mjs`, `git-approvals.mjs`, `src/app/specs/test/flexible-specs.test.mjs`.
+  - `specs-path.ts`, `readSpecFolder` and `revisionFiles` in `spec-plans.ts`, `resolveRefs` in `spec-refs.ts`, `git-approvals.ts`, `src/app/specs/test/flexible-specs.test.ts`.
 - [x] `fs-2` A spec in one file, its tasks under ## Tasks [FS1.3, FS1.8, FS1.9] (§FS1)
-  - A folder with no `tasks.md` reads the `## Tasks` section of its one `.md` file as its task list, with `###` phases and the file's own line numbers; a folder with both is a lint error naming both files; a tick in the section changes no spec text and the prose does; the parser, lint, hash, ticks, landing, rebuild and the page find the task file through `spec-tasks.mjs`; `docs/github-workflow.md` rule 1.2 and the workflow kit cover both layouts.
-  - `spec-tasks.mjs`, `src/app/specs/test/single-file-spec.test.mjs`, `workflow-kit/cases/single-file-spec`.
+  - A folder with no `tasks.md` reads the `## Tasks` section of its one `.md` file as its task list, with `###` phases and the file's own line numbers; a folder with both is a lint error naming both files; a tick in the section changes no spec text and the prose does; the parser, lint, hash, ticks, landing, rebuild and the page find the task file through `spec-tasks.ts`; `docs/github-workflow.md` rule 1.2 and the workflow kit cover both layouts.
+  - `spec-tasks.ts`, `src/app/specs/test/single-file-spec.test.ts`, `workflow-kit/cases/single-file-spec`.
 
 ## Phase 68: The spec issue's assignee says who works on a spec
 
 Requirement 116, design §4.44.
 
-- [x] `68.1` The spec issue's assignee drives; a landed spec closes its issue, after 66.4 [R116.1, R116.2, R116.3, R116.4, R116.5, R116.6, R116.8] (§4.44)
-  - Tests with a fake GitHub of two logins: the one assignee drives and the other workspace reads only; reassigning moves the driver and unassigning releases it, with no assignee write; two assignees leave both machines read only with one Needs you item; a fully landed spec's issue closes once; a spec with no issue drives as Not shared; the tick adds no read.
-  - `verdictOf` and `closeLanded` in `driver.mjs`, `src/app/workers/test/spec-assignee.test.mjs`.
-- [x] `68.2` The Specs list and the spec's chip show the driver from the assignee, after 68.1 [R116.7] (§4.44)
-  - Each approved spec's row says You drive, Taken by <login>, Not shared, Nobody drives or N assignees, from the cache; the chip says the same; phone and desktop, light and dark screenshots go to the owner.
-  - `plansTableView` `driver`, `rowDriverText` and `chipText` in `driver-api.ts`, `SpecList`.
+- [x] `68.1` The spec issue's assignee drives, after 66.4 [R116.1, R116.2, R116.5, R116.6] (§4.44)
+  - A spec runs on this runner only when its spec issue, and the spec issue of every parent spec, is assigned to this runner's login alone; otherwise its tasks are held with the reason; a spec with no spec issue runs here; results are cached per pass and the tick adds no read.
+  - `assignedTo`, `readSpecAssignees` and `assigneeHolds` in `spec-assignee.ts`, `src/app/specs/test/spec-assignee.test.ts`.
 
 ## Phase 69: The specs branch
 
 Requirement 117, design §4.45.
 
-- [x] `69.1` Delete the mirror and the plans branch; a repository names its specs branch, after 66.1 [R117.1, R117.2, R117.3, R117.4, R117.5, R117.6] (§4.45)
-  - `src/app/mirror/`, `spec-homes.mjs`, `repo-files.mjs`, the instance publish step and the mirror UI are gone; `specs.branch` decides where specs, approvals and ticks are read and written; tests cover plans-repo mode on a specs branch.
-  - `specs-branch.mjs`, `git-approvals.mjs` `approvalBase`, `spec-ticks.mjs` `tickPlansRepo`, `spec-ticks-landing.test.mjs`, `git-approvals.test.mjs`.
+- [x] `69.1` A repository names its specs branch, after 66.1 [R117.1, R117.2, R117.3, R117.4, R117.5, R117.6] (§4.45)
+  - `specs.branch` decides where specs, approvals and ticks are read and written; tests cover plans-repo mode on a specs branch.
+  - `specs-branch.ts`, `approvalBase` in `operations.ts`, `tickPlansRepo` in `spec-ticks.ts`, `spec-ticks-landing.test.ts`, `git-approvals.test.ts`.
 
 ## Phase 70: Avoozl reads git and GitHub
 
 Requirement 118, design §4.46.
 
-- [x] `70.1` One approval path, an approver's commit read on the tick, after 66.4 [R118.1, R118.2, R118.8] (§4.46)
+- [x] `70.1` One approval path, an approver's commit read on the tick, after 66.4 [R118.1, R118.2] (§4.46)
   - One approval path, an approver's commit read on the tick, after 66.4
-  - One commit approves every spec it changes in $after order; Approve and chat approval are the person's own commit; tests cover an epic commit approving three specs and the epic.
-  - `adoptCommitted` and `applyMainApprovals` in `operations.mjs`, `src/app/git/test/git-approvals.test.mjs`.
+  - One commit approves every spec it changes; Approve and chat approval are the person's own commit; tests cover an epic commit approving three specs and the epic.
+  - `adoptCommitted` and `applyMainApprovals` in `operations.ts`, `src/app/git/test/git-approvals.test.ts`.
 - [x] `70.2` Spec pull requests are pull requests, after 70.1 [R118.3] (§4.46)
   - Spec pull requests are pull requests, after 70.1
   - Merging a spec pull request authored by an approver approves it.
-  - `git-approvals.mjs`.
+  - `git-approvals.ts`.
 - [x] `70.3` The driver is the spec issue's assignee, after 70.1 [R118.4] (§4.46)
-  - The driver is the spec issue's assignee, after 70.1
-  - The driver reads the spec issue's assignee and never writes it; the read-only banner links to the spec issue; This computer holds only the label.
-  - `driver.mjs`, `driver-scope.mjs`, `Driver.tsx`, `driver-api.ts`.
-- [x] `70.4` Landing is a guarded push, after 70.3 [R118.5, R118.8] (§4.46)
+  - The assignee rule reads the spec issue's assignee and never writes it.
+  - `spec-assignee.ts`.
+- [x] `70.4` Landing is a guarded push, after 70.3 [R118.5] (§4.46)
   - Landing is a guarded push, after 70.3
-  - Landing pushes or merges through `guarded-push.mjs`; tests cover a guarded fast-forward refusing a moved base and a head-guarded merge.
-  - `guarded-push.mjs`, `merge-batch.mjs`, `landing-pulls.mjs`, `direct-landing.mjs`, `pr-landing.mjs`.
+  - Landing pushes or merges through `guarded-push.ts`; tests cover a guarded fast-forward refusing a moved base and a head-guarded merge.
+  - `guarded-push.ts`, `merge-batch.ts`, `landing-pulls.ts`, `direct-landing.ts`, `pr-landing.ts`.
 - [x] `70.5` Work runs on the driver's own machine, after 70.4 [R118.6] (§4.46)
-  - Work runs on the driver's own machine, after 70.4
-  - The tick dispatches only to this machine's own executors; process workers here run as before; tests cover the runner role's envelope and push.
-  - `remote-runner.mjs`, `src/app/test/worker-mode.test.mjs`.
-- [x] `70.6` Make the GitHub issues after approval, after 70.1 [R118.7, R118.8] (§4.46)
-  - Make the GitHub issues after approval, after 70.1
-  - An approved spec with no spec issue in a GitHub workspace shows Make the GitHub issues as its primary action, which runs spec.publish in its home repository; approval never runs it; tests cover the action and the call.
-  - `primaryAction` and `SpecHeader` in `PlansView.tsx`, `plansClient.publish`.
+  - The tick dispatches only to this machine's own executors; process workers here run as before.
+- [x] `70.6` Make the GitHub issues after approval, after 70.1 (§4.46)
+  - The tick publishes an approved spec's issue and its epic's issue; `avoozl spec publish` is a person's retry, and publishing again writes nothing.
+  - `src/app/specs/spec-publication.ts`, `spec.publish` in `src/app/api/command-dispatch.ts`.
