@@ -104,7 +104,7 @@ test("a red head opens one stop for the epic, and clearing it resumes the line",
   await step(store, github);
   const stops = openStops(store);
   assert.equal(stops.length, 1);
-  assert.match(stops[0].reason, /red check/);
+  assert.match(stops[0].reason ?? "", /red check/);
   // While it is open the epic's tasks are paused: no release, no arming.
   store.mutate("epic task", (data) => {
     data.tasks[0].planId = "rewrite";
@@ -125,7 +125,7 @@ test("a sync conflict stops the line too", async (t) => {
   });
   await step(store, github);
   assert.equal(openStops(store).length, 1);
-  assert.match(openStops(store)[0].reason, /sync has a conflict/);
+  assert.match(openStops(store)[0].reason ?? "", /sync has a conflict/);
   store.setMeta("integrationSync", {
     entries: { [`${REPO}@${BRANCH}`]: { state: "ok" } },
   });

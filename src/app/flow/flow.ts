@@ -18,7 +18,48 @@ import {
 } from "../sessions/session-bindings.ts";
 import { taskRepository } from "../../work-model.ts";
 import { inPlan } from "../api/page-views.ts";
-import { fail } from "../store/store.ts";
+import { fail, type Store } from "../store/store.ts";
+import type { Snapshot } from "../../types.ts";
+
+// A session Stop all agents stopped, or tried to.
+export interface StoppedSession {
+  slot: string;
+  taskId: string;
+  role: string;
+  attempt: number;
+  model?: string;
+  agent?: string;
+  stopped: boolean;
+  error?: string;
+  finished?: boolean;
+}
+// One line stop, as flow_stops holds it: an automatic one from a failing
+// check or a named culprit, or one a person pulled.
+export interface Stop {
+  id: string;
+  repositoryId?: string | null;
+  check?: string | null;
+  branch?: string;
+  culprit?: string | null;
+  commit?: string | null;
+  range?: { from: string | null; to: string };
+  bisectRuns?: number;
+  scope?: string;
+  openedAt?: string;
+  closedAt?: string | null;
+  runAnyway?: { by: string; at: string } | null;
+  fixTaskId?: string | null;
+  manual?: boolean;
+  by?: { name?: string; [key: string]: unknown };
+  reason?: string;
+  planId?: string | null;
+  spec?: string | null;
+  taskId?: string | null;
+  full?: boolean;
+  sessions?: StoppedSession[];
+  timeToFixMs?: number;
+  resumedBy?: { by: unknown; at: string };
+}
 import { STAGES } from "../telemetry/stages.ts";
 import * as telemetry from "../telemetry/record.ts";
 import { listStageSpans } from "../telemetry/sqlite-exporter.ts";
@@ -225,7 +266,7 @@ export function recordSpan(store, span) {
 // Store a stop-the-line row. A new stop records a `pulled` point and a stop
 // that just closed a `resumed` one (OT8.7), with its scope and kind and never
 // its check or reason.
-export function putStop(store, stop) {
+export function putStop(store: Store, stop: Stop) {
   const before = store.get("flow_stops", stop.id);
   store.put("flow_stops", stop);
   const event = !before
@@ -860,7 +901,10 @@ export function bottleneck(timings) {
   };
 }
 
-export const listOr = (store, table) => {
+export const listOr = <T = Record<string, unknown>>(
+  store: Pick<Store, "list">,
+  table: string,
+): T[] => {
   try {
     return store.list(table);
   } catch {
@@ -1061,13 +1105,16 @@ export function taskFlow(store, task, { now = Date.now() } = {}) {
 // ------------------------------------------------------- stop the line: reads
 
 // Open stops, newest first.
-export const openStops = (store) =>
-  listOr(store, "flow_stops")
+export const openStops = (store: Pick<Store, "list">): Stop[] =>
+  listOr<Stop>(store, "flow_stops")
     .filter((s) => !s.closedAt)
     .sort((a, b) => (a.openedAt < b.openedAt ? 1 : -1));
 
 // A task's transitive dependents along blocking edges.
-export function dependentsOf(data, id) {
+export function dependentsOf(
+  data: Pick<Snapshot, "edges">,
+  id: string,
+): Set<string> {
   const out = new Set(),
     next = [id];
   while (next.length) {
@@ -1088,7 +1135,11 @@ export function dependentsOf(data, id) {
 // The tasks one stop pauses (R44.5): the culprit's transitive dependents,
 // or with an unknown culprit (or scope repo) every task in the repository,
 // or every task (scope all). Its fix task is never paused.
-export function stopScope(store, data, stop) {
+export function stopScope(
+  store: Store,
+  data: Snapshot,
+  stop: Stop,
+): Set<string> {
   // A pulled stop (R64.5) pauses everything in its scope, fix tasks too.
   if (stop.manual) {
     if (stop.scope === "all") return new Set(data.tasks.map((t) => t.id));
@@ -1138,7 +1189,7 @@ export function linePausedTaskIds(store, data = store.read()) {
 export const lineFirstIds = (store) =>
   openStops(store)
     .map((s) => s.fixTaskId)
-    .filter(Boolean);
+    .filter((id): id is string => Boolean(id));
 
 // The workspace's `.avoozl.json`, for a read outside the tick; an absent or
 // invalid file reads as {}, so its flow settings are the defaults.

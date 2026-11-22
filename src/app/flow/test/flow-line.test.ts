@@ -123,7 +123,7 @@ test("a check that passed on main and fails after a1 lands stops the line on a1"
   // Needs you has one row for the stop (simplify §D13).
   assert.deepEqual(
     lineNeedsYou(s.store).map(
-      (item: { reason: string; taskId: string; title: string }) => [
+      (item: { reason: string; taskId: string | null; title: string }) => [
         item.reason,
         item.taskId,
         item.title,
