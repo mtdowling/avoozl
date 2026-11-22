@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // A repository's named checks: the only checks there are. Validation, the
 // older argv-list form, selection by the change's paths, timeouts by name,
 // and a check run that skips a check whose paths the commit does not touch.
@@ -19,6 +18,8 @@ import {
   queueCheckRun,
 } from "../../delivery/check-runs.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
+import { found, storedRow } from "../../test/view-shapes.ts";
+import type { Repository } from "../../git/git.ts";
 import {
   deliveryWorkspace,
   git,
@@ -35,7 +36,7 @@ const NAMED = {
 test("named checks validate; the older argv list loads named by its command", () => {
   assert.deepEqual(checksSetting(NAMED), NAMED);
   assert.deepEqual(checksSetting(undefined), []);
-  for (const [bad, message] of [
+  const refused: [unknown, RegExp][] = [
     [{ Test: ["npm"] }, /not a check name/],
     [{ "a b": ["npm"] }, /not a check name/],
     [{ ["x".repeat(41)]: ["npm"] }, /not a check name/],
@@ -44,7 +45,8 @@ test("named checks validate; the older argv list loads named by its command", ()
     [{ test: { run: ["npm"], paths: [""] } }, /path globs/],
     [[["npm", 7]], /arrays of command arguments/],
     ["npm test", /map a check name/],
-  ])
+  ];
+  for (const [bad, message] of refused)
     assert.throws(() => checksSetting(bad), message);
   assert.deepEqual(
     repositoryChecks({ checks: [["npm", "test"]] }).map((c) => c.name),
@@ -62,7 +64,8 @@ test("named checks validate; the older argv list loads named by its command", ()
 
 test("a check with paths runs only for a change that touches one", () => {
   const repository = { checks: NAMED },
-    names = (files) => selectedChecks(repository, files).map((c) => c.name);
+    names = (files: string[] | null) =>
+      selectedChecks(repository, files).map((c) => c.name);
   assert.deepEqual(names(["README.md"]), ["test", "diff"]);
   assert.deepEqual(names(["src/ui/Panel.tsx"]), ["test", "diff", "ui"]);
   assert.deepEqual(names(null), ["test", "diff", "ui"], "unknown diff: all");
@@ -104,7 +107,7 @@ test("a check run skips a check whose paths the commit does not touch", async (t
   git(checkout, "checkout", "-q", "main");
   queueCheckRun(store, {
     task: { id: "a" },
-    repository: store.get("repositories", "app"),
+    repository: storedRow<Repository>(store, "repositories", "app"),
     commit,
     attempt: 1,
   });
@@ -112,7 +115,7 @@ test("a check run skips a check whose paths the commit does not touch", async (t
   const [run] = checkRuns(store);
   assert.equal(run.state, "finished");
   assert.deepEqual(
-    run.checks.map((c) => [c.name, c.exitCode]),
+    found(run.checks).map((c) => [c.name, c.exitCode]),
     [["unit", 0]],
   );
   assert.deepEqual(run.selected, ["unit"]);
@@ -122,41 +125,41 @@ test("a merge batch runs every check without paths and those a member's change t
   const { directSteps } = await import("../../landing/merge-batch.ts"),
     root = gitCheckout(temporaryDirectory("avoozl-named-batch-"));
   const base = git(root, "rev-parse", "HEAD"),
-    candidate = (file) => {
+    candidate = (file: string) => {
       fs.mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
       fs.writeFileSync(path.join(root, file), file + "\n");
       git(root, "add", ".");
       git(root, "commit", "-qm", file);
       return git(root, "rev-parse", "HEAD");
     },
-    ran = [],
+    ran: string[] = [],
     steps = directSteps({
       root,
       url: root,
       branch: "main",
       repository: "local/app",
+      repositoryId: "app",
       checks: repositoryChecks({ checks: NAMED }),
-      intent: () => ({}),
-      scan: async () => [],
+      scan: () => [],
       run: async (_where, _commit, argv) => {
         ran.push(argv.join(" "));
-        return { exitCode: 0 };
+        return { exitCode: 0, durationMs: 0, tail: "" };
       },
     });
   const docs = await steps.check(candidate("docs/a.md"), [], base);
   assert.deepEqual(
-    docs.checks.map((c) => c.name),
+    found(docs.checks).map((c) => c.name),
     ["test", "diff"],
   );
   const ui = await steps.check(candidate("src/ui/b.tsx"), [], base);
   assert.deepEqual(
-    ui.checks.map((c) => c.name),
+    found(ui.checks).map((c) => c.name),
     ["test", "diff", "ui"],
   );
   // A rerun names the checks to run again by name.
   const again = await steps.check(candidate("src/ui/c.tsx"), [], base, ["ui"]);
   assert.deepEqual(
-    again.checks.map((c) => c.name),
+    found(again.checks).map((c) => c.name),
     ["ui"],
   );
   assert.equal(ran.length, 6);

@@ -1,18 +1,31 @@
-// @ts-nocheck: typing debt
 // Settings › Autopilot: picking Autopilot writes the delivery block and this
 // machine's loop, Off removes the loop, landing.pr saves while off, and
 // Needs you says when ready tasks wait on a missing loop.
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import test from "node:test";
-import { Operations } from "../../api/operations.ts";
+import test, { type TestContext } from "node:test";
+import { Operations, type OperationContext } from "../../api/operations.ts";
 import { readyCandidates } from "../../delivery/delivery.ts";
 import { Store } from "../../store/store.ts";
 import { fixture } from "../../test/fixtures.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
+import { withStatus } from "../../test/refusal.ts";
+import type { ConflictsView } from "../../test/view-shapes.ts";
 
-function setup(t, value = {}, machine = null) {
+// What delivery.settings.get and .update answer.
+interface Settings {
+  on: boolean;
+  loop: { run: string[]; every?: string } | null;
+  hash: string;
+  landingPr?: string;
+}
+
+function setup(
+  t: TestContext,
+  value: Record<string, unknown> = {},
+  machine: Record<string, unknown> | null = null,
+) {
   const root = temporaryDirectory("avoozl-autopilot-"),
     configDirectory = path.join(root, "machine"),
     machineFile = path.join(configDirectory, "config.json"),
@@ -30,9 +43,14 @@ function setup(t, value = {}, machine = null) {
   const workspace = () =>
     JSON.parse(fs.readFileSync(path.join(root, ".avoozl.json"), "utf8"));
   const machineValue = () => JSON.parse(fs.readFileSync(machineFile, "utf8"));
-  const get = () => ops.execute("delivery.settings.get", {});
-  const update = (input, context) =>
-    ops.execute("delivery.settings.update", input, undefined, context);
+  const get = () => ops.execute<Settings>("delivery.settings.get", {});
+  const update = (input: Record<string, unknown>, context?: OperationContext) =>
+    ops.execute<Settings>(
+      "delivery.settings.update",
+      input,
+      undefined,
+      context,
+    );
   return { ops, workspace, machineValue, get, update };
 }
 
@@ -75,10 +93,13 @@ test("a bad loop writes nothing, and only a person changes it", async (t) => {
     /loop\.run must list/,
   );
   assert.equal(workspace().delivery, undefined);
-  for (const context of [{ mcp: true }, { caller: "agent" }])
+  for (const context of [
+    { mcp: true },
+    { caller: { sessionKey: "dashboard:agent" } },
+  ])
     await assert.rejects(
       update({ expectedHash: hash, loop: { run: ["specs"] } }, context),
-      (error) => error.status === 403,
+      withStatus(403),
     );
 });
 
@@ -100,7 +121,7 @@ test("Needs you says Autopilot is off while ready tasks wait on a missing loop",
   assert.ok(readyCandidates(store).length, "the fixture has ready tasks");
   const ops = new Operations(store, { workspaceRoot: root, configDirectory });
   const off = async () =>
-    (await ops.execute("conflicts.view", {})).items.filter(
+    (await ops.execute<ConflictsView>("conflicts.view", {})).items.filter(
       (item) => item.reason === "autopilot-off",
     );
   assert.deepEqual(await off(), [

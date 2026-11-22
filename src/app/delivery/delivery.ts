@@ -1085,7 +1085,7 @@ const identityRefusedSince = (store, binding) => {
 export function reconcileDeliveries(
   store,
   policy,
-  { script, now = Date.now() },
+  { script, now = Date.now() }: { script?: unknown; now?: number },
 ) {
   const messages = [],
     notify = [],
