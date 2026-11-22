@@ -63,6 +63,13 @@ export interface CheckRun {
   fresh?: boolean;
   mcpIds?: Record<string, string>;
   waiting?: string;
+  // The plugin checks a paths or decide filter left out.
+  skipped?: {
+    name: string;
+    plugin?: string;
+    filter: string;
+    reason?: string;
+  }[];
   // A finished run's results, and the checks its diff picked, by name.
   checks?: CheckRecord[];
   selected?: string[];

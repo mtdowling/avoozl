@@ -1255,7 +1255,11 @@ export function taskDetailView(
 // a spec folder, a stored plan, a checkbox in an imported Markdown file, or
 // a captured prompt. `sources` are the file lines it was made from, each
 // readable with document.get when the workspace still has that file.
-export function taskOrigin(task, data, plan = null) {
+export function taskOrigin(
+  task,
+  data,
+  plan: { id: string; title?: string } | null = null,
+) {
   const sources = taskSourceRefs(task)
     .filter((ref) => typeof ref.document === "string")
     .map((ref) => {

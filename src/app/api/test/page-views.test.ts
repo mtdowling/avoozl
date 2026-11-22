@@ -1,16 +1,75 @@
-// @ts-nocheck: typing debt
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { Operations } from "../operations.ts";
 import { principalAllows } from "../../executors/kirocrew/app-backend.ts";
 import { classifyOperation } from "../operation-table.ts";
 import { Store } from "../../store/store.ts";
 import { fixture, snapshot } from "../../test/fixtures.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
+import { found } from "../../test/view-shapes.ts";
 
-const leaf = (id, extra = {}) => ({
+// graph.view, for the fields these tests read.
+interface Graph {
+  total: number;
+  tasks: {
+    id: string;
+    kind?: string;
+    authority?: string;
+    issue?: { number: number };
+    complete?: boolean;
+    ready?: boolean;
+    decision?: string;
+    state: string;
+    epic?: string | null;
+  }[];
+  edges: {
+    id?: string;
+    from: string;
+    to: string;
+    blocking: boolean;
+    satisfied: boolean;
+  }[];
+  epics: { id: string; count: number; plans: string[] }[];
+}
+// A query row, and task.get.
+interface StateRow {
+  id: string;
+  status: string;
+  state: string;
+  stateLabel: string;
+  decision?: string;
+}
+// delivery.view.
+interface Delivery {
+  items: {
+    id: string;
+    authority?: string;
+    issue?: { number: number } | null;
+    sessions: { slot: string; role: string; attempt: number; status: string }[];
+    evidence?: unknown;
+  }[];
+  laneLimit?: number | null;
+}
+// conflicts.view.
+interface Conflicts {
+  items: {
+    kind: string;
+    reason?: string;
+    taskId?: string;
+    authority?: string;
+    issue?: { number: number } | null;
+    context: {
+      task: { id: string; title?: string };
+      text: { acceptance: string[] };
+      unblocks: unknown;
+      spec: unknown;
+    };
+  }[];
+}
+
+const leaf = (id: string, extra: Record<string, unknown> = {}) => ({
   id,
   title: "Task " + id,
   scope: "catalog",
@@ -52,7 +111,7 @@ function graphSnapshot() {
   return data;
 }
 
-function graphFixture(t) {
+function graphFixture(t: TestContext) {
   const { store } = fixture(t);
   store.initialize(graphSnapshot());
   store.put("plans", {
@@ -64,26 +123,26 @@ function graphFixture(t) {
   return { store, ops: new Operations(store, {}) };
 }
 
-const rows = (store) =>
+const rows = (store: Store) =>
   store.db.prepare("SELECT kind,id,body FROM entities ORDER BY kind,id").all();
 
 test("graph view shows kind, authority, status, blocking edges and ready leaves", async (t) => {
   const { store, ops } = graphFixture(t);
   const before = rows(store);
-  const graph = await ops.execute("graph.view", {});
+  const graph = await ops.execute<Graph>("graph.view", {});
   const byId = Object.fromEntries(graph.tasks.map((task) => [task.id, task]));
   assert.equal(graph.total, 7);
-  assert.equal(byId.root.kind, "package");
-  assert.equal(byId.g.authority, "github");
-  assert.equal(byId.g.issue.number, 5);
-  assert.equal(byId.b.authority, "local");
-  assert.equal(byId.a.complete, true);
+  assert.equal(byId.root?.kind, "package");
+  assert.equal(byId.g?.authority, "github");
+  assert.equal(byId.g?.issue?.number, 5);
+  assert.equal(byId.b?.authority, "local");
+  assert.equal(byId.a?.complete, true);
   // b's prerequisite is accepted; c waits on b; d has an open decision.
   assert.deepEqual(
     graph.tasks.filter((task) => task.ready).map((task) => task.id),
     ["b", "g"],
   );
-  assert.equal(byId.d.decision, "choose-format");
+  assert.equal(byId.d?.decision, "choose-format");
   assert.deepEqual(
     Object.fromEntries(graph.tasks.map((task) => [task.id, task.state])),
     {
@@ -96,8 +155,8 @@ test("graph view shows kind, authority, status, blocking edges and ready leaves"
       g: "ready",
     },
   );
-  const edge = (from, to) =>
-    graph.edges.find((item) => item.from === from && item.to === to);
+  const edge = (from: string, to: string) =>
+    found(graph.edges.find((item) => item.from === from && item.to === to));
   assert.deepEqual(
     [edge("a", "b").blocking, edge("a", "b").satisfied],
     [true, true],
@@ -112,20 +171,20 @@ test("graph view shows kind, authority, status, blocking edges and ready leaves"
     [["other", 1, ["other-plan"]]],
   );
   // A task's epic is its plan's; the others are in no epic.
-  assert.equal(byId.g.epic, "other");
-  assert.equal(byId.a.epic, null);
+  assert.equal(byId.g?.epic, "other");
+  assert.equal(byId.a?.epic, null);
   assert.deepEqual(rows(store), before);
 });
 
 test("query and task.get say the state the Graph draws, beside the status", async (t) => {
   const { store, ops } = graphFixture(t);
   store.mutate("Defer one", (data) => {
-    data.tasks.find((task) => task.id === "c").status = "deferred";
+    found(data.tasks.find((task) => task.id === "c")).status = "deferred";
   });
   const before = rows(store),
-    graph = await ops.execute("graph.view", {}),
+    graph = await ops.execute<Graph>("graph.view", {}),
     drawn = new Map(graph.tasks.map((task) => [task.id, task.state])),
-    listed = await ops.execute("query");
+    listed = await ops.execute<StateRow[]>("query");
   assert.equal(listed.length, graph.tasks.length);
   for (const row of listed) assert.equal(row.state, drawn.get(row.id), row.id);
   assert.deepEqual(
@@ -143,20 +202,19 @@ test("query and task.get say the state the Graph draws, beside the status", asyn
     },
   );
   // The state sits right after the status it explains.
-  const keys = Object.keys(listed.find((row) => row.id === "d"));
+  const keys = Object.keys(found(listed.find((row) => row.id === "d")));
   assert.deepEqual(
     keys.slice(keys.indexOf("status"), keys.indexOf("status") + 3),
     ["status", "state", "stateLabel"],
   );
   // A filter still reads stored fields; the rows it returns carry the state.
   assert.deepEqual(
-    (await ops.execute("query", { q: "status:blocked" })).map((row) => [
-      row.id,
-      row.state,
-    ]),
+    (await ops.execute<StateRow[]>("query", { q: "status:blocked" })).map(
+      (row) => [row.id, row.state],
+    ),
     [["e", "needs-you"]],
   );
-  const shown = await ops.execute("task.get", { id: "d" });
+  const shown = await ops.execute<StateRow>("task.get", { id: "d" });
   assert.deepEqual(
     [shown.status, shown.state, shown.stateLabel, shown.decision],
     ["planned", "needs-you", "Needs you", "choose-format"],
@@ -166,13 +224,13 @@ test("query and task.get say the state the Graph draws, beside the status", asyn
 
 test("graph view filters by epic and status and keeps edges inside the set", async (t) => {
   const { ops } = graphFixture(t);
-  const other = await ops.execute("graph.view", { epic: "other" });
+  const other = await ops.execute<Graph>("graph.view", { epic: "other" });
   assert.deepEqual(
     other.tasks.map((task) => task.id),
     ["g"],
   );
   assert.deepEqual(other.edges, []);
-  const planned = await ops.execute("graph.view", {
+  const planned = await ops.execute<Graph>("graph.view", {
     epic: ["(none)", "other"],
     status: "planned",
   });
@@ -198,11 +256,11 @@ test("delivery view lists leaves with sessions and evidence", async (t) => {
     evidence: ["https://example.com/run/1"],
   });
   const before = rows(store);
-  const items = await ops.execute("delivery.view", {});
+  const items = await ops.execute<Delivery>("delivery.view", {});
   const byId = Object.fromEntries(items.items.map((item) => [item.id, item]));
   assert.deepEqual(Object.keys(byId).sort(), ["a", "b"]);
   assert.deepEqual(
-    byId.b.sessions.map((session) => [
+    byId.b?.sessions.map((session) => [
       session.slot,
       session.role,
       session.attempt,
@@ -210,7 +268,7 @@ test("delivery view lists leaves with sessions and evidence", async (t) => {
     ]),
     [["slot-b-1", "worker", 1, "working"]],
   );
-  assert.deepEqual(byId.a.evidence, [{ text: "https://example.com/run/1" }]);
+  assert.deepEqual(byId.a?.evidence, [{ text: "https://example.com/run/1" }]);
   assert.deepEqual(rows(store), before);
 });
 
@@ -218,7 +276,7 @@ test("conflicts view lists decisions, blocked tasks and ended sessions", async (
   const { ops } = graphFixture(t);
   await ops.execute("session.bind", { taskId: "c", slot: "slot-c-1" });
   await ops.execute("session.status", { slot: "slot-c-1", status: "lost" });
-  const { items } = await ops.execute("conflicts.view", {});
+  const { items } = await ops.execute<Conflicts>("conflicts.view", {});
   // This machine has no loop here; autopilot-settings.test.mjs covers that row.
   assert.deepEqual(
     items
@@ -239,7 +297,7 @@ test("conflicts view leaves out the ended session of a landed task", async (t) =
   await ops.execute("session.bind", { taskId: "c", slot: "slot-c-1" });
   await ops.execute("session.status", { slot: "slot-c-1", status: "closed" });
   const kinds = async () =>
-    (await ops.execute("conflicts.view", {})).items
+    (await ops.execute<Conflicts>("conflicts.view", {})).items
       .filter((item) => item.kind === "stale-session")
       .map((item) => item.taskId);
   assert.deepEqual(await kinds(), ["c"]);
@@ -256,21 +314,25 @@ test("conflicts view leaves out the ended session of a landed task", async (t) =
 test("delivery and conflicts views show local or the issue link", async (t) => {
   const { store, ops } = graphFixture(t);
   store.mutate("Put g in delivery with a decision", (data) => {
-    const g = data.tasks.find((task) => task.id === "g");
+    const g = found(data.tasks.find((task) => task.id === "g"));
     g.status = "review";
     g.decision = "pick-one";
   });
   await ops.execute("session.bind", { taskId: "b", slot: "slot-b-1" });
   const delivery = Object.fromEntries(
-    (await ops.execute("delivery.view", {})).items.map((item) => [
+    (await ops.execute<Delivery>("delivery.view", {})).items.map((item) => [
       item.id,
       [item.authority, item.issue?.number ?? null],
     ]),
   );
   assert.deepEqual(delivery, { b: ["local", null], g: ["github", 5] });
-  const conflicts = (await ops.execute("conflicts.view", {})).items.map(
-    (item) => [item.taskId, item.authority, item.issue?.number ?? null],
-  );
+  const conflicts = (
+    await ops.execute<Conflicts>("conflicts.view", {})
+  ).items.map((item) => [
+    item.taskId,
+    item.authority,
+    item.issue?.number ?? null,
+  ]);
   assert.deepEqual(conflicts, [
     ["d", "local", null],
     ["e", "local", null],
@@ -291,10 +353,13 @@ test("views read an older read-only database that lacks newer tables", async (t)
   t.after(() => store.close());
   assert.equal(store.readOnly, true);
   const ops = new Operations(store, {});
-  assert.equal((await ops.execute("graph.view", {})).tasks.length, 7);
-  assert.deepEqual((await ops.execute("delivery.view", {})).items, []);
+  assert.equal((await ops.execute<Graph>("graph.view", {})).tasks.length, 7);
   assert.deepEqual(
-    (await ops.execute("conflicts.view", {})).items
+    (await ops.execute<Delivery>("delivery.view", {})).items,
+    [],
+  );
+  assert.deepEqual(
+    (await ops.execute<Conflicts>("conflicts.view", {})).items
       .filter((item) => item.reason !== "autopilot-off")
       .map((item) => item.kind),
     ["decision", "needs-human"],
@@ -322,11 +387,11 @@ test("the page's resolution actions are the owner's alone", () => {
 test("delivery view reports this Mac's lane limit from the workspace config", async (t) => {
   const { store } = graphFixture(t);
   const root = temporaryDirectory("avoozl-lanes-");
-  const limit = async (config) => {
+  const limit = async (config: Record<string, unknown> | null) => {
     if (config)
       fs.writeFileSync(path.join(root, ".avoozl.json"), JSON.stringify(config));
     return (
-      await new Operations(store, { workspaceRoot: root }).execute(
+      await new Operations(store, { workspaceRoot: root }).execute<Delivery>(
         "delivery.view",
         {},
       )
@@ -342,14 +407,14 @@ test("delivery view reports this Mac's lane limit from the workspace config", as
 
 test("conflicts view adds each item's spec, task, dependents and earlier review text", async (t) => {
   const { store, ops } = graphFixture(t);
-  const { items } = await ops.execute("conflicts.view", {});
-  const decision = items.find((item) => item.kind === "decision");
+  const { items } = await ops.execute<Conflicts>("conflicts.view", {});
+  const decision = found(items.find((item) => item.kind === "decision"));
   assert.equal(decision.taskId, "d");
   assert.deepEqual(decision.context.task, { id: "d", title: "Task d" });
   assert.deepEqual(decision.context.text.acceptance, ["d is observable."]);
   assert.deepEqual(decision.context.unblocks, { total: 0, tasks: [] });
   // Dependents come from blocking edges: a unblocks b.
-  const blocked = items.find((item) => item.taskId === "e");
+  const blocked = found(items.find((item) => item.taskId === "e"));
   assert.equal(blocked.context.task.id, "e");
   assert.equal(blocked.context.spec, null);
 });
