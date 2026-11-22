@@ -1,7 +1,7 @@
-// Human review of one exact spec revision. Open comments block approval until
-// a person resolves them or sends them back as one change request. That request
-// keeps the reviewed revision and exact comment snapshot for the editing chat
-// and audit history, while the next review cycle starts with no open comments.
+// Human review of one exact spec revision. Comments stay in the workspace
+// database, remain visible across spec revisions, and block approval until a
+// person resolves them. Request changes records the reviewed revision and the
+// exact open-comment snapshot that the spec editing chat receives.
 import { randomUUID } from "node:crypto";
 import { digest } from "../../model.ts";
 import { canonical, fail, type Store } from "../store/store.ts";
@@ -109,23 +109,9 @@ const snapshotOf = (comments: PlanReviewComment[]) =>
 
 export function planReview(store: Store, planId: string) {
   const plan = planFor(store, planId),
-    requests = requestsFor(store, plan.id),
-    consumed = new Map<string, PlanReviewRequest>();
-  for (const request of requests)
-    if (request.disposition === "changes-requested")
-      for (const id of request.commentIds) consumed.set(id, request);
-  const comments = commentsFor(store, plan.id).map((comment) => {
-      const request = consumed.get(comment.id);
-      if (comment.state !== "open" || !request) return comment;
-      return {
-        ...comment,
-        state: "resolved" as const,
-        resolvedAt: request.requestedAt,
-        resolvedBy: request.requestedBy,
-        resolution: "Sent back for changes.",
-      };
-    }),
+    comments = commentsFor(store, plan.id),
     open = comments.filter((comment) => comment.state === "open"),
+    requests = requestsFor(store, plan.id),
     currentChanges = requests
       .filter(
         (request) =>
@@ -281,8 +267,6 @@ function recordPlanReviewRequest(
       fail("Add a review comment or explain the requested change.");
     if (disposition === "held" && !reason)
       fail("Explain why this spec is held.");
-    const requester = text(requestedBy, "requester", 240),
-      requestedAt = new Date().toISOString();
     const request: PlanReviewRequest = {
       id: "plan-review-request-" + randomUUID(),
       planId: plan.id,
@@ -294,31 +278,11 @@ function recordPlanReviewRequest(
         .filter((comment) => comment.state === "open")
         .map((comment) => comment.id),
       commentSnapshot: review.commentSnapshot,
-      requestedBy: requester,
-      requestedAt,
+      requestedBy: text(requestedBy, "requester", 240),
+      requestedAt: new Date().toISOString(),
       state: "open",
     };
     store.put("plan_review_requests", request);
-    if (disposition === "changes-requested") {
-      const submitted = new Set(request.commentIds);
-      for (const comment of commentsFor(store, plan.id)) {
-        if (!submitted.has(comment.id) || comment.state !== "open") continue;
-        Object.assign(comment, {
-          state: "resolved",
-          resolvedAt: requestedAt,
-          resolvedBy: requester,
-          resolution: "Sent back for changes.",
-        });
-        store.put("plan_review_comments", comment);
-        store.event(null, "plan.review.resolved", {
-          planId: plan.id,
-          commentId: comment.id,
-          hash: comment.revisionHash,
-          requestId: request.id,
-          automatic: true,
-        });
-      }
-    }
     plan.reviewStatus = disposition;
     store.put("plans", plan);
     store.event(null, `plan.review.${disposition}`, {

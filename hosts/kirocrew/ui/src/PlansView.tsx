@@ -83,7 +83,6 @@ import {
   revisionChange,
   revisionDiff,
   type RevisionChange,
-  reviewReworkInstruction,
   type ReviewRequestResult,
   type PlanListFilter,
   SORT_FIRST,
@@ -338,6 +337,22 @@ function DocumentTab(props: { docs: SpecDocuments | null; error: string | null; 
   )
 }
 
+function reworkInstruction(request: ReviewRequestResult): string {
+  const comments = request.comments
+    .filter((comment) => comment.state === 'open')
+    .map((comment) => {
+      const location = `${comment.file}${comment.lineStart ? `:${comment.lineStart}` : ''}`
+      const revision = comment.revisionHash === request.revisionHash ? '' : ` (revision ${comment.revisionHash.slice(0, 12)})`
+      return `- [${comment.id}] ${location}${revision}: ${comment.body}`
+    })
+  return [
+    `Revise exactly the changes-requested review of revision ${request.revisionHash}.`,
+    ...(request.reason ? [`Reviewer note: ${request.reason}`] : []),
+    ...(comments.length ? ['Address these durable review comments:', ...comments] : []),
+    `The review snapshot is ${request.commentSnapshot}.`,
+  ].join('\n')
+}
+
 function ReviewTab(props: { workspaceId: string; plan: SpecPlan; client: PlansClient; onChanged: () => Promise<void>; onRework: (request: ReviewRequestResult) => void }) {
   const files = Object.keys(props.plan.files)
   const review = props.plan.review ?? {
@@ -393,9 +408,9 @@ function ReviewTab(props: { workspaceId: string; plan: SpecPlan; client: PlansCl
             Reviewer note: {review.activeRequest.reason}
           </Hint>
         )}
-        {open.length ? (
+        {review.comments.length ? (
           <Stack gap={2}>
-            {open.map((comment) => (
+            {review.comments.map((comment) => (
               <Box key={comment.id} css-border={TONE.hairline} css-border-radius="8" css-padding="10px-12px" data-spec-review-comment={comment.id}>
                 <Box flex items="center" justify="between" gap="2">
                   <Hint as="span" size="xs">
@@ -431,7 +446,7 @@ function ReviewTab(props: { workspaceId: string; plan: SpecPlan; client: PlansCl
           </Stack>
         ) : (
           <Hint as="p" size="sm">
-            No open review comments.
+            No review comments yet.
           </Hint>
         )}
 
@@ -496,7 +511,7 @@ function ReviewTab(props: { workspaceId: string; plan: SpecPlan; client: PlansCl
               </Box>
               <PlainTextarea
                 id="spec-review-reason"
-                placeholder="Optional summary for Send back for changes; required for Hold."
+                placeholder="Optional summary for Request changes; required for Hold."
                 rows={2}
                 value={reason}
                 onChange={(event) => setReason(event.target.value)}
@@ -520,7 +535,7 @@ function ReviewTab(props: { workspaceId: string; plan: SpecPlan; client: PlansCl
                         })
                       }
                     >
-                      Send back for changes
+                      Request changes
                     </Btn>
                     <Btn
                       type="button"
@@ -1211,7 +1226,6 @@ const SPEC_CHIP_VARIANT: Record<Exclude<SpecChip, 'draft'>, 'success' | 'info' |
 // every other spec action. A divider runs under it.
 interface SpecActions {
   onEdit: () => void
-  onSendBack: () => void
   onReview: () => void
   onImport?: () => void
   onReload?: () => void
@@ -1222,12 +1236,12 @@ interface SpecActions {
   github: string | null
 }
 
-// The primary action follows the review loop: import a new or changed folder,
-// approve a clean draft, send a blocked draft back with its review findings,
-// and offer an ordinary edit only after the review loop has finished.
-export function primaryAction(row: Pick<PlanRow, 'status' | 'spec'>, plan: { state: string } | null, blocker: string | null): 'import' | 'approve' | 'send-back' | 'edit' {
-  if (row.status === 'not imported' || row.status === 'changed') return 'import'
-  if (plan?.state === 'draft') return blocker === null ? 'approve' : 'send-back'
+// The primary action: Import a folder Avoozl has not stored; Approve a draft
+// that can be approved; Edit spec otherwise. Approval publishes the spec's
+// issue.
+export function primaryAction(row: Pick<PlanRow, 'status' | 'spec'>, plan: { state: string } | null, blocker: string | null): 'import' | 'approve' | 'edit' {
+  if (row.status === 'not imported') return 'import'
+  if (plan && (plan.state === 'draft' || row.status === 'changed')) return blocker === null ? 'approve' : 'edit'
   return 'edit'
 }
 
@@ -1268,23 +1282,9 @@ function SpecHeader(props: { row: PlanRow; plan: SpecPlan | null; actions: SpecA
   const { row, plan, actions } = props
   const primary = primaryAction(row, plan, actions.approveBlocker ?? null)
   const id = row.planId ?? row.spec ?? row.key
-  const importingChanges = row.status === 'changed'
   const primaryButton = {
-    import: {
-      label: 'Import',
-      icon: Download,
-      tooltip: importingChanges
-        ? 'Import the changed files as a new draft revision. Approves and starts nothing.'
-        : 'Store this folder as a draft spec. Approves and starts nothing.',
-      onClick: actions.onImport ?? actions.onReload,
-    },
+    import: { label: 'Import', icon: Download, tooltip: 'Store this folder as a draft spec. Approves and starts nothing.', onClick: actions.onImport },
     approve: { label: 'Approve', icon: ClipboardCheck, tooltip: `Approve revision ${shortHash(plan?.hash)}. Its ready tasks may then start.`, onClick: actions.onApprove },
-    'send-back': {
-      label: 'Send back for changes',
-      icon: Pencil,
-      tooltip: 'Send the durable review comments to a spec-writing chat for this exact revision.',
-      onClick: actions.onSendBack,
-    },
     edit: { label: 'Edit spec', icon: Pencil, tooltip: 'Run in a chat: the avoozl-spec skill revises this spec on a spec branch', onClick: actions.onEdit },
   }[primary]
   const PrimaryIcon = primaryButton.icon
@@ -2172,47 +2172,7 @@ export default function PlansView(props: {
   // task goes the same way, and comes back as a revision to approve.
   const runInChat = useRunInChat()
   const specName = (next: PlanRow) => next.spec ?? next.planId ?? next.name
-  const change = (next: PlanRow) => runInChat({ kind: 'spec', spec: specName(next), review: false, agent: 'kirocrew' })
-  const specFolder = (next: PlanRow) => (table?.root && next.folder ? `${table.root.replace(/\/$/, '')}/${next.folder.replace(/^\/+/, '')}` : (next.folder ?? null))
-  const launchRework = (next: PlanRow, currentPlan: SpecPlan, request: ReviewRequestResult) => {
-    if (!workspace) return
-    runInChat({
-      kind: 'spec',
-      spec: currentPlan.spec,
-      review: false,
-      agent: 'kirocrew',
-      instruction: reviewReworkInstruction(request, {
-        workspaceId: workspace,
-        folder: specFolder(next),
-        files: currentPlan.files,
-      }),
-    })
-  }
-  const sendBack = (next: PlanRow) => {
-    if (!workspace || !plan || plan.id !== next.planId) return
-    const review = plan.review
-    if (review?.status === 'held') {
-      pickTab('review')
-      setNotice('Resume this review before sending the spec back for changes.')
-      return
-    }
-    const hasOpenComments = review?.comments.some((comment) => comment.state === 'open')
-    if (hasOpenComments) {
-      void attempt(async () => {
-        const request = await plans.requestChanges(workspace, plan.id, plan.hash)
-        launchRework(next, plan, request)
-        await refreshOpenPlan()
-      })
-      return
-    }
-    const active = review?.activeRequest
-    if (active?.disposition === 'changes-requested') {
-      launchRework(next, plan, { ...active, comments: review?.comments ?? [] })
-      return
-    }
-    pickTab('review')
-    setNotice('Add a review comment or decision summary, then send the spec back for changes.')
-  }
+  const change = (next: PlanRow) => runInChat({ kind: 'spec', spec: specName(next), review: false })
   const act = (call: (workspaceId: string) => Promise<unknown>) => {
     if (!workspace) return
     const workspaceId = workspace
@@ -2240,7 +2200,6 @@ export default function PlansView(props: {
     const repoHref = githubHref(home)
     return {
       onEdit: () => change(row),
-      onSendBack: () => sendBack(row),
       onReview: () => runInChat({ kind: 'spec', spec: specName(row), review: true }),
       onImport: actions.importable ? () => importRow(row) : undefined,
       onReload: plan?.disk.changed ? () => act((workspaceId) => plans.reload(workspaceId, plan.id, plan.hash)) : undefined,
@@ -2341,7 +2300,20 @@ export default function PlansView(props: {
               details={<SpecDetailsBox>{specRail}</SpecDetailsBox>}
               review={
                 plan && workspace ? (
-                  <ReviewTab workspaceId={workspace} plan={plan} client={plans} onChanged={refreshOpenPlan} onRework={(request) => launchRework(row, plan, request)} />
+                  <ReviewTab
+                    workspaceId={workspace}
+                    plan={plan}
+                    client={plans}
+                    onChanged={refreshOpenPlan}
+                    onRework={(request) =>
+                      runInChat({
+                        kind: 'spec',
+                        spec: plan.spec,
+                        review: false,
+                        instruction: reworkInstruction(request),
+                      })
+                    }
+                  />
                 ) : null
               }
               onTasks={() => pickTab('tasks')}
