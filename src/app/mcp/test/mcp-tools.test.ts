@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The grouped MCP tools (R56): every operation has an MCP route or a written
 // reason it has none, and no MCP call performs a person-only operation by any
 // tool name, old or new.
@@ -12,12 +11,26 @@ import { OPERATIONS, classifyOperation } from "../../api/operation-table.ts";
 import { Operations } from "../../api/operations.ts";
 import { fixture } from "../../test/fixtures.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
+import { answerResult, at, toolResult } from "../../test/mcp-result.ts";
+import type { Refusal } from "../../test/refusal.ts";
+import { found } from "../../test/view-shapes.ts";
+
+// One tools/list entry, for the fields these tests read.
+interface ListedTool {
+  name: string;
+  description: string;
+  inputSchema: { properties: { action: { enum: string[] } } };
+  annotations: { readOnlyHint?: boolean };
+}
+// A tool result's first text.
+const textOf = (result: { content: { text?: string }[] }) =>
+  String(result.content[0]?.text);
 
 // Every registered operation name (operation-table.mjs).
 const allOperations = () => [...OPERATIONS.keys()].sort();
 
-const routes = new Map(),
-  grouped = new Map();
+const routes = new Map<string, string[]>(),
+  grouped = new Map<string, string[]>();
 for (const [tool, { actions }] of Object.entries(GROUPED_TOOLS))
   for (const [action, [operation]] of Object.entries(actions)) {
     grouped.set(operation, [
@@ -32,7 +45,7 @@ for (const [tool, { actions }] of Object.entries(GROUPED_TOOLS))
 for (const [name, [operation]] of Object.entries(NARROW_TOOLS))
   routes.set(operation, [...(routes.get(operation) || []), name]);
 
-const call = (ops, name, args) =>
+const call = (ops: Operations, name: string, args: unknown) =>
   handleMcp(
     {
       jsonrpc: "2.0",
@@ -41,7 +54,7 @@ const call = (ops, name, args) =>
       params: { name, arguments: args },
     },
     ops,
-  ).then((response) => response.body.result);
+  ).then(toolResult);
 
 test("every operation has an MCP route or a written reason it has none", () => {
   const operations = allOperations();
@@ -76,12 +89,18 @@ test("every operation has an MCP route or a written reason it has none", () => {
 
 test("each grouped tool lists its actions as an enum", async (t) => {
   const { store } = fixture(t),
-    tools = (
-      await handleMcp(
-        { jsonrpc: "2.0", id: 1, method: "tools/list" },
-        new Operations(store),
-      )
-    ).body.result.tools,
+    listed = at(
+      (
+        await handleMcp(
+          { jsonrpc: "2.0", id: 1, method: "tools/list" },
+          new Operations(store),
+        )
+      ).body,
+      "result",
+      "tools",
+    );
+  assert.ok(Array.isArray(listed));
+  const tools: ListedTool[] = listed,
     grouped = tools.filter((tool) => Object.hasOwn(GROUPED_TOOLS, tool.name));
   assert.deepEqual(
     grouped.map((tool) => tool.name).sort(),
@@ -90,7 +109,7 @@ test("each grouped tool lists its actions as an enum", async (t) => {
   for (const tool of grouped)
     assert.deepEqual(
       tool.inputSchema.properties.action.enum,
-      Object.keys(GROUPED_TOOLS[tool.name].actions),
+      Object.keys(found(GROUPED_TOOLS[tool.name]).actions),
     );
   // The deprecated one-tool-per-operation names are gone (R56.3).
   assert.deepEqual(
@@ -100,12 +119,12 @@ test("each grouped tool lists its actions as an enum", async (t) => {
   for (const name of ["plans_update_task", "plans_tick", "plans_relay"])
     assert.ok(!tools.some((tool) => tool.name === name), name);
   assert.match(
-    tools.find((tool) => tool.name === "plans_approve_plan").description,
+    found(tools.find((tool) => tool.name === "plans_approve_plan")).description,
     /^Person only: refused over MCP/,
   );
   // A tool an agent may hold as read-only stays read-only.
   assert.equal(
-    tools.find((tool) => tool.name === "plans_workspace").annotations
+    found(tools.find((tool) => tool.name === "plans_workspace")).annotations
       .readOnlyHint,
     true,
   );
@@ -127,7 +146,8 @@ test("every person-only operation is refused for an MCP or session call", async 
     ])
       await assert.rejects(
         ops.execute(name, input, undefined, context),
-        (error) => error.status === 403 && /^Only a person/.test(error.message),
+        (error: Refusal) =>
+          error.status === 403 && /^Only a person/.test(error.message),
         name,
       );
   }
@@ -144,12 +164,12 @@ test("no MCP name reaches a person-only operation, and nearby inputs fail closed
   );
   assert.ok(old.some(([name]) => name === "plans_approve_plan"));
   for (const [name, [operation]] of old) {
-    const input = PERSON_ONLY.get(operation).when
+    const input = PERSON_ONLY.get(operation)?.when
       ? { confirm: true, previewHash: "x" }
       : { id: "x" };
     const result = await call(ops, name, { input });
     assert.equal(result.isError, true, name);
-    assert.match(result.content[0].text, /^Only a person/, name);
+    assert.match(textOf(result), /^Only a person/, name);
   }
   // No grouped action is a person-only one, and asking for one by name fails.
   for (const [tool, action] of [
@@ -163,10 +183,10 @@ test("no MCP name reaches a person-only operation, and nearby inputs fail closed
   ]) {
     const result = await call(ops, tool, { action, input: { id: "x" } });
     assert.equal(result.isError, true, `${tool}.${action}`);
-    assert.match(result.content[0].text, /^Unknown action/);
+    assert.match(textOf(result), /^Unknown action/);
   }
   // An unknown action, a missing action, a prototype key, and a bad input.
-  for (const [args, pattern] of [
+  const bad: [Record<string, unknown>, RegExp][] = [
     [
       { action: "nope" },
       /^Unknown action "nope" for plans_task\. Choose one of: get,/,
@@ -175,10 +195,11 @@ test("no MCP name reaches a person-only operation, and nearby inputs fail closed
     [{ action: "constructor" }, /^Unknown action/],
     [{ action: "toString" }, /^Unknown action/],
     [{ action: "get", input: [] }, /^input must be an object/],
-  ]) {
+  ];
+  for (const [args, pattern] of bad) {
     const result = await call(ops, "plans_task", args);
     assert.equal(result.isError, true, JSON.stringify(args));
-    assert.match(result.content[0].text, pattern);
+    assert.match(textOf(result), pattern);
   }
   // An action with missing fields reaches its operation, which refuses it.
   const missing = await call(ops, "plans_task", {
@@ -198,12 +219,12 @@ test("grouped calls run their operation, and an action is required", async (t) =
   });
   assert.equal(task.isError, undefined);
   assert.equal(
-    task.structuredContent.id ?? task.structuredContent.task?.id,
+    task.structuredContent?.id ?? at(task.structuredContent, "task", "id"),
     "sample-task",
   );
   const missing = await call(ops, "plans_workspace", { input: {} });
   assert.equal(missing.isError, true);
-  assert.match(missing.content[0].text, /Name an action for plans_workspace/);
+  assert.match(textOf(missing), /Name an action for plans_workspace/);
   const current = await call(ops, "plans_workspace", { action: "get" });
   assert.equal(current.isError, undefined);
   assert.equal(classifyOperation("workspace"), "observe");
@@ -216,13 +237,13 @@ test("every MCP name answers an empty input with a clear message", async (t) => 
     ops = new Operations(store, { workspaceRoot: root });
   // Writes the person's global git ignore file.
   const skip = new Set(["local.ignore.fix"]);
-  const calls = [];
+  const calls: [string, Record<string, unknown>][] = [];
   for (const [tool, { actions }] of Object.entries(GROUPED_TOOLS))
     for (const [action, [operation]] of Object.entries(actions))
       if (!skip.has(operation)) calls.push([tool, { action, input: {} }]);
   for (const [name, [operation]] of Object.entries(NARROW_TOOLS))
     if (!skip.has(operation)) calls.push([name, { input: {} }]);
-  const unclear = [];
+  const unclear: string[] = [];
   for (const [name, args] of calls) {
     const result = await call(ops, name, args),
       text = result.content.map((item) => item.text).join("\n");
@@ -230,15 +251,15 @@ test("every MCP name answers an empty input with a clear message", async (t) => 
       result.isError &&
       /SQLite|\bundefined\b|\n\s+at |\bChoose a [aeiou]/.test(text)
     )
-      unclear.push(`${name} ${args.action ?? ""}: ${text}`);
+      unclear.push(`${name} ${String(args.action ?? "")}: ${text}`);
   }
   assert.deepEqual(unclear, []);
   // The workspace's saved settings are readable over MCP.
   const settings = await call(ops, "plans_workspace", {
     action: "configuration",
   });
-  assert.equal(settings.isError, undefined, settings.content[0].text);
-  assert.equal(settings.structuredContent.scope, "repository");
+  assert.equal(settings.isError, undefined, textOf(settings));
+  assert.equal(settings.structuredContent?.scope, "repository");
 });
 
 test("a single-operation tool refuses an input that is not an object", async (t) => {
@@ -249,7 +270,7 @@ test("a single-operation tool refuses an input that is not an object", async (t)
     for (const name of ["plans_get_plan", "plans_next"]) {
       const result = await call(ops, name, { input });
       assert.equal(result.isError, true, `${name} ${JSON.stringify(input)}`);
-      assert.equal(result.content[0].text, "input must be an object.");
+      assert.equal(textOf(result), "input must be an object.");
     }
   assert.equal(store.read().revision, before);
 });
@@ -263,7 +284,7 @@ test("the cron's tick with no workspace is a skip, not an error", async () => {
       KIROCREW_SESSION_KEY: "cron:test-job",
     },
   });
-  const call = (name, args) =>
+  const call = (name: string, args: Record<string, unknown>) =>
     server.handle({
       jsonrpc: "2.0",
       id: 1,
@@ -271,16 +292,18 @@ test("the cron's tick with no workspace is a skip, not an error", async () => {
       params: { name, arguments: args },
     });
   try {
-    const result = (
-      await call("plans_maintain", { action: "tick", input: { cron: true } })
-    ).result;
+    const result = answerResult(
+      await call("plans_maintain", { action: "tick", input: { cron: true } }),
+    );
     assert.equal(result.isError, undefined);
-    assert.equal(JSON.parse(result.content[0].text).skipped, true);
+    const answer: { skipped?: boolean } = JSON.parse(textOf(result));
+    assert.equal(answer.skipped, true);
     // Anyone else still hears why nothing ran.
-    const plain = (await call("plans_maintain", { action: "tick", input: {} }))
-      .result;
+    const plain = answerResult(
+      await call("plans_maintain", { action: "tick", input: {} }),
+    );
     assert.equal(plain.isError, true);
-    assert.match(plain.content[0].text, /has no workspace/);
+    assert.match(textOf(plain), /has no workspace/);
   } finally {
     server.close();
   }
@@ -289,7 +312,9 @@ test("the cron's tick with no workspace is a skip, not an error", async () => {
 test("the app's MCP server answers a non-object request as Invalid Request", async () => {
   const server = createAppMcp({ env: {} });
   try {
-    assert.deepEqual((await server.handle([])).error.code, -32600);
+    // A batch array, as it arrives on the wire.
+    const batch: Parameters<typeof server.handle>[0] = JSON.parse("[]");
+    assert.deepEqual(at(await server.handle(batch), "error", "code"), -32600);
   } finally {
     server.close();
   }
@@ -309,17 +334,17 @@ test("the app's MCP server meets protocol 2026-07-28 result rules", async () => 
       method: "tools/list",
       params: { _meta: modern },
     });
-    assert.equal(list.result.resultType, "complete");
-    assert.equal(list.result.ttlMs, 0);
-    assert.equal(list.result.cacheScope, "private");
+    assert.equal(at(list, "result", "resultType"), "complete");
+    assert.equal(at(list, "result", "ttlMs"), 0);
+    assert.equal(at(list, "result", "cacheScope"), "private");
     const resources = await server.handle({
       jsonrpc: "2.0",
       id: 4,
       method: "resources/list",
       params: { _meta: modern },
     });
-    assert.equal(resources.result.resultType, "complete");
-    assert.equal(resources.result.cacheScope, "private");
+    assert.equal(at(resources, "result", "resultType"), "complete");
+    assert.equal(at(resources, "result", "cacheScope"), "private");
     // No workspace: the refusal is a result too.
     const call = await server.handle({
       jsonrpc: "2.0",
@@ -327,9 +352,9 @@ test("the app's MCP server meets protocol 2026-07-28 result rules", async () => 
       method: "tools/call",
       params: { _meta: modern, name: "plans_workspace", arguments: {} },
     });
-    assert.equal(call.result.isError, true);
-    assert.equal(call.result.resultType, "complete");
-    assert.equal(call.result.ttlMs, undefined);
+    assert.equal(at(call, "result", "isError"), true);
+    assert.equal(at(call, "result", "resultType"), "complete");
+    assert.equal(at(call, "result", "ttlMs"), undefined);
     // Kiro Crew's gateway primes a shared server's list with no revision and
     // hands it to 2026-07-28 clients, so a list without one carries the fields.
     const primed = await server.handle({
@@ -338,17 +363,17 @@ test("the app's MCP server meets protocol 2026-07-28 result rules", async () => 
       method: "tools/list",
       params: {},
     });
-    assert.equal(primed.result.resultType, "complete");
-    assert.equal(primed.result.ttlMs, 0);
-    assert.equal(primed.result.cacheScope, "private");
+    assert.equal(at(primed, "result", "resultType"), "complete");
+    assert.equal(at(primed, "result", "ttlMs"), 0);
+    assert.equal(at(primed, "result", "cacheScope"), "private");
     const ping = await server.handle({
       jsonrpc: "2.0",
       id: 5,
       method: "ping",
       params: {},
     });
-    assert.equal(ping.result.resultType, "complete");
-    assert.equal(ping.result.ttlMs, undefined);
+    assert.equal(at(ping, "result", "resultType"), "complete");
+    assert.equal(at(ping, "result", "ttlMs"), undefined);
   } finally {
     server.close();
   }
