@@ -35,6 +35,7 @@ type ProbeResult = { ok: boolean; message: string | null; at: string };
 type Definition = {
   name: string;
   hash: string;
+  reads?: readonly string[];
   probe?: readonly string[];
   home?: string;
   keepEnv?: readonly string[];

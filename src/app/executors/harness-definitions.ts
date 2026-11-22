@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Harness definition files (R94.1-R94.3, design §4.28). One JSON file per
 // agent CLI in the machine config, never in a repository. Commands are argv
 // lists with named placeholders; nothing is ever passed through a shell. A
@@ -133,13 +132,17 @@ const SKIP_VALUES = ["bypassPermissions", "danger-full-access"];
 // Avoozl's sandbox, with write roots, and refuses it everywhere else.
 export const INNER_SANDBOX_OFF = "danger-full-access";
 
-export const harnessDefinitionHash = (bytes) =>
+export const harnessDefinitionHash = (bytes: string | Buffer) =>
   createHash("sha256").update(bytes).digest("hex");
 
-const record = (value) =>
+const record = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
+// A definition while it is built.
+type Mutable<T> = { -readonly [K in keyof T]: T[K] };
+const messageOf = (error: unknown) =>
+  error instanceof Error ? error.message : String(error);
 
-function argvValue(value, label, source) {
+function argvValue(value: unknown, label: string, source: string) {
   if (typeof value !== "string" || !value)
     fail(`${source}: ${label} must be a nonempty string.`);
   for (const skip of SKIP_VALUES)
@@ -148,7 +151,7 @@ function argvValue(value, label, source) {
   if (value.includes("--dangerously-"))
     fail(`${source}: ${label} is ${value}, which skips permissions.`);
   const parts = value.split(/(\{[^{}]*\})/);
-  const named = [];
+  const named: string[] = [];
   parts.forEach((part, index) => {
     if (index % 2) {
       const key = part.slice(1, -1);
@@ -166,7 +169,12 @@ function argvValue(value, label, source) {
   return value;
 }
 
-function argv(value, label, source, { command = true } = {}) {
+function argv(
+  value: unknown,
+  label: string,
+  source: string,
+  { command = true } = {},
+): readonly string[] {
   if (typeof value === "string")
     fail(
       `${source}: ${label} is a shell string; write it as an argv list of strings.`,
@@ -187,15 +195,25 @@ function argv(value, label, source, { command = true } = {}) {
         `${source}: ${label} runs a shell (${program}); name the CLI itself.`,
       );
   }
-  value.forEach((item, index) => argvValue(item, `${label}[${index}]`, source));
-  return Object.freeze([...value]);
+  return Object.freeze(
+    value.map((item, index) => argvValue(item, `${label}[${index}]`, source)),
+  );
 }
 
-function words(value, label, source) {
+function words(
+  value: unknown,
+  label: string,
+  source: string,
+): Readonly<Record<string, string>> {
   if (!record(value)) fail(`${source}: ${label} must be an object.`);
-  for (const [key, item] of Object.entries(value))
-    argvValue(item, `${label}.${key}`, source);
-  return Object.freeze({ ...value });
+  return Object.freeze(
+    Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [
+        key,
+        argvValue(item, `${label}.${key}`, source),
+      ]),
+    ),
+  );
 }
 
 // One validated harness definition; a loaded one also carries its hash.
@@ -242,16 +260,15 @@ export function parseHarnessDefinition(
     );
   // R94.4d, MS7.1: a class may turn the harness's own sandbox off, which
   // confineChild then runs only inside Avoozl's sandbox, with write roots.
-  const innerOff = record(value.permission)
-    ? Object.keys(value.permission).filter(
-        (key) => value.permission[key] === INNER_SANDBOX_OFF,
-      )
-    : [];
+  const given = value.permission,
+    innerOff = record(given)
+      ? Object.keys(given).filter((key) => given[key] === INNER_SANDBOX_OFF)
+      : [];
   const permission = innerOff.length
     ? Object.freeze({
         ...words(
           {
-            ...value.permission,
+            ...(record(given) ? given : {}),
             ...Object.fromEntries(innerOff.map((key) => [key, "placeholder"])),
           },
           "permission",
@@ -272,7 +289,7 @@ export function parseHarnessDefinition(
   for (const role of PERMISSION_CLASSES)
     if (permission[role] === undefined)
       fail(`${source}: permission.${role} is required.`);
-  const definition = {
+  const definition: Mutable<HarnessDefinition> = {
     name: value.name,
     start: argv(value.start, "start", source),
     resume: argv(value.resume, "resume", source),
@@ -281,7 +298,7 @@ export function parseHarnessDefinition(
   // `resultAllow`: what a read-only session adds so its harness lets it
   // write its result file and nothing else (R96.1), such as Claude Code's
   // `--allowedTools Edit(/{worktree}/.avoozl/result.json)`.
-  for (const key of ["writeRoots", "allow", "resultAllow"])
+  for (const key of ["writeRoots", "allow", "resultAllow"] as const)
     if (value[key] !== undefined)
       definition[key] = argv(value[key], key, source, { command: false });
   if (value.context !== undefined) {
@@ -295,13 +312,14 @@ export function parseHarnessDefinition(
     definition.context = Object.freeze({ mcp });
   }
   if (value.proved !== undefined) {
+    const proved = value.proved;
     if (
-      !Array.isArray(value.proved) ||
-      value.proved.some((item) => !ROLE_CLASSES.includes(item)) ||
-      new Set(value.proved).size !== value.proved.length
+      !Array.isArray(proved) ||
+      !proved.every((item) => ROLE_CLASSES.includes(item)) ||
+      new Set(proved).size !== proved.length
     )
       fail(`${source}: proved lists role classes, read or write, once each.`);
-    definition.proved = [...value.proved];
+    definition.proved = proved.map(String);
   }
   // A definition names where the CLI may write only by these placeholders,
   // so it can never widen the roots with a path of its own (R94.4).
@@ -320,9 +338,10 @@ export function parseHarnessDefinition(
   // "stdin": the brief (start) or message (resume) file is the child's
   // standard input. "file" (the default): argv names the file.
   if (value.promptFrom !== undefined) {
-    if (!["stdin", "file"].includes(value.promptFrom))
+    const from = value.promptFrom;
+    if (from !== "stdin" && from !== "file")
       fail(`${source}: promptFrom must be "stdin" or "file".`);
-    definition.promptFrom = value.promptFrom;
+    definition.promptFrom = from;
   }
   if (value.keepEnv !== undefined) {
     if (!Array.isArray(value.keepEnv))
@@ -372,16 +391,20 @@ export function parseHarnessDefinition(
       );
     definition.reads = Object.freeze([...value.reads]);
   }
-  for (const key of ["probe", "credentialExport"])
+  for (const key of ["probe", "credentialExport"] as const)
     if (value[key] !== undefined) {
-      definition[key] = argv(value[key], key, source);
-      if (definition[key].some((item) => item.includes("{")))
+      const command = argv(value[key], key, source);
+      if (command.some((item) => item.includes("{")))
         fail(`${source}: ${key} takes no placeholders.`);
+      definition[key] = command;
     }
   if (value.egress !== undefined) {
-    const problem = egressProblem(value.egress);
-    if (problem) fail(`${source}: ${problem}`);
-    definition.egress = Object.freeze(value.egress.map((h) => h.toLowerCase()));
+    const hosts = value.egress,
+      problem = egressProblem(hosts);
+    if (problem || !Array.isArray(hosts)) fail(`${source}: ${problem}`);
+    definition.egress = Object.freeze(
+      hosts.map((h) => String(h).toLowerCase()),
+    );
   }
   if (value.setEnv !== undefined) {
     if (
@@ -400,7 +423,11 @@ export function parseHarnessDefinition(
       fail(
         `${source}: setEnv maps plain variable names to fixed text, such as {"SSL_CERT_FILE": "/etc/ssl/cert.pem"}; never a secret, PATH, HOME, a proxy or an AWS name.`,
       );
-    definition.setEnv = Object.freeze({ ...value.setEnv });
+    definition.setEnv = Object.freeze(
+      Object.fromEntries(
+        Object.entries(value.setEnv).map(([key, item]) => [key, String(item)]),
+      ),
+    );
   }
   if (value.homeFiles !== undefined) {
     if (
@@ -456,9 +483,7 @@ export function parseHarnessDefinition(
   if (value.servedModel !== undefined) {
     const served = value.servedModel;
     if (
-      !served ||
-      typeof served !== "object" ||
-      Array.isArray(served) ||
+      !record(served) ||
       Object.keys(served).sort().join() !== "field,from" ||
       served.from !== "output" ||
       typeof served.field !== "string" ||
@@ -488,14 +513,14 @@ export function parseHarnessDefinition(
   return Object.freeze(definition);
 }
 
-function insideRepository(directory) {
+function insideRepository(directory: string) {
   for (let at = path.resolve(directory); ; at = path.dirname(at)) {
     if (fs.existsSync(path.join(at, ".git"))) return at;
     if (path.dirname(at) === at) return null;
   }
 }
 
-function harnessFile(configDirectory, name) {
+function harnessFile(configDirectory: unknown, name: unknown) {
   if (typeof configDirectory !== "string" || !configDirectory)
     fail("The machine config directory is required to load a harness.");
   if (typeof name !== "string" || !NAME.test(name))
@@ -510,14 +535,14 @@ function harnessFile(configDirectory, name) {
 }
 
 // The file must exist as a regular file, never a symlink.
-function requireRegularFile(file) {
+function requireRegularFile(file: string) {
   if (!fs.existsSync(file)) fail(`No harness definition at ${file}.`, 404);
   const stat = fs.lstatSync(file);
   if (stat.isSymbolicLink() || !stat.isFile())
     fail(`${file} must be a regular file and cannot be a symlink.`);
 }
 
-function readApprovals(configDirectory) {
+function readApprovals(configDirectory: string): Record<string, unknown> {
   const file = path.join(path.resolve(configDirectory), HARNESS_APPROVALS);
   if (!fs.existsSync(file)) return {};
   const value = JSON.parse(fs.readFileSync(file, "utf8"));
@@ -546,11 +571,11 @@ export function loadHarnessDefinition({
         (approved ? " (the approved version differs)." : "."),
       409,
     );
-  let value;
+  let value: unknown;
   try {
     value = JSON.parse(bytes.toString("utf8"));
   } catch (error) {
-    fail(`${file} is not valid JSON: ${error.message}`);
+    fail(`${file} is not valid JSON: ${messageOf(error)}`);
   }
   const definition = parseHarnessDefinition(value, { source: file });
   if (definition.name !== name)
@@ -568,24 +593,37 @@ export function loadHarnessDefinition({
 // its first run.
 // A read class with the harness's own sandbox off needs none: only Avoozl's
 // sandbox limits it, and its write roots hold the result folder (MS7.1).
-export function readRoleProblem(definition) {
+export function readRoleProblem(
+  definition:
+    | {
+        name?: string;
+        resultAllow?: unknown;
+        permission?: Readonly<Record<string, string>>;
+      }
+    | null
+    | undefined,
+) {
   return definition?.resultAllow ||
     definition?.permission?.read === INNER_SANDBOX_OFF
     ? null
     : `${definition?.name ?? "This harness"} names no resultAllow, so a read-only session cannot write its result file.`;
 }
 
-function startProblemOf(value, configDirectory, probe) {
+function startProblemOf(
+  value: Parameters<typeof harnessStartProblem>[0],
+  configDirectory: string,
+  probe: ReturnType<typeof cachedProbe>,
+) {
   let machineEnv = {};
   try {
     machineEnv = readMachineEnv(configDirectory);
   } catch (error) {
-    return error.message;
+    return messageOf(error);
   }
   return harnessStartProblem(value, { machineEnv, probe });
 }
 
-export function listHarnessDefinitions(configDirectory) {
+export function listHarnessDefinitions(configDirectory: unknown) {
   if (typeof configDirectory !== "string" || !configDirectory) return [];
   const directory = path.join(path.resolve(configDirectory), HARNESS_DIRECTORY);
   if (!fs.existsSync(directory)) return [];
@@ -598,7 +636,14 @@ export function listHarnessDefinitions(configDirectory) {
     .sort()
     .map((name) => {
       const bytes = fs.readFileSync(path.join(directory, `${name}.json`));
-      let value = null;
+      // The file as written, checked only when a session loads it.
+      let value: {
+        model?: unknown;
+        resultAllow?: unknown;
+        start?: unknown;
+        probe?: unknown;
+        proved?: unknown;
+      } | null = null;
       try {
         value = JSON.parse(bytes.toString("utf8"));
       } catch {
@@ -622,7 +667,9 @@ export function listHarnessDefinitions(configDirectory) {
         probes: Array.isArray(value?.probe),
         probe,
         proved: Array.isArray(value?.proved)
-          ? value.proved.filter((item) => ROLE_CLASSES.includes(item))
+          ? value.proved.filter((item: unknown) =>
+              ROLE_CLASSES.some((role) => role === item),
+            )
           : [],
       };
     });
@@ -630,7 +677,15 @@ export function listHarnessDefinitions(configDirectory) {
 
 // Record a person's approval of one exact hash. Callers enforce that a
 // person, not an agent, asked for it.
-export function approveHarnessDefinition({ configDirectory, name, hash }) {
+export function approveHarnessDefinition({
+  configDirectory,
+  name,
+  hash,
+}: {
+  configDirectory: string;
+  name: string;
+  hash: unknown;
+}) {
   harnessFile(configDirectory, name);
   if (typeof hash !== "string" || !/^[0-9a-f]{64}$/.test(hash))
     fail("A harness approval must be the file's SHA-256 hash.");
@@ -645,7 +700,13 @@ export function approveHarnessDefinition({ configDirectory, name, hash }) {
 
 // A person's approval of one file as it is now: the hash is read here, so
 // the caller shows the name, path and hash it approved.
-export function approveHarnessByName({ configDirectory, name }) {
+export function approveHarnessByName({
+  configDirectory,
+  name,
+}: {
+  configDirectory: string;
+  name: string;
+}) {
   const file = harnessFile(configDirectory, name);
   requireRegularFile(file);
   const hash = harnessDefinitionHash(fs.readFileSync(file));
@@ -662,9 +723,10 @@ export function fillHarnessArgv(
   values: Record<string, unknown>,
 ): string[] {
   return list.flatMap((item) => {
-    const one = /^([^{}]*)\{([a-z_]+)\}([^{}]*)$/.exec(item);
-    if (one && Array.isArray(values[one[2]]))
-      return values[one[2]].map((value) => one[1] + String(value) + one[3]);
+    const one = /^([^{}]*)\{([a-z_]+)\}([^{}]*)$/.exec(item),
+      listed: unknown = one ? values[one[2]] : undefined;
+    if (one && Array.isArray(listed))
+      return listed.map((value) => one[1] + String(value) + one[3]);
     return [
       item.replace(/\{([a-z_]+)\}/g, (_, key) => {
         const value = values[key];
@@ -680,7 +742,7 @@ export function fillHarnessArgv(
   });
 }
 
-const overlaps = (a, b) =>
+const overlaps = (a: string, b: string) =>
   a === b || a.startsWith(b + path.sep) || b.startsWith(a + path.sep);
 
 // A repository's cache directories (`sandbox.writeRoots`, R94.4): absolute,
@@ -715,7 +777,7 @@ export function sandboxWriteRoots(
   });
 }
 
-function readUnconfined(configDirectory) {
+function readUnconfined(configDirectory: string): Record<string, unknown> {
   const file = path.join(path.resolve(configDirectory), HARNESS_UNCONFINED);
   if (!fs.existsSync(file)) return {};
   const value = JSON.parse(fs.readFileSync(file, "utf8"));
@@ -729,7 +791,8 @@ function readUnconfined(configDirectory) {
 // the repository's cache folders; a harness with no way to confine writes runs
 // a write class only with this machine's opt-in at its current hash.
 export function harnessPermission(
-  definition,
+  definition: Pick<HarnessDefinition, "permission"> &
+    Partial<Pick<HarnessDefinition, "name" | "writeRoots" | "hash">>,
   {
     permissionClass,
     worktree,
@@ -783,7 +846,9 @@ export function harnessPermission(
     fail("A write session needs its own temp folder as an absolute path.");
   if (!definition.writeRoots) {
     const allowed =
-      configDirectory && readUnconfined(configDirectory)[definition.name];
+      configDirectory &&
+      definition.name &&
+      readUnconfined(configDirectory)[definition.name];
     if (!allowed || allowed !== definition.hash)
       fail(
         `Harness ${definition.name} cannot keep writes in the task folder, so it runs read-only roles only. A person can allow it for write roles on this machine.`,
@@ -819,13 +884,18 @@ export function harnessPermission(
 
 // The home paths a confined child of this harness may read (its own
 // config), resolved against `home`.
-export const harnessReads = (definition, home = os.homedir()) =>
-  (definition?.reads ?? []).map((item) => path.join(home, item.slice(2)));
+export const harnessReads = (
+  definition: Pick<HarnessDefinition, "reads"> | null | undefined,
+  home = os.homedir(),
+) => (definition?.reads ?? []).map((item) => path.join(home, item.slice(2)));
 
 // The harness reads a confined child gets past the secret denial, read only:
 // the AWS config folder alone, for a harness that signs in to a cloud
 // provider with the person's AWS profile (~/.aws in its reads).
-export const harnessSecretReads = (definition, home = os.homedir()) => {
+export const harnessSecretReads = (
+  definition: Pick<HarnessDefinition, "reads"> | null | undefined,
+  home = os.homedir(),
+) => {
   const aws = path.join(home, ".aws");
   return harnessReads(definition, home).filter(
     (file) =>
@@ -837,7 +907,14 @@ export const harnessSecretReads = (definition, home = os.homedir()) => {
 // own home, so the child's provider settings (Claude Code's settings.json,
 // Codex's config.toml) are those of the person's home. A missing file is
 // skipped; each start copies again, so an edit reaches the next session.
-export function seedHarnessHome(definition, harnessHome, home = os.homedir()) {
+export function seedHarnessHome(
+  definition:
+    | Pick<HarnessDefinition, "homeFiles" | "credentialExport">
+    | null
+    | undefined,
+  harnessHome: string,
+  home = os.homedir(),
+) {
   for (const item of definition?.homeFiles ?? []) {
     const from = path.join(home, item.slice(2));
     if (!fs.statSync(from, { throwIfNoEntry: false })?.isFile()) continue;
@@ -845,7 +922,7 @@ export function seedHarnessHome(definition, harnessHome, home = os.homedir()) {
     const text = fs.readFileSync(from, "utf8");
     fs.writeFileSync(
       to,
-      definition.credentialExport ? withoutCredentialHelpers(to, text) : text,
+      definition?.credentialExport ? withoutCredentialHelpers(to, text) : text,
       { mode: 0o600 },
     );
     fs.chmodSync(to, 0o600);
@@ -857,7 +934,7 @@ export function seedHarnessHome(definition, harnessHome, home = os.homedir()) {
 // from the sandbox: Claude Code's `awsCredentialExport` and Codex's
 // `[...credential_export]` tables.
 // shortcut: these two shapes only; add a harness's own when one appears.
-function withoutCredentialHelpers(file, text) {
+function withoutCredentialHelpers(file: string, text: string) {
   if (file.endsWith(".json"))
     try {
       const { awsCredentialExport, ...rest } = JSON.parse(text);
