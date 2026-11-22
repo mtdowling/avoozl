@@ -256,8 +256,12 @@ test("a single-operation tool refuses an input that is not an object", async (t)
 
 test("the cron's tick with no workspace is a skip, not an error", async () => {
   // A second crew home with nothing in it: no catalog, no default workspace.
+  // The script cron's server knows its job only from its environment.
   const server = createAppMcp({
-    env: { KIROCREW_HOME: temporaryDirectory("avoozl-crew-home-") },
+    env: {
+      KIROCREW_HOME: temporaryDirectory("avoozl-crew-home-"),
+      KIROCREW_SESSION_KEY: "cron:test-job",
+    },
   });
   const call = (name, args) =>
     server.handle({

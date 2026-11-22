@@ -4,6 +4,7 @@ Folder/project inheritance and ScriptContext session calls stay private here.
 The installed app and a source checkout read the same contract data.
 """
 
+import hashlib
 import json
 import re
 from pathlib import Path
@@ -36,6 +37,18 @@ class StartRefused(Exception):
 
 class ObservationUnavailable(Exception):
     """No authoritative reading; preserve the last observed state."""
+
+
+def _not_creator(error):
+    return "not_creator" in str(error).lower()
+
+
+def _recovery_title(title, key):
+    """A stable title for a chat whose title an old cron owns. The key names
+    the lane, or the task and role, so each new start of the same work opens
+    under the same title, and so the same chat, not a new one."""
+    suffix = " retry-" + hashlib.sha256(key.encode()).hexdigest()[:8]
+    return title[: 200 - len(suffix)].rstrip() + suffix
 
 
 def find_or_create(ctx, folder):
@@ -107,6 +120,7 @@ def read_sessions(ctx, strict=False):
 # the asked model or changed it mid-session. An older Kiro Crew sends none, and
 # the tick then trusts the requested model.
 MODEL_FIELDS = ("model_requested", "served_model", "model_withheld", "model_changed")
+WORKSPACE_FIELD = "_avoozlWorkspaceId"
 
 
 def session_row(row):
@@ -234,6 +248,20 @@ class KiroCrewExecutor:
         except Exception:  # an older gateway, or a chat that just went away
             pass
 
+    def _open(self, d, title, **arguments):
+        try:
+            return self._ctx.open_session(title, **arguments), title
+        except Exception as error:
+            if not _not_creator(error):
+                raise
+            lane = d.get("lane") if isinstance(d.get("lane"), dict) else None
+            if lane and lane.get("id"):
+                key = "lane:%s" % lane["id"]
+            else:
+                key = "task:%s:%s" % (d.get("task", ""), d.get("role", "worker"))
+            recovered = _recovery_title(title, key)
+            return self._ctx.open_session(recovered, **arguments), recovered
+
     def keep_trust(self, observed):
         """Set each observed worker chat's trust mode again, once per chat,
         and a lane chat's fixed header when its title changed."""
@@ -265,7 +293,9 @@ class KiroCrewExecutor:
     def owns(self, request):
         return request.get("executor", "kirocrew") == "kirocrew"
 
-    def _transport(self, action, payload):
+    def _transport(self, action, payload, workspace=None):
+        if workspace:
+            payload = {**payload, WORKSPACE_FIELD: workspace}
         result = self._ctx.call_tool("avoozl:avoozl", "plans_executor", {"action": action, "input": payload})
         return json.loads(result) if isinstance(result, str) else result
 
@@ -274,11 +304,23 @@ class KiroCrewExecutor:
             return None
         if not request.get("id") or not request.get("version"):
             return request  # Compatibility with a previous app's dispatch.
-        taken = self._transport("take", {"id": request["id"], "version": request["version"]})
+        workspace = request.get(WORKSPACE_FIELD)
+        taken = self._transport(
+            "take",
+            {"id": request["id"], "version": request["version"]},
+            workspace,
+        )
         if not isinstance(taken, dict) or not isinstance(taken.get("request"), dict):
             return None
-        self._active_claims[request["id"]] = taken["claimToken"]
-        return {**taken.get("configuration", {}), **taken["request"], "_claim": taken["claimToken"]}
+        self._active_claims[(workspace, request["id"])] = taken["claimToken"]
+        routed = {
+            **taken.get("configuration", {}),
+            **taken["request"],
+            "_claim": taken["claimToken"],
+        }
+        if workspace:
+            routed[WORKSPACE_FIELD] = workspace
+        return routed
 
     def arguments(self, request):
         request = self._take(request)
@@ -327,8 +369,12 @@ class KiroCrewExecutor:
         if lane:
             # A lane chat opens once, named by its fixed header, which Kiro
             # Crew pins so its own titles never replace it.
-            slot = self._ctx.open_session(
-                lane["header"], folder_id=folder, agent=d.get("agent", ""), **extra
+            slot, _opened_title = self._open(
+                d,
+                lane["header"],
+                folder_id=folder,
+                agent=d.get("agent", ""),
+                **extra,
             )
             _text(slot, "sessionId")
             # A header Kiro Crew already holds hands back that chat, which may
@@ -339,16 +385,26 @@ class KiroCrewExecutor:
             return self._brief(slot, d, task, role, brief, permissionClass)
         if d.get("crew"):
             try:
-                slot = self._ctx.open_session(
-                    d["title"], agent=d.get("agent", ""), crew=d["crew"], **extra
+                slot, opened_title = self._open(
+                    d,
+                    d["title"],
+                    agent=d.get("agent", ""),
+                    crew=d["crew"],
+                    **extra,
                 )
             except TypeError as error:
                 raise StartRefused("This gateway cannot open a remote session.") from error
         else:
-            slot = self._ctx.open_session(
-                d["title"], folder_id=folder, agent=d.get("agent", ""), **extra
+            slot, opened_title = self._open(
+                d,
+                d["title"],
+                folder_id=folder,
+                agent=d.get("agent", ""),
+                **extra,
             )
         _text(slot, "sessionId")
+        if opened_title != d["title"]:
+            d["title"] = opened_title
         return self._brief(slot, d, task, role, brief, permissionClass)
 
     def _brief(self, slot, d, task, role, brief, permissionClass):
@@ -375,6 +431,8 @@ class KiroCrewExecutor:
             binding.update({"permissionClass": permissionClass, "executor": "kirocrew", "requestId": d["id"], "claimToken": d["_claim"]})
             for key in ("worktree", "context"):
                 if d.get(key): binding[key] = d[key]
+        if d.get(WORKSPACE_FIELD):
+            binding[WORKSPACE_FIELD] = d[WORKSPACE_FIELD]
         self._bind(binding)
         mode = _mode({**d, "role": role})
         if mode:
@@ -416,13 +474,22 @@ class KiroCrewExecutor:
     def release(self, request, refusal):
         if not refusal.before_open or not request.get("id"):
             return
-        saved = self._active_claims.pop(request["id"], None)
+        workspace = request.get(WORKSPACE_FIELD)
+        saved = self._active_claims.pop((workspace, request["id"]), None)
         if saved:
-            self._transport("release", {"id": request["id"], "claimToken": saved, "reason": "before-open"})
+            self._transport(
+                "release",
+                {"id": request["id"], "claimToken": saved, "reason": "before-open"},
+                workspace,
+            )
 
     def message(self, request):
         return self._take(request)
 
     def complete_message(self, request, outcome):
         if request.get("_claim"):
-            self._transport("complete", {"id": request["id"], "claimToken": request["_claim"], "outcome": outcome})
+            self._transport(
+                "complete",
+                {"id": request["id"], "claimToken": request["_claim"], "outcome": outcome},
+                request.get(WORKSPACE_FIELD),
+            )

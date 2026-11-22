@@ -1025,7 +1025,8 @@ export function conflictsView(
       ...ownership(task),
       title: task.title ?? id,
       reason: "manual-ready",
-      detail: "This manual task is ready. Do it, then Mark done in its drawer.",
+      detail:
+        "This manual task is ready. Review its approval criteria and referenced material, then Mark done in its drawer.",
     });
   }
   items.push(...reviewGroups(store, data));

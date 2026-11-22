@@ -125,6 +125,34 @@ export const needsContextItems: ConflictItem[] = [
   },
   {
     kind: 'needs-human',
+    reason: 'manual-ready',
+    taskId: 'search.review-ranking',
+    title: 'Review result ranking execution brief',
+    detail: 'Review its approval criteria and referenced material, then Mark done in its drawer.',
+    context: {
+      task: next('search.review-ranking', 'Review result ranking execution brief'),
+      spec,
+      source: { path: '.kiro/specs/recipe-search/tasks.md', lineStart: 30, lineEnd: 32 },
+      text: {
+        summary: null,
+        acceptance: ['The ranking behavior, tests, rollback, and writable paths are approved.'],
+      },
+      referenceMaterial: [
+        {
+          kind: 'design',
+          ref: '§D3',
+          path: '.kiro/specs/recipe-search/design.md',
+          lineStart: 18,
+          lineEnd: 22,
+          text: '## D3. Result ranking\n\nRank exact title matches before ingredient matches.',
+        },
+      ],
+      unblocks: { total: 1, tasks: [next('search.5', 'Result ranking')] },
+      links: null,
+    },
+  },
+  {
+    kind: 'needs-human',
     reason: 'draft-pr',
     id: 'draft-pr:recipe-box:main:search.4',
     taskId: 'search.4',

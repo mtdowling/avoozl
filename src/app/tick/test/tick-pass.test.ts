@@ -9,7 +9,9 @@ import test, { type TestContext } from "node:test";
 import { fileURLToPath } from "node:url";
 import { loopLockPaths, tryLock } from "../../executors/pass-lock.ts";
 import { workspaceConfig } from "../../settings/config.ts";
+import { machineAvoozlPaths } from "../../settings/host-config.ts";
 import { ownMachineEnv } from "../../test/own-machine.ts";
+import { startTickPass } from "../tick-runner.ts";
 
 const CLI = fileURLToPath(new URL("../../../../cli.ts", import.meta.url));
 const SRC = fileURLToPath(new URL("../../../", import.meta.url));
@@ -95,6 +97,30 @@ test("avoozl tick --workspace passes only that workspace", (t) => {
   assert.deepEqual(ticked(tick.stdout), [["two", "ran"]]);
 });
 
+test("the Kiro Crew runner starts a detached machine pass and returns", async (t) => {
+  const m = machine(t),
+    paths = machineAvoozlPaths({ env: m.env }),
+    begun = Date.now(),
+    pid = startTickPass({
+      stateDirectory: paths.stateDirectory,
+      configDirectory: paths.configDirectory,
+      env: m.env,
+    });
+  assert.ok(Number.isInteger(pid) && pid > 0);
+  assert.ok(Date.now() - begun < 1000, "the caller does not await the pass");
+
+  const health = m.workspaces.map((folder) =>
+    path.join(
+      path.dirname(workspaceConfig({ workspace: folder, env: m.env }).dbPath),
+      "tick-health.json",
+    ),
+  );
+  const deadline = Date.now() + 15_000;
+  while (health.some((file) => !fs.existsSync(file)) && Date.now() < deadline)
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  assert.ok(health.every((file) => fs.existsSync(file)));
+});
+
 test("a tick that overlaps another skips the workspace the other holds", (t) => {
   const m = machine(t);
   const held = tryLock(
@@ -134,9 +160,10 @@ test("a process child is refused link", (t) => {
   assert.match(found.stderr, /A process child may not run avoozl link/);
 });
 
-// MS1.2: the tick pass is the only caller of the drains, and nothing runs
-// the tick on a timer of its own.
-test("only the tick pass drains requests, and nothing runs the tick on a timer", () => {
+// MS1.2: the tick pass is the only caller of the request drain and check
+// runner, the runner is the only production caller of the check drain, and
+// nothing runs the tick on a timer of its own.
+test("only the tick pass starts drains, and nothing runs the tick on a timer", () => {
   const files: string[] = [];
   const walk = (directory: string) => {
     for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
@@ -152,18 +179,28 @@ test("only the tick pass drains requests, and nothing runs the tick on a timer",
     files
       .filter((file) => pattern.test(fs.readFileSync(file, "utf8")))
       .map(rel);
-  for (const name of ["drainProcessRequests", "drainCheckRuns"]) {
-    const found = callers(new RegExp(`\\b${name}\\(`)).filter(
-      (file) =>
-        !/^app\/(executors\/process|delivery\/check-runs)\.(mjs|ts)$/.test(
-          file,
-        ),
-    );
-    assert.deepEqual(
-      found,
+  for (const [name, owner, expected] of [
+    [
+      "drainProcessRequests",
+      "app/executors/process.ts",
       ["app/tick/tick-pass.ts"],
-      `${name} is called outside the pass`,
+    ],
+    [
+      "startCheckRunners",
+      "app/delivery/check-runner.ts",
+      ["app/tick/tick-pass.ts"],
+    ],
+    [
+      "drainCheckRuns",
+      "app/delivery/check-runs.ts",
+      ["app/delivery/check-runner.ts"],
+    ],
+    ["startPass", null, ["app/executors/kirocrew/app-mcp.ts"]],
+  ]) {
+    const found = callers(new RegExp(`\\b${name}\\(`)).filter(
+      (file) => file !== owner,
     );
+    assert.deepEqual(found, expected, `${name} has another production caller`);
   }
   const timed = files
     .filter((file) => {

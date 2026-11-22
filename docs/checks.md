@@ -41,6 +41,10 @@ Merge batches run every check whose paths any member's change touches, plus
 every check without paths. Records, reruns and bisect steps name a check by its
 name, and `verify.checkTimeouts` sets a check's own timeout by its name.
 
+Each repository's queued runs execute in one detached check runner. A tick
+starts the runner and returns without waiting for its commands. The runner
+records each result in the workspace database, and a later tick judges it.
+
 ## Code the repository owns
 
 Some code Avoozl runs is owned by the repository, not by you. Read it before you

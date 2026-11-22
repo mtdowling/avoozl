@@ -301,6 +301,15 @@ export interface ItemContext {
   // The checks the task stopped on, each with its first error line when the
   // check gave one.
   failedChecks?: { commit: string | null; checks: { name: string; conclusion: string | null; firstError: string | null }[] } | null
+  // Task-scoped sections from the exact approved spec revision.
+  referenceMaterial?: {
+    kind: 'requirement' | 'design'
+    ref: string
+    path: string
+    lineStart: number
+    lineEnd: number
+    text: string
+  }[]
 }
 
 // One task in a review group.
@@ -352,6 +361,7 @@ export interface ConflictItem extends TaskOwner {
     | 'blocked'
     | 'crew-mode'
     | 'hand-set-review'
+    | 'manual-ready'
     | 'approval'
     | 'disk'
     | 'phase-check'

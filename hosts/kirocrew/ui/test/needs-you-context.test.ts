@@ -47,11 +47,16 @@ test('every item kind says what is asked, and a task item says what it unblocks'
   assert.deepEqual(evidenceOf(item((i) => i === needsContextItems.at(-1))), [], 'the bare item has no evidence')
   assert.ok(evidenceOf(item((i) => i.reason === 'pr-merge')).includes('links'))
   assert.deepEqual(evidenceOf(item((i) => i.kind === 'stale-session')), ['checks'], 'a stop on failed checks shows them')
+  const manual = item((i) => i.reason === 'manual-ready')
+  assert.deepEqual(evidenceOf(manual), ['text', 'references'])
+  assert.match(askLine(manual), /Mark done only if you approve/)
 })
 
 test('Resolve comes after the context block, and the review drawer lists text before Mark reviewed', () => {
   const view = source('ConflictsView.tsx')
   assert.ok(view.indexOf('<ItemContextBlock') < view.indexOf('data-conflict-resolve'))
+  assert.match(view, /data-manual-ready-resolve/)
+  assert.match(view, /Open task to mark done/)
   const drawer = source('TaskDrawer.tsx')
   assert.ok(drawer.indexOf('<ReviewTaskContext') < drawer.indexOf('<ReviewButton item={group}'))
 })
@@ -90,6 +95,13 @@ test('each kind draws its spec link, evidence and context before Resolve', { ski
     if (kind === 'review') assert.equal(await page.evaluate(`document.querySelectorAll('[data-diff]').length > 0`), true, 'the review shows a diff')
     if (key.includes(':search.2:')) assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-pr-chip]') && document.querySelector('[data-branch-chip]'))`), true)
     if (key.includes(':search.8:')) assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-no-evidence]'))`), true)
+    if (key.includes(':search.review-ranking:'))
+      assert.deepEqual(
+        await page.evaluate(
+          `({ material: Boolean(document.querySelector('[data-reference-material] [data-reference-material-body] [role="heading"]')), resolve: [...document.querySelectorAll('[data-conflict-detail] button')].map((b) => b.textContent.trim()).find((t) => t === 'Open task to mark done') ?? '' })`,
+        ),
+        { material: true, resolve: 'Open task to mark done' },
+      )
     if (kind === 'stale-session') {
       const shown = await page.evaluate<string>(`document.querySelector('[data-conflict-detail] [data-failed-checks]')?.textContent ?? ''`)
       assert.match(shown, /test \(ubuntu-latest\)/)

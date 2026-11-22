@@ -269,7 +269,12 @@ export const entries = [
           this.store,
           policy,
           // A lane header names the workspace as text, null included.
-          String(laneWorkspace(this.workspaceRoot)),
+          String(
+            laneWorkspace(
+              this.workspaceRoot,
+              this.store.getMeta("workspaceId"),
+            ),
+          ),
           {
             attach: (slot) => {
               const attach = processSessionDetails([slot], paths).get(

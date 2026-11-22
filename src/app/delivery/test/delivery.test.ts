@@ -16,6 +16,7 @@ import { temporaryDirectory } from "../../test/temporary.ts";
 import { loopOn } from "../../test/fixtures.ts";
 import { workspaceConfig } from "../../settings/config.ts";
 import { loopAllows, machineLoop } from "../../tick/loop.ts";
+import { laneWorkspace } from "../../tick/tick.ts";
 
 // The tick starts and lands work only with the server loop on.
 loopOn();
@@ -47,6 +48,18 @@ const leaf = (id, extra = {}) => ({
   acceptance: ["Works."],
   repository: "app",
   ...extra,
+});
+
+test("registered workspace IDs distinguish roots with the same basename", () => {
+  assert.equal(
+    laneWorkspace("/tmp/first/workspace", "first-workspace"),
+    "first-workspace",
+  );
+  assert.equal(
+    laneWorkspace("/tmp/second/workspace", "second-workspace"),
+    "second-workspace",
+  );
+  assert.equal(laneWorkspace("/tmp/legacy/workspace"), "workspace");
 });
 
 // A workspace with a real Git checkout `app` and the given tasks and edges.
@@ -323,6 +336,7 @@ test("the tick dispatches ready local leaves by rank, then graph order, within l
     lanes: { local: 4 },
     delivery: {},
   });
+  store.setMeta("workspaceId", "registered-workspace");
   const before = dump(store),
     planned = await ops.execute("workspace.tick", { sessions: [] });
   assert.deepEqual(dump(store), before, "planning a dispatch writes nothing");
@@ -354,10 +368,10 @@ test("the tick dispatches ready local leaves by rank, then graph order, within l
       // (simplify §D22.1).
       lane: {
         id: "worker-1",
-        header: `Avoozl · ${path.basename(root)} · worker 1`,
-        workspace: path.basename(root),
+        header: "Avoozl · registered-workspace · worker 1",
+        workspace: "registered-workspace",
       },
-      folder: `Avoozl/${path.basename(root)}`,
+      folder: "Avoozl/registered-workspace",
       project: false,
       agent: "kirocrew-worker",
       checkout: store.get("repositories", "app").root,

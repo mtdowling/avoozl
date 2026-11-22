@@ -16,6 +16,7 @@ import { Box } from './ui/Box'
 import { NeedsContextStyle } from './ui/PageStyles'
 import { PlainButton } from './ui/Plain'
 import { TONE } from './ui/tones.ts'
+import { Markdown } from './ui/Markdown.tsx'
 
 // The spec's title; it opens Specs on that spec when a stored plan exists.
 // `onOpen` runs after, so a drawer can close over the page it opened.
@@ -172,6 +173,21 @@ function Evidence({ item }: { item: ConflictItem }) {
         </Box>
       )}
       {kinds.includes('text') && context?.text && <TaskText title={context.task?.title ?? item.title} context={context} />}
+      {kinds.includes('references') && context?.referenceMaterial && (
+        <Stack gap={2} data-reference-material>
+          {context.referenceMaterial.map((material) => (
+            <Box key={`${material.kind}:${material.ref}:${material.path}`} css-border-color="border" rounded="base" border="all" overflow="hidden">
+              <Hint as="p" m0 p="2" size="xs" css-border-bottom="1px-solid-border">
+                {material.kind === 'design' ? 'Design' : 'Requirement'} {material.ref} · {material.path} ·{' '}
+                {material.lineStart === material.lineEnd ? `line ${material.lineStart}` : `lines ${material.lineStart}–${material.lineEnd}`}
+              </Hint>
+              <Box maxH56 overflow="auto" p="3" data-reference-material-body>
+                <Markdown text={material.text} />
+              </Box>
+            </Box>
+          ))}
+        </Stack>
+      )}
       {kinds.includes('links') && context?.links && (
         <Box flex flexWrap items="center" gapX="3" gapY="1" size="sm" data-context-links>
           {context.links.pr && (

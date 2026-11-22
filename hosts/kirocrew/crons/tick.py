@@ -1,12 +1,12 @@
 """The avoozl-tick script cron (machine-server MS12, design D5).
 
-Kiro Crew lets only the cron that opened a chat control it, so after the
-tick this cron does the three things only it can: open and bind each chat the
-tick released, send each released message, and set trust mode again on the
-chats it owns. ``plans_maintain tick`` with ``cron: true`` runs this machine's
-one tick pass (the tick, the drain and the notifications, as ``avoozl tick``
-does), records the session statuses it read, and returns the released
-intents. With nothing to do it raises Skip, so it stays silent.
+Kiro Crew lets only the cron that opened a chat control it, so this cron does
+the three things only it can: open and bind each chat a completed tick
+released, send each released message, and set trust mode again on the chats
+it owns. ``plans_maintain tick`` with ``cron: true`` records the session
+statuses it read, returns those released intents, and starts the next machine
+tick without waiting for repository work. With nothing to do it raises Skip,
+so it stays silent.
 
 Every ``plans_*`` tool takes its arguments wrapped as ``{"input": {...}}``.
 """
@@ -62,6 +62,7 @@ def run(ctx):
     executor.keep_trust(intents.get("observe"))
 
     opened = 0
+    dispatch_failed = []
     for d in intents.get("dispatch") or []:
         if not executor.owns(d):
             continue
@@ -72,6 +73,15 @@ def run(ctx):
             executor.start(*arguments)
         except _executor.StartRefused as refusal:
             executor.release(d, refusal)
+            continue
+        except Exception as error:
+            # The open's outcome is unknown, so the start stays claimed and is
+            # never opened again. One failure must not starve the other
+            # workspaces this cron serves: the rest still go, and the run
+            # fails at the end with every error named.
+            dispatch_failed.append(
+                "%s: %s" % (d.get("task", "unknown"), str(error)[:200])
+            )
             continue
         opened += 1
 
@@ -98,8 +108,23 @@ def run(ctx):
         else:
             executor.complete_message(m, "sent")
 
-    if not (opened or messages):
+    # An uncertain open fails the run, as it did before this cron served
+    # every workspace, so the cron history shows it as an error.
+    if dispatch_failed:
+        raise RuntimeError(
+            "%d start(s) failed: %s"
+            % (len(dispatch_failed), "; ".join(dispatch_failed))
+        )
+    pass_error = intents.get("passError")
+    if not (opened or messages or pass_error):
         raise Skip()
     # The run's summary (cron history) names what did not get through.
+    failures = []
+    if pass_error:
+        failures.append("the machine tick did not start: %s" % str(pass_error)[:200])
     if refused:
-        return "%d message(s) refused: %s" % (len(refused), "; ".join(refused))
+        failures.append(
+            "%d message(s) refused: %s" % (len(refused), "; ".join(refused))
+        )
+    if failures:
+        return "; ".join(failures)

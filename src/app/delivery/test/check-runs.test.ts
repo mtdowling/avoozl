@@ -7,6 +7,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { checkRuns, drainCheckRuns, outputTail } from "../check-runs.ts";
+import { startCheckRunners } from "../check-runner.ts";
 import { listSpans } from "../../flow/flow.ts";
 import {
   deliveryWorkspace,
@@ -84,6 +85,36 @@ test("a command-only bar opens no verifier chat: Avoozl runs the checks at the e
     listSpans(store).some((s) => s.taskId === "a" && s.stage === "checks"),
     "flow timing records check time as checks",
   );
+});
+
+test("the detached runner finishes checks after the tick path returns", async (t) => {
+  const { root, store, ops } = setup(t, {
+    checks: [
+      [
+        node,
+        "-e",
+        "setTimeout(() => { console.log('detached check done') }, 500)",
+      ],
+    ],
+  });
+  await workerDone(ops, "a", "w-1");
+  await tick(ops, ["w-1"]);
+  const dbPath = path.join(root, "workspace.sqlite"),
+    startedAt = Date.now(),
+    runners = startCheckRunners(store, { dbPath });
+  assert.equal(runners.length, 1);
+  assert.ok(Date.now() - startedAt < 1000, "the caller does not await checks");
+
+  const deadline = Date.now() + 15_000;
+  while (
+    checkRuns(store).some((run) => run.state !== "finished") &&
+    Date.now() < deadline
+  )
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+  const [run] = checkRuns(store);
+  assert.equal(run.state, "finished");
+  assert.match(run.checks[0].tail, /detached check done/);
 });
 
 test("a failing check fails the writer's attempt, with a short redacted tail", async (t) => {

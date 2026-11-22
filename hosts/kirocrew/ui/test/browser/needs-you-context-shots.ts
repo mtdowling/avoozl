@@ -21,6 +21,7 @@ const PICKS = {
   'pr-merge': 'needs-human:search.2:',
   failed: 'stale-session:',
   bare: 'needs-human:search.8:',
+  manual: 'needs-human:search.review-ranking:',
 }
 try {
   const page = await browser.page()

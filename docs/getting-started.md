@@ -99,10 +99,12 @@ The hook is a speed bump, not a wall; see [Person-only](person-only.md).
 
 All of Avoozl's work happens in `avoozl tick`: one pass that plans, starts
 and checks agents, lands what passed, and exits. Something has to run it
-again and again. In Kiro Crew, the app's `avoozl-tick` cron runs it every
-minute, so there is nothing to set up. On a machine without Kiro Crew, pick
-one of the timers below. Each runs `avoozl tick` once a minute for every
-enabled workspace in this machine's catalog.
+again and again. In Kiro Crew, the app's `avoozl-tick` cron starts it every
+minute and returns without waiting for repository work, so there is nothing
+to set up. The next cron carries the chat intents a completed tick released.
+On a machine without Kiro Crew, pick one of the timers below. Each runs
+`avoozl tick` once a minute for every enabled workspace in this machine's
+catalog.
 
 A tick starts and lands work only on a machine whose `config.json` turns its
 `loop` on; picking Autopilot in Settings › Autopilot writes it

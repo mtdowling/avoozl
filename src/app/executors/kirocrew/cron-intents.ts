@@ -7,7 +7,10 @@
 // because Kiro Crew refuses a session another cron job opened (not_creator),
 // so the cron that opened a chat stays the one that sends to it and sets its
 // trust mode. That is the only reason this call exists.
-import { pendingSessionRequests } from "../../sessions/session-requests.ts";
+import {
+  pendingSessionRequests,
+  type SessionRequest,
+} from "../../sessions/session-requests.ts";
 import {
   FINAL_STATUSES,
   listSessionBindings,
@@ -15,7 +18,20 @@ import {
 import { readReleased, recordRoster, sessionList } from "../../tick/tick.ts";
 import type { Store } from "../../store/store.ts";
 
-export function cronIntents(store: Store, input: { sessions?: unknown } = {}) {
+// The script cron serves every enabled workspace in one run. This private
+// transport field keeps an intent on its originating workspace until the
+// opened chat is bound there; it is never stored in the session request.
+export const KIROCREW_WORKSPACE_FIELD = "_avoozlWorkspaceId";
+const fromWorkspace = (request: SessionRequest, workspaceId?: string | null) =>
+  workspaceId
+    ? { ...request, [KIROCREW_WORKSPACE_FIELD]: workspaceId }
+    : request;
+
+export function cronIntents(
+  store: Store,
+  input: { sessions?: unknown } = {},
+  workspaceId: string | null = null,
+) {
   const roster = sessionList(input.sessions);
   if (roster) recordRoster(store, roster);
   const released = readReleased(store);
@@ -31,14 +47,18 @@ export function cronIntents(store: Store, input: { sessions?: unknown } = {}) {
         // the cron keeps its trust and title (simplify §D22.1).
         ...(lane && id === slot ? { lane, header: title } : {}),
       })),
-    dispatch: pending.filter(
-      (request) =>
-        request.operation === "start" && released.starts.has(request.id),
-    ),
-    messages: pending.filter(
-      (request) =>
-        request.operation === "send" && released.sends.has(request.id),
-    ),
+    dispatch: pending
+      .filter(
+        (request) =>
+          request.operation === "start" && released.starts.has(request.id),
+      )
+      .map((request) => fromWorkspace(request, workspaceId)),
+    messages: pending
+      .filter(
+        (request) =>
+          request.operation === "send" && released.sends.has(request.id),
+      )
+      .map((request) => fromWorkspace(request, workspaceId)),
     notify: [],
   };
 }

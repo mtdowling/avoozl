@@ -17,7 +17,23 @@ interface Delivery {
   cause?: string;
   failedChecks?: { cause?: string; commit?: string; checks?: FailedCheck[] };
 }
-type Plan = { id: string; spec?: string; title?: string; deletedAt?: string };
+type Plan = {
+  id: string;
+  spec?: string;
+  title?: string;
+  deletedAt?: string;
+};
+type Approval = {
+  planId?: string;
+  hash?: string;
+  files?: Record<string, string>;
+};
+type TaskRef = {
+  kind?: unknown;
+  ref?: unknown;
+  file?: unknown;
+  line?: unknown;
+};
 // The task text a person reads.
 type Text = { summary?: unknown; acceptance?: unknown; title?: string };
 // One Needs you item; context is added in place.
@@ -100,15 +116,98 @@ function sourceOf(task: Task) {
   };
 }
 
+// The referenced Markdown block from the exact approved spec revision. A
+// heading ref includes its section, stopping before the next heading at the
+// same or a higher level. Other refs include their source line.
+function referencedBlock(source: string, line: number) {
+  const lines = source.split("\n"),
+    start = line - 1;
+  if (start < 0 || start >= lines.length) return null;
+  const heading = /^(#{1,6})\s+/.exec(lines[start]);
+  let end = start + 1;
+  if (heading) {
+    const level = heading[1].length;
+    while (end < lines.length) {
+      const next = /^(#{1,6})\s+/.exec(lines[end]);
+      if (next && next[1].length <= level) break;
+      end++;
+    }
+  }
+  while (end > start + 1 && !lines[end - 1].trim()) end--;
+  // A level-1 heading would carry its whole file into every Needs you
+  // payload, so a block stops at a size cap and says so.
+  let text = lines.slice(start, Math.min(end, start + BLOCK_LINES)).join("\n");
+  const cut = end > start + BLOCK_LINES || text.length > BLOCK_CHARS;
+  if (cut) {
+    if (text.length > BLOCK_CHARS)
+      text = text.slice(0, BLOCK_CHARS).replace(/\n[^\n]*$/, "");
+    end = start + text.split("\n").length;
+    text += "\n\n_Cut here; the rest is in the spec._";
+  }
+  return { lineStart: line, lineEnd: end, text };
+}
+const BLOCK_LINES = 60,
+  BLOCK_CHARS = 6000,
+  MAX_BLOCKS = 8;
+
+function referenceMaterialOf(
+  task: Task,
+  plans: Map<string, Plan>,
+  approvals: Approval[],
+) {
+  const refs = Array.isArray(task.refs) ? (task.refs as TaskRef[]) : [],
+    plan = task.planId ? plans.get(String(task.planId)) : null,
+    planHash = typeof task.planHash === "string" ? task.planHash : null,
+    receipt =
+      planHash && task.planId
+        ? approvals.find(
+            (entry) =>
+              entry.planId === task.planId &&
+              entry.hash === planHash &&
+              entry.files,
+          )
+        : null,
+    // Only the approved revision is shown; a task with no plan hash shows
+    // none, never the live files.
+    files = receipt?.files;
+  if (!files) return [];
+  const seen = new Set<string>(),
+    material = [];
+  for (const item of refs) {
+    const kind =
+        item.kind === "requirement" || item.kind === "design"
+          ? item.kind
+          : null,
+      ref = typeof item.ref === "string" ? item.ref : null,
+      file = typeof item.file === "string" ? item.file : null,
+      line = Number.isInteger(item.line) ? Number(item.line) : null,
+      text = file ? files[file] : null;
+    if (!kind || !ref || !file || !line || typeof text !== "string") continue;
+    const block = referencedBlock(text, line),
+      key = `${kind}\u0000${ref}\u0000${file}\u0000${line}`;
+    if (!block || seen.has(key)) continue;
+    if (material.length >= MAX_BLOCKS) break;
+    seen.add(key);
+    material.push({
+      kind,
+      ref,
+      path: plan?.spec ? `.kiro/specs/${plan.spec}/${file}` : file,
+      ...block,
+    });
+  }
+  return material;
+}
+
 // Items that name a task get `context`; a review group's tasks each get a
 // lighter one; a draft review gets its spec and review summary.
 export function addItemContext(store: Store, data: Snapshot, items: Item[]) {
   const plans = new Map(
-    store
-      .list<Plan>("plans")
-      .filter((plan) => !plan.deletedAt)
-      .map((plan) => [plan.id, plan]),
-  );
+      store
+        .list<Plan>("plans")
+        .filter((plan) => !plan.deletedAt)
+        .map((plan) => [plan.id, plan]),
+    ),
+    approvals = store.list<Approval>("approvals");
   const byId = new Map(data.tasks.map((task) => [task.id, task]));
   const dependents = new Map<string, Set<string>>();
   for (const edge of data.edges)
@@ -139,6 +238,7 @@ export function addItemContext(store: Store, data: Snapshot, items: Item[]) {
           ...textOf(task.reviewPrior as Text),
         }
       : null,
+    referenceMaterial: referenceMaterialOf(task, plans, approvals),
   });
   for (const item of items) {
     if (item.kind === "review") {
