@@ -1,11 +1,10 @@
-// @ts-nocheck: typing debt
 import { defaultJob, fixedCredentials } from "../../test/github-credentials.ts";
 // Paced GitHub writes: a serial pacer in front of every write, a journal that
 // counts the windows, and the pace estimate.
 // A virtual clock and fakes only: no network and no real waiting.
 import assert from "node:assert/strict";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { GitHubClient } from "../github.ts";
 import { WritePacer, clampLimits } from "../github-pacer.ts";
 import { Store } from "../../store/store.ts";
@@ -14,8 +13,36 @@ import { temporaryDirectory } from "../../test/temporary.ts";
 const MINUTE = 60 * 1000;
 const HOUR = 60 * MINUTE;
 
+// A virtual clock: `now` moves only when a test sleeps or sets it.
+interface Clock {
+  now: number;
+  read: () => number;
+  sleep: (ms: number) => Promise<void>;
+}
+// A write the pacer refused, and until when.
+type Paced = Error & { paced?: boolean; rateLimited?: { until: number } };
+// A POST the fake GitHub got.
+interface Sent {
+  path: string;
+  body: { query: string; variables: { input: unknown } } | null;
+}
+
+// When a paced refusal says writes may go again.
+function pauseUntil(error: unknown) {
+  const limited =
+    error instanceof Error && "rateLimited" in error ? error.rateLimited : null;
+  assert.ok(
+    limited &&
+      typeof limited === "object" &&
+      "until" in limited &&
+      typeof limited.until === "number",
+    String(error),
+  );
+  return limited.until;
+}
+
 // The most writes any sliding window of `span` ms holds.
-const busiest = (times, span) =>
+const busiest = (times: number[], span: number) =>
   Math.max(
     0,
     ...times.map(
@@ -24,21 +51,27 @@ const busiest = (times, span) =>
   );
 
 function clock(start = Date.parse("2026-11-15T10:00:00Z")) {
-  const time = { now: start };
-  time.read = () => time.now;
-  time.sleep = async (ms) => {
-    time.now += ms;
+  const time: Clock = {
+    now: start,
+    read: () => time.now,
+    sleep: async (ms) => {
+      time.now += ms;
+    },
   };
   return time;
 }
 
 // A GitHub over fetch that creates issues, and refuses with a secondary limit
 // once when `refuseAt` writes have gone through.
-function fakeFetch(time, { refuseAt = 0 } = {}) {
-  const log = { writes: [], refused: 0, sentWhileHeld: 0 };
+function fakeFetch(time: Clock, { refuseAt = 0 } = {}) {
+  const log: { writes: number[]; refused: number; sentWhileHeld: number } = {
+    writes: [],
+    refused: 0,
+    sentWhileHeld: 0,
+  };
   let heldUntil = 0;
-  const fetch = async (url, options) => {
-    if (options.method === "GET") return new Response("[]", { status: 200 });
+  const fetch: typeof globalThis.fetch = async (_url, options) => {
+    if (options?.method === "GET") return new Response("[]", { status: 200 });
     if (time.now < heldUntil) log.sentWhileHeld += 1;
     log.writes.push(time.now);
     if (refuseAt && log.writes.length === refuseAt) {
@@ -58,7 +91,12 @@ function fakeFetch(time, { refuseAt = 0 } = {}) {
   return { fetch, log };
 }
 
-function client(t, time, fetch, limits) {
+function client(
+  t: TestContext,
+  time: Clock,
+  fetch: typeof globalThis.fetch,
+  limits: { perMinute?: number; perHour?: number },
+) {
   const store = new Store(
       path.join(temporaryDirectory("avoozl-pacer-"), "workspace.sqlite"),
     ),
@@ -78,7 +116,7 @@ function client(t, time, fetch, limits) {
 }
 
 // Makes `count` issues, waiting out each pause the pacer reports.
-async function createAll(github, time, count) {
+async function createAll(github: GitHubClient, time: Clock, count: number) {
   let made = 0,
     pauses = 0;
   while (made < count) {
@@ -89,9 +127,9 @@ async function createAll(github, time, count) {
       });
       made += 1;
     } catch (error) {
-      assert.ok(error.rateLimited, error.message);
+      const until = pauseUntil(error);
       pauses += 1;
-      time.now = Math.max(time.now, error.rateLimited.until);
+      time.now = Math.max(time.now, until);
     }
   }
   return pauses;
@@ -138,7 +176,8 @@ test("a primary limit under 10% left stops writes until its reset", async (t) =>
     });
   await assert.rejects(
     pacer.run({ method: "POST", pathname: "/x" }, async () => {}),
-    (error) => error.paced && error.rateLimited.until === reset * 1000,
+    (error: Paced) =>
+      Boolean(error.paced) && error.rateLimited?.until === reset * 1000,
   );
 });
 
@@ -161,18 +200,20 @@ test("a write cut off before it was recorded is found again on restart", (t) => 
 
 test("GraphQL createIssue and addBlockedBy are one paced write each", async (t) => {
   const time = clock(),
-    sent = [],
-    fetch = async (url, options) => {
-      const path = new URL(url).pathname,
-        body = options.body ? JSON.parse(options.body) : null;
-      if (options.method === "POST") sent.push({ path, body });
+    sent: Sent[] = [],
+    fetch: typeof globalThis.fetch = async (url, options) => {
+      const path = new URL(String(url)).pathname,
+        body: Sent["body"] = options?.body
+          ? JSON.parse(String(options.body))
+          : null;
+      if (options?.method === "POST") sent.push({ path, body });
       if (path === "/repos/o/r")
         return new Response(JSON.stringify({ node_id: "R1" }));
       if (path.startsWith("/repos/o/r/labels/"))
         return new Response(
           JSON.stringify({ node_id: "L_" + path.split("/").pop() }),
         );
-      if (path === "/graphql" && /createIssue/.test(body.query))
+      if (path === "/graphql" && /createIssue/.test(body?.query ?? ""))
         return new Response(
           JSON.stringify({
             data: {
@@ -212,16 +253,16 @@ test("GraphQL createIssue and addBlockedBy are one paced write each", async (t) 
     sent.map((call) => call.path),
     ["/graphql", "/graphql"],
   );
-  assert.deepEqual(sent[0].body.variables.input, {
+  assert.deepEqual(sent[0]?.body?.variables.input, {
     repositoryId: "R1",
     title: "t",
     body: "b",
     parentIssueId: "P1",
     labelIds: ["L_a", "L_b"],
   });
-  assert.match(sent[1].body.query, /addBlockedBy/);
+  assert.match(sent[1]?.body?.query ?? "", /addBlockedBy/);
   assert.equal(
-    store.db.prepare("SELECT COUNT(*) AS n FROM github_write_journal").get().n,
+    store.db.prepare("SELECT COUNT(*) AS n FROM github_write_journal").get()?.n,
     2,
     "each mutation is one write in the journal",
   );
