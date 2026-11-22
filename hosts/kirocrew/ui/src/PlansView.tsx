@@ -83,7 +83,6 @@ import {
   revisionChange,
   revisionDiff,
   type RevisionChange,
-  type ReviewRequestResult,
   type PlanListFilter,
   SORT_FIRST,
   sortRows,
@@ -103,8 +102,7 @@ import { Checkbox } from './ui/Checkbox'
 import { Box } from './ui/Box'
 import { DetailsStyle, SpecRailStyle } from './ui/PageStyles'
 import { FadeText } from './ui/FadeText'
-import { PlainButton, PlainInput, PlainLink, PlainTextarea } from './ui/Plain'
-import { SelectField } from './ui/SelectField'
+import { PlainButton, PlainInput, PlainLink } from './ui/Plain'
 import { PILL, cell } from './ui/looks/PlansView.ts'
 import { TONE } from './ui/tones.ts'
 
@@ -337,239 +335,15 @@ function DocumentTab(props: { docs: SpecDocuments | null; error: string | null; 
   )
 }
 
-function reworkInstruction(request: ReviewRequestResult): string {
-  const comments = request.comments
-    .filter((comment) => comment.state === 'open')
-    .map((comment) => {
-      const location = `${comment.file}${comment.lineStart ? `:${comment.lineStart}` : ''}`
-      const revision = comment.revisionHash === request.revisionHash ? '' : ` (revision ${comment.revisionHash.slice(0, 12)})`
-      return `- [${comment.id}] ${location}${revision}: ${comment.body}`
-    })
-  return [
-    `Revise exactly the changes-requested review of revision ${request.revisionHash}.`,
-    ...(request.reason ? [`Reviewer note: ${request.reason}`] : []),
-    ...(comments.length ? ['Address these durable review comments:', ...comments] : []),
-    `The review snapshot is ${request.commentSnapshot}.`,
-  ].join('\n')
-}
-
-function ReviewTab(props: { workspaceId: string; plan: SpecPlan; client: PlansClient; onChanged: () => Promise<void>; onRework: (request: ReviewRequestResult) => void }) {
-  const files = Object.keys(props.plan.files)
-  const review = props.plan.review ?? {
-    status: 'open',
-    comments: [],
-    openCount: 0,
-    currentOpenCount: 0,
-    commentSnapshot: '',
-    latestRequest: null,
-    activeRequest: null,
-  }
-  const [file, setFile] = useState(files.includes('design.md') ? 'design.md' : (files[0] ?? 'tasks.md'))
-  const [line, setLine] = useState('')
-  const [body, setBody] = useState('')
-  const [reason, setReason] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const mutate = async (action: () => Promise<unknown>) => {
-    setBusy(true)
-    setError(null)
-    try {
-      await action()
-      await props.onChanged()
-    } catch (caught) {
-      setError(errorMessage(caught))
-    } finally {
-      setBusy(false)
-    }
-  }
-  const open = review.comments.filter((comment) => comment.state === 'open')
-  const fieldLook = {
-    'css-border': TONE.hairline,
-    'css-border-radius': '6',
-    'css-background': 'card',
-    'css-color': 'text',
-    'css-padding': '7px-8px',
-    'css-font-size': '13',
-  } as const
-  return (
-    <SpecCard
-      title={`Review · ${review.openCount} open`}
-      actions={
-        review.activeRequest ? (
-          <Hint as="span" size="xs">
-            {review.activeRequest.disposition === 'held' ? 'Held' : 'Changes requested'} {relativeTime(review.activeRequest.requestedAt)}
-          </Hint>
-        ) : undefined
-      }
-    >
-      <Stack gap={3}>
-        {review.activeRequest?.reason && (
-          <Hint as="p" size="sm">
-            Reviewer note: {review.activeRequest.reason}
-          </Hint>
-        )}
-        {review.comments.length ? (
-          <Stack gap={2}>
-            {review.comments.map((comment) => (
-              <Box key={comment.id} css-border={TONE.hairline} css-border-radius="8" css-padding="10px-12px" data-spec-review-comment={comment.id}>
-                <Box flex items="center" justify="between" gap="2">
-                  <Hint as="span" size="xs">
-                    <code>
-                      {comment.file}
-                      {comment.lineStart ? `:${comment.lineStart}` : ''}
-                    </code>{' '}
-                    · {comment.author} · {relativeTime(comment.createdAt)}
-                    {!comment.current ? ' · older revision' : ''}
-                  </Hint>
-                  <Badge variant={comment.state === 'open' ? 'warning' : 'success'}>{comment.state}</Badge>
-                </Box>
-                <Box as="p" css-margin="8px-0-0" size="sm">
-                  {comment.body}
-                </Box>
-                {comment.resolution && (
-                  <Hint as="p" css-margin="6px-0-0" size="xs">
-                    Resolution: {comment.resolution}
-                  </Hint>
-                )}
-                {comment.state === 'open' && (
-                  <Box css-margin-top="8" flex>
-                    <SmallBtn
-                      disabled={busy}
-                      onClick={() => void mutate(() => props.client.resolveComment(props.workspaceId, comment.id, 'Addressed in the current review revision.'))}
-                    >
-                      Resolve
-                    </SmallBtn>
-                  </Box>
-                )}
-              </Box>
-            ))}
-          </Stack>
-        ) : (
-          <Hint as="p" size="sm">
-            No review comments yet.
-          </Hint>
-        )}
-
-        {props.plan.state !== 'approved' && (
-          <>
-            <Box css-border-top={TONE.hairline} css-padding-top="12" flex flexCol gap="2">
-              <Box as="label" htmlFor="spec-review-file" size="sm" css-font-weight="600">
-                Add a comment
-              </Box>
-              <Box flex flexWrap gap="2">
-                <SelectField id="spec-review-file" look="row" value={file} onChange={(event) => setFile(event.target.value)} width="min(22rem, 100%)">
-                  {files.map((name) => (
-                    <option key={name} value={name}>
-                      {name}
-                    </option>
-                  ))}
-                </SelectField>
-                <PlainInput
-                  aria-label="Line number"
-                  inputMode="numeric"
-                  placeholder="Line (optional)"
-                  value={line}
-                  onChange={(event) => setLine(event.target.value)}
-                  css-width="9rem"
-                  {...fieldLook}
-                />
-              </Box>
-              <PlainTextarea
-                aria-label="Review comment"
-                placeholder="What should change, and why?"
-                rows={3}
-                value={body}
-                onChange={(event) => setBody(event.target.value)}
-                {...fieldLook}
-              />
-              <Box flex>
-                <Btn
-                  type="button"
-                  disabled={busy || !body.trim()}
-                  onClick={() =>
-                    void mutate(async () => {
-                      await props.client.comment(props.workspaceId, {
-                        id: props.plan.id,
-                        expectedHash: props.plan.hash,
-                        file,
-                        ...(line.trim() ? { lineStart: Number(line) } : {}),
-                        body,
-                      })
-                      setBody('')
-                      setLine('')
-                    })
-                  }
-                >
-                  Add comment
-                </Btn>
-              </Box>
-            </Box>
-
-            <Box css-border-top={TONE.hairline} css-padding-top="12" flex flexCol gap="2">
-              <Box as="label" htmlFor="spec-review-reason" size="sm" css-font-weight="600">
-                Review decision
-              </Box>
-              <PlainTextarea
-                id="spec-review-reason"
-                placeholder="Optional summary for Request changes; required for Hold."
-                rows={2}
-                value={reason}
-                onChange={(event) => setReason(event.target.value)}
-                {...fieldLook}
-              />
-              <Box flex flexWrap gap="2">
-                {review.status === 'held' ? (
-                  <Btn type="button" disabled={busy} onClick={() => void mutate(() => props.client.resumeReview(props.workspaceId, props.plan.id, props.plan.hash))}>
-                    Resume review
-                  </Btn>
-                ) : (
-                  <>
-                    <Btn
-                      type="button"
-                      disabled={busy || (!open.length && !reason.trim())}
-                      onClick={() =>
-                        void mutate(async () => {
-                          const request = await props.client.requestChanges(props.workspaceId, props.plan.id, props.plan.hash, reason)
-                          setReason('')
-                          props.onRework(request)
-                        })
-                      }
-                    >
-                      Request changes
-                    </Btn>
-                    <Btn
-                      type="button"
-                      disabled={busy || !reason.trim()}
-                      onClick={() =>
-                        void mutate(async () => {
-                          await props.client.holdReview(props.workspaceId, props.plan.id, props.plan.hash, reason)
-                          setReason('')
-                        })
-                      }
-                    >
-                      Hold
-                    </Btn>
-                  </>
-                )}
-              </Box>
-            </Box>
-          </>
-        )}
-        {error && <ErrorText size="sm">{error}</ErrorText>}
-      </Stack>
-    </SpecCard>
-  )
-}
-
 // The tabs a spec page has: Overview, Tasks, and one per document in the
 // spec folder. The files come from the folder, in reading order.
 export function specTabNames(docs: SpecDocuments | null, hasPlan: boolean): string[] {
   if (!hasPlan) return []
   const files = Object.keys(docs?.documents ?? {})
   const first = documentTabs(docs).map((t) => t.file)
-  return ['overview', 'review', 'tasks', ...first, ...files.filter((f) => !first.includes(f)).sort()]
+  return ['overview', 'tasks', ...first, ...files.filter((f) => !first.includes(f)).sort()]
 }
-const TAB_NAME: Record<string, string> = { overview: 'Overview', review: 'Review', tasks: 'Tasks' }
+const TAB_NAME: Record<string, string> = { overview: 'Overview', tasks: 'Tasks' }
 
 // The spec page's tab bar: one tab per view and spec file. Arrow keys, Home
 // and End move between tabs (WAI-ARIA tabs).
@@ -627,7 +401,6 @@ function SpecDetail(props: {
   // The open tab (SpecTabs) and, for the Overview, the spec details box.
   tab: string
   details: ReactNode
-  review: ReactNode
   onTasks: () => void
 }) {
   const { spec, plan, preview, tab } = props
@@ -694,9 +467,7 @@ function SpecDetail(props: {
         </>
       )}
 
-      {plan && tab === 'review' && props.review}
-
-      {plan && tab !== 'overview' && tab !== 'review' && tab !== 'tasks' && <DocumentTab key={tab} docs={props.docs} error={props.docsError} file={tab} />}
+      {plan && tab !== 'overview' && tab !== 'tasks' && <DocumentTab key={tab} docs={props.docs} error={props.docsError} file={tab} />}
 
       {!plan && (
         <>
@@ -2185,12 +1956,6 @@ export default function PlansView(props: {
     })
   }
   const importRow = (next: PlanRow) => next.spec && act((workspaceId) => plans.store(workspaceId, next.spec!))
-  const refreshOpenPlan = async () => {
-    if (!workspace || !row?.planId) return
-    const next = await plans.table(workspace)
-    setTable(next)
-    await loadPlan(workspace, row.planId)
-  }
   const rows = table ? filterRows(table.items, filter) : []
   const specActions = (row: PlanRow): SpecActions => {
     const actions = rowActions(row)
@@ -2298,24 +2063,6 @@ export default function PlansView(props: {
               onOpenRef={openRef}
               tab={shownTab}
               details={<SpecDetailsBox>{specRail}</SpecDetailsBox>}
-              review={
-                plan && workspace ? (
-                  <ReviewTab
-                    workspaceId={workspace}
-                    plan={plan}
-                    client={plans}
-                    onChanged={refreshOpenPlan}
-                    onRework={(request) =>
-                      runInChat({
-                        kind: 'spec',
-                        spec: plan.spec,
-                        review: false,
-                        instruction: reworkInstruction(request),
-                      })
-                    }
-                  />
-                ) : null
-              }
               onTasks={() => pickTab('tasks')}
             />
           ) : null}

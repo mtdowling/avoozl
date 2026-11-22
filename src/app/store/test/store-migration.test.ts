@@ -5,11 +5,7 @@ import { Store } from "../store.ts";
 import { snapshot } from "../../test/fixtures.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
 
-const postMainTables = [
-  "github_repositories",
-  "plan_review_comments",
-  "plan_review_requests",
-];
+const postMainTables = ["github_repositories"];
 
 test("same-database upgrade and SQLite backup preserve durable workspace history", () => {
   const root = temporaryDirectory("avoozl-migration-"),

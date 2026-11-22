@@ -1362,14 +1362,7 @@ export function taskDetailView(
             message: `This task comes from the approved spec ${plan.title || plan.id}. Its title, description and steps are the spec's: change them there.`,
           }
         : null;
-  const timeline = taskTimeline(detail, delivery),
-    approval =
-      plan?.approvalId &&
-      store.get<{
-        id: string;
-        hash?: string;
-        review?: { commentSnapshot?: string; commentIds?: string[] };
-      }>("approvals", plan.approvalId);
+  const timeline = taskTimeline(detail, delivery);
   return {
     revision: data.revision,
     task: {
@@ -1424,16 +1417,8 @@ export function taskDetailView(
       id: plan.id,
       title: plan.title ?? plan.id,
       spec: plan.spec ?? null,
-      hash: plan.hash ?? null,
       state: plan.state ?? null,
       approved,
-      approval: approval
-        ? {
-            id: approval.id,
-            hash: approval.hash ?? null,
-            review: approval.review ?? null,
-          }
-        : null,
     },
     locked,
     waitsOn: blocking.filter((e) => e.to === id).map((e) => edge(e, e.from)),
