@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt, see the commit message
 // Shared steps for the live proofs that run Avoozl as a machine of its own
 // under a temporary HOME. Avoozl's modules are imported only when called, so
 // a script sets XDG_CONFIG_HOME and XDG_STATE_HOME first.
@@ -9,10 +8,52 @@ import path from "node:path";
 import { parseArgs } from "node:util";
 import { claudeBinaries } from "./real-claude.ts";
 
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+// A thrown value as text.
+const messageOf = (error: unknown) =>
+  error instanceof Error ? error.message : String(error);
+// What proofRun answers: the run's paths, commands and settings.
+export type ProofRun = ReturnType<typeof proofRun>;
+// This machine's Avoozl folders.
+type Machine = { configDirectory: string; stateDirectory: string };
+// A test crew chat, as its dashboard lists it.
+export interface CrewSlot {
+  key: string;
+  status?: string;
+  busy?: boolean;
+  running?: boolean;
+  trust?: unknown;
+  mode?: unknown;
+  pending_approval_info?: {
+    request_id?: string;
+    request_mid?: string;
+    origin?: string;
+    tool?: unknown;
+  } | null;
+  [key: string]: unknown;
+}
+// The stderr a failed command printed, or none.
+export const stderrOf = (error: unknown) =>
+  String(error instanceof Error && "stderr" in error ? error.stderr : "");
+// A message for a person or a failure the tick raised.
+type Notice = { channel?: string; title?: string; text?: string };
+
+// The cleanups a proof runs at its end, and a test context stand-in that
+// collects them for the test fixtures a proof reuses.
+export function cleanupList() {
+  const cleanups: (() => unknown)[] = [];
+  return {
+    cleanups,
+    t: {
+      after: (fn: () => unknown) => {
+        cleanups.push(fn);
+      },
+    },
+  };
+}
 
 // The machine's Avoozl folders, refused unless both are under `home`.
-export async function isolatedMachine(home) {
+export async function isolatedMachine(home: string) {
   const { machineAvoozlPaths } = await import(
     "../../src/app/settings/host-config.ts"
   );
@@ -25,9 +66,9 @@ export async function isolatedMachine(home) {
 // Write and approve a harness definition. With `unconfined`, a host with no
 // sandbox runs it anyway (the fake agent only). Returns its hash.
 export async function installHarness(
-  configDirectory,
-  name,
-  bytes,
+  configDirectory: string,
+  name: string,
+  bytes: string | Buffer,
   { unconfined = false } = {},
 ) {
   const { approveHarnessDefinition, harnessDefinitionHash } = await import(
@@ -51,7 +92,17 @@ export async function installHarness(
 
 // The command line every headless proof takes, and the paths under --root.
 // `prefix` names its environment overrides (NKP1_CLAUDE, NKP1_MODEL, ...).
-export function proofRun({ tag, prefix, script, proxyPort }) {
+export function proofRun({
+  tag,
+  prefix,
+  script,
+  proxyPort,
+}: {
+  tag: string;
+  prefix: string;
+  script: string;
+  proxyPort: number;
+}) {
   const repo = path.resolve(path.dirname(script), "..", "..");
   const { values, positionals } = parseArgs({
     args: process.argv.slice(2),
@@ -68,7 +119,7 @@ export function proofRun({ tag, prefix, script, proxyPort }) {
     );
     process.exit(64);
   }
-  const agent = values.agent;
+  const agent = values.agent ?? "claude";
   if (!["claude", "fake"].includes(agent))
     throw Error("--agent is claude or fake");
   const root = path.resolve(values.root);
@@ -84,7 +135,7 @@ export function proofRun({ tag, prefix, script, proxyPort }) {
     proxyLog: path.join(root, "proxy.log"),
     backendLog: path.join(root, "backend.log"),
   };
-  const event = (kind, data = {}) => {
+  const event = (kind: string, data: Record<string, unknown> = {}) => {
     const line = { at: new Date().toISOString(), kind, ...data };
     fs.mkdirSync(root, { recursive: true });
     fs.appendFileSync(paths.events, JSON.stringify(line) + "\n");
@@ -118,9 +169,9 @@ export function proofRun({ tag, prefix, script, proxyPort }) {
     paths,
     db: path.join(paths.ws, ".avoozl", "local", "workspace.sqlite"),
     event,
-    git: (cwd, ...args) =>
+    git: (cwd: string, ...args: string[]) =>
       execFileSync("git", args, { cwd, encoding: "utf8" }).trim(),
-    cli: (...args) =>
+    cli: (...args: string[]) =>
       execFileSync(process.execPath, [cli, ...args], {
         encoding: "utf8",
         env: process.env,
@@ -130,7 +181,7 @@ export function proofRun({ tag, prefix, script, proxyPort }) {
 }
 
 // The isolated home under --root, set before any Avoozl module loads.
-export function isolateHome(root) {
+export function isolateHome(root: string) {
   const home = path.join(root, "home");
   process.env.XDG_CONFIG_HOME = path.join(home, "config");
   process.env.XDG_STATE_HOME = path.join(home, "state");
@@ -141,7 +192,20 @@ export function isolateHome(root) {
 }
 
 // A bare remote and its checkout holding `files`, pushed to main.
-export function scratchRepository(run, { name, email, files, message }) {
+export function scratchRepository(
+  run: ProofRun,
+  {
+    name,
+    email,
+    files,
+    message,
+  }: {
+    name: string;
+    email: string;
+    files: Record<string, string>;
+    message: string;
+  },
+) {
   const { git, paths } = run;
   git(run.root, "init", "-q", "--bare", "-b", "main", paths.origin);
   git(run.root, "clone", "-q", paths.origin, paths.checkout);
@@ -161,8 +225,12 @@ export function scratchRepository(run, { name, email, files, message }) {
 // The harness definition: Claude Code on Bedrock, or the fake agent the
 // script wrote. Installed and approved; the fake runs unconfined on a host
 // with no sandbox.
-export async function proofHarness(run, machine, fakeAgent) {
-  let bytes;
+export async function proofHarness(
+  run: ProofRun,
+  machine: Machine,
+  fakeAgent: string,
+) {
+  let bytes: string;
   if (run.agent === "claude") {
     const definition = JSON.parse(
       fs.readFileSync(
@@ -214,7 +282,11 @@ export async function proofHarness(run, machine, fakeAgent) {
 
 // The scratch repository's row: direct landing on the `process` executor,
 // its one check allowed in the sandbox, and only the model proxy reachable.
-export function processRepository(run, check, extra = {}) {
+export function processRepository(
+  run: ProofRun,
+  check: string[],
+  extra: Record<string, unknown> = {},
+) {
   return {
     id: "app",
     root: fs.realpathSync.native(run.paths.checkout),
@@ -241,9 +313,10 @@ export function processRepository(run, check, extra = {}) {
 
 // The children's environment: Claude Code on Bedrock with credentials from
 // `claude default-credential-export`, through the loopback model proxy.
-export function agentEnv(run, { noProxy = "" } = {}) {
+export function agentEnv(run: ProofRun, { noProxy = "" } = {}) {
   const env = { ...process.env };
   if (run.agent !== "claude") return env;
+  if (!run.claudeChild) throw Error("No real Claude Code binary found.");
   const settings = JSON.parse(
     fs.readFileSync(
       path.join(os.homedir(), ".claude", "settings.json"),
@@ -276,9 +349,20 @@ export function agentEnv(run, { noProxy = "" } = {}) {
 // again, every 3 s until `seconds` pass or the prover writes stop-backend.
 // `between(store, log)` runs after each drain.
 export async function runBackend(
-  run,
-  machine,
-  { seconds, env, between = () => {} },
+  run: ProofRun,
+  machine: Machine,
+  {
+    seconds,
+    env,
+    between = () => {},
+  }: {
+    seconds: number;
+    env: NodeJS.ProcessEnv;
+    between?: (
+      store: InstanceType<typeof import("../../src/app/store/store.ts").Store>,
+      log: (line: string) => void,
+    ) => void;
+  },
 ) {
   const { Store } = await import("../../src/app/store/store.ts");
   const { Operations } = await import("../../src/app/api/operations.ts");
@@ -312,7 +396,7 @@ export async function runBackend(
     configDirectory: machine.configDirectory,
   });
   const end = Date.now() + seconds * 1000;
-  const log = (line) =>
+  const log = (line: string) =>
     fs.appendFileSync(
       run.paths.backendLog,
       `${new Date().toISOString()} [${process.pid}] ${line}\n`,
@@ -321,7 +405,10 @@ export async function runBackend(
   while (Date.now() < end) {
     supervise();
     try {
-      const tick = await ops.execute("workspace.tick", { cron: true });
+      const tick = await ops.execute<{
+        dispatch?: { task?: string; role?: string; executor?: string }[];
+        notify?: Notice[];
+      }>("workspace.tick", { cron: true });
       if (tick.dispatch?.length)
         log(
           `tick dispatch ${JSON.stringify(tick.dispatch.map((d) => [d.task, d.role, d.executor]))}`,
@@ -330,7 +417,7 @@ export async function runBackend(
         if (notice.channel === "failure")
           log(`tick failure ${notice.title}: ${notice.text}`);
     } catch (error) {
-      log(`tick error ${error.message}`);
+      log(`tick error ${messageOf(error)}`);
     }
     try {
       const { errors } = await drainProcessRequests(store, {
@@ -342,12 +429,12 @@ export async function runBackend(
       await drainCheckRuns(store);
       supervise();
     } catch (error) {
-      log(`drain failure ${error.message}`);
+      log(`drain failure ${messageOf(error)}`);
     }
     try {
       between(store, log);
     } catch (error) {
-      log(`between failure ${error.message}`);
+      log(`between failure ${messageOf(error)}`);
     }
     if (fs.existsSync(path.join(run.root, "stop-backend"))) break;
     await sleep(3000);
@@ -358,8 +445,13 @@ export async function runBackend(
 
 // The backend as a child of the prover (this same script, `backend`), and
 // the model proxy when the agent is Claude Code.
-export async function startMachine(run, script, seconds, preflight = null) {
-  let proxy = null;
+export async function startMachine(
+  run: ProofRun,
+  script: string,
+  seconds: number,
+  preflight: (() => Promise<unknown>) | null = null,
+) {
+  let proxy: ReturnType<typeof spawn> | null = null;
   if (run.agent === "claude") {
     proxy = spawn(
       process.execPath,
@@ -409,9 +501,23 @@ export async function startMachine(run, script, seconds, preflight = null) {
 // It must exit 0 with a call through the proxy; else the proof stops in
 // seconds with the child's log. Its binding and request are removed after.
 export async function preflightModel(
-  run,
-  machine,
-  { role, repository, record = null, env },
+  run: ProofRun,
+  machine: Machine,
+  {
+    role,
+    repository,
+    record = null,
+    env,
+  }: {
+    role: string;
+    repository: string;
+    record?: {
+      id: string;
+      table: string;
+      row: { id: string; [key: string]: unknown };
+    } | null;
+    env: NodeJS.ProcessEnv;
+  },
 ) {
   const { Store } = await import("../../src/app/store/store.ts");
   const { kirocrewRequest } = await import(
@@ -443,8 +549,8 @@ export async function preflightModel(
   fs.mkdirSync(folder, { recursive: true });
   const task = record?.id ?? "preflight";
   const store = new Store(run.db);
-  let slot = null,
-    request = null;
+  let slot: string | null = null,
+    request: ReturnType<typeof kirocrewRequest> | null = null;
   try {
     if (record) store.put(record.table, record.row);
     request = kirocrewRequest(store, {
@@ -467,8 +573,9 @@ export async function preflightModel(
     if (errors.length)
       throw Error(`Preflight: the drain refused the start: ${errors[0].error}`);
     slot =
-      store.list("session_bindings").find((entry) => entry.taskId === task)
-        ?.slot ?? null;
+      store
+        .list<{ id: string; taskId: string; slot: string }>("session_bindings")
+        .find((entry) => entry.taskId === task)?.slot ?? null;
   } finally {
     store.close();
   }
@@ -489,13 +596,13 @@ export async function preflightModel(
   const cleanup = new Store(run.db);
   try {
     cleanup.remove("session_bindings", slot);
-    cleanup.remove("session_requests", request.id);
+    if (request) cleanup.remove("session_requests", request.id);
     if (record) cleanup.remove(record.table, record.id);
   } finally {
     cleanup.close();
   }
-  const tail = (file, lines) =>
-    fs.existsSync(file ?? "")
+  const tail = (file: string | null | undefined, lines: number) =>
+    file && fs.existsSync(file)
       ? fs.readFileSync(file, "utf8").trim().split("\n").slice(-lines)
       : [];
   const network = JSON.parse(row?.settings || "{}").network ?? null;
@@ -514,7 +621,7 @@ export async function preflightModel(
 
 // A file's text on origin's main, or null when it is not there: landed
 // means on the remote, not only a delivery state.
-export function originFile(run, file) {
+export function originFile(run: ProofRun, file: string) {
   try {
     return execFileSync("git", ["show", `main:${file}`], {
       cwd: run.paths.origin,
@@ -527,7 +634,7 @@ export function originFile(run, file) {
 }
 
 // Claude Code needs sandbox-exec, which refuses to nest (inside Kiro Crew).
-export async function needSandbox(run, tag) {
+export async function needSandbox(run: ProofRun, tag: string) {
   const { sandboxKind } = await import("../../src/app/executors/sandbox.ts");
   if (run.agent === "claude" && !sandboxKind())
     throw Error(
@@ -536,19 +643,20 @@ export async function needSandbox(run, tag) {
 }
 
 // The one line a proof prints last.
-export function printResult(run, tag, pass) {
+export function printResult(run: ProofRun, tag: string, pass: boolean) {
   console.log(
     `${tag} ${pass ? "PASS" : "FAIL"}${run.agent === "fake" ? " (fake agent: plumbing only, not the proof)" : ""}`,
   );
 }
 
 // The git, gh, Avoozl CLI and sleep helpers a proof script runs with.
-export function proofCommands(cliPath) {
+export function proofCommands(cliPath: string) {
   return {
-    git: (cwd, ...args) =>
+    git: (cwd: string, ...args: string[]) =>
       execFileSync("git", args, { cwd, encoding: "utf8" }).trim(),
-    gh: (...args) => execFileSync("gh", args, { encoding: "utf8" }).trim(),
-    cli: (...args) =>
+    gh: (...args: string[]) =>
+      execFileSync("gh", args, { encoding: "utf8" }).trim(),
+    cli: (...args: string[]) =>
       execFileSync(process.execPath, [cliPath, ...args], {
         encoding: "utf8",
         env: process.env,
@@ -560,8 +668,13 @@ export function proofCommands(cliPath) {
 // A throwaway test crew's dashboard API (live-harness.sh) through its saved
 // sign-in cookie. A session that has lapsed is refreshed once with the
 // cookie's refresh part, as the dashboard itself does.
-export function crewApi({ harnessDir, port }, method, route, body) {
-  const call = (method, route, body) => {
+export function crewApi<T = unknown>(
+  { harnessDir, port }: { harnessDir: string; port: string | number },
+  method: string,
+  route: string,
+  body?: unknown,
+): T {
+  const call = (method: string, route: string, body?: unknown) => {
     const cookies = path.join(harnessDir, "cookies.txt");
     const out = execFileSync(
       "curl",
@@ -596,7 +709,12 @@ export function crewApi({ harnessDir, port }, method, route, body) {
 
 // `avoozl tick` every `everyMs`, each its own process, as a timer runs it,
 // with its output appended to `log`. stop() waits for the pass running.
-export function tickTimer(cliPath, log, everyMs, env = process.env) {
+export function tickTimer(
+  cliPath: string,
+  log: string,
+  everyMs: number,
+  env = process.env,
+) {
   let stopped = false;
   const runs = (async () => {
     while (!stopped) {

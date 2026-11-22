@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt, see the commit message
 // Proof ms-p2 and ms-p3 (machine-server D6, D7), and ms-roles (without-kirocrew
 // D8): every role of Avoozl on one harness, with no front end open. A timer
 // runs `avoozl tick` every 10 seconds, each a process of its own that runs one
@@ -40,6 +39,9 @@ import {
   tickTimer,
 } from "./machine.ts";
 import { ROWS } from "./ms-roles-rows.ts";
+import type { SessionBinding } from "../../src/app/sessions/session-bindings.ts";
+// The workspace store (its module loads only after the home is set).
+type Store = import("../../src/app/store/store.ts").Store;
 import { realClaude, realCodex } from "./real-claude.ts";
 
 const REPO_ROOT = path.resolve(
@@ -49,7 +51,7 @@ const REPO_ROOT = path.resolve(
 );
 const CLI = path.join(REPO_ROOT, "cli.ts");
 const PROXY_PORT = Number(process.env.MSR_PROXY_PORT || 18462);
-const which = (name) =>
+const which = (name: string) =>
   spawnSync(`command -v ${name}`, {
     shell: true,
     encoding: "utf8",
@@ -64,9 +66,12 @@ const { values } = parseArgs({
     probes: { type: "boolean", default: false },
   },
 });
-const AGENT = { "claude-code": "claude", codex: "codex", "fake-cli": "fake" }[
-  values.harness
-];
+const AGENTS: Record<string, string> = {
+  "claude-code": "claude",
+  codex: "codex",
+  "fake-cli": "fake",
+};
+const AGENT = AGENTS[values.harness ?? ""];
 if (!values.root || !AGENT) {
   console.error(
     "Usage: node scripts/proofs/proof-ms-roles-live.ts --root DIR --github OWNER/SCRATCH --harness claude-code|codex [--probes] | --root DIR --harness fake-cli --offline",
@@ -80,17 +85,18 @@ if (!OFFLINE && !/^[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$/.test(values.github ?? ""))
   throw Error("--github names the scratch repository as OWNER/NAME.");
 const GITHUB = values.github ?? null;
 const ROOT = path.resolve(values.root);
-const HARNESS = values.harness;
+const HARNESS = values.harness ?? "claude-code";
 const TAG = "msr";
 const SPEC = `${TAG}-notes`;
 // The discussion category the responder answers in: one GitHub makes when
 // discussions are turned on.
 const CATEGORY = "Q&A";
-const MODEL = {
+const MODELS: Record<string, string> = {
   claude: process.env.MSR_MODEL || "global.anthropic.claude-sonnet-5",
   codex: process.env.MSR_MODEL || "openai.gpt-5.6-luna",
   fake: "fake-writer",
-}[AGENT];
+};
+const MODEL = MODELS[AGENT];
 
 // The isolated Avoozl home, set before any Avoozl module loads; no Kiro Crew.
 const HOME = path.join(ROOT, "home");
@@ -115,7 +121,7 @@ const P = {
 const DB = path.join(P.ws, ".avoozl", "local", "workspace.sqlite");
 const MACHINE = await isolatedMachine(HOME);
 
-const event = (kind, data = {}) => {
+const event = (kind: string, data: Record<string, unknown> = {}) => {
   fs.mkdirSync(ROOT, { recursive: true });
   fs.appendFileSync(
     P.events,
@@ -124,7 +130,7 @@ const event = (kind, data = {}) => {
   console.log(`[ms-roles] ${kind} ${JSON.stringify(data)}`);
 };
 const { git, gh, cli, sleep } = proofCommands(CLI);
-const withStore = async (use) => {
+const withStore = async <T>(use: (store: Store) => T | Promise<T>) => {
   const { Store } = await import("../../src/app/store/store.ts");
   const store = new Store(DB);
   try {
@@ -133,7 +139,7 @@ const withStore = async (use) => {
     store.close();
   }
 };
-const operations = async (store) => {
+const operations = async (store: Store) => {
   const { Operations } = await import("../../src/app/api/operations.ts");
   return new Operations(store, {
     workspaceRoot: P.ws,
@@ -357,7 +363,9 @@ async function setup() {
       path.join(folder, "tasks.md"),
       "# Tasks\n\n- [ ] `notes-1` Write notes/beta.txt\n  - notes/beta.txt holds beta and a newline, and node check.mjs prints ok\n",
     );
-    const planned = await ops.execute("plan.create", { spec: SPEC });
+    const planned = await ops.execute<{ id?: string }>("plan.create", {
+      spec: SPEC,
+    });
     event("step1.spec", { name: planned.id });
   });
   event("setup.done");
@@ -397,33 +405,55 @@ function agentEnv() {
 
 async function state() {
   return withStore(async (store) => {
-    const plan = store.get("plans", SPEC);
+    const plan = store.get<{ id: string; state?: string; hash?: string }>(
+      "plans",
+      SPEC,
+    );
     const tasks = store.read().tasks.filter((t) => t.planId === SPEC);
     return {
       plan: plan ? { state: plan.state, hash: plan.hash } : null,
       tasks: tasks.map((t) => ({
         id: t.id,
-        delivery: store.get("task_deliveries", t.id)?.state ?? null,
+        delivery:
+          store.get<{ id: string; state?: string }>("task_deliveries", t.id)
+            ?.state ?? null,
       })),
       responses: store
-        .list("github_responses")
+        .list<{ id: string; state?: string; commentUrl?: string }>(
+          "github_responses",
+        )
         .map((r) => ({ state: r.state, commentUrl: r.commentUrl ?? null })),
-      bindings: store.list("session_bindings").map((b) => ({
+      bindings: store.list<SessionBinding>("session_bindings").map((b) => ({
         role: b.role,
         executor: b.executor ?? "kirocrew",
         status: b.status,
       })),
-      requests: store.list("session_requests").map((r) => ({
-        role: r.request?.role ?? null,
-        executor: r.executor,
-        state: r.state,
-        reason: r.reason ?? null,
-      })),
+      requests: store
+        .list<{
+          id: string;
+          executor?: string;
+          state?: string;
+          reason?: string;
+          request?: { role?: string };
+        }>("session_requests")
+        .map((r) => ({
+          role: r.request?.role ?? null,
+          executor: r.executor,
+          state: r.state,
+          reason: r.reason ?? null,
+        })),
     };
   });
 }
 
-async function until(what, check, minutes) {
+// What state() reads.
+type State = Awaited<ReturnType<typeof state>>;
+
+async function until(
+  what: string,
+  check: (now: State) => boolean,
+  minutes: number,
+) {
   const end = Date.now() + minutes * 60_000;
   for (;;) {
     const now = await state();
@@ -439,12 +469,15 @@ async function until(what, check, minutes) {
   }
 }
 
-async function liveProbes(minutes) {
+async function liveProbes(minutes: number) {
   const { probeArgv, RUN_PROBES } = await import(
     "../../src/app/sandbox-probes.ts"
   );
   const listener = net.createServer((socket) => socket.end());
-  await new Promise((resolve) => listener.listen(0, "127.0.0.1", resolve));
+  await new Promise<void>((resolve) =>
+    listener.listen(0, "127.0.0.1", resolve),
+  );
+  const address = listener.address();
   const folder = path.join(P.ws, "probes");
   fs.mkdirSync(folder, { recursive: true });
   const probes = probeArgv({
@@ -456,7 +489,7 @@ async function liveProbes(minutes) {
     state_directory: MACHINE.stateDirectory,
     other_temp: path.join(os.tmpdir(), "avoozl-probe-other"),
     public_host: "example.com",
-    closed_port: listener.address().port,
+    closed_port: typeof address === "object" && address ? address.port : 0,
     workspace_database: DB,
     keychain_service: "Claude Code-credentials",
     keep_env: "",
@@ -477,7 +510,7 @@ async function liveProbes(minutes) {
     );
   });
   const before = Date.now();
-  let results = null;
+  let results: Record<string, number> | null = null;
   while (!results && Date.now() - before < minutes * 60_000) {
     for (const log of childLogs("assist"))
       for (const line of log.split("\n"))
@@ -492,13 +525,16 @@ async function liveProbes(minutes) {
   listener.close();
   // A probe that got through leaves its file; take it away again.
   for (const probe of probes)
-    if (probe.class === "write") fs.rmSync(probe.argv.at(-1), { force: true });
+    if (probe.class === "write")
+      fs.rmSync(probe.argv.at(-1) ?? "", { force: true });
   event("probes", { results });
-  return Boolean(results) && Object.values(results).every((code) => code !== 0);
+  return (
+    Boolean(results) && Object.values(results ?? {}).every((code) => code !== 0)
+  );
 }
 
 // The logs of every child of this role.
-function childLogs(role) {
+function childLogs(role: string) {
   const children = path.join(MACHINE.stateDirectory, "supervisor", "children");
   if (!fs.existsSync(children)) return [];
   return fs
@@ -509,7 +545,11 @@ function childLogs(role) {
     .filter((text) => role === "assist" || text.includes(role));
 }
 
-async function untilTrue(what, check, minutes) {
+async function untilTrue(
+  what: string,
+  check: () => boolean | Promise<boolean>,
+  minutes: number,
+) {
   const end = Date.now() + minutes * 60_000;
   while (Date.now() < end) {
     if (await check()) return event(`${what}.done`);
@@ -519,7 +559,7 @@ async function untilTrue(what, check, minutes) {
 }
 
 // Whether a child of this role has exited, on the machine's supervisor.
-async function childExited(role) {
+async function childExited(role: string) {
   const { openSupervisorDatabase } = await import(
     "../../src/app/executors/supervisor.ts"
   );
@@ -548,9 +588,9 @@ async function rolesOnHarness() {
     const rows = db
       .prepare("SELECT role, state, exit_code, error FROM children")
       .all();
-    const byRole = {};
+    const byRole: Record<string, { ran: number; refused: unknown[] }> = {};
     for (const row of rows) {
-      const entry = (byRole[row.role] ??= { ran: 0, refused: [] });
+      const entry = (byRole[String(row.role)] ??= { ran: 0, refused: [] });
       if (row.exit_code === -1 && row.error) entry.refused.push(row.error);
       else entry.ran += 1;
     }
@@ -574,7 +614,18 @@ function harnessVersion() {
 
 // One result per row: ok when every role it drives ran on `process`, FAIL when
 // one did not, skipped when the row cannot run offline or is not driven.
-async function rowResults(roles, { lineStopped }) {
+async function rowResults(
+  roles: Record<string, { ran: number }>,
+  { lineStopped }: { lineStopped: boolean },
+): Promise<
+  {
+    id: string;
+    scenario: string;
+    result: string;
+    state: string;
+    note?: string;
+  }[]
+> {
   const { rowFor } = await import("../../src/app/agents/role-table.ts");
   const ran = new Set(
     Object.entries(roles)
@@ -607,7 +658,7 @@ async function prove() {
       "No sandbox here (inside another sandbox?). Run ms-roles from a terminal outside Kiro Crew.",
     );
   await setup();
-  let proxy = null;
+  let proxy: ReturnType<typeof spawn> | null = null;
   if (AGENT !== "fake") {
     proxy = spawn(
       process.execPath,
@@ -626,7 +677,7 @@ async function prove() {
   const timer = tickTimer(CLI, P.tickLog, 10_000, agentEnv());
   event("timer.start", { everySeconds: 10 });
   const minutes = AGENT === "fake" ? 8 : 60;
-  const expected = {};
+  const expected: Record<string, boolean> = {};
   try {
     // (1) The spec folder is a draft.
     let now = await until("step1.spec", (s) => Boolean(s.plan?.hash), minutes);
@@ -643,7 +694,7 @@ async function prove() {
         P.ws,
         "--yes",
         "--expect",
-        now.plan.hash.slice(0, 16),
+        String(now.plan.hash).slice(0, 16),
       );
       // With GitHub, the spec's issue is made here, a person's act.
       if (GITHUB) cli("spec", "publish", SPEC, "--workspace", P.ws);
@@ -672,7 +723,7 @@ async function prove() {
         ),
       ).data.repository;
       const category = repo.discussionCategories.nodes.find(
-        (node) => node.name === CATEGORY,
+        (node: { id: string; name: string }) => node.name === CATEGORY,
       );
       if (!category) throw Error(`${GITHUB} has no ${CATEGORY} category.`);
       const discussion = JSON.parse(

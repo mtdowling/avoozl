@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt, see the commit message
 // Proof ms-p7 (machine-server MS12, design D5): the Kiro Crew cron is the
 // machine's timer. On a throwaway test Kiro Crew with its own home and port,
 // the cron runs the tick pass, opens the task's lane chats, sends the
@@ -26,7 +25,10 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
-import { crewApi, proofCommands } from "./machine.ts";
+import { crewApi, proofCommands, stderrOf } from "./machine.ts";
+import type { CrewSlot } from "./machine.ts";
+import type { Delivery } from "../../src/app/delivery/delivery.ts";
+import type { SessionBinding } from "../../src/app/sessions/session-bindings.ts";
 
 const REPO = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -79,7 +81,7 @@ const MACHINE = machineAvoozlPaths();
 if (!MACHINE.configDirectory.startsWith(CREW + path.sep))
   throw Error(`Not the test crew's Avoozl: ${MACHINE.configDirectory}`);
 
-const event = (kind, data = {}) => {
+const event = (kind: string, data: Record<string, unknown> = {}) => {
   fs.mkdirSync(ROOT, { recursive: true });
   const line = { at: new Date().toISOString(), kind, ...data };
   fs.appendFileSync(P.events, JSON.stringify(line) + "\n");
@@ -120,10 +122,10 @@ function writeWorkerAgent() {
 }
 
 async function setup() {
-  const repo = values.github;
+  const repo = values.github ?? "";
   if (
     !/^[A-Za-z0-9-]+\/[A-Za-z0-9._-]*(scratch|proof|throwaway)[A-Za-z0-9._-]*$/.test(
-      repo ?? "",
+      repo,
     )
   )
     throw Error(
@@ -212,10 +214,18 @@ async function setup() {
 }
 
 // The test crew's dashboard API through the harness's saved cookie.
-const api = (method, route, body) =>
-  crewApi({ harnessDir: HARNESS_DIR, port: values.port }, method, route, body);
-const listSlots = () => {
-  const listed = api("GET", "/api/chat/slots");
+const api = <T = unknown>(method: string, route: string, body?: unknown) =>
+  crewApi<T>(
+    { harnessDir: HARNESS_DIR, port: values.port ?? "5713" },
+    method,
+    route,
+    body,
+  );
+const listSlots = (): CrewSlot[] => {
+  const listed = api<CrewSlot[] | { slots?: CrewSlot[] } | null>(
+    "GET",
+    "/api/chat/slots",
+  );
   return Array.isArray(listed) ? listed : (listed?.slots ?? []);
 };
 
@@ -223,7 +233,7 @@ async function state() {
   const { Store } = await import("../../src/app/store/store.ts");
   const store = new Store(DB);
   try {
-    const delivery = store.get("task_deliveries", TASK);
+    const delivery = store.get<Delivery>("task_deliveries", TASK);
     return {
       delivery: delivery?.state ?? null,
       verifications: (delivery?.verifications ?? []).map((v) => ({
@@ -233,7 +243,7 @@ async function state() {
         verdict: v.verdict,
         cause: v.cause,
       })),
-      bindings: store.list("session_bindings").map((b) => ({
+      bindings: store.list<SessionBinding>("session_bindings").map((b) => ({
         id: b.id,
         slot: b.slot,
         role: b.role,
@@ -243,7 +253,12 @@ async function state() {
         executor: b.executor ?? "kirocrew",
       })),
       sends: store
-        .list("session_requests")
+        .list<{
+          id: string;
+          kind?: string;
+          state?: string;
+          request?: { slot?: string; text?: unknown };
+        }>("session_requests")
         .filter((r) => r.kind === "send")
         .map((r) => ({
           id: r.id,
@@ -259,13 +274,17 @@ async function state() {
 
 // The tick cron's own job, and what its runs did.
 function cronRuns() {
-  const jobs = api("GET", "/api/crons");
+  type Job = { id: string; [key: string]: unknown };
+  const jobs = api<Job[] | { jobs?: Job[]; items?: Job[] }>(
+    "GET",
+    "/api/crons",
+  );
   const list = Array.isArray(jobs) ? jobs : (jobs.jobs ?? jobs.items ?? []);
   const job = list.find(
     (j) => /avoozl/i.test(JSON.stringify(j)) && /tick/i.test(JSON.stringify(j)),
   );
   if (!job) return { job: null, runs: [] };
-  const history = api(
+  const history = api<unknown[] | { runs?: unknown[]; items?: unknown[] }>(
     "GET",
     `/api/crons/${encodeURIComponent(job.id)}/history`,
   );
@@ -288,16 +307,16 @@ function approve() {
     );
     event("draft", { spec: SPEC });
   } catch (error) {
-    if (!/already/i.test(String(error.stderr))) {
-      event("draft.error", { error: String(error.stderr).slice(0, 300) });
+    if (!/already/i.test(stderrOf(error))) {
+      event("draft.error", { error: stderrOf(error).slice(0, 300) });
       return false;
     }
   }
-  let preview;
+  let preview: string;
   try {
     preview = cli("plan", "approve", SPEC, "--workspace", P.ws);
   } catch (error) {
-    event("approve.error", { error: String(error.stderr).slice(0, 300) });
+    event("approve.error", { error: stderrOf(error).slice(0, 300) });
     return false;
   }
   const hash = /[0-9a-f]{16,64}/.exec(preview)?.[0];
@@ -314,7 +333,10 @@ async function restartGateway() {
   await sleep(10_000);
   for (let i = 0; i < 30; i++) {
     try {
-      const slots = api("GET", "/api/chat/slots");
+      const slots = api<unknown[] | { slots?: unknown } | null>(
+        "GET",
+        "/api/chat/slots",
+      );
       if (Array.isArray(slots) || Array.isArray(slots?.slots)) return true;
     } catch {}
     await sleep(5_000);
@@ -324,10 +346,10 @@ async function restartGateway() {
 
 async function watch() {
   const end = Date.now() + Number(values.minutes) * 60_000,
-    seen = new Set();
+    seen = new Set<string>();
   let approved = false,
     restarted = false,
-    afterRestart = null,
+    afterRestart: number | null = null,
     lastLog = "";
   while (Date.now() < end) {
     try {
@@ -406,7 +428,12 @@ async function watch() {
         return;
       }
     } catch (error) {
-      event("watch.error", { error: String(error.message).slice(0, 200) });
+      event("watch.error", {
+        error: (error instanceof Error ? error.message : String(error)).slice(
+          0,
+          200,
+        ),
+      });
     }
     await sleep(15_000);
   }

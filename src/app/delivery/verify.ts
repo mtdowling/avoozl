@@ -38,6 +38,8 @@ export interface CheckRecord {
   tail?: string;
   // A plugin check's plugin id.
   plugin?: string;
+  // A plugin check's result reused from an earlier run of the same content.
+  cached?: { firstCommit?: string; at?: string };
 }
 // The repository flow settings these rules read (flow.ts readFlowPolicy).
 interface FlowVerify {

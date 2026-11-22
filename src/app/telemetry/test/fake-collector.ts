@@ -23,7 +23,9 @@ export type Collector = {
   url: string;
 };
 
-export async function startCollector(t: TestContext): Promise<Collector> {
+export async function startCollector(
+  t: Pick<TestContext, "after">,
+): Promise<Collector> {
   const held: http.ServerResponse[] = [];
   const collector: Collector = {
     requests: [],

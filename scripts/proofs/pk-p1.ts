@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt, see the commit message
 // Proof pk-p1 (plugin-checks): a slow outside check on a scratch repository.
 // Everything runs on this machine, in a temporary folder: an isolated
 // Avoozl workspace, a scratch repository acme/api with a bare remote, a fake
@@ -32,17 +31,21 @@ const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "pk-p1-")));
 process.env.XDG_CONFIG_HOME = path.join(root, "config");
 process.env.XDG_STATE_HOME = path.join(root, "state");
 delete process.env.KIROCREW_HOME;
-const src = (file) => path.join(repoRoot, "src", "app", file);
-const imp = (file) => import(src(file));
+const src = (file: string) => path.join(repoRoot, "src", "app", file);
 
-const results = [];
-const observe = (leg, what, ok, detail = {}) => {
+const results: { leg: string; what: string; ok: unknown }[] = [];
+const observe = (
+  leg: string,
+  what: string,
+  ok: unknown,
+  detail: Record<string, unknown> = {},
+) => {
   results.push({ leg, what, ok });
   console.log(JSON.stringify({ leg, what, ok, ...detail }));
 };
-const git = (cwd, ...a) =>
+const git = (cwd: string, ...a: string[]) =>
   execFileSync("git", a, { cwd, encoding: "utf8" }).trim();
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 // ---- The fake review service on 127.0.0.1 ------------------------------
 const service = { requests: 0 };
@@ -51,28 +54,39 @@ const server = http.createServer((req, res) => {
   req.on("data", (c) => (body += c));
   req.on("end", () => {
     service.requests++;
-    const { files = [] } = JSON.parse(body || "{}");
+    const { files = [] }: { files?: string[] } = JSON.parse(body || "{}");
     setTimeout(() => {
       const differs = files.some((f) => f.startsWith("schema/"));
       res.end(JSON.stringify({ verdict: differs ? "differs" : "same" }));
     }, SERVICE_MS);
   });
 });
-await new Promise((r) => server.listen(0, "127.0.0.1", r));
-const port = server.address().port;
+await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
+const address = server.address();
+const port = typeof address === "object" && address ? address.port : 0;
 
 // ---- The workspace and the scratch repository ---------------------------
-const { Store } = await imp("store/store.ts");
-const { Operations } = await imp("api/operations.ts");
-const { snapshot } = await imp("test/fixtures.ts");
-const plugins = await imp("plugins/plugins.ts");
-const pluginChecks = await imp("plugins/plugin-checks.ts");
-const { runPluginCheck } = await imp("plugins/plugin-check-run.ts");
-const { checkRuns, drainCheckRuns, runChecksAt } = await imp(
-  "delivery/check-runs.ts",
+const { Store } = await import("../../src/app/store/store.ts");
+const { Operations } = await import("../../src/app/api/operations.ts");
+const { snapshot } = await import("../../src/app/test/fixtures.ts");
+const plugins = await import("../../src/app/plugins/plugins.ts");
+const pluginChecks = await import("../../src/app/plugins/plugin-checks.ts");
+const { runPluginCheck } = await import(
+  "../../src/app/plugins/plugin-check-run.ts"
 );
-const { queuePhaseChecks } = await imp("plugins/check-stages.ts");
-const { localCheckResult } = await imp("plugins/check-stages.ts");
+const { checkRuns, drainCheckRuns, runChecksAt } = await import(
+  "../../src/app/delivery/check-runs.ts"
+);
+const { queuePhaseChecks } = await import(
+  "../../src/app/plugins/check-stages.ts"
+);
+const { localCheckResult } = await import(
+  "../../src/app/plugins/check-stages.ts"
+);
+const { found } = await import("../../src/app/test/view-shapes.ts");
+type Delivery = import("../../src/app/delivery/delivery.ts").Delivery;
+type CheckRun = import("../../src/app/delivery/check-runs.ts").CheckRun;
+type Repository = import("../../src/app/git/git.ts").Repository;
 
 const bare = path.join(root, "remote", "api.git"),
   checkout = path.join(root, "api");
@@ -98,7 +112,11 @@ git(checkout, "commit", "-qm", "Start");
 git(checkout, "remote", "add", "origin", bare);
 git(checkout, "push", "-q", "origin", "main");
 
-const leaf = (id, title, phase) => ({
+const leaf = (
+  id: string,
+  title: string,
+  phase?: { id: string; title: string },
+) => ({
   id,
   title,
   kind: "leaf",
@@ -177,7 +195,7 @@ fs.writeFileSync(
   path.join(folder, "ask.md"),
   "Does this change alter how the API behaves for a caller?\n",
 );
-const manifest = (stage, { review = false } = {}) => ({
+const manifest = (stage: string, { review = false } = {}) => ({
   id: "acme-checks",
   version: "1.4.0",
   contract: 1,
@@ -236,7 +254,7 @@ const manifest = (stage, { review = false } = {}) => ({
       : {}),
   },
 });
-const writeManifest = (m) =>
+const writeManifest = (m: ReturnType<typeof manifest>) =>
   fs.writeFileSync(
     path.join(folder, "avoozl-plugin.json"),
     JSON.stringify(m, null, 2),
@@ -249,19 +267,28 @@ plugins.writePluginSettings(settingsFile, {
   pins: {},
 });
 const approve = () => {
-  const p = plugins.inspectPlugins(options).find((x) => x.id === "acme-checks");
+  const p = found(
+    plugins.inspectPlugins(options).find((x) => x.id === "acme-checks"),
+    "acme-checks",
+  );
   return plugins.approvePlugin(
     options,
     { id: p.id, version: p.version, hash: p.hash },
     "proof",
   );
 };
-observe("setup", "plugin approved in Settings", approve().state === "approved");
+observe(
+  "setup",
+  "plugin approved in Settings",
+  approve()?.state === "approved",
+);
 process.env.PARITY_PORT = String(port);
 
 // ---- Scripted stand-ins: a worker and the decide model -------------------
-const as = (slot) => ({ caller: { sessionKey: "dashboard:" + slot } });
-const bind = (taskId, slot, role, attempt = 1) =>
+const as = (slot: string) => ({
+  caller: { sessionKey: "dashboard:" + slot },
+});
+const bind = (taskId: string, slot: string, role: string, attempt = 1) =>
   ops.execute("session.bind", {
     taskId,
     slot,
@@ -271,11 +298,14 @@ const bind = (taskId, slot, role, attempt = 1) =>
     title: `avoozl:${taskId} ${role}`,
   });
 let slots = 0;
-async function work(taskId, files) {
+async function work(taskId: string, files: Record<string, string>) {
   const slot = `w-${taskId}-${++slots}`,
-    attempt = (store.get("task_deliveries", taskId)?.attempts?.length ?? 0) + 1;
+    attempt = (delivery(taskId)?.attempts?.length ?? 0) + 1;
   await bind(taskId, slot, "worker", attempt);
-  const { path: worktree } = await ops.execute("worktree.prepare", { taskId });
+  const { path: worktree } = await ops.execute<{ path: string }>(
+    "worktree.prepare",
+    { taskId },
+  );
   for (const [file, text] of Object.entries(files))
     fs.writeFileSync(path.join(worktree, file), text);
   git(worktree, "add", ".");
@@ -292,7 +322,15 @@ async function work(taskId, files) {
 // The stand-in model: reads the prompt's question against the input as a
 // reader would. A response field or the schema is the public API; an
 // internal helper or docs are not.
-const answerFor = (record) =>
+// A queued decide record: where it asks, and the text it reads.
+type DecideRecord = {
+  id: string;
+  kind?: string;
+  state?: string;
+  at?: string;
+  input?: string;
+};
+const answerFor = (record: DecideRecord) =>
   record.at === "approve"
     ? {
         needed: false,
@@ -306,7 +344,7 @@ const answerFor = (record) =>
       : { needed: false, reason: "Only an internal helper changed." };
 async function answerDecides() {
   const queued = store
-    .list("flow_records")
+    .list<DecideRecord>("flow_records")
     .filter((r) => r.kind === "check-decide" && r.state === "queued");
   for (const record of queued) {
     const slot = `d-${++slots}`;
@@ -320,7 +358,7 @@ async function answerDecides() {
   }
   return queued.length;
 }
-const tick = (sessions) =>
+const tick = (sessions: string[]) =>
   ops.execute("workspace.tick", {
     cron: true,
     sessions: sessions.map((target) => ({ target, status: "idle" })),
@@ -328,27 +366,27 @@ const tick = (sessions) =>
 // Tick, answer, drain until nothing is queued and each named task's
 // delivery has landed or gone back to its worker.
 const FINAL = new Set(["integrated", "failed"]);
-async function settle(sessions, taskIds = [], rounds = 40) {
+async function settle(sessions: string[], taskIds: string[] = [], rounds = 40) {
   for (let i = 0; i < rounds; i++) {
     await tick(sessions);
     await answerDecides();
     await drainCheckRuns(store);
     await answerDecides();
     const busy = checkRuns(store).some((r) => r.state !== "finished");
-    if (
-      !busy &&
-      taskIds.every((id) => FINAL.has(store.get("task_deliveries", id)?.state))
-    )
+    if (!busy && taskIds.every((id) => FINAL.has(delivery(id)?.state ?? "")))
       return;
   }
 }
-const runOf = (taskId) =>
+// Finished runs, oldest first.
+const byEnd = (a: CheckRun, b: CheckRun) =>
+  String(a.endedAt ?? "") < String(b.endedAt ?? "") ? -1 : 1;
+const runOf = (taskId: string) =>
   checkRuns(store)
     .filter((r) => r.taskId === taskId && r.state === "finished")
-    .sort((a, b) => (a.endedAt < b.endedAt ? -1 : 1))
+    .sort(byEnd)
     .at(-1);
 // The task's run that ran (or skipped) a named check, newest first.
-const ranCheck = (taskId, name) =>
+const ranCheck = (taskId: string, name: string) =>
   checkRuns(store)
     .filter(
       (r) =>
@@ -356,19 +394,22 @@ const ranCheck = (taskId, name) =>
         (r.checks?.some((c) => c.name === name) ||
           r.skipped?.some((c) => c.name === name)),
     )
-    .sort((a, b) => (a.endedAt < b.endedAt ? -1 : 1))
+    .sort(byEnd)
     .at(-1);
 // The task's first run that ran a named check itself (not from the cache).
-const firstRan = (taskId, name) =>
+const firstRan = (taskId: string, name: string) =>
   checkRuns(store)
     .filter(
       (r) =>
         r.taskId === taskId &&
         r.checks?.some((c) => c.name === name && !c.cached),
     )
-    .sort((a, b) => (a.endedAt < b.endedAt ? -1 : 1))[0];
-const delivery = (taskId) => store.get("task_deliveries", taskId);
-const parityOf = (run) => run?.checks?.find((c) => c.name === "parity");
+    .sort(byEnd)[0];
+function delivery(taskId: string) {
+  return store.get<Delivery>("task_deliveries", taskId);
+}
+const parityOf = (run: CheckRun | undefined) =>
+  run?.checks?.find((c) => c.name === "parity");
 
 try {
   // ---- Leg 1: four tasks, one approval, the tick until the queue is empty
@@ -395,38 +436,41 @@ try {
   observe(
     "1",
     "docs task: parity skipped by paths, lands",
-    r1.skipped?.[0]?.filter === "paths" &&
-      delivery("t1").state === "integrated",
-    { skipped: r1.skipped },
+    r1?.skipped?.[0]?.filter === "paths" &&
+      delivery("t1")?.state === "integrated",
+    { skipped: r1?.skipped },
   );
   observe(
     "1",
     "refactor: skipped by decide with its reason, lands",
-    r2.skipped?.[0]?.filter === "decide" &&
-      /internal helper/.test(r2.skipped[0].reason) &&
-      delivery("t2").state === "integrated",
-    { skipped: r2.skipped },
+    r2?.skipped?.[0]?.filter === "decide" &&
+      /internal helper/.test(r2.skipped[0].reason ?? "") &&
+      delivery("t2")?.state === "integrated",
+    { skipped: r2?.skipped },
   );
   observe(
     "1",
     "field change: waits about 60 s and lands",
     parityOf(r3)?.exitCode === 0 &&
-      parityOf(r3).durationMs >= SERVICE_MS - 500 &&
-      delivery("t3").state === "integrated",
+      (parityOf(r3)?.durationMs ?? 0) >= SERVICE_MS - 500 &&
+      delivery("t3")?.state === "integrated",
     { durationMs: parityOf(r3)?.durationMs, tail: parityOf(r3)?.tail },
   );
   observe(
     "1",
     "schema change fails and goes back to its worker",
-    parityOf(r4)?.exitCode === 1 && delivery("t4").state === "failed",
-    { state: delivery("t4").state, cause: delivery("t4").attempts?.[0]?.cause },
+    parityOf(r4)?.exitCode === 1 && delivery("t4")?.state === "failed",
+    {
+      state: delivery("t4")?.state,
+      cause: delivery("t4")?.attempts?.[0]?.cause,
+    },
   );
   observe(
     "1",
     "required parity: the local result on the exact head",
-    localCheckResult(store, "api", "parity", r3.commit).conclusion ===
+    localCheckResult(store, "api", "parity", r3?.commit ?? "")?.conclusion ===
       "success" &&
-      localCheckResult(store, "api", "parity", r4.commit).conclusion ===
+      localCheckResult(store, "api", "parity", r4?.commit ?? "")?.conclusion ===
         "failure",
   );
   observe("1", "leg time", true, {
@@ -436,23 +480,36 @@ try {
   // ---- Leg 2: rerun the third task's check on the same content ----------
   // The same commit and base the first run checked, through the same
   // runner a merge batch candidate uses.
-  const parityCheck = pluginChecks
-      .approvedPluginChecks(options)
-      .find((c) => c.name === "parity"),
-    repository = store.get("repositories", "api"),
+  const parityCheck = found(
+      pluginChecks
+        .approvedPluginChecks(options)
+        .find((c) => c.name === "parity"),
+      "the parity check",
+    ),
+    repository = found(
+      store.get<Repository>("repositories", "api"),
+      "the repository",
+    ),
+    commit3 = r3?.commit ?? "",
+    pluginFolder = parityCheck.plugin.folder,
+    parityRun = {
+      ...parityCheck,
+      plugin: { ...parityCheck.plugin, folder: String(pluginFolder) },
+    },
     before = service.requests,
     t0 = Date.now();
   const {
     checks: [again],
-  } = await runChecksAt(repository, r3.commit, [parityCheck], {
+  } = await runChecksAt(repository, commit3, [parityCheck], {
     timeoutFor: () => 600_000,
-    plugin: (check, dir, timeoutMs) =>
-      runPluginCheck(check, {
+    // The one check is parityCheck, with its plugin folder.
+    plugin: (_check, dir, timeoutMs) =>
+      runPluginCheck(parityRun, {
         store,
         repository,
         dir,
-        commit: r3.commit,
-        base: git(checkout, "rev-parse", `${r3.commit}^`),
+        commit: commit3,
+        base: git(checkout, "rev-parse", `${commit3}^`),
         repo: "acme/api",
         timeoutMs,
         pluginOptions: options,
@@ -464,7 +521,7 @@ try {
     "rerun is cached and takes under a second",
     Boolean(again?.cached) &&
       service.requests === before &&
-      again.durationMs < 1000,
+      (again?.durationMs ?? 0) < 1000,
     { cached: again?.cached, wallMs: elapsed },
   );
 
@@ -479,9 +536,12 @@ try {
   observe(
     "3",
     "no plugin check runs until the plugin is approved again",
-    !r4b.selected?.includes("parity") &&
+    !r4b?.selected?.includes("parity") &&
       plugins.inspectPlugins(options)[0].state === "changed",
-    { selected: r4b.selected, state: plugins.inspectPlugins(options)[0].state },
+    {
+      selected: r4b?.selected,
+      state: plugins.inspectPlugins(options)[0].state,
+    },
   );
 
   // ---- Leg 4: parity at the phase stage; a two-task phase ----------------
@@ -500,16 +560,22 @@ try {
   const t6 = await work("t6", { "schema/api.json": '{"fields": 4}\n' });
   const p0 = Date.now();
   await settle([t6.slot], ["t6"]);
-  const landed = ["t5", "t6"].map((id) => delivery(id).state);
+  const landed = ["t5", "t6"].map((id) => delivery(id)?.state);
   const taskWaited = ["t5", "t6"].some((id) =>
     runOf(id)?.selected?.includes("parity"),
   );
   queuePhaseChecks(store);
   await drainCheckRuns(store);
   const phaseRuns = checkRuns(store).filter((r) => r.scope?.kind === "phase");
-  const phaseRow = (await ops.execute("conflicts.view", {})).items.filter(
-    (i) => i.reason === "phase-check",
-  );
+  const phaseRow = (
+    await ops.execute<{
+      items: {
+        reason?: string;
+        title?: string;
+        phaseFix?: { text?: string };
+      }[];
+    }>("conflicts.view", {})
+  ).items.filter((i) => i.reason === "phase-check");
   observe(
     "4",
     "both tasks land without waiting",
@@ -521,7 +587,7 @@ try {
     "the phase check runs once after the second",
     phaseRuns.length === 1 &&
       phaseRuns[0].commit ===
-        store.read().tasks.find((t) => t.id === "t6").integration?.commit,
+        store.read().tasks.find((t) => t.id === "t6")?.integration?.commit,
     { runs: phaseRuns.length, seconds: Math.round((Date.now() - p0) / 1000) },
   );
   observe(
@@ -589,7 +655,8 @@ try {
   await settle([t7.slot, t8.slot], ["t7", "t8"]);
   const r7 = ranCheck("t7", "parity-review"),
     r8 = ranCheck("t8", "parity-review"),
-    review = (run) => run?.checks?.find((c) => c.name === "parity-review");
+    review = (run: CheckRun | undefined) =>
+      run?.checks?.find((c) => c.name === "parity-review");
   const calls = fs
     .readFileSync(log, "utf8")
     .split("\n")
@@ -602,7 +669,7 @@ try {
   observe(
     "5",
     "field change passes after about 90 s",
-    review(r7)?.exitCode === 0 && delivery("t7").state === "integrated",
+    review(r7)?.exitCode === 0 && delivery("t7")?.state === "integrated",
     {
       durationMs: review(r7)?.durationMs,
       seconds: Math.round((Date.now() - m0) / 1000),
@@ -612,10 +679,10 @@ try {
     "5",
     "schema change fails, back to its worker, the review's summary its only output",
     review(r8)?.exitCode === 1 &&
-      review(r8).tail ===
+      review(r8)?.tail ===
         "The schema changed: the response field list differs." &&
-      delivery("t8").state === "failed",
-    { tail: review(r8)?.tail, state: delivery("t8").state },
+      delivery("t8")?.state === "failed",
+    { tail: review(r8)?.tail, state: delivery("t8")?.state },
   );
   observe(
     "5",
