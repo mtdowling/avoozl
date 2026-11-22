@@ -11,7 +11,7 @@ import { TABLES } from "../../api/operation-table.ts";
 import { landingJob } from "../../git/git.ts";
 import { Store } from "../../store/store.ts";
 import { listActivity } from "../../store/activity-log.ts";
-import { GitHubClient } from "../github.ts";
+import { GitHubClient, type GitHubCredentials } from "../github.ts";
 import {
   GRANT_MS,
   Grants,
@@ -52,7 +52,7 @@ const ok = (body = {}, status = 200) =>
 
 // A client over a fake fetch that records each call's path and token.
 function client(
-  credentials: unknown,
+  credentials: GitHubCredentials | null,
   {
     answer = () => ok(),
   }: { answer?: (pathname: string, count: number) => Response } = {},

@@ -1634,11 +1634,13 @@ export class Operations {
       );
     const result = [];
     for (const receipt of receipts) {
-      await requirePrivateRepository(this.github, receipt.repository);
-      const pull = await this.github.pullRequest(
-        receipt.repository,
-        receipt.number,
-      );
+      const repository = receipt.repository ?? "";
+      await requirePrivateRepository(this.github, repository);
+      const pull = await this.github.pullRequest<{
+        state?: string;
+        merged_at?: string | null;
+        merge_commit_sha?: string;
+      }>(repository, receipt.number ?? 0);
       receipt.observedAt = new Date().toISOString();
       if (!pull.merged_at) {
         receipt.state = pull.state;
@@ -1647,7 +1649,7 @@ export class Operations {
         continue;
       }
       receipt.state = "merged";
-      receipt.mergedAt = pull.merged_at;
+      receipt.mergedAt = pull.merged_at ?? undefined;
       receipt.mergeCommit = pull.merge_commit_sha;
       this.store.put("receipts", receipt);
       await syncWorkspaceRepository(this.store);

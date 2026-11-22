@@ -74,12 +74,12 @@ test("ten open pull requests cost one query", async (t) => {
     branches = nodes.map((n) => n.headRefName),
     heads = await github.pullRequestHeads("example/code", branches);
   assert.equal(Object.values(heads).filter(Boolean).length, 10);
-  assert.equal(heads["task/t3"].head, "sha3");
+  assert.equal(heads["task/t3"]?.head, "sha3");
   // Closing issues, labels and checks come from the same read.
   const closing = await github.pullRequestClosingIssues("example/code", 4);
   assert.equal(closing[0].number, 104);
   const open = await github.openPullRequests("example/code");
-  assert.equal(open[0].labels.nodes[0].name, "ready");
+  assert.equal(open[0].labels?.nodes[0].name, "ready");
   assert.equal(log.queries.length, 1);
 });
 
