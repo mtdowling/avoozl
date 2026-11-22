@@ -23,7 +23,8 @@ export interface RoleRow {
   snapshot?: (
     store: Store,
     request: Record<string, unknown>,
-  ) => Promise<{ files: Record<string, string> }>;
+    options?: { github?: unknown },
+  ) => Promise<{ files: Record<string, string>; head?: string | null }>;
   hands: "report" | "folder" | "post-reply" | "decide";
   output?: { limit: number; validate: (text: string) => unknown };
   finish?: (allowCommands?: string[][] | null) => string[];

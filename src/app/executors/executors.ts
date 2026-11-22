@@ -34,7 +34,9 @@ export interface Executor {
 // What an implementation gives: each call may answer at once or later, and
 // createExecutor checks every answer.
 type Implementation = {
-  [Method in keyof Executor]-?: (...args: (string | null)[]) => unknown;
+  [Method in keyof Executor]-?: (
+    ...args: Parameters<NonNullable<Executor[Method]>>
+  ) => unknown;
 };
 
 function text(

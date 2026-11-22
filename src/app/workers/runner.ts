@@ -15,6 +15,7 @@ import {
   claimFirst,
   claimOf,
   claimedTaskIds,
+  type CreateGitHub,
   refreshClaims,
   taskSpec,
 } from "./claims.ts";
@@ -51,9 +52,7 @@ type Policy =
 type Row = Record<string, unknown>;
 // The GitHub calls a claim makes, and those claimNext adds to read the
 // spec issues first.
-type BranchClient = Parameters<typeof catchUp>[1] & {
-  branch(repository: string, name: string): Promise<unknown>;
-};
+type BranchClient = Parameters<typeof catchUp>[1] & CreateGitHub;
 type ClaimClient = BranchClient &
   NonNullable<Parameters<typeof readLabelFilters>[1]> &
   NonNullable<Parameters<typeof readSpecAssignees>[1]> &
@@ -377,7 +376,11 @@ export async function claimDispatches<
     }
     let claim = null;
     try {
-      claim = await claimFirst(client, [{ task, repository }], { baseOf });
+      claim = await claimFirst(
+        client,
+        [{ task, repository: { ...repository, github: repository.github } }],
+        { baseOf },
+      );
     } catch (error) {
       if (statusOf(error) !== 409)
         errors.push({
@@ -435,7 +438,14 @@ export async function claimNext(
         task,
         repository: repositories.get(taskRepository(task) ?? ""),
       }))
-      .filter(({ repository }) => repository?.github);
+      .filter(
+        (
+          candidate,
+        ): candidate is {
+          task: (typeof candidate)["task"];
+          repository: RepositoryRow & { github: string };
+        } => Boolean(candidate.repository?.github),
+      );
   const claim = await claimFirst(client, candidates, {
     baseOf: claimBase(store, client, linked),
   });

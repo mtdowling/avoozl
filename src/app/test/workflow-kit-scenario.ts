@@ -233,7 +233,7 @@ export async function scenario(read: Case) {
         } catch (error) {
           if ((error as { status?: number }).status !== 409) throw error;
         }
-        if (!claimed) {
+        if (!claimed || !("task" in claimed)) {
           runner.claimed = null;
           return { claimed: null };
         }

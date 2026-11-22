@@ -58,7 +58,7 @@ type SpecPlan = {
   approvalId?: string;
 };
 // The Operations parts epic context reads; tests pass their own.
-interface ContextOps {
+export interface ContextOps {
   workspaceRoot?: string | null;
   configDirectory?: string | null;
   stateDirectory?: string | null;

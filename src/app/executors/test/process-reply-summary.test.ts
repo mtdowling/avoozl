@@ -118,7 +118,7 @@ async function bindChild(
     attempt: dispatch.attempt ?? 1,
     source: "tick",
   });
-  return ops.store.get<SessionBinding>("session_bindings", slot);
+  return found(ops.store.get<SessionBinding>("session_bindings", slot));
 }
 
 test("the responder asks for the same reply on either executor", async (t) => {
