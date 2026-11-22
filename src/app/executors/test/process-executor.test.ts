@@ -742,7 +742,7 @@ test("a fake child's output file is read once with the role's limit and validato
     });
     const db = openSupervisorDatabase(stateDirectory);
     try {
-      return withChildOutput(ROW, childResult(db, id));
+      return withChildOutput(ROW, found(childResult(db, id), "the result"));
     } finally {
       db.close();
     }
@@ -754,21 +754,21 @@ test("a fake child's output file is read once with the role's limit and validato
   // An earlier run's output never counts for the next one.
   const none = await run(done);
   assert.equal(none.state, "blocked");
-  assert.match(none.text, /no output file/);
+  assert.match(none.text ?? "", /no output file/);
   const two = await run(
     `OUTPUT:review.json={"findings": []}\nOUTPUT:extra.json={}\n${done}`,
   );
-  assert.match(two.text, /more than one output file/);
+  assert.match(two.text ?? "", /more than one output file/);
   const large = await run(
     `OUTPUT:review.json={"findings": ["${"x".repeat(80)}"]}\n${done}`,
   );
-  assert.match(large.text, /over 64 bytes/);
+  assert.match(large.text ?? "", /over 64 bytes/);
   const invalid = await run(`OUTPUT:review.json={"findings": 1}\n${done}`);
-  assert.match(invalid.text, /not valid: findings must be a list/);
+  assert.match(invalid.text ?? "", /not valid: findings must be a list/);
   // A path outside .avoozl/output/ is refused by the result file itself.
   const outside = await run('RESULT:{"state": "done", "output": "../x.json"}');
   assert.equal(outside.state, null);
-  assert.match(outside.problem, /must be/);
+  assert.match(outside.problem ?? "", /must be/);
 });
 
 test("output names and files outside the rules are refused with the reason", (t) => {
@@ -792,7 +792,7 @@ test("output names and files outside the rules are refused with the reason", (t)
   // A role with no output file refuses a result that names one.
   assert.match(
     withChildOutput(null, { state: "done", output: "a.json", worktree: folder })
-      .text,
+      .text ?? "",
     /writes no output file/,
   );
   // The result file's own limit stays 8,192 bytes.

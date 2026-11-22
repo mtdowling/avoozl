@@ -205,7 +205,7 @@ function machine(t: TestContext) {
 
 async function settle(
   { store, supervisor, stateDirectory }: ReturnType<typeof machine>,
-  ops: unknown,
+  ops: Parameters<typeof drainProcessRequests>[1]["ops"],
   slot: string,
 ) {
   const end = Date.now() + 30_000;
