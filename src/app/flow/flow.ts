@@ -634,7 +634,7 @@ function integratedAt(store, delivery) {
 // declared check is `tests`, any other shell call `commands`, the rest
 // `coding` (R43.4). Rows already seen (by tool call id) are skipped, so the
 // incremental read may hand back the same rows twice.
-export function toolStage(row, checks = []) {
+export function toolStage(row, checks: string[] = []) {
   const kind = row?.meta?.kind;
   if (kind !== "execute") return { stage: "coding", detail: null };
   const command = commandText(row.meta.input);

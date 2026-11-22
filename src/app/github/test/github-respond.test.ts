@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The responder's one reply (R27.13): plans_post_reply screens the reply,
 // posts at most one comment, and only for the bound responder session. No
 // label starts a responder; discussions answering
@@ -8,7 +7,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { fileURLToPath } from "node:url";
 import { Operations } from "../../api/operations.ts";
 import { screenReply } from "../github-respond.ts";
@@ -16,23 +15,33 @@ import { fixture } from "../../test/fixtures.ts";
 import { FakeGitHub } from "../../test/fake-github.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
 import { postedText } from "../github-posted.ts";
+import type { Refusal } from "../../test/refusal.ts";
+import { storedRow } from "../../test/view-shapes.ts";
 
 const REPO = "example/code",
   RESPONSE = "respond-test",
-  app = fileURLToPath(new URL("../../../../hosts/kirocrew/", import.meta.url));
+  app = fileURLToPath(new URL("../../../../hosts/kirocrew/", import.meta.url)),
+  publicRepository = async () => ({
+    node_id: "R_code",
+    full_name: REPO,
+    private: false,
+    default_branch: "main",
+  });
 
 // A workspace with one open discussion response, bound to slot-r.
-async function boundResponder(t) {
+async function boundResponder(t: TestContext) {
   const { store } = fixture(t),
     root = temporaryDirectory(),
     checkout = temporaryDirectory(),
     github = new FakeGitHub();
-  github.addDiscussionComment = async (discussionId, body) => {
+  github.addDiscussionComment = async (discussionId: string, body: string) => {
     const comment = {
       id: github.comments.length + 1,
       number: 7,
       discussionId,
       body,
+      html_url: "https://github.com/example/code/discussions/7",
+      user: { login: github.login },
     };
     github.comments.push(comment);
     return comment;
@@ -71,9 +80,10 @@ async function boundResponder(t) {
     state: "open",
   });
   const ops = new Operations(store, { github, workspaceRoot: root }),
-    tick = (sessions = []) => ops.execute("workspace.tick", { sessions }),
-    post = (body, slot = "slot-r") =>
-      ops.execute("reply.post", { body }, undefined, {
+    tick = (sessions: { target: string; status: string }[] = []) =>
+      ops.execute("workspace.tick", { sessions }),
+    post = (body: string, slot = "slot-r") =>
+      ops.execute<{ posted: boolean }>("reply.post", { body }, undefined, {
         caller: { sessionKey: "dashboard:" + slot },
       });
   await ops.execute("session.bind", {
@@ -103,7 +113,7 @@ test("a clean reply posts once", async (t) => {
   const result = await w.post(clean);
   assert.equal(result.posted, true);
   assert.equal(w.github.comments.length, 1);
-  assert.equal(w.github.comments[0].body, postedText(clean));
+  assert.equal(w.github.comments[0]?.body, postedText(clean));
   await assert.rejects(w.post("A second answer."), /already has its one reply/);
   assert.equal(w.github.comments.length, 1);
 });
@@ -136,11 +146,11 @@ test("a reply with a secret or a machine path is refused and nothing is posted",
   for (const [name, body] of Object.entries(refused)) {
     await assert.rejects(
       w.post("Here is the answer.\n" + body),
-      (error) =>
+      (error: Refusal) =>
         error.status === 422 &&
         /nothing was posted/.test(error.message) &&
         / on line \d+/.test(error.message) &&
-        !error.message.includes(body.trim().split(/\s+/).pop()),
+        !error.message.includes(body.trim().split(/\s+/).pop() ?? ""),
       name,
     );
   }
@@ -156,28 +166,34 @@ test("only the bound responder session may post", async (t) => {
   const w = await boundResponder(t);
   await assert.rejects(
     w.ops.execute("reply.post", { body: "Hi." }),
-    (error) => error.status === 403,
+    (error: Refusal) => error.status === 403,
   );
-  await assert.rejects(w.post("Hi.", "slot-other"), (e) => e.status === 403);
+  await assert.rejects(
+    w.post("Hi.", "slot-other"),
+    (e: Refusal) => e.status === 403,
+  );
   await w.ops.execute("task.update", {
     id: "work",
     create: true,
     title: "Work",
   });
   await w.ops.execute("session.bind", { taskId: "work", slot: "slot-w" });
-  await assert.rejects(w.post("Hi.", "slot-w"), (e) => e.status === 403);
+  await assert.rejects(
+    w.post("Hi.", "slot-w"),
+    (e: Refusal) => e.status === 403,
+  );
   assert.equal(w.github.comments.length, 0);
 });
 
 test("a session that ends without a reply ends its response", async (t) => {
   const w = await boundResponder(t);
   await w.tick([{ target: "slot-r", status: "closed" }]);
-  const response = w.store.get("github_responses", RESPONSE);
+  const response = storedRow(w.store, "github_responses", RESPONSE);
   assert.equal(response.state, "ended");
   assert.ok(response.endedAt);
   await assert.rejects(
     w.post("Late."),
-    (e) => e.status === 403 || e.status === 409,
+    (e: Refusal) => e.status === 403 || e.status === 409,
   );
   assert.equal(w.github.comments.length, 0);
 });
@@ -195,11 +211,15 @@ test("the screen passes ordinary replies", () => {
 });
 
 test("the responder agent has read tools and plans_post_reply only", () => {
-  const manifest = JSON.parse(
-      fs.readFileSync(path.join(app, "app.json"), "utf8"),
-    ),
-    file = manifest.agents.find((a) => a.endsWith("avoozl-responder.json")),
-    spec = JSON.parse(fs.readFileSync(path.join(app, file), "utf8"));
+  const manifest: { agents: string[]; mcpServers: Record<string, unknown> } =
+      JSON.parse(fs.readFileSync(path.join(app, "app.json"), "utf8")),
+    file = manifest.agents.find((a) => a.endsWith("avoozl-responder.json"));
+  assert.ok(file);
+  const spec: {
+    tools: string[];
+    allowedTools: string[];
+    includeMcpJson: boolean;
+  } = JSON.parse(fs.readFileSync(path.join(app, file), "utf8"));
   assert.deepEqual(spec.tools.toSorted(), [
     "@avoozl:avoozl/plans_post_reply",
     "fs_read",
@@ -234,7 +254,7 @@ test("a public reply may not quote another repository on this machine", async (t
     baseBranch: "main",
     checks: [],
   });
-  w.github.repository = async () => ({ private: false });
+  w.github.repository = publicRepository;
   for (const body of [
     "It does this:\n\n```js\n" + secret + "\n```",
     "> " + secret,
@@ -242,7 +262,7 @@ test("a public reply may not quote another repository on this machine", async (t
   ])
     await assert.rejects(
       w.post(body),
-      (error) =>
+      (error: Refusal) =>
         error.status === 422 &&
         /text from another repository on line \d/.test(error.message) &&
         !error.message.includes("signingKey"),
@@ -251,9 +271,9 @@ test("a public reply may not quote another repository on this machine", async (t
   w.github.repository = async () => {
     throw Error("offline");
   };
-  await assert.rejects(w.post(secret), (e) => e.status === 422);
+  await assert.rejects(w.post(secret), (e: Refusal) => e.status === 422);
   assert.equal(w.github.comments.length, 0);
-  w.github.repository = async () => ({ private: false });
+  w.github.repository = publicRepository;
   const ok = await w.post(
     "The entry point is:\n\n```js\n" +
       shared +
