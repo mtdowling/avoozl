@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The Insights operations (simplify §D13): telemetry numbers from a fixture
 // store, burndown from a fixture git repository, saved retros, and the
 // `avoozl insights` text.
@@ -6,7 +5,7 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { OPERATIONS } from "../../api/operation-table.ts";
 import { Operations } from "../../api/operations.ts";
 import { insightsText } from "../../commands/insights.ts";
@@ -16,6 +15,53 @@ import { fixture } from "../../test/fixtures.ts";
 import { writeSpec } from "../../test/spec-fixture.ts";
 import { telemetryInsights } from "../insights.ts";
 import { retrosFolder, saveRetro } from "../retros.ts";
+import type { Store } from "../../store/store.ts";
+import { found } from "../../test/view-shapes.ts";
+
+// telemetryInsights, for the fields these tests read. Its rows come from
+// SQLite untyped.
+interface Insights {
+  finished: { day: string; count: number }[];
+  leadTime: {
+    tasks: { taskId: string; seconds: number }[];
+    median: number | null;
+    p85: number | null;
+  };
+  stages: ({
+    stage: string;
+    seconds: number;
+    spans: number;
+    tasks: number;
+  } | null)[];
+  review: {
+    tasks: number;
+    average: number | null;
+    rounds: { label: string; tasks: number }[];
+  };
+  rework: {
+    finished: number;
+    reworked: number;
+    firstPass: number;
+    judged: number;
+  };
+}
+const insights = (
+  store: Store,
+  filter: Parameters<typeof telemetryInsights>[1],
+): Insights => telemetryInsights(store.db, filter);
+// insights.view, for the fields these tests read.
+interface InsightsView {
+  burndown: { spec: string; points: { open: number; done: number }[] }[];
+  filters: { specs: string[] };
+  range: { days: number };
+  strip: {
+    needsYou: number;
+    inFlight: number;
+    loop: boolean;
+    main: { state: string };
+  };
+  rework: { finished: number };
+}
 
 const HOUR = 3600 * 1000;
 const DAY = 24 * HOUR;
@@ -24,7 +70,7 @@ const iso = (ms: number) => new Date(ms).toISOString();
 
 // One task's stage spans, then its root span and points.
 function task(
-  store: any,
+  store: Store,
   id: string,
   start: number,
   stages: [string, number, number, number][],
@@ -51,7 +97,7 @@ function task(
   });
 }
 
-function timed(t: any) {
+function timed(t: TestContext) {
   const { store } = fixture(t);
   // a: two review rounds with rework between; b: one round; c: 40 days ago.
   task(
@@ -86,14 +132,14 @@ function timed(t: any) {
 
 test("telemetry insights count finished tasks, lead time, stages, review rounds and rework in range", (t) => {
   const store = timed(t),
-    view = telemetryInsights(store.db, { days: 30, now: NOW });
+    view = insights(store, { days: 30, now: NOW });
   assert.equal(view.finished.length, 30);
-  assert.equal(view.finished.at(-1).day, "2026-11-20");
+  assert.equal(view.finished.at(-1)?.day, "2026-11-20");
   assert.equal(
     view.finished.reduce((n, d) => n + d.count, 0),
     2,
   );
-  assert.equal(view.finished.find((d) => d.day === "2026-11-17").count, 1);
+  assert.equal(view.finished.find((d) => d.day === "2026-11-17")?.count, 1);
   assert.deepEqual(
     view.leadTime.tasks.map((x) => [x.taskId, x.seconds]),
     [
@@ -104,7 +150,7 @@ test("telemetry insights count finished tasks, lead time, stages, review rounds 
   assert.equal(view.leadTime.median, 1.5 * 3600);
   assert.equal(view.leadTime.p85, 4 * 3600);
   assert.deepEqual(
-    view.stages.map((s) => [s.stage, s.seconds, s.spans, s.tasks]),
+    view.stages.map((s) => [s?.stage, s?.seconds, s?.spans, s?.tasks]),
     [
       ["coding", 3 * 3600, 2, 2],
       ["review", 1.5 * 3600, 3, 2],
@@ -131,7 +177,7 @@ test("telemetry insights count finished tasks, lead time, stages, review rounds 
 
 test("telemetry insights narrow by spec, repository and range", (t) => {
   const store = timed(t);
-  const parser = telemetryInsights(store.db, {
+  const parser = insights(store, {
     days: 30,
     spec: "parser",
     now: NOW,
@@ -140,14 +186,14 @@ test("telemetry insights narrow by spec, repository and range", (t) => {
     parser.leadTime.tasks.map((x) => x.taskId),
     ["a"],
   );
-  const api = telemetryInsights(store.db, { days: 30, repo: "api", now: NOW });
+  const api = insights(store, { days: 30, repo: "api", now: NOW });
   assert.deepEqual(
     api.leadTime.tasks.map((x) => x.taskId),
     ["b"],
   );
-  const wide = telemetryInsights(store.db, { days: 90, now: NOW });
+  const wide = insights(store, { days: 90, now: NOW });
   assert.equal(wide.rework.finished, 3);
-  const week = telemetryInsights(store.db, {
+  const week = insights(store, {
     days: 7,
     spec: "parser",
     repo: "api",
@@ -210,12 +256,12 @@ test("insights.view draws each spec's burndown from its tick commits", async (t)
       configDirectory: path.join(root, "machine"),
     });
   history(root);
-  const month = await ops.execute("insights.view", { days: 30 });
+  const month = await ops.execute<InsightsView>("insights.view", { days: 30 });
   assert.deepEqual(
     month.burndown.map((b) => b.spec),
     ["parser", "quiet"],
   );
-  const parser = month.burndown[0].points.map((p) => [p.open, p.done]);
+  const parser = found(month.burndown[0]).points.map((p) => [p.open, p.done]);
   assert.deepEqual(parser, [
     [4, 0],
     [3, 1],
@@ -224,7 +270,7 @@ test("insights.view draws each spec's burndown from its tick commits", async (t)
   ]);
   // A week starts from the list as it stood a week ago, and leaves out a
   // spec whose list did not change.
-  const week = await ops.execute("insights.view", { days: 7 });
+  const week = await ops.execute<InsightsView>("insights.view", { days: 7 });
   assert.deepEqual(
     week.burndown.map((b) => [b.spec, b.points.map((p) => [p.open, p.done])]),
     [
@@ -238,7 +284,10 @@ test("insights.view draws each spec's burndown from its tick commits", async (t)
       ],
     ],
   );
-  const quiet = await ops.execute("insights.view", { days: 7, spec: "quiet" });
+  const quiet = await ops.execute<InsightsView>("insights.view", {
+    days: 7,
+    spec: "quiet",
+  });
   assert.deepEqual(
     quiet.burndown.map((b) => [b.spec, b.points.map((p) => [p.open, p.done])]),
     [
@@ -260,7 +309,7 @@ test("insights.view has the top strip, and refuses another range", async (t) => 
       workspaceRoot: root,
       configDirectory: path.join(root, "machine"),
     });
-  const view = await ops.execute("insights.view", {});
+  const view = await ops.execute<InsightsView>("insights.view", {});
   assert.equal(view.range.days, 30);
   assert.equal(typeof view.strip.needsYou, "number");
   assert.deepEqual(
@@ -270,7 +319,7 @@ test("insights.view has the top strip, and refuses another range", async (t) => 
   assert.deepEqual(view.burndown, []);
   assert.equal(view.rework.finished, 0);
   await assert.rejects(
-    ops.execute("insights.view", { days: 14 }),
+    ops.execute<InsightsView>("insights.view", { days: 14 }),
     /7, 30 or 90/,
   );
 });
@@ -290,7 +339,7 @@ test("the main check state reads the line watch: passing, stopped or unknown", a
     green: { test: "abc" },
   });
   assert.equal(
-    (await ops.execute("insights.view", {})).strip.main.state,
+    (await ops.execute<InsightsView>("insights.view", {})).strip.main.state,
     "passing",
   );
   store.put("flow_stops", {
@@ -300,7 +349,7 @@ test("the main check state reads the line watch: passing, stopped or unknown", a
     openedAt: iso(NOW),
   });
   assert.equal(
-    (await ops.execute("insights.view", {})).strip.main.state,
+    (await ops.execute<InsightsView>("insights.view", {})).strip.main.state,
     "stopped",
   );
 });
@@ -310,7 +359,7 @@ test("retro.save writes Markdown under .avoozl/local/retros, and list and read s
     ops = new Operations(store, { workspaceRoot: root });
   assert.deepEqual(await ops.execute("retro.list", {}), { items: [] });
   // A session saves through MCP: the operation is routed there.
-  const first = await ops.execute(
+  const first = await ops.execute<{ name: string; title: string }>(
     "retro.save",
     { scope: "Parser spec", text: "# Retro: parser\n\nReview waits most." },
     undefined,
@@ -329,7 +378,7 @@ test("retro.save writes Markdown under .avoozl/local/retros, and list and read s
     [a.name, b.name],
     ["2026-11-21-0930-workspace.md", "2026-11-21-0930-workspace-2.md"],
   );
-  const list = await ops.execute("retro.list", {});
+  const list = await ops.execute<{ items: { at: string }[] }>("retro.list", {});
   assert.equal(list.items.length, 3);
   assert.deepEqual(
     list.items
@@ -338,7 +387,9 @@ test("retro.save writes Markdown under .avoozl/local/retros, and list and read s
       .reverse(),
     list.items.map((item) => item.at),
   );
-  const read = await ops.execute("retro.read", { name: a.name });
+  const read = await ops.execute<{ text: string }>("retro.read", {
+    name: a.name,
+  });
   assert.equal(read.text, "# One\n");
   for (const name of [
     "../workspace.sqlite",
@@ -370,12 +421,12 @@ test("the insights and retro operations are on MCP, and retro.save is the only w
     "retro.list",
     "retro.read",
   ])
-    assert.equal(OPERATIONS.get(name).policy.kind, "routed");
-  assert.equal(OPERATIONS.get("retro.save").class, "draft");
+    assert.equal(found(OPERATIONS.get(name)).policy.kind, "routed");
+  assert.equal(found(OPERATIONS.get("retro.save")).class, "draft");
   for (const name of ["insights.view", "retro.list", "retro.read"])
-    assert.equal(OPERATIONS.get(name).class, "observe");
-  const routes = Object.values(GROUPED_TOOLS).flatMap((tool: any) =>
-    Object.values(tool.actions).map((action: any) => action[0]),
+    assert.equal(found(OPERATIONS.get(name)).class, "observe");
+  const routes = Object.values(GROUPED_TOOLS).flatMap((tool) =>
+    Object.values(tool.actions).map((action) => action[0]),
   );
   for (const name of [
     "insights.view",
@@ -406,7 +457,7 @@ test("avoozl insights prints the strip, the charts' numbers and each burndown", 
           ],
         },
       ],
-      ...telemetryInsights(store.db, { days: 30, now: NOW }),
+      ...insights(store, { days: 30, now: NOW }),
     });
   assert.equal(
     lines[0],
@@ -432,7 +483,7 @@ test("avoozl insights prints the strip, the charts' numbers and each burndown", 
       loop: false,
     },
     burndown: [],
-    ...telemetryInsights(fixture(t).store.db, { days: 7, now: NOW }),
+    ...insights(fixture(t).store, { days: 7, now: NOW }),
   });
   assert.ok(empty.includes("Rework: no finished tasks"));
   assert.ok(empty.includes("  No task list changed in this range."));
