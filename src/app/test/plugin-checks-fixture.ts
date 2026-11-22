@@ -164,9 +164,13 @@ export function pluginWorkspace(
     options,
     approve: approveNow,
     settings: () => readPluginSettings(settingsFile),
-    check: (name: string) =>
-      approvedPluginChecks(options).find(
-        (c: { name: string }) => c.name === name,
-      ),
+    // An approved check by name, with the folder its steps run from.
+    check: (name: string) => {
+      const check = approvedPluginChecks(options).find((c) => c.name === name);
+      if (!check) return undefined;
+      const folder = check.plugin.folder;
+      assert.ok(typeof folder === "string", `${name} has no plugin folder`);
+      return { ...check, plugin: { ...check.plugin, folder } };
+    },
   };
 }
