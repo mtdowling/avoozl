@@ -210,8 +210,9 @@ export async function launch(chrome: string) {
       // Runs `source` in every document before its own scripts, from the next
       // navigation on (a listener that must see the page's first events).
       onNewDocument: (source: string) => call('Page.addScriptToEvaluateOnNewDocument', { source }),
-      async open(url: string, { width, height, dark }: { width: number; height: number; dark?: boolean }) {
-        await call('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false })
+      // `scale` is the device pixel ratio: 2 for the docs' screenshots.
+      async open(url: string, { width, height, dark, scale = 1 }: { width: number; height: number; dark?: boolean; scale?: number }) {
+        await call('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: scale, mobile: false })
         await call('Emulation.setEmulatedMedia', {
           features: [
             { name: 'prefers-color-scheme', value: dark ? 'dark' : 'light' },
