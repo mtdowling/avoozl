@@ -503,7 +503,16 @@ async function releaseHeld(store, repository) {
 
 // The check a stop holds on a verifier's report: a failure of the stopped
 // check on another task's commit is not judged (R44.6, R38).
-export function heldByStop(store, repositoryId, checks = []) {
+export function heldByStop(
+  store,
+  repositoryId,
+  checks: {
+    command?: string;
+    name?: string;
+    exitCode?: number | null;
+    notRun?: string;
+  }[] = [],
+) {
   const stopped = new Set(
     openStops(store)
       .filter((s) => s.repositoryId === repositoryId && s.check)
