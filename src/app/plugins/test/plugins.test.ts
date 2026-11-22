@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Task 8.6: plugin loading and trust (design §4.8, Requirement 34). The fake
 // probe plugin from the test tree, copied into a temporary folder, declared
 // in temporary machine settings, and run as its own child process.
@@ -25,6 +24,11 @@ import {
 } from "../plugins.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
 import { readDeliveryPolicy } from "../../tick/tick.ts";
+import type { Refusal } from "../../test/refusal.ts";
+import { found } from "../../test/view-shapes.ts";
+
+// A plugin call's refusal: why the plugin is unavailable.
+type Unavailable = Error & { reason: string };
 
 const FIXTURE = path.join(
   import.meta.dirname,
@@ -35,7 +39,13 @@ const FIXTURE = path.join(
   "plugins",
 );
 
-function setup({ entry = {}, manifest } = {}) {
+function setup({
+  entry = {},
+  manifest,
+}: {
+  entry?: Record<string, unknown>;
+  manifest?: Record<string, unknown>;
+} = {}) {
   const root = temporaryDirectory("avoozl-plugins-"),
     workspaceRoot = path.join(root, "workspace"),
     folder = path.join(root, "fake-probe"),
@@ -66,7 +76,10 @@ function setup({ entry = {}, manifest } = {}) {
     ],
   });
   const options = { workspaceRoot, settingsFile };
-  const state = {
+  const state: {
+    read: () => Record<string, unknown>;
+    mode: (mode: string) => void;
+  } = {
     read: () => JSON.parse(fs.readFileSync(stateFile, "utf8")),
     mode(mode) {
       const value = state.read();
@@ -77,12 +90,13 @@ function setup({ entry = {}, manifest } = {}) {
   return { root, folder, options, state };
 }
 
-const approve = (options) => {
-  const [plugin] = inspectPlugins(options);
-  return approvePlugin(options, { id: plugin.id, hash: plugin.hash });
+const approve = (options: ReturnType<typeof setup>["options"]) => {
+  const plugin = found(inspectPlugins(options)[0]);
+  assert.ok("hash" in plugin, "the plugin has a hash");
+  return found(approvePlugin(options, { id: plugin.id, hash: plugin.hash }));
 };
 
-const alive = (pid) => {
+const alive = (pid: number) => {
   try {
     process.kill(pid, 0);
     return true;
@@ -94,7 +108,7 @@ const alive = (pid) => {
 test("an entry names one of package or path, no reserved id, no credential", () => {
   const entry = { id: "fake-probe", path: "../x", contract: 1 };
   assert.equal(validateEntry(entry), entry);
-  for (const [change, pattern] of [
+  const refusedEntries: [Record<string, unknown>, RegExp][] = [
     [{ id: "local" }, /reserved/],
     [{ id: "github" }, /reserved/],
     [{ package: "@example/x" }, /exactly one of package, path or git/],
@@ -107,7 +121,8 @@ test("an entry names one of package or path, no reserved id, no credential", () 
     [{ config: { auth: "ghp_" + "a".repeat(36) } }, /looks like a credential/],
     [{ config: { tokenEnv: "not a name" } }, /environment variable/],
     [{ extra: true }, /not a plugin setting/],
-  ])
+  ];
+  for (const [change, pattern] of refusedEntries)
     assert.throws(() => validateEntry({ ...entry, ...change }), pattern);
   assert.ok(
     validateEntry({
@@ -128,7 +143,7 @@ test("a manifest names its id, version, contract, kinds, capabilities and entry"
     },
     entry = { id: "fake-probe" };
   assert.equal(validateManifest(manifest, entry), manifest);
-  for (const [change, pattern] of [
+  const refusedManifests: [Record<string, unknown>, RegExp][] = [
     [{ id: "other" }, /does not match/],
     [{ kinds: [] }, /kinds/],
     [{ kinds: ["queue"] }, /kinds/],
@@ -139,7 +154,8 @@ test("a manifest names its id, version, contract, kinds, capabilities and entry"
     [{ capabilities: { tracker: [] } }, /is not a kind/],
     [{ entry: "../outside.mjs" }, /inside the plugin/],
     [{ entry: "/abs.mjs" }, /inside the plugin/],
-  ])
+  ];
+  for (const [change, pattern] of refusedManifests)
     assert.throws(
       () => validateManifest({ ...manifest, ...change }, entry),
       pattern,
@@ -161,7 +177,7 @@ test("a manifest that lists a part other than rules, credentials, checks or cont
           { ...manifest, provides: ["rules", part] },
           { id: "fake-probe" },
         ),
-      (error) => error.message === `${part} is not a plugin part.`,
+      (error: Error) => error.message === `${part} is not a plugin part.`,
     );
   assert.ok(
     validateManifest(
@@ -173,56 +189,61 @@ test("a manifest that lists a part other than rules, credentials, checks or cont
 
 test("approval is per id, version and content hash, on this machine only", () => {
   const { folder, options } = setup();
-  let [plugin] = inspectPlugins(options);
-  assert.equal(plugin.state, "unapproved");
-  assert.equal(plugin.hash, contentHash(folder));
+  const inspected = found(inspectPlugins(options)[0]);
+  assert.equal(inspected.state, "unapproved");
+  assert.ok("hash" in inspected && "kinds" in inspected);
+  assert.equal(inspected.hash, contentHash(folder));
   // Needs you lists it until it is approved (simplify §D13).
   assert.deepEqual(
     pluginApprovalNeedsYou(options).map((item) => [item.id, item.reason]),
     [["plugin-approval:fake-probe", "plugin-approval"]],
   );
-  assert.deepEqual(plugin.kinds, ["rules"]);
+  assert.deepEqual(inspected.kinds, ["rules"]);
   // A stale hash is refused: the person approves what they were shown.
   assert.throws(
     () => approvePlugin(options, { id: "fake-probe", hash: "0".repeat(64) }),
-    (error) => error.status === 409 && /Review it again/.test(error.message),
+    (error: Refusal) =>
+      error.status === 409 && /Review it again/.test(error.message),
   );
-  plugin = approve(options);
-  assert.equal(plugin.state, "approved");
+  const approved = approve(options);
+  assert.equal(approved.state, "approved");
   assert.deepEqual(pluginApprovalNeedsYou(options), []);
+  assert.ok("hash" in approved);
   assert.equal(
-    readPluginSettings(options.settingsFile).approvals["fake-probe"].hash,
-    plugin.hash,
+    readPluginSettings(options.settingsFile).approvals["fake-probe"]?.hash,
+    approved.hash,
   );
   assert.ok(!fs.existsSync(path.join(options.workspaceRoot, ".avoozl.json")));
 
   // Any change to the plugin's files needs approval again.
   fs.appendFileSync(path.join(folder, "index.mjs"), "\n// changed\n");
-  [plugin] = inspectPlugins(options);
-  assert.equal(plugin.state, "changed");
+  assert.equal(inspectPlugins(options)[0]?.state, "changed");
   approve(options);
 
   // A version change too.
   const file = path.join(folder, "avoozl-plugin.json"),
     manifest = JSON.parse(fs.readFileSync(file, "utf8"));
   fs.writeFileSync(file, JSON.stringify({ ...manifest, version: "1.0.1" }));
-  assert.equal(inspectPlugins(options)[0].state, "changed");
+  assert.equal(inspectPlugins(options)[0]?.state, "changed");
   approve(options);
 
-  assert.equal(disablePlugin(options, { id: "fake-probe" }).state, "disabled");
   assert.equal(
-    disablePlugin(options, { id: "fake-probe", disabled: false }).state,
+    found(disablePlugin(options, { id: "fake-probe" })).state,
+    "disabled",
+  );
+  assert.equal(
+    found(disablePlugin(options, { id: "fake-probe", disabled: false })).state,
     "approved",
   );
 });
 
 test("an unsupported contract, a wrong entry contract, and a duplicate id never load", () => {
   assert.equal(
-    inspectPlugins(setup({ manifest: { contract: 2 } }).options)[0].state,
+    inspectPlugins(setup({ manifest: { contract: 2 } }).options)[0]?.state,
     "unsupported",
   );
   assert.match(
-    inspectPlugins(setup({ entry: { contract: 2 } }).options)[0].reason,
+    inspectPlugins(setup({ entry: { contract: 2 } }).options)[0]?.reason ?? "",
     /expects contract version 2/,
   );
   const { options, folder } = setup();
@@ -239,11 +260,11 @@ test("an unsupported contract, a wrong entry contract, and a duplicate id never 
       ],
     }),
   );
-  const found = inspectPlugins(options);
-  assert.equal(found.length, 2);
+  const inspected = inspectPlugins(options);
+  assert.equal(inspected.length, 2);
   assert.ok(
-    found.every(
-      (p) => p.state === "invalid" && /more than once/.test(p.reason),
+    inspected.every(
+      (p) => p.state === "invalid" && /more than once/.test(p.reason ?? ""),
     ),
   );
 });
@@ -275,18 +296,19 @@ test("a local plugin changed after it was inspected is refused before it starts"
   approve(options);
   const session = pluginHost(options).open();
   fs.appendFileSync(path.join(folder, "avoozl-plugin.json"), "\n");
-  const refused = await session.use("fake-probe", "rules");
+  const refused = found(await session.use("fake-probe", "rules"));
   assert.equal(refused.ok, false);
-  assert.match(refused.reason, /changed after it was approved/);
+  assert.match(refused.reason ?? "", /changed after it was approved/);
   await session.close();
   assert.deepEqual(state.read().calls ?? [], []);
 });
 
-for (const [mode, pattern] of [
+const failures: [string, RegExp][] = [
   ["crash", /crashed \(exit 3\)/],
   ["invalid", /ruleSets reply must be/],
   ["listen", /opened a network listener \(listen\)/],
-]) {
+];
+for (const [mode, pattern] of failures) {
   test(`a plugin that ${mode === "listen" ? "listens" : mode === "crash" ? "crashes" : "replies with an invalid shape"} is marked unavailable for this tick`, async () => {
     const { options, state } = setup();
     approve(options);
@@ -295,9 +317,9 @@ for (const [mode, pattern] of [
     state.mode(mode);
     await assert.rejects(
       session.call("fake-probe", "rules", "ruleSets", {}),
-      (error) => pattern.test(error.reason),
+      (error: Unavailable) => pattern.test(error.reason),
     );
-    assert.match(session.unavailable("fake-probe"), pattern);
+    assert.match(session.unavailable("fake-probe") ?? "", pattern);
     assert.deepEqual(
       session.report().map((r) => r.state),
       ["unavailable"],
@@ -314,7 +336,7 @@ test("a call that does not answer in its time limit stops the plugin", async () 
   state.mode("hang");
   await assert.rejects(
     session.call("fake-probe", "rules", "ruleSets", {}),
-    (error) => /timed out/.test(error.reason),
+    (error: Unavailable) => /timed out/.test(error.reason),
   );
   await session.close();
 });
@@ -355,25 +377,33 @@ test("the socket check stops a plugin that listens past the guard", async () => 
   // With the in-process guard off, only the listening-socket check is left.
   const { options, state } = setup();
   approve(options);
-  const pids = [];
+  const pids: number[] = [];
   const session = pluginHost({
     ...options,
     guard: false,
-    checkListeners: async (pid) => {
+    checkListeners: async (pid: number) => {
       pids.push(pid);
       return listeningSockets(pid);
     },
   }).open();
   await session.call("fake-probe", "rules", "ruleSets", {});
-  assert.deepEqual(await listeningSockets(pids[0]), [], "nothing listens yet");
+  assert.deepEqual(
+    await listeningSockets(found(pids[0])),
+    [],
+    "nothing listens yet",
+  );
   state.mode("listen");
   await assert.rejects(
     session.call("fake-probe", "rules", "ruleSets", {}),
-    (error) =>
+    (error: Unavailable) =>
       /opened a network listener \(127\.0\.0\.1:\d+\)/.test(error.reason),
   );
   await session.close();
-  assert.equal(alive(pids[0]), false, "the listening plugin was stopped");
+  assert.equal(
+    alive(found(pids[0])),
+    false,
+    "the listening plugin was stopped",
+  );
 });
 
 test("Add plugin warns before writing a plugins entry into .avoozl.json; remove keeps nothing", () => {
@@ -381,7 +411,7 @@ test("Add plugin warns before writing a plugins entry into .avoozl.json; remove 
   const entry = { id: "fake-two", path: "plugins/two", contract: 1 };
   assert.throws(
     () => addPlugin(options, { scope: "repository", entry }),
-    (error) =>
+    (error: Refusal & { code?: string }) =>
       error.code === "plugin-public-repository" && error.status === 409,
   );
   assert.throws(
@@ -399,7 +429,7 @@ test("Add plugin warns before writing a plugins entry into .avoozl.json; remove 
   );
   assert.deepEqual(policy.plugins, [entry]);
   assert.equal(
-    inspectPlugins(options).find((p) => p.id === "fake-two").state,
+    inspectPlugins(options).find((p) => p.id === "fake-two")?.state,
     "missing",
   );
   assert.throws(
@@ -425,7 +455,7 @@ test("Add plugin warns before writing a plugins entry into .avoozl.json; remove 
 
 test(".avoozl.json may declare a plugin that names its credential's variable", () => {
   const { options } = setup();
-  const write = (plugins) =>
+  const write = (plugins: Record<string, unknown>[]) =>
     fs.writeFileSync(
       path.join(options.workspaceRoot, ".avoozl.json"),
       JSON.stringify({ version: 1, delivery: {}, plugins }),
@@ -443,10 +473,13 @@ test(".avoozl.json may declare a plugin that names its credential's variable", (
   ]);
   assert.equal(readDeliveryPolicy(options.workspaceRoot).status, "loaded");
   write([{ id: "github", path: "x", contract: 1 }]);
-  assert.match(readDeliveryPolicy(options.workspaceRoot).error, /reserved/);
+  assert.match(
+    readDeliveryPolicy(options.workspaceRoot).error ?? "",
+    /reserved/,
+  );
   write([{ id: "x", path: "x", contract: 1, config: { token: "abc" } }]);
   assert.match(
-    readDeliveryPolicy(options.workspaceRoot).error,
+    readDeliveryPolicy(options.workspaceRoot).error ?? "",
     /secret-like key/,
   );
 });

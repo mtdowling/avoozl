@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
@@ -7,6 +6,7 @@ import { Operations } from "../../api/operations.ts";
 import { RepositorySettings } from "../../settings/repository-settings.ts";
 import { fixture } from "../../test/fixtures.ts";
 import { storedRow } from "../../test/view-shapes.ts";
+import { testRepository as repository } from "../../test/git-repository.ts";
 
 // What repositories.configure answers, for the fields this test reads.
 interface Configured {
@@ -14,24 +14,6 @@ interface Configured {
   github: string;
   planning: boolean;
   issueAuthorization: { enabled: boolean };
-}
-
-function git(root: string, args: string[]) {
-  return execFileSync("git", args, {
-    cwd: root,
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "pipe"],
-  }).trim();
-}
-
-function repository(root: string) {
-  fs.mkdirSync(root, { recursive: true });
-  git(root, ["init", "-b", "main"]);
-  git(root, ["config", "user.name", "Avoozl test"]);
-  git(root, ["config", "user.email", "avoozl@example.test"]);
-  fs.writeFileSync(path.join(root, "README.md"), "# Test\n");
-  git(root, ["add", "README.md"]);
-  git(root, ["commit", "-m", "Initialize"]);
 }
 
 class FakeGitHub {

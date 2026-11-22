@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 import {
   defaultJob,
   fixedCredentials,
@@ -7,16 +6,28 @@ import {
 import assert from "node:assert/strict";
 import test from "node:test";
 import { GitHubClient } from "../github.ts";
+import type { Refusal } from "../../test/refusal.ts";
+
+type Sent = { url: string; method?: string };
+type SentBody = Sent & { body: unknown };
+type SentPath = {
+  pathname: string;
+  method?: string;
+  body: { variables: { number: number } } | null;
+};
+
+const bodyOf = (options?: RequestInit) =>
+  options?.body ? JSON.parse(String(options.body)) : null;
 
 test("GitHub comment clients use the issue and pull-request review endpoints", async () => {
-  const requests = [],
+  const requests: Sent[] = [],
     github = defaultJob(
       "spec-branch",
       new GitHubClient({
         credentials: fixedCredentials("test-token"),
         apiUrl: "https://api.example.test",
         fetch: async (url, options) => {
-          requests.push({ url: String(url), method: options.method });
+          requests.push({ url: String(url), method: options?.method });
           return new Response("[]", {
             status: 200,
             headers: { "content-type": "application/json" },
@@ -43,14 +54,14 @@ test("GitHub comment clients use the issue and pull-request review endpoints", a
 });
 
 test("GitHub pull-request files stop at the requested safe bound", async () => {
-  const requests = [],
+  const requests: URL[] = [],
     github = defaultJob(
       "spec-branch",
       new GitHubClient({
         credentials: fixedCredentials("test-token"),
         apiUrl: "https://api.example.test",
         fetch: async (url) => {
-          const parsed = new URL(url);
+          const parsed = new URL(String(url));
           requests.push(parsed);
           const count = Number(parsed.searchParams.get("per_page"));
           return new Response(
@@ -84,14 +95,14 @@ test("GitHub pull-request files stop at the requested safe bound", async () => {
 });
 
 test("GitHub Queue list clients consume every page", async () => {
-  const requests = [],
+  const requests: URL[] = [],
     github = defaultJob(
       "spec-branch",
       new GitHubClient({
         credentials: fixedCredentials("test-token"),
         apiUrl: "https://api.example.test",
         fetch: async (url) => {
-          const parsed = new URL(url);
+          const parsed = new URL(String(url));
           requests.push(parsed);
           const page = Number(parsed.searchParams.get("page")),
             isIssues = parsed.pathname.endsWith("/issues"),
@@ -147,7 +158,7 @@ test("GitHub pagination fails instead of silently truncating at its safe cap", a
 
   await assert.rejects(
     github.listPullRequests("example/code", { state: "open" }),
-    (error) =>
+    (error: Refusal) =>
       error.status === 413 &&
       /more than 2000 items/.test(String(error.message)),
   );
@@ -155,7 +166,7 @@ test("GitHub pagination fails instead of silently truncating at its safe cap", a
 });
 
 test("GitHub dependency clients use issue database IDs", async () => {
-  const requests = [],
+  const requests: SentBody[] = [],
     github = defaultJob(
       "spec-branch",
       new GitHubClient({
@@ -164,10 +175,10 @@ test("GitHub dependency clients use issue database IDs", async () => {
         fetch: async (url, options) => {
           requests.push({
             url: String(url),
-            method: options.method,
-            body: options.body ? JSON.parse(options.body) : null,
+            method: options?.method,
+            body: bodyOf(options),
           });
-          return new Response(options.method === "GET" ? "[]" : "{}", {
+          return new Response(options?.method === "GET" ? "[]" : "{}", {
             status: 200,
           });
         },
@@ -198,18 +209,18 @@ test("GitHub dependency clients use issue database IDs", async () => {
 });
 
 test("GitHub completion clients read closing pull requests and exact checks", async () => {
-  const requests = [],
+  const requests: SentPath[] = [],
     github = defaultJob(
       "check-in",
       new GitHubClient({
         credentials: fixedCredentials("test-token"),
         apiUrl: "https://api.example.test",
         fetch: async (url, options) => {
-          const parsed = new URL(url),
-            body = options.body ? JSON.parse(options.body) : null;
+          const parsed = new URL(String(url)),
+            body = bodyOf(options);
           requests.push({
             pathname: parsed.pathname,
-            method: options.method,
+            method: options?.method,
             body,
           });
           if (parsed.pathname === "/graphql")
@@ -256,5 +267,5 @@ test("GitHub completion clients read closing pull requests and exact checks", as
       ["GET", `/repos/example/code/commits/${"a".repeat(40)}/status`],
     ],
   );
-  assert.equal(requests[0].body.variables.number, 7);
+  assert.equal(requests[0]?.body?.variables.number, 7);
 });

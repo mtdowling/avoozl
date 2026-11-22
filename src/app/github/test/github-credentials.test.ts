@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // plugin-credentials pc-1.1 and pc-1.2: the credentials part, its reply,
 // and who signs Avoozl in for each owner. Fake plugins come from the test
 // tree; a fake `gh` stands in for the real one; every token is made up.
@@ -33,8 +32,17 @@ import {
   credentialsMachine as machine,
   pluginFolder,
 } from "../../test/github-credentials.ts";
+import { found } from "../../test/view-shapes.ts";
 
 const REPO_ROOT = path.join(import.meta.dirname, "..", "..", "..", "..");
+
+// The first plugin's folder, failing when it has none.
+const locationOf = (options: Parameters<typeof inspectPlugins>[0]) => {
+  const plugin = found(inspectPlugins(options)[0]),
+    location = "location" in plugin ? plugin.location : null;
+  assert.ok(location, "the plugin has a folder");
+  return location;
+};
 
 // ---- pc-1.1 the part ---------------------------------------------------
 
@@ -42,7 +50,8 @@ test("D1's manifest validates and inspect carries its hosts and owners", (t) => 
   const m = machine({ plugins: [{}] });
   t.after(() => {});
   assert.doesNotThrow(() => validateManifest(MANIFEST, { id: "acme-github" }));
-  const plugin = inspectPlugins(m.options)[0];
+  const plugin = found(inspectPlugins(m.options)[0]);
+  assert.ok("credentials" in plugin);
   assert.deepEqual(plugin.credentials, {
     hosts: ["github.com"],
     owners: ["acme"],
@@ -51,12 +60,12 @@ test("D1's manifest validates and inspect carries its hosts and owners", (t) => 
 });
 
 test("a bad credentials key is refused, naming it", () => {
-  const check = (change, pattern) =>
+  const check = (change: Record<string, unknown>, pattern: RegExp) =>
     assert.throws(
       () => validateManifest({ ...MANIFEST, ...change }, { id: "acme-github" }),
       pattern,
     );
-  const part = (credentials) => ({ credentials });
+  const part = (credentials: Record<string, unknown>) => ({ credentials });
   check({ provides: ["rules"] }, /credentials goes with provides credentials/);
   check(
     part({ entry: "../token.mjs", hosts: ["github.com"] }),
@@ -122,10 +131,10 @@ test("a credentials plugin in .avoozl.json is invalid, never approved, and Add p
     }),
   );
   const options = { workspaceRoot, settingsFile },
-    [plugin] = inspectPlugins(options);
+    plugin = found(inspectPlugins(options)[0]);
   assert.equal(plugin.state, "invalid");
   assert.match(
-    plugin.reason,
+    plugin.reason ?? "",
     /^\.avoozl\.json plugins\.0: plugin acme-github provides credentials/,
   );
   assert.throws(
@@ -134,7 +143,7 @@ test("a credentials plugin in .avoozl.json is invalid, never approved, and Add p
   );
   // `avoozl check` reports it with the file and key.
   assert.deepEqual(
-    credentialsProblems(options).map((p) => p.slice(0, 26)),
+    credentialsProblems(options).map((p) => p?.slice(0, 26)),
     [".avoozl.json plugins.0: pl"],
   );
   pluginFolder(workspaceRoot, "acme-two");
@@ -155,7 +164,8 @@ test("a credentials plugin in .avoozl.json is invalid, never approved, and Add p
 test("the credentials child loads the credentials entry only, and serves nothing else", async (t) => {
   const m = machine({ plugins: [{}] });
   m.approve();
-  const plugin = inspectPlugins(m.options)[0],
+  const plugin = found(inspectPlugins(m.options)[0]),
+    location = locationOf(m.options),
     child = new PluginProcess(plugin, {
       timeoutMs: 5000,
       deadline: Number.POSITIVE_INFINITY,
@@ -164,10 +174,11 @@ test("the credentials child loads the credentials entry only, and serves nothing
     });
   t.after(() => child.close());
   const hello = await child.request("hello", {
-    entry: path.join(plugin.location, "token.mjs"),
+    entry: path.join(location, "token.mjs"),
     config: {},
     kind: "credentials",
   });
+  assert.ok(hello && typeof hello === "object" && "kinds" in hello);
   assert.deepEqual(hello.kinds, ["credentials"]);
   await assert.rejects(
     child.request("rules.ruleSets", {}),
@@ -175,7 +186,7 @@ test("the credentials child loads the credentials entry only, and serves nothing
   );
 });
 
-const LATER = (ms) => new Date(Date.now() + ms).toISOString();
+const LATER = (ms: number) => new Date(Date.now() + ms).toISOString();
 const GOOD = {
   token: "ghs_" + "x".repeat(36),
   expiresAt: LATER(3600_000),
@@ -184,12 +195,20 @@ const GOOD = {
   granted: { metadata: "read", contents: "write" },
 };
 const ASKED = { metadata: "read", contents: "write" };
+// checkReply's token answer: whether more was granted, and for whom.
+const tokenReply = (reply: unknown, asked = ASKED) => {
+  const out = checkReply("credentials", "token", reply, asked);
+  assert.ok(
+    out && typeof out === "object" && "broader" in out && "person" in out,
+  );
+  return out;
+};
 
 test("credentialsReplies.token checks every field and what was granted", () => {
-  const ok = checkReply("credentials", "token", GOOD, ASKED);
+  const ok = tokenReply(GOOD);
   assert.equal(ok.broader, false);
   assert.equal(ok.person, "acme-dev");
-  const refused = (change, pattern) =>
+  const refused = (change: Record<string, unknown>, pattern: RegExp) =>
     assert.throws(
       () => checkReply("credentials", "token", { ...GOOD, ...change }, ASKED),
       pattern,
@@ -206,18 +225,9 @@ test("credentialsReplies.token checks every field and what was granted", () => {
     { granted: { metadata: "read", contents: "read" } },
     /granted contents: read; the job needs contents: write/,
   );
+  assert.equal(tokenReply({ ...GOOD, granted: "all" }).broader, true);
   assert.equal(
-    checkReply("credentials", "token", { ...GOOD, granted: "all" }, ASKED)
-      .broader,
-    true,
-  );
-  assert.equal(
-    checkReply(
-      "credentials",
-      "token",
-      { ...GOOD, granted: { ...ASKED, issues: "write" } },
-      ASKED,
-    ).broader,
+    tokenReply({ ...GOOD, granted: { ...ASKED, issues: "write" } }).broader,
     true,
   );
 });
@@ -280,7 +290,7 @@ test("an approved plugin serves only its owners; a never-approved one claims not
 test("a changed plugin refuses for its owners and gh is never run for them", async () => {
   const m = machine({ plugins: [{}] });
   m.approve();
-  const folder = inspectPlugins(m.options)[0].location;
+  const folder = locationOf(m.options);
   fs.appendFileSync(path.join(folder, "token.mjs"), "\n// changed\n");
   const credentials = m.credentials();
   await assert.rejects(
@@ -330,7 +340,7 @@ test("removing, disabling or dropping an owner moves the next call to the built-
   disablePlugin(m.options, { id: "acme-github" });
   assert.equal((await call(credentials, "acme/web")).provider, "gh");
   disablePlugin(m.options, { id: "acme-github", disabled: false });
-  const folder = inspectPlugins(m.options)[0].location;
+  const folder = locationOf(m.options);
   fs.writeFileSync(
     path.join(folder, "avoozl-plugin.json"),
     JSON.stringify({

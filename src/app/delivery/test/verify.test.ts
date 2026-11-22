@@ -1,12 +1,10 @@
-// @ts-nocheck: typing debt
 // Verify (design §4.26, R86.6, R86.7): declared and protected paths, warm
 // checks in the task worktree, and a timeout per check. Every name here is
 // made up.
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { checkRuns, drainCheckRuns, queueCheckRun } from "../check-runs.ts";
 import { flowPolicy } from "../../flow/flow.ts";
 import { Operations } from "../../api/operations.ts";
@@ -22,11 +20,22 @@ import {
 } from "../verify.ts";
 import { snapshot } from "../../test/fixtures.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
+import { git } from "../../test/delivery-fixture.ts";
+import type { Refusal } from "../../test/refusal.ts";
+import { found, storedRow } from "../../test/view-shapes.ts";
+
+// A task delivery, for the fields these tests read.
+interface Delivery {
+  state: string;
+  cause?: string;
+  attempts: { cause?: string; outcome?: string }[];
+  verifications: { outcome?: string }[];
+}
 
 const node = process.execPath;
 
 test("paths match by file, folder and glob", () => {
-  for (const [pattern, file, hit] of [
+  const cases: [string, string, boolean][] = [
     ["src/app/x.mjs", "src/app/x.mjs", true],
     ["src/app", "src/app/x.mjs", true],
     ["src/app/", "src/app/deep/x.mjs", true],
@@ -41,7 +50,8 @@ test("paths match by file, folder and glob", () => {
     ["scripts/worktree", "scripts/worktree-notes.md", false],
     ["a?.txt", "ab.txt", true],
     ["a.txt", "aXtxt", false],
-  ])
+  ];
+  for (const [pattern, file, hit] of cases)
     assert.equal(matchesPath(pattern, file), hit, `${pattern} ~ ${file}`);
 });
 
@@ -63,11 +73,12 @@ test("a diff outside declared paths is refused; a protected path is held", () =>
     protected: [],
   });
   assert.match(
-    pathOutcome({ paths: { outside: ["docs/x.md"], protected: ["x"] } }).cause,
+    pathOutcome({ paths: { outside: ["docs/x.md"], protected: ["x"] } })
+      ?.cause ?? "",
     /^outside declared paths: docs\/x\.md$/,
   );
   assert.equal(
-    pathOutcome({ paths: { outside: [], protected: ["x"] } }).outcome,
+    pathOutcome({ paths: { outside: [], protected: ["x"] } })?.outcome,
     "protected",
   );
   assert.equal(pathOutcome({ paths: { outside: [], protected: [] } }), null);
@@ -94,16 +105,38 @@ test("each check has its own timeout, and a timeout names it", async () => {
     ],
     { timeoutFor: (command) => (command.includes("20000") ? 1000 : 30_000) },
   );
-  assert.equal(checks[0].exitCode, null);
-  assert.equal(checks[0].notRun, "timed out after 1 s");
-  assert.equal(checks[1].exitCode, 0, "the next check still runs");
+  assert.equal(checks[0]?.exitCode, null);
+  assert.equal(checks[0]?.notRun, "timed out after 1 s");
+  assert.equal(checks[1]?.exitCode, 0, "the next check still runs");
 });
 
-function git(cwd, ...args) {
-  return execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
+// A worker's commit of `files` in task a's worktree; returns the worktree.
+async function commitWork(ops: Operations, files: string[]) {
+  const { path: worktree } = await ops.execute<{ path: string }>(
+    "worktree.prepare",
+    { taskId: "a" },
+  );
+  for (const file of files) {
+    fs.mkdirSync(path.dirname(path.join(worktree, file)), { recursive: true });
+    fs.writeFileSync(path.join(worktree, file), "work\n");
+  }
+  git(worktree, "add", ".");
+  git(worktree, "commit", "-qm", "Work a");
+  return worktree;
 }
 
-function setup(t, { paths, checks, flow } = {}) {
+function setup(
+  t: TestContext,
+  {
+    paths,
+    checks,
+    flow,
+  }: {
+    paths?: string[];
+    checks?: string[][];
+    flow?: Record<string, unknown>;
+  } = {},
+) {
   const root = temporaryDirectory("avoozl-verify-paths-"),
     checkout = path.join(root, "app");
   fs.mkdirSync(checkout);
@@ -153,21 +186,13 @@ function setup(t, { paths, checks, flow } = {}) {
 }
 
 // A worker's commit in the task worktree, then one queued run for it.
-async function committed(store, ops, files) {
-  const { path: worktree } = await ops.execute("worktree.prepare", {
-    taskId: "a",
-  });
-  for (const file of files) {
-    fs.mkdirSync(path.dirname(path.join(worktree, file)), { recursive: true });
-    fs.writeFileSync(path.join(worktree, file), "work\n");
-  }
-  git(worktree, "add", ".");
-  git(worktree, "commit", "-qm", "Work a");
+async function committed(store: Store, ops: Operations, files: string[]) {
+  const worktree = await commitWork(ops, files);
   const commit = git(worktree, "rev-parse", "HEAD"),
-    task = store.read().tasks.find((x) => x.id === "a");
+    task = found(store.read().tasks.find((x) => x.id === "a"));
   queueCheckRun(store, {
     task,
-    repository: store.get("repositories", "app"),
+    repository: storedRow(store, "repositories", "app"),
     commit,
     attempt: checkRuns(store).length + 1,
   });
@@ -194,13 +219,13 @@ test("checks run warm in the task worktree, which keeps its build output", async
   });
   const { worktree, commit } = await committed(store, ops, ["src/a.mjs"]);
   await drainCheckRuns(store);
-  const [run] = checkRuns(store);
+  const run = found(checkRuns(store)[0]);
   assert.equal(run.warm, true);
   assert.equal(run.head, commit);
-  assert.deepEqual([run.paths.changed, run.paths.outside], [1, []]);
-  assert.equal(run.checks[0].exitCode, 0);
+  assert.deepEqual([run.paths?.changed, run.paths?.outside], [1, []]);
+  assert.equal(run.checks?.[0]?.exitCode, 0);
   assert.ok(fs.existsSync(path.join(worktree, "build", "out.txt")), "warm");
-  assert.equal(run.checks[1].notRun, "timed out after 1 s");
+  assert.equal(run.checks?.[1]?.notRun, "timed out after 1 s");
 });
 
 test("a file outside declared paths runs no check; a protected path waits for a person", async (t) => {
@@ -210,17 +235,17 @@ test("a file outside declared paths runs no check; a protected path waits for a 
   const outside = setup(t, { paths: ["src/**"] });
   await committed(outside.store, outside.ops, ["src/a.mjs", "notes.txt"]);
   await drainCheckRuns(outside.store);
-  const [refused] = checkRuns(outside.store);
-  assert.deepEqual(refused.paths.outside, ["notes.txt"]);
+  const refused = found(checkRuns(outside.store)[0]);
+  assert.deepEqual(refused.paths?.outside, ["notes.txt"]);
   assert.deepEqual(refused.checks, []);
-  assert.equal(pathOutcome(refused).outcome, "rejected");
+  assert.equal(pathOutcome(refused)?.outcome, "rejected");
 
   const { store, ops } = setup(t);
   const { commit } = await committed(store, ops, [".github/workflows/ci.yml"]);
   await drainCheckRuns(store);
-  const [held] = checkRuns(store);
-  assert.deepEqual(held.paths.protected, [".github/workflows/ci.yml"]);
-  assert.equal(pathOutcome(held).outcome, "protected");
+  const held = found(checkRuns(store)[0]);
+  assert.deepEqual(held.paths?.protected, [".github/workflows/ci.yml"]);
+  assert.equal(pathOutcome(held)?.outcome, "protected");
   store.put("task_deliveries", {
     id: "a",
     taskId: "a",
@@ -229,7 +254,10 @@ test("a file outside declared paths runs no check; a protected path waits for a 
     attempts: [],
     verifications: [],
   });
-  const allow = (input, who) =>
+  const allow = (
+    input: { reason?: string },
+    who?: Parameters<typeof allowProtectedPaths>[2],
+  ) =>
     allowProtectedPaths(
       store,
       { taskId: "a", reason: "CI change", ...input },
@@ -237,45 +265,45 @@ test("a file outside declared paths runs no check; a protected path waits for a 
     );
   assert.throws(
     () => allow({}),
-    (e) => e.status === 409,
+    (e: Refusal) => e.status === 409,
     "not held yet",
   );
   store.put("task_deliveries", {
-    ...store.get("task_deliveries", "a"),
+    ...storedRow(store, "task_deliveries", "a"),
     state: "decision",
-    cause: pathOutcome(held).cause,
+    cause: pathOutcome(held)?.cause,
     verifications: [{ attempt: 1, by: "avoozl", commit, ...pathOutcome(held) }],
   });
   assert.throws(
     () => allow({}, { caller: { sessionKey: "dashboard:w-1" } }),
-    (e) => e.status === 403,
+    (e: Refusal) => e.status === 403,
   );
   assert.throws(
     () => allow({}, { mcp: true }),
-    (e) => e.status === 403,
+    (e: Refusal) => e.status === 403,
   );
   assert.throws(
     () => allow({ reason: "" }),
-    (e) => e.status === 400,
+    (e: Refusal) => e.status === 400,
   );
   allow({}, { local: true });
-  const delivery = store.get("task_deliveries", "a");
+  const delivery = storedRow<Delivery>(store, "task_deliveries", "a");
   assert.deepEqual([delivery.state, delivery.cause], ["done", undefined]);
   queueCheckRun(store, {
-    task: store.read().tasks[0],
-    repository: store.get("repositories", "app"),
+    task: found(store.read().tasks[0]),
+    repository: storedRow(store, "repositories", "app"),
     commit,
     attempt: 2,
   });
   await drainCheckRuns(store);
-  const again = checkRuns(store).find((r) => r.attempt === 2);
-  assert.deepEqual(again.paths.protected, []);
-  assert.deepEqual(again.paths.allowed, [".github/workflows/ci.yml"]);
-  assert.equal(again.checks[0].exitCode, 0);
+  const again = found(checkRuns(store).find((r) => r.attempt === 2));
+  assert.deepEqual(again.paths?.protected, []);
+  assert.deepEqual(again.paths?.allowed, [".github/workflows/ci.yml"]);
+  assert.equal(again.checks?.[0]?.exitCode, 0);
 });
 
 // A worker's done through the tick, the run, and the next tick's judgment.
-async function judgedAfter(store, ops, files) {
+async function judgedAfter(store: Store, ops: Operations, files: string[]) {
   await ops.execute("session.bind", {
     taskId: "a",
     slot: "w-1",
@@ -284,15 +312,7 @@ async function judgedAfter(store, ops, files) {
     source: "tick",
     title: "avoozl:a worker",
   });
-  const { path: worktree } = await ops.execute("worktree.prepare", {
-    taskId: "a",
-  });
-  for (const file of files) {
-    fs.mkdirSync(path.dirname(path.join(worktree, file)), { recursive: true });
-    fs.writeFileSync(path.join(worktree, file), "work\n");
-  }
-  git(worktree, "add", ".");
-  git(worktree, "commit", "-qm", "Work a");
+  await commitWork(ops, files);
   await ops.execute(
     "session.report",
     { taskId: "a", kind: "done" },
@@ -308,7 +328,10 @@ async function judgedAfter(store, ops, files) {
   await tick();
   await drainCheckRuns(store);
   const result = await tick();
-  return { result, delivery: store.get("task_deliveries", "a") };
+  return {
+    result,
+    delivery: storedRow<Delivery>(store, "task_deliveries", "a"),
+  };
 }
 
 test("the tick fails an attempt outside declared paths and holds a protected path for a person", async (t) => {
@@ -318,16 +341,16 @@ test("the tick fails an attempt outside declared paths and holds a protected pat
   const failed = await judgedAfter(outside.store, outside.ops, ["notes.txt"]);
   assert.equal(failed.delivery.state, "failed");
   assert.match(
-    failed.delivery.attempts[0].cause,
+    failed.delivery.attempts[0]?.cause ?? "",
     /^outside declared paths: notes\.txt$/,
   );
 
   const { store, ops } = setup(t);
   const held = await judgedAfter(store, ops, [".github/workflows/ci.yml"]);
   assert.equal(held.delivery.state, "decision");
-  assert.match(held.delivery.cause, /touches protected paths/);
-  assert.equal(held.delivery.attempts[0].outcome, "done", "no attempt spent");
-  assert.equal(held.delivery.verifications.at(-1).outcome, "protected");
+  assert.match(held.delivery.cause ?? "", /touches protected paths/);
+  assert.equal(held.delivery.attempts[0]?.outcome, "done", "no attempt spent");
+  assert.equal(held.delivery.verifications.at(-1)?.outcome, "protected");
   // Through the operation: a session is refused, the command line is not.
   await assert.rejects(
     ops.execute(
@@ -336,7 +359,7 @@ test("the tick fails an attempt outside declared paths and holds a protected pat
       undefined,
       { caller: { sessionKey: "dashboard:w-1" } },
     ),
-    (e) => e.status === 403,
+    (e: Refusal) => e.status === 403,
   );
   await ops.execute(
     "verify.allow",
@@ -344,7 +367,10 @@ test("the tick fails an attempt outside declared paths and holds a protected pat
     undefined,
     { local: true },
   );
-  assert.equal(store.get("task_deliveries", "a").state, "done");
+  assert.equal(
+    storedRow<Delivery>(store, "task_deliveries", "a").state,
+    "done",
+  );
 });
 
 test("a failed check's first error line: the first naming an error, else the first, redacted and cut", () => {
@@ -355,8 +381,8 @@ test("a failed check's first error line: the first naming an error, else the fir
   assert.equal(firstErrorLine("only line", null), "only line");
   assert.equal(firstErrorLine(null, "", undefined), null);
   assert.doesNotMatch(
-    firstErrorLine("Error at /Users/someone/app/x.js:3"),
+    firstErrorLine("Error at /Users/someone/app/x.js:3") ?? "",
     /someone/,
   );
-  assert.equal(firstErrorLine("Error " + "x".repeat(400)).length, 200);
+  assert.equal(firstErrorLine("Error " + "x".repeat(400))?.length, 200);
 });

@@ -48,6 +48,8 @@ interface RunContext {
   base?: string;
   repo?: string;
   timeoutMs?: number;
+  // Passed on to an MCP step (tests shorten a second).
+  secondMs?: number;
   fresh?: boolean;
   pluginOptions?: unknown;
   mcpId?: unknown;

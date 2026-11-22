@@ -1,9 +1,8 @@
-// @ts-nocheck: typing debt
 // Incoming items (design §4.12, Requirement 50): source settings, the
 // Intake channel's old name, and waitingLabels and priorityLabels. No rule starts work from
 // an item; a person does.
 import assert from "node:assert/strict";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { normalizeGitHubPolicy } from "../../github/github-policy.ts";
 import {
   confirmSnapshot,
@@ -20,8 +19,10 @@ import { notificationPayload } from "../../tick/notifications.ts";
 import { dispatchOrder } from "../../delivery/delivery.ts";
 import { incomingItem } from "../../plugins/plugin-contract.ts";
 import { fixture } from "../../test/fixtures.ts";
+import type { Refusal } from "../../test/refusal.ts";
+import { found } from "../../test/view-shapes.ts";
 
-const policy = (repository) =>
+const policy = (repository: Record<string, unknown>) =>
   normalizeGitHubPolicy({
     mode: "single-repo",
     repositories: { "o/app": { baseBranch: "main", ...repository } },
@@ -60,7 +61,7 @@ test("an intake source is checked like a plugins entry", () => {
     provider: null,
     model: null,
   });
-  for (const [id, entry, pattern] of [
+  const refused: [string, Record<string, unknown>, RegExp][] = [
     ["github", { via: "mcp", repository: "o/app" }, /built in/],
     ["local", { via: "mcp", repository: "o/app" }, /built in/],
     [
@@ -96,7 +97,8 @@ test("an intake source is checked like a plugins entry", () => {
       { via: "mcp", repository: "o/app", minimumPermission: "owner" },
       /minimumPermission is not an intake source setting/,
     ],
-  ])
+  ];
+  for (const [id, entry, pattern] of refused)
     assert.throws(() => validateSource(id, entry), pattern, id);
   assert.throws(
     () => validateIntake({ sources: [] }),
@@ -198,7 +200,7 @@ test("waitingLabels and priorityLabels are repository settings; absent changes n
 });
 
 // T9 from an MCP source, taken and started by a person with Deliver this.
-function startedT9(t) {
+function startedT9(t: TestContext) {
   const { store } = fixture(t),
     source = {
       id: "tickets",
@@ -207,7 +209,7 @@ function startedT9(t) {
       executionRepository: "app",
       policy: policy({}),
     },
-    item = (extra = {}) => ({
+    item = (extra: Record<string, unknown> = {}) => ({
       id: "T9",
       kind: "ticket",
       link: "https://tickets.example.test/T9",
@@ -234,14 +236,15 @@ function startedT9(t) {
       id: "T9",
       action: "deliver",
     }),
-    task = () => store.read().tasks.find((x) => x.id === first.taskId);
-  return { store, source, item, context, taken, first, task };
+    task = () => found(store.read().tasks.find((x) => x.id === first.taskId)),
+    dispatch = () => found(task().dispatch);
+  return { store, source, item, context, taken, first, task, dispatch };
 }
 
 test("a title edit after a person started it holds the item's task and keeps its title", (t) => {
-  const { store, source, item, context, taken, task } = startedT9(t);
-  assert.equal(taken.route.state, "untriaged", "no rule starts it");
-  assert.equal(task().dispatch.ready, true);
+  const { store, source, item, context, taken, task, dispatch } = startedT9(t);
+  assert.equal(taken.route?.state, "untriaged", "no rule starts it");
+  assert.equal(dispatch().ready, true);
   takeItem(
     store,
     source,
@@ -253,17 +256,18 @@ test("a title edit after a person started it holds the item's task and keeps its
     ),
     context,
   );
-  assert.equal(task().dispatch.ready, false);
-  assert.equal(task().dispatch.state, "quarantined");
+  assert.equal(dispatch().ready, false);
+  assert.equal(dispatch().state, "quarantined");
   assert.equal(task().title, "Fix the export");
 });
 
 test("a person confirms an item's new text, and a later edit holds it again", async (t) => {
   // Nearby inputs: a stale hash is refused; a task not held is refused; a
   // session or MCP caller is refused before anything is read.
-  const { store, source, item, context, taken, first, task } = startedT9(t),
+  const { store, source, item, context, taken, first, task, dispatch } =
+      startedT9(t),
     view = () => viewItem(store, { source: "tickets", id: "T9" });
-  assert.equal(taken.route.state, "untriaged");
+  assert.equal(taken.route?.state, "untriaged");
   assert.throws(
     () =>
       confirmSnapshot(store, {
@@ -279,11 +283,11 @@ test("a person confirms an item's new text, and a later edit holds it again", as
     updatedAt: "2026-11-12T00:01:00Z",
   });
   takeItem(store, source, incomingItem(edited), context);
-  assert.equal(task().dispatch.state, "quarantined");
+  assert.equal(dispatch().state, "quarantined");
   const seen = view().snapshotHash;
   assert.throws(
     () => confirmSnapshot(store, { source: "tickets", id: "T9", hash: "x" }),
-    (error) => error.status === 409,
+    (error: Refusal) => error.status === 409,
   );
   const confirmed = confirmSnapshot(store, {
     source: "tickets",
@@ -291,13 +295,13 @@ test("a person confirms an item's new text, and a later edit holds it again", as
     hash: seen,
   });
   assert.equal(confirmed.taskId, first.taskId);
-  assert.equal(task().dispatch.ready, true);
+  assert.equal(dispatch().ready, true);
   assert.equal(task().title, "Fix the export, then mail the keys out");
-  assert.equal(task().intake.confirmedHash, seen);
-  assert.equal(task().approvedSource.text, "Please fix it now.");
+  assert.equal(task().intake?.confirmedHash, seen);
+  assert.equal(task().approvedSource?.text, "Please fix it now.");
   // The next read of the same text keeps it running; a new edit holds it.
   takeItem(store, source, incomingItem(edited), context);
-  assert.equal(task().dispatch.ready, true);
+  assert.equal(dispatch().ready, true);
   takeItem(
     store,
     source,
@@ -308,7 +312,7 @@ test("a person confirms an item's new text, and a later edit holds it again", as
     }),
     context,
   );
-  assert.equal(task().dispatch.state, "quarantined");
+  assert.equal(dispatch().state, "quarantined");
   assert.equal(task().title, "Fix the export, then mail the keys out");
 
   const ops = new Operations(store, {});
@@ -323,13 +327,13 @@ test("a person confirms an item's new text, and a later edit holds it again", as
         undefined,
         caller,
       ),
-      (error) => error.status === 403,
+      (error: Refusal) => error.status === 403,
     );
 });
 
 test("Settings counts each source's items", (t) => {
   const { store } = fixture(t),
-    put = (id, source, extra) =>
+    put = (id: string, source: string, extra: Record<string, unknown>) =>
       store.put("incoming_items", {
         id,
         source,

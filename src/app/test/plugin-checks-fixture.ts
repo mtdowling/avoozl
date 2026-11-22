@@ -9,6 +9,7 @@ import type { TestContext } from "node:test";
 import type { Task } from "../../types.ts";
 import { deliveryWorkspace } from "./delivery-fixture.ts";
 import { found } from "./view-shapes.ts";
+import type { PluginCheck as ApprovedCheck } from "../workspace/repository-checks.ts";
 import {
   approvePlugin,
   validateManifest,
@@ -42,10 +43,19 @@ interface PluginCheck {
   stage?: string;
   decide?: unknown;
   decideAt?: unknown;
+  network?: boolean;
+  // An MCP step: its server and fixed tool calls.
+  mcp?: {
+    server: string;
+    start: { args: Record<string, string> };
+    poll: { everySeconds: number };
+    result: { path: string };
+  };
   [key: string]: unknown;
 }
 export interface Manifest {
   checks: Record<string, PluginCheck>;
+  servers?: Record<string, { about: string }>;
   [key: string]: unknown;
 }
 type Edit = (manifest: Manifest) => Manifest | void;
@@ -155,9 +165,15 @@ export function pluginWorkspace(
     options,
     approve: approveNow,
     settings: () => readPluginSettings(settingsFile),
-    check: (name: string) =>
-      approvedPluginChecks(options).find(
-        (c: { name: string }) => c.name === name,
-      ),
+    // An approved check by name, with the folder its steps run from.
+    check: (
+      name: string,
+    ): (ApprovedCheck & { plugin: { folder: string } }) | undefined => {
+      const check = approvedPluginChecks(options).find((c) => c.name === name);
+      if (!check) return undefined;
+      const folder = check.plugin.folder;
+      assert.ok(typeof folder === "string", `${name} has no plugin folder`);
+      return { ...check, plugin: { ...check.plugin, folder } };
+    },
   };
 }

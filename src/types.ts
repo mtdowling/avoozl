@@ -74,7 +74,8 @@ export interface Task {
     repository?: string;
     [key: string]: unknown;
   } | null;
-  childrenComplete?: boolean;
+  // When every child completed, and which children they were.
+  childrenComplete?: { at: string; children: string[] };
   createdAt?: string;
   updatedAt?: string;
   labeledIssue?: { repository?: string; number?: number } | null;

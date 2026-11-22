@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Tasks 2.8, 2.9 and 2.10: check each done report's commit with Avoozl's
 // own check run, integrate verified commits, release dependents in the same tick,
 // and complete parents from children. One test per rule; each lists the nearby
@@ -6,7 +5,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { repositoryConfig } from "../../git/git.ts";
 import {
   bind,
@@ -18,20 +17,45 @@ import {
 import { loopOn } from "../../test/fixtures.ts";
 import { drainCheckRuns } from "../check-runs.ts";
 import { retryDelivery } from "../delivery.ts";
+import type { Operations } from "../../api/operations.ts";
+import type { Store } from "../../store/store.ts";
+import { found, storedRow, type TickResult } from "../../test/view-shapes.ts";
+
+// A tick's result with the messages it sent sessions.
+type Tick = TickResult & { messages: { slot: string; text: string }[] };
+// A task delivery, for the fields these tests read.
+interface Delivery {
+  id: string;
+  state: string;
+  into?: string;
+  integratedCommit?: string;
+  commit?: string;
+  cause?: string;
+  attempts: unknown[];
+  verifications: { cause?: string }[];
+  reviewNudges?: Record<string, Record<string, unknown>>;
+  [key: string]: unknown;
+}
+const deliveryOf = (store: Store, id: string) =>
+  storedRow<Delivery>(store, "task_deliveries", id);
+const worktreeOf = (store: Store, id: string) =>
+  storedRow<{ path: string; branch: string }>(store, "task_worktrees", id);
 
 // The tick starts and lands work only with the server loop on.
 loopOn();
 
-const setup = (t, options = {}) =>
-  deliveryWorkspace(t, { prefix: "avoozl-verify-", ...options });
+const setup = (
+  t: TestContext,
+  options: Parameters<typeof deliveryWorkspace>[1] = {},
+) => deliveryWorkspace(t, { prefix: "avoozl-verify-", ...options });
 
-const tick = (ops, slots = []) =>
-  ops.execute("workspace.tick", {
+const tick = (ops: Operations, slots: string[] = []) =>
+  ops.execute<Tick>("workspace.tick", {
     sessions: slots.map((target) => ({ target, status: "idle" })),
   });
 
-function age(store, slot, minutes) {
-  const binding = store.get("session_bindings", slot),
+function age(store: Store, slot: string, minutes: number) {
+  const binding = storedRow(store, "session_bindings", slot),
     at = new Date(Date.now() - minutes * 60_000).toISOString();
   store.put("session_bindings", { ...binding, boundAt: at, statusAt: at });
 }
@@ -70,13 +94,14 @@ test("a quiet reviewer is nudged, then failed and retried, so the graph never ha
     { target: "w-1", status: "idle" },
     { target: "v-1", status: "idle" },
   ];
-  const run = (sessions = idle) => ops.execute("workspace.tick", { sessions });
+  const run = (sessions = idle) =>
+    ops.execute<Tick>("workspace.tick", { sessions });
   await run();
   age(store, "v-1", 5);
   assert.deepEqual((await run()).messages, [], "not quiet yet");
   age(store, "v-1", 600);
   assert.deepEqual(
-    (await ops.execute("workspace.tick", {})).messages,
+    (await ops.execute<Tick>("workspace.tick", {})).messages,
     [],
     "a tick without the roster sends nothing",
   );
@@ -98,17 +123,18 @@ test("a quiet reviewer is nudged, then failed and retried, so the graph never ha
   age(store, "v-1", 600);
   const nudged = await run();
   assert.equal(nudged.messages.length, 1);
-  assert.equal(nudged.messages[0].slot, "v-1");
-  assert.ok(nudged.messages[0].text.includes(commit));
+  const nudge = found(nudged.messages[0]);
+  assert.equal(nudge.slot, "v-1");
+  assert.ok(nudge.text.includes(commit));
   assert.deepEqual(nudged.dispatch, [], "a nudge does not replace");
   assert.deepEqual((await run()).messages, [], "one nudge per quiet interval");
 
-  const delivery = store.get("task_deliveries", "a");
+  const delivery = deliveryOf(store, "a");
   store.put("task_deliveries", {
     ...delivery,
     reviewNudges: {
       c: {
-        ...delivery.reviewNudges.c,
+        ...delivery.reviewNudges?.c,
         at: new Date(Date.now() - 3600_000).toISOString(),
       },
     },
@@ -119,11 +145,14 @@ test("a quiet reviewer is nudged, then failed and retried, so the graph never ha
     retried.dispatch.map((d) => [d.role, d.attempt]),
     [["review:c", 2]],
   );
-  assert.match(retried.dispatch[0].title, /^avoozl:a attempt 2 review c /);
-  const failed = store.get("task_deliveries", "a");
+  assert.match(
+    String(retried.dispatch[0]?.title),
+    /^avoozl:a attempt 2 review c /,
+  );
+  const failed = deliveryOf(store, "a");
   assert.equal(failed.state, "done", "the worker's commit still waits");
   assert.match(
-    failed.verifications.at(-1).cause,
+    failed.verifications.at(-1)?.cause ?? "",
     /review c quiet after 1 nudges/,
   );
 
@@ -133,23 +162,23 @@ test("a quiet reviewer is nudged, then failed and retried, so the graph never ha
   await run(both);
   age(store, "v-2", 600);
   await run(both);
-  const second = store.get("task_deliveries", "a");
+  const second = deliveryOf(store, "a");
   store.put("task_deliveries", {
     ...second,
     reviewNudges: {
       c: {
-        ...second.reviewNudges.c,
+        ...second.reviewNudges?.c,
         at: new Date(Date.now() - 3600_000).toISOString(),
       },
     },
   });
   const decided = await run(both);
-  assert.equal(store.get("task_deliveries", "a").state, "decision");
+  assert.equal(deliveryOf(store, "a").state, "decision");
   assert.deepEqual(decided.dispatch, []);
 });
 
 // The worker's done report, then Avoozl's own check run on its commit.
-async function verified(ops, taskId) {
+async function verified(ops: Operations, taskId: string) {
   const commit = await workerDone(ops, taskId, `w-${taskId}`);
   await tick(ops);
   await drainCheckRuns(ops.store);
@@ -163,14 +192,14 @@ test("a verified commit integrates with integrateRun and records the integrated 
   const { store, ops, checkout } = setup(t, { tasks: [leaf("a")] });
   const commit = await verified(ops, "a");
   const result = await tick(ops);
-  const delivery = store.get("task_deliveries", "a");
+  const delivery = deliveryOf(store, "a");
   assert.equal(delivery.state, "integrated");
   assert.equal(delivery.into, "main");
   assert.equal(git(checkout, "rev-parse", "main"), delivery.integratedCommit);
   assert.equal(delivery.integratedCommit, commit, "already on main: no rebase");
-  const task = store.read().tasks.find((x) => x.id === "a");
+  const task = found(store.read().tasks.find((x) => x.id === "a"));
   assert.deepEqual(
-    [task.integration.commit, task.integration.into],
+    [task.integration?.commit, task.integration?.into],
     [commit, "main"],
   );
   assert.notEqual(task.status, "accepted", "integration is not acceptance");
@@ -188,22 +217,22 @@ test("a verified commit integrates with integrateRun and records the integrated 
   });
   fs.writeFileSync(path.join(kiro.checkout, ".kiro/settings/cli.json"), "{}\n");
   await tick(kiro.ops);
-  assert.equal(kiro.store.get("task_deliveries", "k").state, "integrated");
+  assert.equal(deliveryOf(kiro.store, "k").state, "integrated");
 
   const dirty = setup(t, { tasks: [leaf("b")] });
   await verified(dirty.ops, "b");
   fs.writeFileSync(path.join(dirty.checkout, "README.md"), "edited\n");
   const before = git(dirty.checkout, "rev-parse", "main"),
     refused = await tick(dirty.ops);
-  assert.equal(dirty.store.get("task_deliveries", "b").state, "decision");
+  assert.equal(deliveryOf(dirty.store, "b").state, "decision");
   assert.match(
-    dirty.store.get("task_deliveries", "b").cause,
+    deliveryOf(dirty.store, "b").cause ?? "",
     /checkout has changes/,
   );
-  assert.equal(refused.notify.length, 1);
+  assert.equal(refused.notify?.length, 1);
   assert.equal(git(dirty.checkout, "rev-parse", "main"), before);
   assert.deepEqual((await tick(dirty.ops)).notify, [], "decided once");
-  const attempts = dirty.store.get("task_deliveries", "b").attempts.length;
+  const attempts = deliveryOf(dirty.store, "b").attempts.length;
   git(dirty.checkout, "checkout", "--", "README.md");
   const retried = await retryDelivery(
     dirty.store,
@@ -216,9 +245,9 @@ test("a verified commit integrates with integrateRun and records the integrated 
     "an integration retry keeps the approved commit",
   );
   await tick(dirty.ops);
-  assert.equal(dirty.store.get("task_deliveries", "b").state, "integrated");
+  assert.equal(deliveryOf(dirty.store, "b").state, "integrated");
   assert.equal(
-    dirty.store.get("task_deliveries", "b").attempts.length,
+    deliveryOf(dirty.store, "b").attempts.length,
     attempts,
     "integration retry does not spend another writer attempt",
   );
@@ -233,14 +262,14 @@ test("a verified commit integrates with integrateRun and records the integrated 
     await verified(held.ops, taskId);
     fs.writeFileSync(path.join(held.checkout, "README.md"), "edited\n");
     await tick(held.ops);
-    assert.equal(held.store.get("task_deliveries", taskId).state, "decision");
+    assert.equal(deliveryOf(held.store, taskId).state, "decision");
     git(held.checkout, "checkout", "--", "README.md");
     if (lose)
-      fs.rmSync(held.store.get("task_worktrees", taskId).path, {
+      fs.rmSync(worktreeOf(held.store, taskId).path, {
         recursive: true,
         force: true,
       });
-    const attempts = held.store.get("task_deliveries", taskId).attempts.length,
+    const attempts = deliveryOf(held.store, taskId).attempts.length,
       sent = await retryDelivery(
         held.store,
         { taskId, ...input },
@@ -260,7 +289,7 @@ test("a verified commit integrates with integrateRun and records the integrated 
   await unchecked.ops.execute("workspace.tick", {});
   await tick(unchecked.ops);
   assert.match(
-    unchecked.store.get("task_deliveries", "c").cause,
+    deliveryOf(unchecked.store, "c").cause ?? "",
     /Configure the repository's checks/,
   );
 });
@@ -278,12 +307,12 @@ test("an integration branch takes the verified commit and leaves the checkout un
   const main = git(checkout, "rev-parse", "main"),
     commit = await verified(ops, "a");
   await tick(ops);
-  assert.equal(store.get("task_deliveries", "a").state, "integrated");
+  assert.equal(deliveryOf(store, "a").state, "integrated");
   assert.equal(git(checkout, "rev-parse", "avoozl-integration"), commit);
   assert.equal(git(checkout, "rev-parse", "main"), main, "main is untouched");
   assert.equal(git(checkout, "branch", "--show-current"), "main");
   assert.equal(
-    store.read().tasks.find((x) => x.id === "a").integration.into,
+    found(store.read().tasks.find((x) => x.id === "a")).integration?.into,
     "avoozl-integration",
   );
 
@@ -296,14 +325,14 @@ test("an integration branch takes the verified commit and leaves the checkout un
   );
   await verified(ops, "b");
   assert.ok(
-    fs.existsSync(path.join(store.get("task_worktrees", "b").path, "a-1.txt")),
+    fs.existsSync(path.join(worktreeOf(store, "b").path, "a-1.txt")),
     "a dependent starts from the integration branch, not the base",
   );
   const holder = fs.realpathSync.native(path.join(root, "holder"));
   // An untracked file elsewhere in the holder is not in the way.
   fs.writeFileSync(path.join(holder, "notes.txt"), "mine\n");
   await tick(ops);
-  assert.equal(store.get("task_deliveries", "b").state, "integrated");
+  assert.equal(deliveryOf(store, "b").state, "integrated");
   const landed = git(checkout, "rev-parse", "avoozl-integration");
   assert.equal(git(holder, "rev-parse", "HEAD"), landed, "holder moved");
   assert.ok(fs.existsSync(path.join(holder, "b-1.txt")), "holder has the work");
@@ -316,21 +345,20 @@ test("an integration branch takes the verified commit and leaves the checkout un
   await verified(ops, "c");
   fs.appendFileSync(path.join(holder, "a-1.txt"), "edited\n");
   const notify = (await tick(ops)).notify;
-  assert.equal(store.get("task_deliveries", "c").state, "decision");
+  assert.equal(deliveryOf(store, "c").state, "decision");
   assert.ok(
-    store
-      .get("task_deliveries", "c")
-      .cause.includes(
-        `checked out at ${holder}, which has uncommitted changes (a-1.txt)`,
-      ),
+    String(deliveryOf(store, "c").cause).includes(
+      `checked out at ${holder}, which has uncommitted changes (a-1.txt)`,
+    ),
   );
-  assert.ok(notify.some((item) => item.task === "c"));
+  assert.ok(notify?.some((item) => item.task === "c"));
   assert.equal(git(checkout, "rev-parse", "avoozl-integration"), landed);
   assert.match(fs.readFileSync(path.join(holder, "a-1.txt"), "utf8"), /edited/);
   assert.equal(
-    store.get(
+    storedRow<{ state: string }>(
+      store,
       "integration",
-      `avoozl:c:${store.get("task_deliveries", "c").commit}`,
+      `avoozl:c:${deliveryOf(store, "c").commit}`,
     ).state,
     "ready",
     "still queued",
@@ -342,7 +370,7 @@ test("an integration branch takes the verified commit and leaves the checkout un
   fs.writeFileSync(path.join(holder, "d-1.txt"), "mine\n");
   await tick(ops);
   assert.match(
-    store.get("task_deliveries", "d").cause,
+    deliveryOf(store, "d").cause ?? "",
     /untracked files the fast-forward would overwrite \(d-1\.txt\)/,
   );
   assert.equal(git(checkout, "rev-parse", "avoozl-integration"), landed);
@@ -388,11 +416,13 @@ test("integration releases dependents in the same tick and completes parents, ne
   ];
   const { store, ops } = setup(t, { tasks, edges });
   store.mutate("Integrate old", (data) => {
-    data.tasks.find((x) => x.id === "old").integration = { commit: "abc" };
+    found(data.tasks.find((x) => x.id === "old")).integration = {
+      commit: "abc",
+    };
   });
   await verified(ops, "a");
   const released = await tick(ops, ["v-a"]);
-  assert.equal(store.get("task_deliveries", "a").state, "integrated");
+  assert.equal(deliveryOf(store, "a").state, "integrated");
   const workers = released.dispatch
     .filter((d) => d.role === "worker")
     .map((d) => d.task);
@@ -402,13 +432,13 @@ test("integration releases dependents in the same tick and completes parents, ne
     "a legacy edge waits for acceptance",
   );
   let data = store.read();
-  const byId = (id) => data.tasks.find((x) => x.id === id);
+  const byId = (id: string) => found(data.tasks.find((x) => x.id === id));
   assert.equal(byId("pkg").childrenComplete, undefined, "b is not done");
 
   await verified(ops, "b");
   await tick(ops);
   data = store.read();
-  assert.deepEqual(byId("pkg").childrenComplete.children, ["a", "b"]);
+  assert.deepEqual(byId("pkg").childrenComplete?.children, ["a", "b"]);
   assert.ok(
     byId("top").childrenComplete,
     "the epic completes from its package",
@@ -424,7 +454,7 @@ test("integration releases dependents in the same tick and completes parents, ne
     evidence: "Whole head checked.",
   });
   assert.equal(
-    store.read().tasks.find((x) => x.id === "a").status,
+    found(store.read().tasks.find((x) => x.id === "a")).status,
     "accepted",
     "acceptance is its own action",
   );
@@ -433,10 +463,10 @@ test("integration releases dependents in the same tick and completes parents, ne
 test("a landed task's worktree and branch go; a held one keeps them", async (t) => {
   const { store, ops, checkout } = setup(t, { tasks: [leaf("a"), leaf("b")] });
   await verified(ops, "a");
-  const kept = store.get("task_worktrees", "a");
+  const kept = worktreeOf(store, "a");
   assert.ok(fs.existsSync(kept.path), "kept until it lands");
   await tick(ops);
-  assert.equal(store.get("task_deliveries", "a").state, "integrated");
+  assert.equal(deliveryOf(store, "a").state, "integrated");
   assert.equal(fs.existsSync(kept.path), false);
   assert.equal(store.get("task_worktrees", "a"), null);
   assert.equal(git(checkout, "branch", "--list", kept.branch), "");
@@ -449,8 +479,8 @@ test("a landed task's worktree and branch go; a held one keeps them", async (t) 
   fs.writeFileSync(path.join(checkout, "README.md"), "edited\n");
   await verified(ops, "b");
   await tick(ops);
-  const held = store.get("task_worktrees", "b");
-  assert.equal(store.get("task_deliveries", "b").state, "decision");
+  const held = worktreeOf(store, "b");
+  assert.equal(deliveryOf(store, "b").state, "decision");
   assert.ok(fs.existsSync(held.path));
   assert.notEqual(git(checkout, "branch", "--list", held.branch), "");
 });
@@ -483,9 +513,11 @@ test("preparing a task runs the approved scripts/worktree helper", {
     /runs every time a worktree is added/,
   );
   store.put("repositories", {
-    ...store.list("repositories")[0],
+    ...found(store.list("repositories")[0]),
     worktreeHelper: helperHash(helper),
   });
-  const made = await ops.execute("worktree.prepare", { taskId: "a" });
+  const made = await ops.execute<{ path: string }>("worktree.prepare", {
+    taskId: "a",
+  });
   assert.ok(fs.existsSync(made.path + ".ran"), "the helper made it");
 });

@@ -1,11 +1,10 @@
-// @ts-nocheck: typing debt
 import { defaultJob, fixedCredentials } from "../../test/github-credentials.ts";
 // Calls counted by source, and one query for all open pull requests. Fake
 // fetch and a temporary store; no network.
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { GitHubClient } from "../github.ts";
 import { rateView, withSource, countFilePath } from "../github-rate.ts";
 import { Store } from "../../store/store.ts";
@@ -13,11 +12,11 @@ import { temporaryDirectory } from "../../test/temporary.ts";
 
 const T0 = Date.parse("2026-11-15T10:00:00Z");
 
-function setup(t, nodes = []) {
+function setup(t: TestContext, nodes: ReturnType<typeof pull>[] = []) {
   const dir = temporaryDirectory("avoozl-usage-"),
     store = new Store(path.join(dir, "workspace.sqlite")),
     countFile = path.join(dir, "gh-calls.jsonl"),
-    log = { queries: [] };
+    log: { queries: unknown[] } = { queries: [] };
   t.after(() => store.close());
   const github = defaultJob(
     "check-in",
@@ -25,7 +24,7 @@ function setup(t, nodes = []) {
       credentials: fixedCredentials("test-token"),
       apiUrl: "https://api.example.test",
       fetch: async (url, options) => {
-        const body = JSON.parse(options.body);
+        const body: unknown = JSON.parse(String(options?.body));
         log.queries.push(body);
         return new Response(
           JSON.stringify({
@@ -46,7 +45,7 @@ function setup(t, nodes = []) {
   return { github, store, log, countFile, dir };
 }
 
-const pull = (n) => ({
+const pull = (n: number) => ({
   number: n,
   url: `https://example.test/pull/${n}`,
   updatedAt: "2026-11-15T09:00:00Z",
@@ -92,7 +91,7 @@ test("calls are counted by source, cache hits apart", async (t) => {
   // No explicit flush: every call is in the store as soon as it returns.
   const view = rateView(store, T0, { countFile });
   assert.deepEqual(view.bySource.view, { calls: 1, notModified: 0, cached: 1 });
-  assert.equal(view.bySource.tick.calls, 1);
+  assert.equal(view.bySource.tick?.calls, 1);
   assert.equal(view.hourCalls, 2);
 });
 
@@ -114,16 +113,18 @@ test("bin/gh-counted runs gh and records the source", async (t) => {
   assert.equal(run.status, 0);
   assert.match(run.stdout, /gh version/);
   assert.equal(
-    rateView(store, Date.now(), { countFile }).bySource.radar.calls,
+    rateView(store, Date.now(), { countFile }).bySource.radar?.calls,
     1,
   );
   // A tick takes the lines into the store and empties the file.
-  github.rate.countFile = countFile;
-  github.rate.now = Date.now;
-  github.rate.dirty = true;
-  github.rate.flush(true);
+  const rate = github.rate;
+  assert.ok(rate);
+  rate.countFile = countFile;
+  rate.now = Date.now;
+  rate.dirty = true;
+  rate.flush();
   assert.equal(
-    rateView(store, Date.now(), { countFile }).bySource.radar.calls,
+    rateView(store, Date.now(), { countFile }).bySource.radar?.calls,
     1,
   );
   assert.equal(countFilePath().endsWith("gh-calls.jsonl"), true);

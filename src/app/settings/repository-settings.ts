@@ -634,8 +634,11 @@ export class RepositorySettings {
   baseConversationConfigured: boolean;
   baseConversationSettings: { autoArchiveCompleted?: boolean };
   debounceMs: number;
-  watchFactory: typeof fs.watch;
-  watcher: fs.FSWatcher | null;
+  watchFactory: (
+    directory: string,
+    listener: (kind: string, name: string | null) => void,
+  ) => { close(): void };
+  watcher: { close(): void } | null;
   timer: NodeJS.Timeout | null;
   restartBaseline: Obj | null;
   restartRequired: string[];
@@ -664,7 +667,10 @@ export class RepositorySettings {
       sources?: { label?: string; filename?: string }[];
       baseConfig?: Record<string, unknown>;
       debounceMs?: number;
-      watchFactory?: typeof fs.watch;
+      watchFactory?: (
+        directory: string,
+        listener: (kind: string, name: string | null) => void,
+      ) => { close(): void };
     } = {},
   ) {
     if (!workspaceRoot) fail("Choose a workspace root.");

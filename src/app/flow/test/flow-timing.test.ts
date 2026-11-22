@@ -1,11 +1,9 @@
-// @ts-nocheck: typing debt
 // Tasks 12.1–12.3 and 12.5: flow timing from events, phase markers and tool
 // rows, the flow settings, and the metrics computed on read (design §4.11).
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import {
   commandName,
   flowPolicy,
@@ -17,26 +15,28 @@ import { Operations } from "../../api/operations.ts";
 import { Store } from "../../store/store.ts";
 import { seedSpan, snapshot } from "../../test/fixtures.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
+import { git, leaf as taskLeaf } from "../../test/delivery-fixture.ts";
+import { found, storedRow } from "../../test/view-shapes.ts";
 
-const git = (cwd, ...args) =>
-  execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
+// The flow.view fields these tests read.
+interface FlowMetrics {
+  metrics: {
+    tasks: number;
+    leadTimeMs: number;
+    flowEfficiency: number;
+    firstPassRate: number;
+  };
+  bottleneck: { stage: string };
+  previous: { tasks: number };
+  tasks: { taskId: string }[];
+}
 
-const leaf = (id, extra = {}) => ({
-  id,
-  title: "Task " + id,
-  kind: "leaf",
-  scope: "catalog",
-  status: "planned",
-  epic: "sample",
-  track: "catalog",
-  tags: [],
-  acceptance: ["Works."],
-  checks: ["npm test"],
-  repository: "app",
-  ...extra,
-});
+const leaf = (id: string) => taskLeaf(id, { checks: ["npm test"] });
 
-function setup(t, { tasks = [leaf("a")], edges = [] } = {}) {
+function setup(
+  t: TestContext,
+  { tasks = [leaf("a")] }: { tasks?: ReturnType<typeof leaf>[] } = {},
+) {
   const root = temporaryDirectory("avoozl-flow-"),
     checkout = path.join(root, "app");
   fs.mkdirSync(checkout);
@@ -49,7 +49,7 @@ function setup(t, { tasks = [leaf("a")], edges = [] } = {}) {
   const dbPath = path.join(root, "workspace.sqlite"),
     store = new Store(dbPath);
   t.after(() => store.close());
-  store.initialize({ ...snapshot(), tasks, edges });
+  store.initialize({ ...snapshot(), tasks });
   store.put("repositories", {
     id: "app",
     root: fs.realpathSync.native(checkout),
@@ -72,9 +72,12 @@ function setup(t, { tasks = [leaf("a")], edges = [] } = {}) {
   };
 }
 
-const as = (slot) => ({ caller: { sessionKey: "dashboard:" + slot } });
-const report = (ops, slot, input) =>
-  ops.execute("session.report", input, undefined, as(slot));
+const as = (slot: string) => ({ caller: { sessionKey: "dashboard:" + slot } });
+const report = (
+  ops: Operations,
+  slot: string,
+  input: Record<string, unknown>,
+) => ops.execute("session.report", input, undefined, as(slot));
 
 test("flow settings: defaults, per-repository overrides, and refused keys", () => {
   const policy = flowPolicy({
@@ -268,8 +271,12 @@ test("tool rows replace the coarse coding stretch and close at done", async (t) 
   await ops.execute("workspace.tick", {
     sessions: [{ target: "w1", status: "working" }],
   });
-  const binding = store.get("session_bindings", "w1"),
-    row = (id, minute, kind, command) => ({
+  const binding = storedRow<Parameters<typeof ingestToolRows>[1]>(
+      store,
+      "session_bindings",
+      "w1",
+    ),
+    row = (id: string, minute: number, kind: string, command?: string) => ({
       role: "tool",
       ts: new Date(
         Date.parse("2026-11-12T10:00:00Z") + minute * 60_000,
@@ -304,9 +311,12 @@ test("tool rows replace the coarse coding stretch and close at done", async (t) 
     0,
   );
   t.mock.timers.tick(9 * 60_000);
-  const { path: worktree } = await ops.execute("worktree.prepare", {
-    taskId: "a",
-  });
+  const { path: worktree } = await ops.execute<{ path: string }>(
+    "worktree.prepare",
+    {
+      taskId: "a",
+    },
+  );
   fs.writeFileSync(path.join(worktree, "a.txt"), "a\n");
   git(worktree, "add", ".");
   git(worktree, "commit", "-m", "a");
@@ -331,14 +341,24 @@ test("tool rows replace the coarse coding stretch and close at done", async (t) 
     JSON.stringify(store.db.prepare("SELECT * FROM telemetry_spans").all()),
     /OUTPUT/,
   );
-  const view = await ops.execute("task.detail", { id: "a" });
+  const view = await ops.execute<{
+    timing: { coarse: boolean; stages: Record<string, number> };
+  }>("task.detail", { id: "a" });
   assert.equal(view.timing.coarse, false, "tool-call spans are exact");
   assert.equal(view.timing.stages.tests, 3 * 60_000);
 });
 
 test("flow.view computes lead time, flow efficiency and first-pass rate on read", async (t) => {
   const { store, ops } = setup(t, { tasks: [leaf("a"), leaf("b")] });
-  const put = (id, task, stage, from, to, attempt = 1, role = "worker") =>
+  const put = (
+    id: string,
+    task: string,
+    stage: string,
+    from: string,
+    to: string,
+    attempt: number | null = 1,
+    role: string | null = "worker",
+  ) =>
     seedSpan(store, id, task, attempt, role, stage, from, to, "events", null);
   // a: 10 min queued, 30 coding, 20 review, 10 merge = 70 min lead, 40 active.
   put(
@@ -373,14 +393,14 @@ test("flow.view computes lead time, flow efficiency and first-pass rate on read"
   put("5", "b", "coding", "2026-11-12T10:00:00Z", "2026-11-12T10:20:00Z");
   put("6", "b", "rework", "2026-11-12T10:30:00Z", "2026-11-12T10:50:00Z", 2);
   store.mutate("finish", (data) => {
-    data.tasks.find((x) => x.id === "a").integration = {
+    found(data.tasks.find((x) => x.id === "a")).integration = {
       at: "2026-11-12T11:10:00Z",
     };
-    data.tasks.find((x) => x.id === "b").integration = {
+    found(data.tasks.find((x) => x.id === "b")).integration = {
       at: "2026-11-12T10:50:00Z",
     };
   });
-  const view = await ops.execute("flow.view", {});
+  const view = await ops.execute<FlowMetrics>("flow.view", {});
   assert.equal(view.metrics.tasks, 2);
   assert.equal(
     view.metrics.leadTimeMs,
@@ -395,7 +415,9 @@ test("flow.view computes lead time, flow efficiency and first-pass rate on read"
     "a tie goes to the first waiting stage",
   );
   assert.equal(view.previous.tasks, 0);
-  const narrow = await ops.execute("flow.view", { stage: "review" });
+  const narrow = await ops.execute<FlowMetrics>("flow.view", {
+    stage: "review",
+  });
   assert.deepEqual(
     narrow.tasks.map((x) => x.taskId),
     ["a"],
