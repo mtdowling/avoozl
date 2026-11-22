@@ -101,9 +101,12 @@ test('a spec rework handoff names the exact workspace, folder, finding, and curr
           file: 'design.md',
           lineStart: 3,
           body: 'Reverse the argument order.',
-          state: 'open',
+          state: 'resolved',
           author: 'reviewer',
           createdAt: '2026-11-22T12:00:00Z',
+          resolvedAt: '2026-11-22T12:00:01Z',
+          resolvedBy: 'reviewer',
+          resolution: 'Sent back for changes.',
           current: true,
         },
         {
