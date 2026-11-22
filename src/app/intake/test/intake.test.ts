@@ -185,7 +185,7 @@ test("waitingLabels and priorityLabels are repository settings; absent changes n
     labelRank: null,
   });
   // The rank orders Ready and Up next; a set rank still comes first.
-  const data = { tasks: [], edges: [] },
+  const data = { tasks: [], edges: [], statuses: [], documents: {} },
     order = dispatchOrder(data, [], () => 0),
     sorted = [
       { id: "none" },

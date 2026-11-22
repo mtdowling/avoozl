@@ -127,7 +127,7 @@ export function sendConflictBack(
   result: {
     state?: string;
     entry?: Pick<QueueEntry, "key" | "base" | "tasks"> & {
-      baseHead?: string;
+      baseHead?: string | null;
       files?: string[];
       against?: Against;
       [key: string]: unknown;

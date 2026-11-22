@@ -12,7 +12,9 @@ export function resolveTaskId(
   }
   return id;
 }
-export function taskSourceRefs(task: Task): SourceRef[] {
+export function taskSourceRefs(
+  task: Pick<Task, "source" | "sourceReferences">,
+): SourceRef[] {
   const refs = new Map<string, SourceRef>();
   for (const ref of [task.source, ...(task.sourceReferences || [])]) {
     if (!ref) continue;

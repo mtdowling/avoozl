@@ -67,7 +67,12 @@ export function queueDirect(
     task,
     at,
   }: {
-    delivery: { taskId: string; commit: string; [key: string]: unknown };
+    delivery: {
+      id: string;
+      taskId: string;
+      commit: string;
+      [key: string]: unknown;
+    };
     repository: Repository;
     task: Parameters<typeof landingSpecOf>[0];
     at: string;

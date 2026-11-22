@@ -104,7 +104,12 @@ export interface IntakeOptions {
   settingsFile?: string;
 }
 type GitHubPolicy = Policy | null;
-type Notice = { channel: string; task: string; title: string; text: string };
+type Notice = {
+  channel: string;
+  task?: string | null;
+  title: string;
+  text: string;
+};
 // How a task was started from an item.
 type How = {
   by?: string;

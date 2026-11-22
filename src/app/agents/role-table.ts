@@ -40,7 +40,7 @@ export type RoleSettings = Record<string, Record<string, string>>;
 // The executor a repository's sessions run on: its `executor` setting, else
 // `kirocrew` (R93.5; a repository opts in, as the Nupp compiler's does).
 export const repositoryExecutor = (
-  repository: { executor?: unknown } | null | undefined,
+  repository: { executor?: unknown; [key: string]: unknown } | null | undefined,
 ) => (repository?.executor === "process" ? "process" : "kirocrew");
 
 // What a child does instead of the Avoozl tools it cannot reach (R96.1): a
@@ -199,7 +199,8 @@ export function roleRun(
     repository,
   }: {
     config?: RolesConfig;
-    repository?: { executor?: unknown } | null;
+    repository?: { executor?: unknown; [key: string]: unknown } | null;
+    task?: unknown;
   } = {},
 ): { executor: string; harness?: string } {
   const row = ROLE_TABLE[setting];

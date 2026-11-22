@@ -141,8 +141,8 @@ test("P45 (5) local: a task branch behind the integration branch is merged forwa
   fs.mkdirSync(path.join(tree.path, ".avoozl"), { recursive: true });
   fs.writeFileSync(path.join(tree.path, ".avoozl", "result.json"), "{}");
   const moved = await rebaseForIntegration(
-    w.store.get("repositories", "app"),
-    w.store.get("task_worktrees", "a1"),
+    found(w.store.get<{ id: string; root: string }>("repositories", "app")),
+    found(w.store.get<{ id: string; path: string }>("task_worktrees", "a1")),
     commit,
   );
   assert.equal(moved?.how, "merge");

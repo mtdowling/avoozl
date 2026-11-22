@@ -310,7 +310,8 @@ test("delivery.view gives a live process session its details and no chat link", 
   const [session] = item.sessions;
   assert.equal(session.executor, "process");
   assert.equal(session.link, null);
+  assert.ok(session.process);
   assert.equal(session.process.cost, 0.1);
-  assert.match(session.process.logTail, /step one/);
-  assert.match(session.process.attach, /tail -n 20 -f|Get-Content/);
+  assert.match(String(session.process.logTail), /step one/);
+  assert.match(String(session.process.attach), /tail -n 20 -f|Get-Content/);
 });

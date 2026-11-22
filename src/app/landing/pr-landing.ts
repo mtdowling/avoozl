@@ -192,12 +192,12 @@ export async function queuePullRequest(
     delivery: Delivery;
     repository: Repository;
     worktree: { branch: string };
-    task: Task & { labeledIssue?: { number?: number } };
+    task: Task;
     at: string;
     env?: NodeJS.ProcessEnv;
     machine?: { hostname?: string; username?: string } | null;
     configFile?: string;
-    workspaceRoot?: string;
+    workspaceRoot?: string | null;
   },
 ) {
   const planId = landingSpecOf(task);

@@ -160,7 +160,7 @@ test("a worker's brief names every spec file as context", async (t) => {
     expectedRevision: preview.expectedRevision,
   });
   const data = store.read(),
-    task = data.tasks.find((entry) => entry.id === "config.1.1"),
+    task = found(data.tasks.find((entry) => entry.id === "config.1.1")),
     brief = leafBrief(store, data, {
       task,
       repository: { id: "app", root },

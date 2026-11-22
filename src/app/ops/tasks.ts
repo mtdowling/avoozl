@@ -75,9 +75,10 @@ import { WORKSPACE_LOCK, readDeliveryPolicy } from "../tick/tick.ts";
 import { workspaceRepositories } from "../workspace/workspace-repositories.ts";
 import { randomUUID } from "node:crypto";
 import { person, notOnMcp, routed } from "../api/operation-policy.ts";
-import type { OperationCall, Operations } from "../api/operations.ts";
+import type { OperationCall, Operations, Plan } from "../api/operations.ts";
 import type { Store } from "../store/store.ts";
 import type { Task } from "../../types.ts";
+import type { SpecFolder } from "../specs/spec-plans.ts";
 import type { McpMessage } from "../../mcp.ts";
 
 // Manual tasks (§4.16).
@@ -289,7 +290,7 @@ export const entries = [
       const store = this.store;
 
       // Draft spec folders, display only; none when specs cannot be read.
-      let folders: { name: string; spec: unknown }[] = [];
+      let folders: { name: string; spec: SpecFolder | null }[] = [];
       try {
         folders = this.specHomes().homes.map(({ spec }) => ({
           name: spec.name,
@@ -417,7 +418,7 @@ export const entries = [
 
       const data = this.read(),
         detail = this.detail(String(input.id)),
-        plan = detail.planId ? store.get("plans", detail.planId) : null;
+        plan = detail.planId ? store.get<Plan>("plans", detail.planId) : null;
       return taskDetailView(store, data, detail, {
         plan: plan && !plan.deletedAt ? plan : null,
         approved: Boolean(plan && this.planApproved(plan)),

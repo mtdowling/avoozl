@@ -47,7 +47,7 @@ export interface Task {
   tags?: string[];
   owner?: string;
   track?: string;
-  epic?: string;
+  epic?: string | null;
   planId?: string;
   needsReview?: boolean;
   planArchived?: boolean;
@@ -61,7 +61,7 @@ export interface Task {
   dispatch?: { ready?: boolean; state?: string; reason?: string } | null;
   manual?: boolean;
   // The tasks.md phase heading a spec task sits under.
-  phase?: { id: string; [key: string]: unknown } | null;
+  phase?: { id: string; title?: string; [key: string]: unknown } | null;
   manualDone?: { choice?: string; at?: string; [key: string]: unknown } | null;
   repository?: string | null;
   repositoryId?: string | null;
@@ -72,8 +72,25 @@ export interface Task {
     nodeId?: string;
     url?: string;
     repository?: string;
+    // "issue" when someone opened it on GitHub, "design" when a plan did.
+    origin?: string;
+    // A batch issue's lead task and members.
+    batch?: { lead?: string; members?: string[] } | null;
+    pullRequests?: {
+      number?: number;
+      url?: unknown;
+      merged?: boolean;
+      mergedAt?: unknown;
+      [key: string]: unknown;
+    }[];
+    // A sub-issue link GitHub refused or the cap left out.
+    unlinked?: unknown;
     [key: string]: unknown;
   } | null;
+  // A tick taken out of tasks.md on the base branch (spec-ticks.ts).
+  untick?: { branch: string; at: string } | null;
+  // Issue Radar's hold on a GitHub leaf (github-crew.ts).
+  crewHold?: { kind?: string; label?: string; number?: number } | null;
   // When every child completed, and which children they were.
   childrenComplete?: { at: string; children: string[] };
   createdAt?: string;

@@ -195,7 +195,10 @@ export async function verifyPaths(
 // the delivery for a person without spending an attempt.
 export function pathOutcome(
   run:
-    | { paths?: { outside?: string[]; protected?: string[] } }
+    | {
+        paths?: { outside?: string[]; protected?: string[] };
+        [key: string]: unknown;
+      }
     | null
     | undefined,
 ) {
