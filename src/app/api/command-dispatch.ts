@@ -23,6 +23,10 @@ import {
   initializeWorkspace,
 } from "../workspace/workspace.ts";
 import { expandHome, listFolders } from "../workspace/folder-browse.ts";
+import {
+  applyWorkspaceProvisionProposal,
+  validateWorkspaceProvisionProposal,
+} from "../workspace/workspace-proposal.ts";
 
 export const NEEDS_KIROCREW = "Needs Kiro Crew";
 import { requiredReader } from "../tick/needs-kirocrew.ts";
@@ -179,6 +183,12 @@ const MACHINE_OPERATIONS = new Map([
   // A person's edit of a workspace's name, folder, run limit, on/off and
   // default. Person-only, as above.
   ["workspaces.update", "write"],
+  // A tool may submit a proposal with the local CLI, but only the owner sees,
+  // changes, applies, or dismisses it in the app.
+  ["workspaces.proposals.list", "person"],
+  ["workspaces.proposals.update", "write"],
+  ["workspaces.proposals.apply", "write"],
+  ["workspaces.proposals.dismiss", "write"],
   // The Add and Edit dialogs' folder picker: folders under home. It changes
   // nothing, but names folders on this computer, so only a person reads it.
   ["workspaces.browse", "person"],
@@ -215,7 +225,7 @@ function sameDirectory(a: string, b: string) {
 
 // Workspace list, add, init, stop and remove over the machine catalog. Registry errors are
 // path and identity validation for the owner's own input, so they return 400.
-function machineOperation(
+async function machineOperation(
   registry: WorkspaceRegistry,
   config: WorkspaceTarget,
   operation: string,
@@ -225,6 +235,50 @@ function machineOperation(
   try {
     if (operation === "workspaces.browse") return listFolders(input.path, home);
     registry.reload();
+    if (operation === "workspaces.proposals.list")
+      return {
+        items: registry.catalog
+          .workspaceProposals()
+          .filter((proposal) => proposal.status === "pending"),
+      };
+    if (operation === "workspaces.proposals.update") {
+      const proposal = validateWorkspaceProvisionProposal(input.proposal);
+      const current = registry.catalog.workspaceProposal(proposal.proposalId);
+      if (!current || current.status !== "pending")
+        throw badRequest(
+          `Pending workspace proposal ${proposal.proposalId} was not found.`,
+          404,
+        );
+      return registry.catalog.submitWorkspaceProposal(proposal);
+    }
+    if (
+      operation === "workspaces.proposals.apply" ||
+      operation === "workspaces.proposals.dismiss"
+    ) {
+      const id = String(input.id || "").trim(),
+        current = registry.catalog.workspaceProposal(id);
+      if (!current || current.status !== "pending")
+        throw badRequest(
+          `Pending workspace proposal ${id || "(none)"} was not found.`,
+          404,
+        );
+      if (operation === "workspaces.proposals.dismiss")
+        return registry.catalog.resolveWorkspaceProposal(id, "dismissed", {
+          workspaceId: current.proposal.workspace.id,
+        });
+      const workspace = await applyWorkspaceProvisionProposal(
+        registry,
+        current.proposal,
+      );
+      const proposal = registry.catalog.resolveWorkspaceProposal(
+        id,
+        "applied",
+        {
+          workspaceId: current.proposal.workspace.id,
+        },
+      );
+      return { workspace, proposal };
+    }
     if (operation === "workspaces.list")
       return {
         defaultWorkspace: registry.config.defaultWorkspace || null,
@@ -279,7 +333,8 @@ function machineOperation(
     return registry.add(id, { root, name });
   } catch (error) {
     const failed = error as StatusError;
-    if (!Number.isInteger(failed.status)) failed.status = 400;
+    if (!Number.isInteger(failed.status) || Number(failed.status) < 400)
+      failed.status = 400;
     throw error;
   }
 }
@@ -429,7 +484,7 @@ export async function dispatchCommand({
     // Checked above: a JSON object.
     const fields = input as Record<string, unknown>;
     if (MACHINE_OPERATIONS.has(operation)) {
-      const result = machineOperation(
+      const result = await machineOperation(
         context.machine(),
         context.config,
         operation,

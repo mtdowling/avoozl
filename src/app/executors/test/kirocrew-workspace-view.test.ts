@@ -8,6 +8,7 @@ import { startAppBackend } from "../kirocrew/app-backend.ts";
 import { workspaceConfig } from "../../settings/config.ts";
 import { Store } from "../../store/store.ts";
 import { initializeWorkspace } from "../../workspace/workspace.ts";
+import { WorkspaceRegistry } from "../../settings/host-config.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
 import { SECRET, sign, isolatedEnv } from "../../test/signed-principal.ts";
 
@@ -46,13 +47,14 @@ async function backend(t: TestContext) {
     home = path.join(root, "home");
   initializeWorkspace(served);
   fs.mkdirSync(home);
+  const registryOptions = {
+    configPath: path.join(root, "machine", "config.json"),
+    catalogPath: path.join(root, "machine", "catalog.sqlite"),
+  };
   const server = startAppBackend({
     config: workspaceConfig({ workspace: served, env: isolatedEnv(root) }),
     secret: SECRET,
-    registryOptions: {
-      configPath: path.join(root, "machine", "config.json"),
-      catalogPath: path.join(root, "machine", "catalog.sqlite"),
-    },
+    registryOptions,
     home,
   });
   t.after(() => server.close());
@@ -76,7 +78,7 @@ async function backend(t: TestContext) {
     const answer: { result: T } = JSON.parse(await response.text());
     return { status: response.status, body: answer };
   };
-  return { root, served, home, call };
+  return { root, served, home, registryOptions, call };
 }
 
 test("Workspace view lists, adds, and initializes catalog workspaces", async (t) => {
@@ -130,6 +132,229 @@ test("Workspace view lists, adds, and initializes catalog workspaces", async (t)
       })
     ).status,
     400,
+  );
+});
+
+test("the owner reviews and applies workspace proposals submitted outside the app", async (t) => {
+  const { root, registryOptions, call } = await backend(t);
+  const writable = path.join(root, "writable"),
+    readable = path.join(root, "readable");
+  for (const checkout of [writable, readable]) {
+    fs.mkdirSync(checkout);
+    execFileSync("git", ["init", "-q", "-b", "main", checkout]);
+    execFileSync(
+      "git",
+      [
+        "-c",
+        "user.name=test",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-q",
+        "--allow-empty",
+        "-m",
+        "init",
+      ],
+      { cwd: checkout },
+    );
+  }
+  const proposal = {
+    version: 1 as const,
+    proposalId: "python-sdk-rewrite",
+    requestedBy: "KiroCrew rewrite skill",
+    summary: "Prepare a workspace for an SDK rewrite.",
+    workspace: {
+      id: "python-rewrite",
+      name: "Python SDK Rewrite",
+      root: path.join(root, "plans"),
+      action: "create" as const,
+      initializeGit: true,
+    },
+    repositories: [
+      {
+        id: "target",
+        root: writable,
+        access: "write" as const,
+        baseBranch: "main",
+        planning: false,
+      },
+      {
+        id: "reference",
+        root: readable,
+        access: "read" as const,
+        baseBranch: "main",
+        planning: false,
+      },
+    ],
+  };
+  const registry = new WorkspaceRegistry(registryOptions);
+  registry.catalog.submitWorkspaceProposal(proposal);
+  registry.close();
+
+  for (const kind of ["app-token", "agent-tool"]) {
+    assert.equal(
+      (await call({ operation: "workspaces.proposals.list" }, kind)).status,
+      403,
+    );
+    assert.equal(
+      (
+        await call(
+          {
+            operation: "workspaces.proposals.apply",
+            input: { id: proposal.proposalId },
+          },
+          kind,
+        )
+      ).status,
+      403,
+    );
+  }
+
+  const pending = await call<{ items: { proposal: typeof proposal }[] }>({
+    operation: "workspaces.proposals.list",
+  });
+  assert.equal(pending.status, 200, JSON.stringify(pending.body));
+  assert.equal(
+    pending.body.result.items[0]?.proposal.requestedBy,
+    proposal.requestedBy,
+  );
+
+  const renamed = structuredClone(proposal);
+  renamed.workspace.name = "Reviewed Python SDK Rewrite";
+  const updated = await call({
+    operation: "workspaces.proposals.update",
+    input: { proposal: renamed },
+  });
+  assert.equal(updated.status, 200, JSON.stringify(updated.body));
+
+  const applied = await call<{ workspace: WorkspaceRow }>({
+    operation: "workspaces.proposals.apply",
+    input: { id: proposal.proposalId },
+  });
+  assert.equal(applied.status, 200, JSON.stringify(applied.body));
+  assert.equal(applied.body.result.workspace.name, renamed.workspace.name);
+  assert.ok(fs.existsSync(path.join(renamed.workspace.root, ".avoozl.json")));
+  assert.ok(fs.existsSync(path.join(renamed.workspace.root, ".git")));
+  assert.deepEqual(
+    execFileSync("git", ["show", "--format=", "--name-only", "HEAD"], {
+      cwd: renamed.workspace.root,
+      encoding: "utf8",
+    })
+      .trim()
+      .split("\n"),
+    [".avoozl.json", ".gitignore"],
+  );
+  assert.deepEqual(
+    (
+      await call<{ items: { id: string; editable: boolean }[] }>({
+        operation: "repositories.list",
+        workspaceId: renamed.workspace.id,
+      })
+    ).body.result.items.map(({ id, editable }) => ({ id, editable })),
+    [
+      { id: "reference", editable: false },
+      { id: "target", editable: true },
+    ],
+  );
+  assert.deepEqual(
+    (
+      await call<{ items: unknown[] }>({
+        operation: "workspaces.proposals.list",
+      })
+    ).body.result.items,
+    [],
+  );
+  assert.equal(
+    (
+      await call({
+        operation: "workspaces.proposals.apply",
+        input: { id: proposal.proposalId },
+      })
+    ).status,
+    404,
+  );
+});
+
+test("the owner may dismiss a workspace proposal without changing the filesystem", async (t) => {
+  const { root, registryOptions, call } = await backend(t);
+  const proposal = {
+    version: 1 as const,
+    proposalId: "dismiss-this-workspace",
+    requestedBy: "test",
+    workspace: {
+      id: "dismissed",
+      name: "Dismissed",
+      root: path.join(root, "dismissed"),
+      action: "create" as const,
+      initializeGit: false,
+    },
+    repositories: [],
+  };
+  const registry = new WorkspaceRegistry(registryOptions);
+  registry.catalog.submitWorkspaceProposal(proposal);
+  registry.close();
+  const dismissed = await call({
+    operation: "workspaces.proposals.dismiss",
+    input: { id: proposal.proposalId },
+  });
+  assert.equal(dismissed.status, 200, JSON.stringify(dismissed.body));
+  assert.equal(fs.existsSync(proposal.workspace.root), false);
+  assert.deepEqual(
+    (
+      await call<{ items: unknown[] }>({
+        operation: "workspaces.proposals.list",
+      })
+    ).body.result.items,
+    [],
+  );
+});
+
+test("an invalid proposed repository is refused before the workspace is created", async (t) => {
+  const { root, registryOptions, call } = await backend(t);
+  const checkout = path.join(root, "unborn");
+  fs.mkdirSync(checkout);
+  execFileSync("git", ["init", "-q", "-b", "main", checkout]);
+  const proposal = {
+    version: 1 as const,
+    proposalId: "invalid-repository",
+    requestedBy: "test",
+    workspace: {
+      id: "not-created",
+      name: "Not created",
+      root: path.join(root, "not-created"),
+      action: "create" as const,
+      initializeGit: false,
+    },
+    repositories: [
+      {
+        id: "target",
+        root: checkout,
+        access: "write" as const,
+        baseBranch: "main",
+        planning: false,
+      },
+    ],
+  };
+  const registry = new WorkspaceRegistry(registryOptions);
+  registry.catalog.submitWorkspaceProposal(proposal);
+  registry.close();
+  const applied = await call({
+    operation: "workspaces.proposals.apply",
+    input: { id: proposal.proposalId },
+  });
+  assert.equal(applied.status, 400);
+  assert.match(
+    String((applied.body as unknown as { error?: string }).error),
+    /Branch main has no commit/,
+  );
+  assert.equal(fs.existsSync(proposal.workspace.root), false);
+  assert.equal(
+    (
+      await call<{ items: { id: string }[] }>({
+        operation: "workspaces.proposals.list",
+      })
+    ).body.result.items[0]?.id,
+    proposal.proposalId,
   );
 });
 

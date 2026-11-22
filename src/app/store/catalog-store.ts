@@ -2,6 +2,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { randomUUID } from "node:crypto";
+import type {
+  WorkspaceProposalRecord,
+  WorkspaceProvisionProposal,
+} from "../workspace/workspace-proposal.ts";
 
 const stamp = () => new Date().toISOString();
 
@@ -41,6 +45,14 @@ interface CatalogConfig {
     { root: string; name?: string; enabled?: boolean }
   >;
   defaultWorkspace?: string | null;
+}
+interface WorkspaceProposalRow {
+  id: string;
+  status: WorkspaceProposalRecord["status"];
+  body: string;
+  submitted_at: string;
+  updated_at: string;
+  resolved_at: string | null;
 }
 
 function assertLocalStatePath(filename: string) {
@@ -110,6 +122,14 @@ export class CatalogStore {
         action TEXT NOT NULL,
         at TEXT NOT NULL,
         body TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS workspace_proposals(
+        id TEXT PRIMARY KEY,
+        status TEXT NOT NULL,
+        body TEXT NOT NULL,
+        submitted_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        resolved_at TEXT
       );`);
   }
 
@@ -175,6 +195,93 @@ export class CatalogStore {
       )
       .run(id, workspaceId, action, at, JSON.stringify(body));
     return { id, workspaceId, action, at, ...body };
+  }
+
+  workspaceProposals(): WorkspaceProposalRecord[] {
+    return (
+      this.db
+        .prepare("SELECT * FROM workspace_proposals ORDER BY submitted_at,id")
+        .all() as unknown as WorkspaceProposalRow[]
+    ).map((row) => ({
+      id: row.id,
+      status: row.status,
+      proposal: parsed(row.body) as WorkspaceProvisionProposal,
+      submittedAt: row.submitted_at,
+      updatedAt: row.updated_at,
+      resolvedAt: row.resolved_at,
+    }));
+  }
+
+  workspaceProposal(id: string) {
+    return (
+      this.workspaceProposals().find((proposal) => proposal.id === id) || null
+    );
+  }
+
+  submitWorkspaceProposal(proposal: WorkspaceProvisionProposal) {
+    const at = stamp(),
+      current = this.workspaceProposal(proposal.proposalId);
+    if (current && current.status !== "pending")
+      throw Error(
+        `Workspace proposal ${proposal.proposalId} is already resolved.`,
+      );
+    return this.transaction(() => {
+      const saved = this.db
+        .prepare(
+          `INSERT INTO workspace_proposals(
+            id,status,body,submitted_at,updated_at,resolved_at
+          ) VALUES (?,?,?,?,?,NULL)
+          ON CONFLICT(id) DO UPDATE SET
+            body=excluded.body,
+            updated_at=excluded.updated_at
+          WHERE workspace_proposals.status='pending'`,
+        )
+        .run(
+          proposal.proposalId,
+          "pending",
+          JSON.stringify(proposal),
+          current?.submittedAt || at,
+          at,
+        );
+      if (!saved.changes)
+        throw Error(
+          `Workspace proposal ${proposal.proposalId} is already resolved.`,
+        );
+      this.record(
+        null,
+        current ? "workspace.proposal.updated" : "workspace.proposal.submitted",
+        {
+          proposalId: proposal.proposalId,
+          workspaceId: proposal.workspace.id,
+          requestedBy: proposal.requestedBy,
+        },
+      );
+      return this.workspaceProposal(proposal.proposalId);
+    });
+  }
+
+  resolveWorkspaceProposal(
+    id: string,
+    status: "applied" | "dismissed",
+    detail: Record<string, unknown> = {},
+  ) {
+    const at = stamp();
+    return this.transaction(() => {
+      const changed = this.db
+        .prepare(
+          `UPDATE workspace_proposals
+           SET status=?,updated_at=?,resolved_at=?
+           WHERE id=? AND status='pending'`,
+        )
+        .run(status, at, at, id);
+      if (!changed.changes)
+        throw Error(`Pending workspace proposal ${id} was not found.`);
+      this.record(null, `workspace.proposal.${status}`, {
+        proposalId: id,
+        ...detail,
+      });
+      return this.workspaceProposal(id);
+    });
   }
 
   sync(

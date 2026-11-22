@@ -18,6 +18,8 @@ import {
   type EditDraft,
   type Repository,
   type WorkspaceList,
+  type WorkspaceProposalRecord,
+  type WorkspaceProvisionProposal,
 } from './workspace-api'
 import { SectionHeading } from './ui/controls.tsx'
 import { Button } from './ui/Button.tsx'
@@ -32,7 +34,7 @@ import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
 import { Switch } from './ui/Switch'
 import { Box } from './ui/Box'
-import { PlainButton } from './ui/Plain'
+import { PlainButton, PlainTextarea } from './ui/Plain'
 
 function Field(props: { id: string; label: string; value: string; onChange: (value: string) => void; placeholder?: string; required?: boolean }) {
   return (
@@ -92,6 +94,58 @@ function WorkspaceRow(props: { workspace: CatalogWorkspace; selected: boolean; o
   )
 }
 
+function ProposalRow(props: { record: WorkspaceProposalRecord; busy: boolean; onApply: () => void; onEdit: () => void; onDismiss: () => void }) {
+  const { proposal } = props.record
+  const writable = proposal.repositories.filter((repository) => repository.access === 'write')
+  const readable = proposal.repositories.filter((repository) => repository.access === 'read')
+  return (
+    <ListItem
+      attrs={{ 'data-workspace-proposal': proposal.proposalId }}
+      title={
+        <Box as="span" flex minW0 flexCol gap="0.5">
+          <Box as="span" flex flexWrap items="center" gap="2">
+            <Box as="span" weight="medium">
+              {proposal.workspace.name}
+            </Box>
+            <Badge variant="info">Requested</Badge>
+          </Box>
+          {proposal.summary && (
+            <Hint as="span" size="xs">
+              {proposal.summary}
+            </Hint>
+          )}
+        </Box>
+      }
+      facts={[
+        { label: 'Requested by', value: proposal.requestedBy },
+        { label: 'Folder', value: proposal.workspace.root, mono: true, truncate: true },
+        {
+          label: 'Control repository',
+          value: proposal.workspace.initializeGit ? 'Create a Git repository' : proposal.workspace.action === 'create' ? 'Create without Git' : 'Use the existing workspace',
+        },
+        { label: 'Writable repositories', chips: writable.map((repository) => repository.name || repository.id) },
+        { label: 'Read-only repositories', chips: readable.map((repository) => repository.name || repository.id) },
+        { label: 'Workers and reviewers', value: 'Kiro Crew defaults' },
+        { label: 'Landing', value: 'Off' },
+        { label: 'External authorization', value: 'None' },
+      ]}
+      actions={
+        <>
+          <Btn type="button" disabled={props.busy} onClick={props.onEdit}>
+            Edit
+          </Btn>
+          <Btn type="button" disabled={props.busy} onClick={props.onDismiss}>
+            Dismiss
+          </Btn>
+          <Btn type="button" primary disabled={props.busy} onClick={props.onApply}>
+            {proposal.workspace.action === 'create' ? 'Create and open' : 'Add and open'}
+          </Btn>
+        </>
+      }
+    />
+  )
+}
+
 // `selected` is the page's workspace; `onSelect` tells the page which one the
 // other views read. `onListChange` hands the page each fresh catalog.
 export default function WorkspaceView(props: { selected?: string | null; onSelect?: (id: string | null) => void; onListChange?: (list: WorkspaceList) => void } = {}) {
@@ -99,14 +153,16 @@ export default function WorkspaceView(props: { selected?: string | null; onSelec
   const api = useAppApi()
   const client = useMemo(() => workspaceClient(api), [api])
   const [list, setList] = useState<WorkspaceList | null>(null)
+  const [proposals, setProposals] = useState<WorkspaceProposalRecord[] | null>(null)
   const [selected, setSelected] = useState<string | null>(props.selected ?? null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [draft, setDraft] = useState({ id: '', root: '', name: '' })
   // Which dialog is open: the add form, or one workspace's details.
-  const [dialog, setDialog] = useState<'add' | { edit: string } | { remove: string } | null>(null)
+  const [dialog, setDialog] = useState<'add' | { edit: string } | { remove: string } | { proposal: string } | null>(null)
   // The edit dialog's form, filled from the workspace when it opens.
   const [edit, setEdit] = useState<EditDraft | null>(null)
+  const [proposalText, setProposalText] = useState('')
 
   // Run one call; show its error instead of throwing.
   const attempt = useCallback(async (call: () => Promise<void>) => {
@@ -124,8 +180,9 @@ export default function WorkspaceView(props: { selected?: string | null; onSelec
   const loadList = useCallback(
     (prefer: string | null = null) =>
       attempt(async () => {
-        const next = await client.list()
+        const [next, requested] = await Promise.all([client.list(), client.proposals()])
         setList(next)
+        setProposals(requested)
         setSelected((current) => pickDefault(next, prefer ?? current))
       }),
     [attempt, client],
@@ -156,6 +213,36 @@ export default function WorkspaceView(props: { selected?: string | null; onSelec
       const next = await client.list()
       setList(next)
       setSelected(created.id)
+    })
+
+  const applyProposal = (id: string) =>
+    attempt(async () => {
+      const applied = await client.applyProposal(id)
+      const [next, requested] = await Promise.all([client.list(), client.proposals()])
+      setList(next)
+      setProposals(requested)
+      setSelected(applied.workspace.id)
+    })
+
+  const dismissProposal = (id: string) =>
+    attempt(async () => {
+      await client.dismissProposal(id)
+      setProposals(await client.proposals())
+    })
+
+  const openProposal = (record: WorkspaceProposalRecord) => {
+    setError(null)
+    setProposalText(JSON.stringify(record.proposal, null, 2))
+    setDialog({ proposal: record.id })
+  }
+
+  const saveProposal = () =>
+    attempt(async () => {
+      const value = JSON.parse(proposalText) as WorkspaceProvisionProposal
+      await client.updateProposal(value)
+      setProposals(await client.proposals())
+      setProposalText('')
+      setDialog(null)
     })
 
   const current = list?.items.find((w) => w.id === selected) ?? null
@@ -210,6 +297,27 @@ export default function WorkspaceView(props: { selected?: string | null; onSelec
       <Box role="status" as="p" srOnly>
         {busy ? 'Working…' : ''}
       </Box>
+
+      {proposals && proposals.length > 0 && (
+        <Card data-workspace-proposals>
+          <SectionHeading title={`Workspace requests (${proposals.length})`} mb="0" />
+          <Hint as="p" mt="1" size="sm">
+            A tool prepared these settings. Review the exact folders and access before you apply one.
+          </Hint>
+          <Box as="ul" mt="2" flex flexCol>
+            {proposals.map((record) => (
+              <ProposalRow
+                key={record.id}
+                record={record}
+                busy={busy}
+                onApply={() => void applyProposal(record.id)}
+                onEdit={() => openProposal(record)}
+                onDismiss={() => void dismissProposal(record.id)}
+              />
+            ))}
+          </Box>
+        </Card>
+      )}
 
       <Card>
         <Row gap={2}>
@@ -314,6 +422,51 @@ export default function WorkspaceView(props: { selected?: string | null; onSelec
               </Box>
             </Box>
           </Stack>
+        </Modal>
+      )}
+
+      {dialog && typeof dialog === 'object' && 'proposal' in dialog && (
+        <Modal
+          id="avoozl-ws-proposal"
+          width="44rem"
+          title="Edit workspace request"
+          backLabel="Cancel"
+          dismissLabel="Cancel"
+          describedBy="avoozl-ws-proposal-line"
+          attrs={{ 'data-edit-workspace-proposal': dialog.proposal }}
+          unsaved={{ title: 'Discard your changes?', body: 'What you changed is lost.', action: 'Discard' }}
+          onDismiss={() => {
+            setProposalText('')
+            setDialog(null)
+          }}
+          footer={
+            <Btn type="button" primary disabled={busy} onClick={() => void saveProposal()}>
+              Save request
+            </Btn>
+          }
+        >
+          <Hint id="avoozl-ws-proposal-line" as="p" size="sm">
+            This is the complete request. Saving validates every field; it still creates nothing until you apply it.
+          </Hint>
+          {error && (
+            <ErrorText role="alert" size="sm">
+              {error}
+            </ErrorText>
+          )}
+          <PlainTextarea
+            aria-label="Workspace request JSON"
+            value={proposalText}
+            rows={20}
+            fontMono
+            size="xs"
+            css-background="transparent"
+            css-border-color="border"
+            css-color="text"
+            rounded="base"
+            border="all"
+            p="2.5"
+            onChange={(event) => setProposalText(event.target.value)}
+          />
         </Modal>
       )}
 

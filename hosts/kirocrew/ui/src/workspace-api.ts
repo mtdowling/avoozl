@@ -44,6 +44,37 @@ export interface WorkspaceList {
   host?: 'kirocrew' | 'standalone'
 }
 
+export interface WorkspaceProvisionProposal {
+  version: 1
+  proposalId: string
+  requestedBy: string
+  summary?: string
+  workspace: {
+    id: string
+    name: string
+    root: string
+    action: 'create' | 'add'
+    initializeGit: boolean
+  }
+  repositories: {
+    id: string
+    name?: string
+    root: string
+    access: 'write' | 'read'
+    baseBranch: string
+    planning: boolean
+  }[]
+}
+
+export interface WorkspaceProposalRecord {
+  id: string
+  status: 'pending' | 'applied' | 'dismissed'
+  proposal: WorkspaceProvisionProposal
+  submittedAt: string
+  updatedAt: string
+  resolvedAt: string | null
+}
+
 export interface Repository {
   id: string
   name: string
@@ -107,6 +138,10 @@ export function workspaceClient(api: AppApi) {
     list: () => run<WorkspaceList>('workspaces.list'),
     add: (input: NewWorkspace) => run<CatalogWorkspace>('workspaces.add', { ...input }),
     init: (input: NewWorkspace) => run<CatalogWorkspace>('workspaces.init', { ...input }),
+    proposals: () => run<{ items: WorkspaceProposalRecord[] }>('workspaces.proposals.list').then((result) => result.items),
+    updateProposal: (proposal: WorkspaceProvisionProposal) => run<WorkspaceProposalRecord>('workspaces.proposals.update', { proposal }),
+    applyProposal: (id: string) => run<{ workspace: CatalogWorkspace; proposal: WorkspaceProposalRecord }>('workspaces.proposals.apply', { id }),
+    dismissProposal: (id: string) => run<WorkspaceProposalRecord>('workspaces.proposals.dismiss', { id }),
     // Off Avoozl's list only (`avoozl workspace remove`): the folder, its
     // database and repositories stay. Stop turns it off first.
     remove: (id: string) => run<{ id: string; root: string; removed: boolean; databasePreserved: boolean }>('workspaces.remove', { id }),

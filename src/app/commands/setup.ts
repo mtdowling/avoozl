@@ -5,6 +5,7 @@ import { machineStatus, roleProblems } from "../workspace/machine-status.ts";
 import { workflowSkill } from "../cli/skill.ts";
 import { workspaceStatus } from "../workspace/workspace-status.ts";
 import { initializeWorkspace } from "../workspace/workspace.ts";
+import { validateWorkspaceProvisionProposal } from "../workspace/workspace-proposal.ts";
 import {
   type Command,
   type CommandContext,
@@ -193,10 +194,13 @@ export async function runWorkspace({
           method: "POST",
           body: { workspaceId: id },
         })) || registry.setDefault(id);
+    } else if (action === "propose") {
+      const proposal = validateWorkspaceProvisionProposal(input());
+      result = registry.catalog.submitWorkspaceProposal(proposal);
     } else if (action === "rebuild") result = registry.rebuild();
     else
       throw Error(
-        "Choose workspace list, add, adopt, remove, start, drain, resume, stop, set-default, or rebuild.",
+        "Choose workspace list, add, adopt, propose, remove, start, drain, resume, stop, set-default, or rebuild.",
       );
     console.log(JSON.stringify(result, null, 2));
   } finally {
@@ -255,6 +259,11 @@ export const commands: Command[] = [
         "setup",
         "workspace adopt ID --root PATH",
         "Adopt an existing stopped workspace in place",
+      ),
+      help(
+        "setup",
+        "workspace propose --input PROPOSAL.json",
+        "Ask the owner to create or add a workspace",
       ),
       help(
         "setup",

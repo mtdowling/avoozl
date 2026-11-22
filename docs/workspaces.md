@@ -20,6 +20,57 @@ A new workspace has no tasks and no repositories. Add a repository with
 `avoozl repository configure ID --root PATH`, then run `avoozl rebuild` to read
 its specs, ticks, claims and spec issues from git and GitHub.
 
+## Workspace requests
+
+A skill or other local tool can prepare a workspace request without creating
+the workspace:
+
+```sh
+avoozl workspace propose --input workspace-proposal.json
+```
+
+```json
+{
+  "version": 1,
+  "proposalId": "python-sdk-rewrite",
+  "requestedBy": "KiroCrew rewrite skill",
+  "summary": "Prepare the control workspace for an SDK rewrite.",
+  "workspace": {
+    "id": "python-rewrite",
+    "name": "Python SDK Rewrite",
+    "root": "/Users/me/workspaces/python-rewrite",
+    "action": "create",
+    "initializeGit": true
+  },
+  "repositories": [
+    {
+      "id": "target",
+      "root": "/Users/me/code/python-sdk",
+      "access": "write",
+      "baseBranch": "main",
+      "planning": false
+    },
+    {
+      "id": "reference",
+      "root": "/Users/me/code/reference-sdk",
+      "access": "read",
+      "baseBranch": "main",
+      "planning": false
+    }
+  ]
+}
+```
+
+The command stores only the request in this machine's catalog. It does not
+create a directory, initialize Git, or register a repository. Open
+**Settings › Workspaces** to review the exact folders and access. You can edit
+the JSON, dismiss the request, or apply it.
+
+Only the owner can list or resolve requests in the app. Applying a request
+creates or adds the workspace, registers each repository with its requested
+write or read-only access, and initializes the control Git repository when
+requested. Landing remains off and no remote authorization is added.
+
 ## Settings files
 
 `.avoozl.json` holds portable policy: repositories, GitHub mode and rules,

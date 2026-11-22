@@ -12,6 +12,23 @@ test('workspace client sends each operation to the backend command route', async
   await client.list()
   await client.add({ id: 'a', root: '/a' })
   await client.init({ id: 'b', root: '/b', name: 'B' })
+  await client.proposals()
+  const proposal = {
+    version: 1 as const,
+    proposalId: 'new-workspace',
+    requestedBy: 'rewrite skill',
+    workspace: {
+      id: 'new',
+      name: 'New',
+      root: '/new',
+      action: 'create' as const,
+      initializeGit: false,
+    },
+    repositories: [],
+  }
+  await client.updateProposal(proposal)
+  await client.applyProposal(proposal.proposalId)
+  await client.dismissProposal(proposal.proposalId)
   assert.deepEqual(await client.repositories('a'), [{ id: 'app' }])
   await client.registerRepository('a', { id: 'app', localCheckout: '/c' })
   assert.ok(calls.every((call) => call.path === COMMAND_PATH))
@@ -22,6 +39,10 @@ test('workspace client sends each operation to the backend command route', async
       { operation: 'workspaces.list', input: {} },
       { operation: 'workspaces.add', input: { id: 'a', root: '/a' } },
       { operation: 'workspaces.init', input: { id: 'b', root: '/b', name: 'B' } },
+      { operation: 'workspaces.proposals.list', input: {} },
+      { operation: 'workspaces.proposals.update', input: { proposal } },
+      { operation: 'workspaces.proposals.apply', input: { id: 'new-workspace' } },
+      { operation: 'workspaces.proposals.dismiss', input: { id: 'new-workspace' } },
       { operation: 'repositories.list', input: {}, workspaceId: 'a' },
       {
         operation: 'repositories.configure',
