@@ -264,7 +264,7 @@ test("an unsupported contract, a wrong entry contract, and a duplicate id never 
   assert.equal(inspected.length, 2);
   assert.ok(
     inspected.every(
-      (p) => p.state === "invalid" && /more than once/.test(p.reason),
+      (p) => p.state === "invalid" && /more than once/.test(p.reason ?? ""),
     ),
   );
 });

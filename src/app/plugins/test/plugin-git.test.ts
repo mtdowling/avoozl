@@ -194,7 +194,9 @@ test("Add from git pins the ref to a commit, fetches only it, and needs approval
   );
   const settings = readPluginSettings(options.settingsFile);
   assert.equal(settings.pins["fake-probe"]?.commit, head);
-  assert.equal(settings.plugins[0]?.ref, "main", "the entry keeps the ref");
+  const declared = found(settings.plugins[0]);
+  assert.ok(declared && typeof declared === "object" && "ref" in declared);
+  assert.equal(declared.ref, "main", "the entry keeps the ref");
 
   const approved = pinnedPlugin(approve(options));
   assert.equal(approved.state, "approved");
@@ -302,7 +304,9 @@ test("the tick never fetches: it reads only the pinned folder", async (t) => {
   }
   // An entry whose ref changed shows as missing until Update; nothing fetched.
   const settings = readPluginSettings(options.settingsFile);
-  found(settings.plugins[0]).ref = "v1";
+  const pinnedEntry = found(settings.plugins[0]);
+  assert.ok(pinnedEntry && typeof pinnedEntry === "object");
+  Object.assign(pinnedEntry, { ref: "v1" });
   writePluginSettings(options.settingsFile, settings);
   const before = fs.readdirSync(gitRoot).sort();
   const plugin = found(inspectPlugins(options)[0]);

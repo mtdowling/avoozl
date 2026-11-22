@@ -134,7 +134,7 @@ test("a credentials plugin in .avoozl.json is invalid, never approved, and Add p
     plugin = found(inspectPlugins(options)[0]);
   assert.equal(plugin.state, "invalid");
   assert.match(
-    plugin.reason,
+    plugin.reason ?? "",
     /^\.avoozl\.json plugins\.0: plugin acme-github provides credentials/,
   );
   assert.throws(

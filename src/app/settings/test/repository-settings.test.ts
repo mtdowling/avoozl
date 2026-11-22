@@ -496,7 +496,7 @@ test("explicit Settings operations persist typed desired state without changing 
   assert.deepEqual(configuration.metadata().pending, []);
   assert.deepEqual(configuration.metadata().applyRequired, []);
   assert.deepEqual(configuration.metadata().restartRequired, []);
-  assert.deepEqual(configuration.metadata().lastApplied.keys, [
+  assert.deepEqual(configuration.metadata().lastApplied?.keys, [
     "planningRepository",
   ]);
 
@@ -521,8 +521,8 @@ test("explicit Settings operations persist typed desired state without changing 
   assert.equal(afterConnect.github, undefined);
   const reopened = new RepositorySettings(store, { workspaceRoot: root });
   assert.equal(
-    reopened.metadata().lastApplied.hash,
-    configuration.metadata().lastApplied.hash,
+    reopened.metadata().lastApplied?.hash,
+    configuration.metadata().lastApplied?.hash,
   );
 });
 

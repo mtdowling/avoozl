@@ -271,7 +271,11 @@ test("tool rows replace the coarse coding stretch and close at done", async (t) 
   await ops.execute("workspace.tick", {
     sessions: [{ target: "w1", status: "working" }],
   });
-  const binding = storedRow(store, "session_bindings", "w1"),
+  const binding = storedRow<Parameters<typeof ingestToolRows>[1]>(
+      store,
+      "session_bindings",
+      "w1",
+    ),
     row = (id: string, minute: number, kind: string, command?: string) => ({
       role: "tool",
       ts: new Date(

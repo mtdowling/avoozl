@@ -176,7 +176,7 @@ test("pk-1.6: no mapping is not run naming the alias; a changed mapping waits fo
   });
   const [plugin] = inspectPlugins(mapped.options);
   assert.equal(plugin.state, "changed");
-  assert.match(plugin.reason, /MCP server mapping changed/);
+  assert.match(plugin.reason ?? "", /MCP server mapping changed/);
   assert.equal(approvedPluginChecks(mapped.options).length, 0);
 });
 
@@ -275,7 +275,7 @@ test("pk-1.6: a server that opens a listener is stopped and its plugin marked br
   assert.match(result.violation ?? "", /opened a network listener/);
   const [plugin] = inspectPlugins(workspace.options);
   assert.equal(plugin.state, "unapproved");
-  assert.match(plugin.reason, /Marked broken/);
+  assert.match(plugin.reason ?? "", /Marked broken/);
 });
 
 test("pk-1.6: a cache hit makes no call, and a changed mapping misses", async (t) => {
