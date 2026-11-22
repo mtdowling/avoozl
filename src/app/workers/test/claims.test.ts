@@ -214,7 +214,7 @@ test("the loop pass claims each worker start, and drops one another runner claim
     ["b", "c"],
   );
   assert.deepEqual(out.errors, []);
-  assert.equal(claimOf(s.store, "acme/app", "b").own, true);
+  assert.equal(claimOf(s.store, "acme/app", "b")?.own, true);
   const creates = () =>
     s.github.calls.filter((call) => call[0] === "create").length;
   const before = creates();

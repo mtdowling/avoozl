@@ -4,7 +4,11 @@
 // runner created goes with its leases. A tick that fails keeps the claim, so
 // no runner takes the task again, and the next pass tries again.
 import { tickPlansRepo } from "../specs/spec-ticks.ts";
-import { cachedOwnClaims, deleteOwnClaim } from "../workers/claims.ts";
+import {
+  type ClaimGitHub,
+  cachedOwnClaims,
+  deleteOwnClaim,
+} from "../workers/claims.ts";
 import { landingAction } from "./landing-action.ts";
 import { closeLanded, landingSpecOf } from "../specs/labeled-issues.ts";
 import type { Store } from "../store/store.ts";
@@ -15,7 +19,7 @@ import { type QueuedTask, taskIds } from "./landing-queue.ts";
 type Entry = { spec: unknown; tasks: QueuedTask[] };
 // Where the landing runs.
 type Where = { workspaceRoot?: string | null; env?: NodeJS.ProcessEnv };
-type GitHub = Parameters<typeof closeLanded>[0];
+type GitHub = Parameters<typeof closeLanded>[0] & ClaimGitHub;
 
 // One landed entry ({spec, tasks}) at `candidate`, the commit on the base.
 // Returns whether its tick is on the done branch.
