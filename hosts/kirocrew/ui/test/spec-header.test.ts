@@ -14,16 +14,17 @@ import { readFileSync } from 'node:fs'
 const chrome = findChrome()
 const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the spec header tests'
 
-test('the primary action: Import, Approve, or Edit spec', async () => {
+test('the primary action follows the spec review loop', async () => {
   const source = readFileSync(new URL('../src/PlansView.tsx', import.meta.url), 'utf8')
   // The rule is a pure function; check it from its source with a tiny eval.
   const body = source.slice(source.indexOf('export function primaryAction('), source.indexOf('function specMeta('))
   const js = body.replace(/export function primaryAction\([^)]*\)[^{]*\{/, 'return (row, plan, blocker) => {')
   const primaryAction = new Function(js)()
   assert.equal(primaryAction({ status: 'not imported', spec: 's' }, null, null), 'import')
+  assert.equal(primaryAction({ status: 'changed', spec: 's' }, { state: 'draft' }, 'The folder changed on disk.'), 'import')
   assert.equal(primaryAction({ status: 'draft', spec: 's' }, { state: 'draft' }, null), 'approve')
-  assert.equal(primaryAction({ status: 'draft', spec: 's' }, { state: 'draft' }, 'Fix 2 errors first.'), 'edit')
-  assert.equal(primaryAction({ status: 'draft', spec: null }, { state: 'draft' }, 'Fix 2 errors first.'), 'edit')
+  assert.equal(primaryAction({ status: 'draft', spec: 's' }, { state: 'draft' }, 'Fix 2 errors first.'), 'send-back')
+  assert.equal(primaryAction({ status: 'draft', spec: null }, { state: 'draft' }, 'Fix 2 errors first.'), 'send-back')
   assert.equal(primaryAction({ status: 'approved', spec: 's' }, { state: 'approved' }, null), 'edit')
   assert.equal(primaryAction({ status: 'done', spec: 's' }, { state: 'approved' }, null), 'edit')
 })

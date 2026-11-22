@@ -13,6 +13,7 @@ import {
   rowActions,
   location,
   plansClient,
+  reviewReworkInstruction,
   revisionChange,
   specStatus,
   type Diagnostic,
@@ -80,6 +81,58 @@ test('plans client names the workspace on every call', async () => {
       },
     ],
   )
+})
+
+test('a spec rework handoff names the exact workspace, folder, finding, and current text', () => {
+  const instruction = reviewReworkInstruction(
+    {
+      id: 'request-1',
+      revisionHash: hash,
+      disposition: 'changes-requested',
+      reason: 'Use last-name-first arguments.',
+      commentIds: ['comment-1'],
+      commentSnapshot: 'snapshot-1',
+      comments: [
+        {
+          id: 'comment-1',
+          planId: 'config',
+          spec: 'config',
+          revisionHash: hash,
+          file: 'design.md',
+          lineStart: 3,
+          body: 'Reverse the argument order.',
+          state: 'open',
+          author: 'reviewer',
+          createdAt: '2026-11-22T12:00:00Z',
+          current: true,
+        },
+        {
+          id: 'comment-later',
+          planId: 'config',
+          spec: 'config',
+          revisionHash: hash,
+          file: 'tasks.md',
+          lineStart: null,
+          body: 'This was not part of the request snapshot.',
+          state: 'open',
+          author: 'reviewer',
+          createdAt: '2026-11-22T12:01:00Z',
+          current: true,
+        },
+      ],
+    },
+    {
+      workspaceId: 'review-canary',
+      folder: '/tmp/review-canary/.kiro/specs/config/',
+      files: { 'design.md': '# Design\n\nformatName(first, last)\n' },
+    },
+  )
+  assert.match(instruction, /Avoozl workspace: review-canary/)
+  assert.match(instruction, /Use this exact spec folder; do not search for another copy: \/tmp\/review-canary\/\.kiro\/specs\/config\//)
+  assert.match(instruction, /comment-1.*design\.md:3.*Reverse the argument order/)
+  assert.match(instruction, /3 \| formatName\(first, last\)/)
+  assert.doesNotMatch(instruction, /comment-later/)
+  assert.match(instruction, /Review snapshot: snapshot-1/)
 })
 
 test('approve sends the shown hash and the previewed database revision', async () => {
