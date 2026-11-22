@@ -1,4 +1,5 @@
-// Test helper: the result of an MCP tools/call answer, checked at run time.
+// Test helper: MCP answers read with run-time checks, since their result
+// shapes come from a union the tests cannot name.
 import assert from "node:assert/strict";
 import type { handleMcp } from "../mcp/mcp.ts";
 
@@ -9,12 +10,21 @@ export interface ToolResult {
   structuredContent?: Record<string, unknown>;
 }
 
-// The tool result in `response`, failing the test when it carries none.
-export function toolResult(
-  response: Awaited<ReturnType<typeof handleMcp>>,
-): ToolResult {
-  const body = response.body,
-    result: unknown = body && "result" in body ? body.result : null;
+// The value at `keys` under `value`, failing the test where a step is not
+// an object.
+export function at(value: unknown, ...keys: string[]): unknown {
+  let current = value;
+  for (const key of keys) {
+    assert.ok(current && typeof current === "object", `no ${key} here`);
+    current = Reflect.get(current, key);
+  }
+  return current;
+}
+
+// The tool result a JSON-RPC answer carries, failing the test when it has
+// none.
+export function answerResult(answer: unknown): ToolResult {
+  const result = at(answer, "result");
   assert.ok(
     result && typeof result === "object" && "content" in result,
     "the answer is a tool result",
@@ -23,3 +33,7 @@ export function toolResult(
   assert.ok(Array.isArray(content), "its content is a list");
   return { ...result, content };
 }
+
+// The tool result in handleMcp's response.
+export const toolResult = (response: Awaited<ReturnType<typeof handleMcp>>) =>
+  answerResult(response.body);
