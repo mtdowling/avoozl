@@ -19,7 +19,7 @@ export interface SourceSettings {
   repositoryId: string;
   workspaceRepositoryId?: string;
   assignee: string;
-  enabled: boolean;
+  enabled?: boolean;
   autoStart: boolean;
   provider: string | null;
   model: string | null;
