@@ -277,13 +277,16 @@ function fixText(run: Run) {
 
 // What the Epics page shows beside a phase or a branch head (PK4.6): the
 // newest run per phase and per branch, with each check's result.
-export function stageResults(store: Store): {
-  phases: Record<string, unknown>;
-  branches: Record<string, unknown>;
-} {
+export function stageResults(store: Store) {
+  // One stage's newest run, and each check's result on it.
+  type Entry = {
+    queuedAt?: string;
+    checks: { name?: string; result: string; [key: string]: unknown }[];
+    [key: string]: unknown;
+  };
   const out: {
-    phases: Record<string, { queuedAt?: string; [key: string]: unknown }>;
-    branches: Record<string, { queuedAt?: string; [key: string]: unknown }>;
+    phases: Record<string, Entry>;
+    branches: Record<string, Entry>;
   } = { phases: {}, branches: {} };
   for (const run of runs(store)) {
     const scope = run.scope;

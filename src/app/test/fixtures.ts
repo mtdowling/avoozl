@@ -2,8 +2,9 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import type { TestContext } from "node:test";
-import type { Task } from "../../types.ts";
+import type { Edge, Task } from "../../types.ts";
 import type { Repository } from "../git/git.ts";
+import type { Epic } from "../epics/epics.ts";
 import {
   Store,
   type StoredRecord,
@@ -13,6 +14,8 @@ import { recordSpan } from "../flow/flow.ts";
 import { temporaryDirectory } from "./temporary.ts";
 import { createWorktree, validateUnlocked, withWorkLock } from "../git/git.ts";
 export function snapshot() {
+  const edges: Edge[] = [],
+    epics: Epic[] = [];
   return {
     schemaVersion: 1,
     revision: 1,
@@ -36,7 +39,7 @@ export function snapshot() {
       { id: "blocked", label: "Blocked", complete: false },
       { id: "deferred", label: "Deferred", complete: false },
     ],
-    epics: [],
+    epics,
     tracks: [{ id: "catalog", label: "Plans" }],
     tasks: [
       {
@@ -49,7 +52,7 @@ export function snapshot() {
         acceptance: ["Pass fixture test."],
       },
     ],
-    edges: [],
+    edges,
     documents: {},
     changelog: [],
     unknownExtension: { preserve: true },
