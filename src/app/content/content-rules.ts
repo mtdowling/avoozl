@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Content rules (design §4.9, Requirement 40). One matcher for banned terms
 // at every boundary where Avoozl writes or approves content.
 //
@@ -20,11 +19,12 @@ import os from "node:os";
 import path from "node:path";
 import {
   MessageChannel,
+  type MessagePort,
   Worker,
   receiveMessageOnPort,
 } from "node:worker_threads";
 import { globalAvoozlConfigPath } from "../settings/layered-config.ts";
-import { queueNotifications } from "../tick/notifications.ts";
+import { type Notice, queueNotifications } from "../tick/notifications.ts";
 import { PRIVACY_SET, privacyHits, privacyRules } from "./privacy.ts";
 import { fail } from "../store/store.ts";
 import type { Store } from "../store/store.ts";
@@ -54,6 +54,124 @@ export interface CheckResult {
 import { personPosting, postedText } from "../github/github-posted.ts";
 import { branchRefs } from "../git/git.ts";
 
+// A JSON object.
+type Obj = Record<string, unknown>;
+// One rule a set matches: its id, its pattern, and its allow patterns.
+interface Rule {
+  id: string;
+  source: string;
+  allow?: string[];
+}
+// A configured rule set, as validateContentRules checks it.
+interface RuleSet {
+  id: string;
+  action: string;
+  boundaries: string[] | null;
+  repositories: string[] | null;
+  plugin: string | null;
+  remote: string;
+}
+// A set with its rules, or why it is unavailable.
+type ResolvedSet = Omit<RuleSet, "plugin" | "remote"> & {
+  plugin?: string | null;
+  remote?: string;
+  source: string;
+  available: boolean;
+  reason?: string;
+  termsFrom?: string;
+  version?: string;
+  ruleCount?: number;
+  rules?: Rule[];
+};
+// The sets one rules plugin supplied, in memory only (R40.9).
+interface LoadedPlugin {
+  loadedAt: number;
+  sets?: Map<string, { version: string; rules: Rule[] }>;
+  error?: string;
+}
+// What one store's content rules read: where, and the plugins' sets.
+interface Binding {
+  workspaceRoot: string | null;
+  configFile: string;
+  pluginSettingsFile: string | null;
+  timeoutMs: number;
+  machine: { hostname: string; username: string } | null;
+  plugins: Map<string, LoadedPlugin>;
+}
+// A rule set a check could not use.
+type Unavailable = { set: string; reason: string };
+// Where a matched line can be read again on demand.
+type LineSource = {
+  kind: string;
+  path?: string;
+  root?: string;
+  commit?: string;
+  file?: string;
+  [key: string]: unknown;
+} | null;
+// One content_decisions row.
+interface Decision {
+  id: string;
+  kind: string;
+  state: string;
+  set: string;
+  rules?: string[];
+  findings?: Omit<Finding, "action">[];
+  boundary?: string;
+  repository?: string | null;
+  target?: string;
+  line?: number;
+  taskId?: string | null;
+  source?: LineSource;
+  contentHash?: string;
+  reason?: string;
+  openedAt?: string;
+  [key: string]: unknown;
+}
+// One content_allowances row: a person's allow once (R40.7).
+interface Allowance {
+  id: string;
+  set: string;
+  rule: string;
+  target?: string;
+  contentHash?: string;
+  usedAt?: string | null;
+  [key: string]: unknown;
+}
+// A notice content rules queue, with the target it names.
+type ContentNotice = Notice & {
+  channel: string;
+  title: string;
+  text: string;
+  target?: string;
+};
+// What enforce is given: a check's input.
+type EnforceInput = Parameters<typeof check>[1];
+const messageOf = (error: unknown) =>
+  error instanceof Error ? error.message : String(error);
+const fieldOf = (value: unknown, key: string): unknown =>
+  record(value) ? value[key] : undefined;
+const fieldsOf = (value: unknown): Obj => (record(value) ? value : {});
+// A refusal with its status and what refused it.
+const refusal = (message: string, fields: Obj) =>
+  Object.assign(Error(message), fields);
+// A write content rules refused (enforce in refuse mode): a 422 naming
+// the findings and the unavailable sets.
+export class ContentRefusal extends Error {
+  status = 422;
+  findings: Finding[];
+  unavailable: Unavailable[];
+  constructor(
+    message: string,
+    findings: Finding[],
+    unavailable: Unavailable[],
+  ) {
+    super(message);
+    this.findings = findings;
+    this.unavailable = unavailable;
+  }
+}
+
 // `intake` screens incoming items (design §4.12) and runs only for a set
 // that names it, so GitHub intake is unchanged unless the owner asks.
 // `proposal` screens retro proposals (design §4.18); every set covers them
@@ -81,9 +199,9 @@ const RULE_KEYS = new Set(["terms", "patterns", "rules", "pattern", "regex"]);
 const MAX_RULES = 2000;
 const MAX_TERMS_BYTES = 1024 * 1024;
 
-const record = (value) =>
+const record = (value: unknown): value is Obj =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
-export const sha256 = (text) =>
+export const sha256 = (text: unknown) =>
   createHash("sha256")
     .update(String(text ?? ""))
     .digest("hex");
@@ -125,10 +243,10 @@ const ALLOW_NAME = /^allow(?:\s+(.*))?$/i;
 
 // {rules: [{line, rule, source}], allows: [{line, rule|null, source}],
 // errors: [{line, message}], lines, allowLines} for one terms file's text.
-function readTermLines(text) {
-  const rules = [],
-    allows = [],
-    errors = [];
+function readTermLines(text: unknown) {
+  const rules: { line: number; rule: string; source: string }[] = [],
+    allows: { line: number; rule: string | null; source: string }[] = [],
+    errors: { line: number; message: string }[] = [];
   let lines = 0,
     allowLines = 0;
   String(text ?? "")
@@ -159,7 +277,7 @@ function readTermLines(text) {
         new RegExp(source, "i");
       } catch (error) {
         // The engine's message repeats the pattern; keep only its reason.
-        const reason = String(error.message).split(": ").pop();
+        const reason = messageOf(error).split(": ").pop();
         return errors.push({
           line: n,
           message: `the ${allow ? "allow " : ""}pattern does not compile (${reason})`,
@@ -181,7 +299,7 @@ function readTermLines(text) {
 }
 
 // [{category, rule, pattern, allow: [RegExp]}]; throws on the first problem.
-export function parseTerms(text, { category = "private-name" } = {}) {
+export function parseTerms(text: unknown, { category = "private-name" } = {}) {
   const { rules, allows, errors } = readTermLines(text);
   if (errors.length) {
     const [first] = errors;
@@ -203,7 +321,10 @@ export function parseTerms(text, { category = "private-name" } = {}) {
 
 // The rules of `parseTerms` whose pattern matches `line` and no allow
 // pattern of that rule does.
-export function matchLine(line, rules) {
+export function matchLine<R extends { pattern: RegExp; allow?: RegExp[] }>(
+  line: string,
+  rules: readonly R[],
+) {
   return rules.filter(
     ({ pattern, allow }) =>
       pattern.test(line) && !(allow || []).some((a) => a.test(line)),
@@ -213,16 +334,16 @@ export function matchLine(line, rules) {
 // Undo the encodings a term can hide behind: percent escapes (repeated, for
 // double encoding), numeric HTML entities, backslash escapes and zero-width
 // characters (moved from github-plans-repo.mjs, F68).
-export function decode(text) {
+export function decode(text: unknown) {
   let value = String(text ?? "");
   for (let round = 0; round < 3; round += 1) {
     const next = value
-      .replace(/%([0-9a-f]{2})/gi, (_, hex) =>
+      .replace(/%([0-9a-f]{2})/gi, (_, hex: string) =>
         String.fromCharCode(parseInt(hex, 16)),
       )
-      .replace(/&#(x[0-9a-f]{1,6}|[0-9]{1,7});/gi, (match, code) => {
+      .replace(/&#(x[0-9a-f]{1,6}|[0-9]{1,7});/gi, (match, code: string) => {
         const point =
-          code[0].toLowerCase() === "x"
+          code[0]?.toLowerCase() === "x"
             ? parseInt(code.slice(1), 16)
             : Number(code);
         return point <= 0x10ffff ? String.fromCodePoint(point) : match;
@@ -287,7 +408,11 @@ Atomics.notify(flag, 0);
 // is kept out of the time limit: a loaded host must not fail a check closed.
 const START_TIMEOUT_MS = 30_000;
 
-let runner = null;
+let runner: {
+  worker: Worker;
+  port: MessagePort;
+  flag: Int32Array;
+} | null = null;
 function startRunner() {
   const flag = new SharedArrayBuffer(4),
     { port1, port2 } = new MessageChannel(),
@@ -304,9 +429,7 @@ function startRunner() {
   const view = new Int32Array(flag);
   if (Atomics.wait(view, 0, 0, START_TIMEOUT_MS) === "timed-out") {
     worker.terminate();
-    const error = Error("the matching worker did not start");
-    error.timeout = true;
-    throw error;
+    throw refusal("the matching worker did not start", { timeout: true });
   }
   return { worker, port: port1, flag: view };
 }
@@ -315,27 +438,30 @@ function startRunner() {
 // `allow` sources drops a match when one of them matches the same line, and
 // only the count is kept (R40.15).
 function matchLinesInWorker(
-  rules,
-  lines,
+  rules: (Omit<Rule, "id"> & { set: string; rule: string })[],
+  lines: string[],
   { timeoutMs = CHECK_TIMEOUT_MS } = {},
 ) {
   if (!rules.length || !lines.length) return { hits: [], allowed: [] };
-  runner ||= startRunner();
-  const { port, flag } = runner,
+  const started = (runner ||= startRunner()),
+    { port, flag } = started,
     key = sha256(JSON.stringify(rules));
   Atomics.store(flag, 0, 0);
   port.postMessage({ key, rules, lines });
   if (Atomics.wait(flag, 0, 0, timeoutMs) === "timed-out") {
-    const stale = runner;
     runner = null;
-    stale.worker.terminate();
-    const error = Error(
+    started.worker.terminate();
+    throw refusal(
       `matching ran past the ${Math.round(timeoutMs / 100) / 10} s time limit`,
+      { timeout: true },
     );
-    error.timeout = true;
-    throw error;
   }
-  const reply = receiveMessageOnPort(port)?.message;
+  // The worker's reply (WORKER_SOURCE).
+  const reply: {
+    error?: string;
+    hits: [number, string, string][];
+    allowed?: Record<string, number>;
+  } | null = receiveMessageOnPort(port)?.message;
   if (!reply || reply.error) throw Error(reply?.error || "matching failed");
   return {
     hits: reply.hits.map(([index, set, rule]) => ({ index, set, rule })),
@@ -349,7 +475,7 @@ function matchLinesInWorker(
 // ---------------------------------------------------------------------------
 // Policy: `.avoozl.json` `contentRules` (§4.4, §4.9).
 
-function refuseRuleKeys(value, where) {
+function refuseRuleKeys(value: unknown, where: string): void {
   if (Array.isArray(value))
     return value.forEach((item, i) => refuseRuleKeys(item, `${where}.${i}`));
   if (!record(value)) return;
@@ -376,12 +502,15 @@ export const RULE_SET_KEYS = [
 // repositories, plugin}]}. `pluginIds` and `repositories`, when given, are
 // the ids the set may name.
 export function validateContentRules(
-  value,
+  value: unknown,
   {
     pluginIds = null,
     repositories = null,
-  }: { pluginIds?: string[] | null; repositories?: string[] | null } = {},
-) {
+  }: {
+    pluginIds?: string[] | null;
+    repositories?: Iterable<string> | null;
+  } = {},
+): { sets: RuleSet[] } {
   if (value === undefined || value === null) return { sets: [] };
   refuseRuleKeys(value, "contentRules");
   if (!record(value)) fail("contentRules must be an object.");
@@ -390,7 +519,7 @@ export function validateContentRules(
       fail(`contentRules.${key} is not a content rules setting.`);
   const list = value.sets ?? [];
   if (!Array.isArray(list)) fail("contentRules.sets must be a list.");
-  const seen = new Set();
+  const seen = new Set<string>();
   const sets = list.map((entry, i) => {
     const where = `contentRules.sets.${i}`;
     if (!record(entry)) fail(`${where} must be an object.`);
@@ -410,19 +539,19 @@ export function validateContentRules(
     if (seen.has(entry.id)) fail(`Rule set ${entry.id} is named twice.`);
     seen.add(entry.id);
     const action = entry.action ?? "block";
-    if (!ACTIONS.includes(action))
+    if (action !== "block" && action !== "report")
       fail(`${where}.action must be block or report.`);
-    let boundaries = null;
+    let boundaries: string[] | null = null;
     if (entry.boundaries !== undefined) {
       if (
         !Array.isArray(entry.boundaries) ||
         !entry.boundaries.length ||
-        entry.boundaries.some((b) => !BOUNDARIES.includes(b))
+        entry.boundaries.some((b) => !BOUNDARIES.includes(String(b)))
       )
         fail(`${where}.boundaries may list only ${BOUNDARIES.join(", ")}.`);
-      boundaries = [...new Set(entry.boundaries)];
+      boundaries = [...new Set(entry.boundaries.map(String))];
     }
-    let repos = null;
+    let repos: string[] | null = null;
     if (entry.repositories !== undefined) {
       if (
         !Array.isArray(entry.repositories) ||
@@ -432,13 +561,13 @@ export function validateContentRules(
         fail(`${where}.repositories must list registered repositories.`);
       if (repositories) {
         const known = new Set([...repositories].map((r) => r.toLowerCase()));
-        for (const name of entry.repositories)
+        for (const name of entry.repositories.map(String))
           if (!known.has(name.toLowerCase()))
             fail(
               `${where}.repositories names ${name}, which is not a registered repository.`,
             );
       }
-      repos = [...entry.repositories];
+      repos = entry.repositories.map(String);
     }
     if (entry.plugin !== undefined) {
       if (typeof entry.plugin !== "string" || !entry.plugin)
@@ -448,19 +577,17 @@ export function validateContentRules(
     }
     // Remote crews (§4.10, R41.11): a set covering `diff` forbids them by
     // default, because its pre-push hook is installed only on this machine.
-    if (
-      entry.remote !== undefined &&
-      !["allow", "forbid"].includes(entry.remote)
-    )
+    const remote = entry.remote;
+    if (remote !== undefined && remote !== "allow" && remote !== "forbid")
       fail(`${where}.remote must be allow or forbid.`);
     return {
       id: entry.id,
       action,
       boundaries,
       repositories: repos,
-      plugin: entry.plugin ?? null,
+      plugin: typeof entry.plugin === "string" ? entry.plugin : null,
       remote:
-        entry.remote ??
+        remote ??
         (!boundaries || boundaries.includes("diff") ? "forbid" : "allow"),
     };
   });
@@ -468,11 +595,16 @@ export function validateContentRules(
 }
 
 // The ids `.avoozl.json` plugins entries and machine plugin settings declare.
-function declaredPluginIds(policy, settingsFile) {
-  const ids = (policy.plugins || []).map((p) => p?.id).filter(Boolean);
+function declaredPluginIds(policy: Obj, settingsFile: string) {
+  const idsOf = (list: unknown) =>
+      (Array.isArray(list) ? list : []).flatMap((p) => {
+        const id = fieldOf(p, "id");
+        return typeof id === "string" && id ? [id] : [];
+      }),
+    ids = idsOf(policy.plugins);
   try {
-    const machine = JSON.parse(fs.readFileSync(settingsFile, "utf8"));
-    for (const p of machine.plugins || []) if (p?.id) ids.push(p.id);
+    const machine: unknown = JSON.parse(fs.readFileSync(settingsFile, "utf8"));
+    ids.push(...idsOf(fieldOf(machine, "plugins")));
   } catch {}
   return ids;
 }
@@ -480,21 +612,25 @@ function declaredPluginIds(policy, settingsFile) {
 // ---------------------------------------------------------------------------
 // Terms file location and the Git check (§4.9, F74).
 
-function machineTerms(configFile) {
+function machineTerms(configFile: string): Obj {
   try {
-    const value = JSON.parse(fs.readFileSync(configFile, "utf8"));
-    return record(value?.contentRules?.terms) ? value.contentRules.terms : {};
+    const value: unknown = JSON.parse(fs.readFileSync(configFile, "utf8")),
+      terms = fieldOf(fieldOf(value, "contentRules"), "terms");
+    return record(terms) ? terms : {};
   } catch {
     return {};
   }
 }
 
-const expand = (file, base) =>
+const expand = (file: string, base: string) =>
   file.startsWith("~/")
     ? path.join(os.homedir(), file.slice(2))
     : path.resolve(base, file);
 
-function termsFileFor(id, { workspaceRoot, configFile }) {
+function termsFileFor(
+  id: string,
+  { workspaceRoot, configFile }: Pick<Binding, "workspaceRoot" | "configFile">,
+) {
   const named = machineTerms(configFile)[id];
   if (typeof named === "string" && named.trim())
     return {
@@ -519,7 +655,7 @@ function termsFileFor(id, { workspaceRoot, configFile }) {
 // a work tree that Git does not ignore, is refused (R40.2).
 // Git run inside a hook inherits GIT_DIR and friends, which would point every
 // command at the pushing repository; each command here names its own folder.
-function gitEnvironment() {
+function gitEnvironment(): NodeJS.ProcessEnv {
   const env = { ...process.env };
   for (const name of [
     "GIT_DIR",
@@ -534,9 +670,9 @@ function gitEnvironment() {
   return env;
 }
 
-export function gitExposure(file) {
+export function gitExposure(file: string) {
   const folder = path.dirname(file),
-    run = (args) =>
+    run = (args: string[]) =>
       execFileSync("git", args, {
         cwd: folder,
         encoding: "utf8",
@@ -546,7 +682,7 @@ export function gitExposure(file) {
   // Git finds a work tree through a `.git` in the folder or one above it,
   // from the folder's real path. With none, Git would answer "not inside",
   // so no Git process is started: this check runs on every guarded write.
-  let up;
+  let up: string;
   try {
     up = fs.realpathSync(folder);
   } catch {
@@ -578,10 +714,10 @@ export function gitExposure(file) {
 // ---------------------------------------------------------------------------
 // The guard: one per store, bound by whoever opened it with a workspace.
 
-const bound = new WeakMap();
+const bound = new WeakMap<object, Binding>();
 
 export function bindContentRules(
-  store,
+  store: object,
   {
     workspaceRoot = null,
     configFile = globalAvoozlConfigPath(),
@@ -598,7 +734,7 @@ export function bindContentRules(
   } = {},
 ) {
   const previous = bound.get(store);
-  const binding = {
+  const binding: Binding = {
     workspaceRoot,
     configFile,
     pluginSettingsFile,
@@ -613,43 +749,50 @@ export function bindContentRules(
   return binding;
 }
 
-export function contentBinding(store) {
+export function contentBinding(store: object): Binding | null {
   return bound.get(store) || null;
 }
 
-function readPolicy(workspaceRoot) {
+function readPolicy(workspaceRoot: string | null): Obj {
   if (!workspaceRoot) return {};
   try {
-    return JSON.parse(
+    const value: unknown = JSON.parse(
       fs.readFileSync(path.join(workspaceRoot, ".avoozl.json"), "utf8"),
     );
+    return record(value) ? value : {};
   } catch (error) {
-    if (error.code === "ENOENT") return {};
-    throw Error(`.avoozl.json is invalid: ${error.message}`);
+    if (fieldOf(error, "code") === "ENOENT") return {};
+    throw Error(`.avoozl.json is invalid: ${messageOf(error)}`);
   }
 }
 
 // Registered repositories a set may name: local repositories and GitHub ones.
-function registeredRepositories(store, policy) {
-  const names = new Set();
+function registeredRepositories(store: Store, policy: Obj) {
+  const names = new Set<string>();
   try {
-    for (const repository of store.list("repositories")) {
+    for (const repository of store.list<{ id: string; github?: string | null }>(
+      "repositories",
+    )) {
       names.add(repository.id);
       if (repository.github) names.add(repository.github);
     }
-    for (const repo of store.list("github_repositories")) names.add(repo.id);
+    for (const repo of store.list<{ id: string }>("github_repositories"))
+      names.add(repo.id);
   } catch {}
-  for (const id of Object.keys(policy?.github?.repositories || {}))
-    names.add(id);
+  const listed = fieldOf(policy.github, "repositories");
+  for (const id of Object.keys(record(listed) ? listed : {})) names.add(id);
   return names;
 }
 
 // Every configured set with its rules, or why it is unavailable. Terms files
 // are read on each call, so an added or removed file applies at once.
-function resolveSets(store) {
+function resolveSets(store: Store): {
+  sets: ResolvedSet[];
+  error: string | null;
+} {
   const binding = contentBinding(store);
   if (!binding?.workspaceRoot) return { sets: [], error: null };
-  let policy, rules;
+  let policy: Obj, rules: { sets: RuleSet[] };
   try {
     policy = readPolicy(binding.workspaceRoot);
     rules = validateContentRules(policy.contentRules, {
@@ -671,14 +814,14 @@ function resolveSets(store) {
           repositories: null,
           source: "policy",
           available: false,
-          reason: `.avoozl.json contentRules is invalid: ${error.message}`,
+          reason: `.avoozl.json contentRules is invalid: ${messageOf(error)}`,
         },
       ],
-      error: error.message,
+      error: messageOf(error),
     };
   }
   const repositories = registeredRepositories(store, policy);
-  const sets = rules.sets.map((set) => {
+  const sets = rules.sets.map((set): ResolvedSet => {
     const base = { ...set, source: set.plugin ? "plugin" : "file" };
     const unknown = (set.repositories || []).find(
       (name) =>
@@ -704,7 +847,7 @@ function resolveSets(store) {
           available: false,
           reason: `rules plugin ${set.plugin} ${loaded.error}`,
         };
-      const supplied = loaded.sets.get(set.id);
+      const supplied = loaded.sets?.get(set.id);
       if (!supplied)
         return {
           ...base,
@@ -757,14 +900,15 @@ function resolveSets(store) {
       };
     } catch (error) {
       // The message names the line that failed, never its text.
+      const message = messageOf(error);
       return {
         ...located,
         available: false,
-        reason: /Invalid regular expression/.test(error.message)
+        reason: /Invalid regular expression/.test(message)
           ? "a rule does not compile"
-          : /^Terms /.test(error.message)
-            ? error.message
-            : error.message.replace(/: .*$/s, ""),
+          : /^Terms /.test(message)
+            ? message
+            : message.replace(/: .*$/s, ""),
       };
     }
   });
@@ -774,7 +918,7 @@ function resolveSets(store) {
 // What Settings shows: each set, its source kind and availability, never a
 // rule. `choices` are what a set may name: registered repositories and
 // declared plugins.
-export function describeSets(store) {
+export function describeSets(store: Store) {
   const { sets, error } = resolveSets(store);
   return {
     error,
@@ -784,10 +928,10 @@ export function describeSets(store) {
   };
 }
 
-function setChoices(store) {
+function setChoices(store: Store) {
   const binding = contentBinding(store);
   if (!binding?.workspaceRoot) return { repositories: [], plugins: [] };
-  let policy = {};
+  let policy: Obj = {};
   try {
     policy = readPolicy(binding.workspaceRoot);
   } catch {}
@@ -812,9 +956,9 @@ function setChoices(store) {
 
 // Each problem in a terms file as {line, message}, the rule count, and the
 // allow line count.
-export function checkTermsText(text) {
+export function checkTermsText(text: unknown) {
   const value = String(text ?? ""),
-    errors = [];
+    errors: { line: number | null; message: string }[] = [];
   if (Buffer.byteLength(value) > MAX_TERMS_BYTES)
     errors.push({ line: null, message: "The terms file is over 1 MB." });
   const read = readTermLines(value);
@@ -829,9 +973,10 @@ export function checkTermsText(text) {
 }
 
 // The configured set `id` whose rules come from a terms file, and that file.
-function termsTarget(store, id) {
+function termsTarget(store: Store, id: unknown) {
   const binding = contentBinding(store);
-  if (!binding?.workspaceRoot) fail("Content rules need a workspace.", 409);
+  if (!binding?.workspaceRoot)
+    return fail("Content rules need a workspace.", 409);
   if (typeof id !== "string" || !SET_ID.test(id)) fail("Name a rule set.");
   const { sets, error } = resolveSets(store);
   if (error) fail(`.avoozl.json contentRules is invalid: ${error}`, 409);
@@ -844,13 +989,14 @@ function termsTarget(store, id) {
 
 // {id, file, from, editable, exists, text}. A file this machine's settings
 // name is read only here: Avoozl writes only its own folder.
-export function readTermsFile(store, { id } = {}) {
-  const { file, from } = termsTarget(store, id),
-    binding = contentBinding(store),
+export function readTermsFile(store: Store, { id }: { id?: unknown } = {}) {
+  const { file: target, from } = termsTarget(store, id),
+    file = target ?? "",
+    root = contentBinding(store)?.workspaceRoot ?? "",
     shown =
       from === "machine"
         ? file
-        : path.relative(binding.workspaceRoot, file).split(path.sep).join("/");
+        : path.relative(root, file).split(path.sep).join("/");
   if (from === "machine")
     return {
       id,
@@ -866,31 +1012,33 @@ export function readTermsFile(store, { id } = {}) {
   try {
     text = fs.readFileSync(file, "utf8");
   } catch (error) {
-    if (error.code !== "ENOENT") fail("The terms file cannot be read.", 409);
+    if (fieldOf(error, "code") !== "ENOENT")
+      fail("The terms file cannot be read.", 409);
     return { id, file: shown, from, editable: true, exists: false, text: "" };
   }
   return { id, file: shown, from, editable: true, exists: true, text };
 }
 
-export function writeTermsFile(store, { id, text } = {}) {
+export function writeTermsFile(
+  store: Store,
+  { id, text }: { id?: unknown; text?: unknown } = {},
+) {
   if (typeof text !== "string") fail("Give the terms file text.");
-  const { file, from } = termsTarget(store, id);
+  const { file: target, from } = termsTarget(store, id),
+    file = target ?? fail("Content rules need a workspace.", 409);
   if (from === "machine")
     fail(
       "This set's terms come from a file this machine's settings name. Avoozl writes only .avoozl/local/content-rules.",
       409,
     );
   const checked = checkTermsText(text);
-  if (checked.errors.length) {
-    const error = Error(
+  if (checked.errors.length)
+    throw refusal(
       `Nothing was saved. ${checked.errors
         .map((e) => (e.line ? `Line ${e.line} ${e.message}` : e.message))
         .join("; ")}.`,
+      { status: 422, errors: checked.errors },
     );
-    error.status = 422;
-    error.errors = checked.errors;
-    throw error;
-  }
   const folder = path.dirname(file);
   fs.mkdirSync(folder, { recursive: true, mode: 0o700 });
   fs.chmodSync(folder, 0o700);
@@ -901,7 +1049,10 @@ export function writeTermsFile(store, { id, text } = {}) {
       409,
     );
   const body = text.endsWith("\n") || !text ? text : text + "\n",
-    pending = path.join(folder, `.${id}.${process.pid}.${Date.now()}.pending`);
+    pending = path.join(
+      folder,
+      `.${String(id)}.${process.pid}.${Date.now()}.pending`,
+    );
   const descriptor = fs.openSync(pending, "wx", 0o600);
   try {
     fs.writeFileSync(descriptor, body);
@@ -929,12 +1080,20 @@ export function writeTermsFile(store, { id, text } = {}) {
 const CONTEXT_BOUNDARIES = new Set(["diff", "github", "brief"]);
 
 // The rule set IDs the task's last epic-context session was given.
-const taskContentSets = (store, taskId) => {
-  const last = taskId ? store.getMeta("epicContext")?.tasks?.[taskId] : null;
+const taskContentSets = (store: Store, taskId: string | null): string[] => {
+  const last = taskId
+    ? store.getMeta<{
+        tasks?: Record<string, { given?: boolean; contentSets?: string[] }>;
+      }>("epicContext")?.tasks?.[taskId]
+    : null;
   return last?.given ? (last.contentSets ?? []) : [];
 };
 
-export const covers = (set, boundary, repository) =>
+export const covers = (
+  set: Pick<RuleSet, "boundaries" | "repositories">,
+  boundary: string,
+  repository: unknown,
+) =>
   (set.boundaries
     ? set.boundaries.includes(boundary)
     : !OPT_IN.has(boundary)) &&
@@ -946,16 +1105,24 @@ export const covers = (set, boundary, repository) =>
 
 // Lines to check: `text` (each line of it, target `target`), or `added`:
 // [{target, line, text}] for diff lines.
-function linesOf({ target, text, added }) {
+function linesOf({
+  target,
+  text,
+  added,
+}: {
+  target?: string;
+  text?: unknown;
+  added?: { target?: string; line?: number | null; text?: unknown }[];
+}) {
   if (Array.isArray(added))
     return added.map((entry) => ({
-      target: entry.target ?? target,
-      line: entry.line ?? null,
+      target: entry.target ?? target ?? "",
+      line: entry.line ?? undefined,
       text: String(entry.text ?? ""),
     }));
   return String(text ?? "")
     .split("\n")
-    .map((line, i) => ({ target, line: i + 1, text: line }));
+    .map((line, i) => ({ target: target ?? "", line: i + 1, text: line }));
 }
 
 // builtin:privacy (privacy.mjs, R102.18): always on at the boundaries that
@@ -963,7 +1130,11 @@ function linesOf({ target, text, added }) {
 // messages and ref names (targets `commit:` and `ref:`) do too, and its
 // added lines get the code scope.
 const PRIVATE_BOUNDARIES = new Set(["github", "diff"]);
-function privacyFindings(binding, boundary, lines) {
+function privacyFindings(
+  binding: Binding | null,
+  boundary: string,
+  lines: { target: string; line?: number; text: string }[],
+): Finding[] {
   if (!PRIVATE_BOUNDARIES.has(boundary) || !lines.length) return [];
   const options = {
       machine: binding?.machine ?? null,
@@ -971,26 +1142,29 @@ function privacyFindings(binding, boundary, lines) {
     },
     text = privacyRules({ ...options, scope: "text" }),
     code = privacyRules({ ...options, scope: "code" }),
-    prose = (line) =>
+    prose = (line: { target: string }) =>
       boundary === "github" || /^(?:commit|ref):/.test(String(line.target)),
-    findings = [];
+    findings: Finding[] = [];
   for (const [rules, picked] of [
     [text, lines.filter(prose)],
     [code, lines.filter((line) => !prose(line))],
-  ])
+  ] as const)
     for (const hit of privacyHits(
       picked.map((l) => l.text),
       rules,
       decode,
-    ))
-      findings.push({
-        set: PRIVACY_SET,
-        rule: hit.rule,
-        boundary,
-        target: picked[hit.index].target,
-        line: picked[hit.index].line,
-        action: "block",
-      });
+    )) {
+      const line = picked[hit.index];
+      if (line)
+        findings.push({
+          set: PRIVACY_SET,
+          rule: hit.rule,
+          boundary,
+          target: line.target,
+          line: line.line,
+          action: "block",
+        });
+    }
   return findings;
 }
 
@@ -1018,10 +1192,10 @@ export function check(
     applying = sets.filter(
       (set) => covers(set, boundary, repository) || named.includes(set.id),
     ),
-    unavailable = [
+    unavailable: Unavailable[] = [
       ...applying
         .filter((set) => !set.available)
-        .map((set) => ({ set: set.id, reason: set.reason })),
+        .map((set) => ({ set: set.id, reason: String(set.reason) })),
       // A named set this machine does not have blocks as a missing terms
       // file does.
       ...named
@@ -1036,14 +1210,15 @@ export function check(
     findings = privacyFindings(binding, boundary, lines);
   if (!ready.length || !lines.length) return { findings, unavailable };
   const rules = ready.flatMap((set) =>
-    set.rules.map((rule) => ({
+    (set.rules ?? []).map((rule) => ({
       set: set.id,
       rule: rule.id,
       source: rule.source,
       ...(rule.allow ? { allow: rule.allow } : {}),
     })),
   );
-  let hits, allowed;
+  let hits: { index: number; set: string; rule: string }[],
+    allowed: { set: string; rule: string; count: number }[];
   try {
     ({ hits, allowed } = matchLinesInWorker(
       rules,
@@ -1056,7 +1231,9 @@ export function check(
     for (const set of ready)
       unavailable.push({
         set: set.id,
-        reason: error.timeout ? error.message : "a rule does not compile",
+        reason: fieldOf(error, "timeout")
+          ? messageOf(error)
+          : "a rule does not compile",
       });
     return { findings, unavailable };
   }
@@ -1064,10 +1241,11 @@ export function check(
     seen = new Set();
   for (const hit of hits) {
     const line = lines[hit.index],
-      key = `${hit.set}\0${hit.rule}\0${line.target}\0${line.line}`;
+      set = byId.get(hit.set);
+    if (!line || !set) continue;
+    const key = `${hit.set}\0${hit.rule}\0${line.target}\0${line.line}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    const set = byId.get(hit.set);
     findings.push({
       set: hit.set,
       rule: hit.rule,
@@ -1086,7 +1264,10 @@ export function check(
 }
 
 // The content an allowance binds to: the exact text, or the added lines.
-export function contentHash(input) {
+export function contentHash(input: {
+  added?: { target?: string; line?: number | null; text?: unknown }[];
+  text?: unknown;
+}) {
   return sha256(
     Array.isArray(input.added)
       ? input.added
@@ -1099,7 +1280,7 @@ export function contentHash(input) {
 export const findingText = (f: Finding) =>
   `${f.set} rule ${f.rule} at ${f.target}${f.line ? ` line ${f.line}` : ""}`;
 
-const decisionId = (set, target) =>
+const decisionId = (set: string, target: string) =>
   "content:" + sha256(`${set}\0${target}`).slice(0, 24);
 
 // enforce(input, {mode, taskId, source}): check, then act on the result.
@@ -1111,23 +1292,25 @@ const decisionId = (set, target) =>
 // notification. An allowance for the exact content passes its rule once and
 // is used up. Returns {ok, findings, unavailable, notify}.
 export function enforce(
-  store,
-  input,
+  store: Store,
+  input: EnforceInput,
   {
     mode = "decide",
     taskId = null,
     source = null,
-  }: { mode?: string; taskId?: string | null; source?: unknown } = {},
+  }: { mode?: string; taskId?: string | null; source?: LineSource } = {},
 ) {
   const result = check(store, {
       ...input,
       contextSets: input.contextSets ?? taskContentSets(store, taskId),
     }),
     hash = contentHash(input),
-    notify = [],
-    allowances = store.list("content_allowances").filter((a) => !a.usedAt),
-    blocking = [],
-    used = [];
+    notify: ContentNotice[] = [],
+    allowances = store
+      .list<Allowance>("content_allowances")
+      .filter((a) => !a.usedAt),
+    blocking: Finding[] = [],
+    used: Allowance[] = [];
   for (const finding of result.findings) {
     if (finding.action === "report") continue;
     const allowance = allowances.find(
@@ -1179,7 +1362,7 @@ export function enforce(
         });
       }
       // A clean write settles that target's open decisions.
-      for (const decision of store.list("content_decisions"))
+      for (const decision of store.list<Decision>("content_decisions"))
         if (
           decision.state === "open" &&
           decision.kind === "match" &&
@@ -1206,25 +1389,23 @@ export function enforce(
       ...blocking.map(findingText),
       ...result.unavailable.map((u) => `${u.set} is unavailable (${u.reason})`),
     ];
-    const error = Error(
+    throw new ContentRefusal(
       `Content rules refused this, nothing was written: ${named.join("; ")}. Change the text and try again.`,
+      blocking,
+      result.unavailable,
     );
-    error.status = 422;
-    error.findings = blocking;
-    error.unavailable = result.unavailable;
-    throw error;
   }
   store.transaction(() => {
-    const bySet = new Map();
+    const bySet = new Map<string, Finding[]>();
     for (const finding of blocking) {
       const key = decisionId(finding.set, finding.target);
-      if (!bySet.has(key)) bySet.set(key, []);
-      bySet.get(key).push(finding);
+      bySet.set(key, [...(bySet.get(key) ?? []), finding]);
     }
     for (const [id, findings] of bySet) {
-      const current = store.get("content_decisions", id),
+      const current = store.get<Decision>("content_decisions", id),
         first = findings[0];
-      const next = {
+      if (!first) continue;
+      const next: Decision = {
         id,
         kind: "match",
         state: "open",
@@ -1259,7 +1440,7 @@ export function enforce(
     }
     for (const missing of result.unavailable) {
       const id = "content-unavailable:" + sha256(missing.set).slice(0, 24),
-        current = store.get("content_decisions", id);
+        current = store.get<Decision>("content_decisions", id);
       if (current?.state === "open" && current.reason === missing.reason)
         continue;
       store.put("content_decisions", {
@@ -1290,13 +1471,13 @@ export function enforce(
 }
 
 // Close unavailable-set decisions whose set is available again.
-export function settleUnavailable(store) {
+export function settleUnavailable(store: Store) {
   const { sets } = resolveSets(store),
     available = new Set(sets.filter((s) => s.available).map((s) => s.id)),
     named = new Set(sets.map((s) => s.id)),
     at = new Date().toISOString();
   const open = store
-    .list("content_decisions")
+    .list<Decision>("content_decisions")
     .filter((d) => d.kind === "unavailable" && d.state === "open");
   if (!open.length) return;
   store.transaction(() => {
@@ -1313,8 +1494,8 @@ export function settleUnavailable(store) {
 // Allow once (R40.7): only a person, from the app page or the CLI. Records
 // who, why and when, bound to the rule, the target and the content hash.
 export function allowOnce(
-  store,
-  { id, reason, rule } = {},
+  store: Store,
+  { id, reason, rule }: { id?: unknown; reason?: unknown; rule?: unknown } = {},
   {
     operator = "",
     caller = null,
@@ -1327,14 +1508,15 @@ export function allowOnce(
     );
   if (typeof reason !== "string" || !reason.trim() || reason.length > 2000)
     fail("Give a reason of 1–2000 characters to allow this once.");
-  const decision = store.get("content_decisions", id);
-  if (!decision) fail("Content decision not found.", 404);
+  const decision = store.get<Decision>("content_decisions", id);
+  if (!decision) return fail("Content decision not found.", 404);
   if (decision.kind !== "match")
     fail("Only a matched write can be allowed once.", 409);
   if (decision.state !== "open")
     fail(`This decision is ${decision.state}.`, 409);
-  const rules = rule ? [rule] : decision.rules;
-  if (rule && !decision.rules.includes(rule))
+  const matched = decision.rules ?? [],
+    rules = rule ? [String(rule)] : matched;
+  if (rule && !matched.includes(String(rule)))
     fail("That rule did not match here.", 409);
   const at = new Date().toISOString();
   return store.transaction(() => {
@@ -1379,9 +1561,9 @@ export function allowOnce(
 }
 
 // The matched line, read again from its source on demand and never stored.
-export function showDecisionLine(store, id) {
-  const decision = store.get("content_decisions", id);
-  if (!decision) fail("Content decision not found.", 404);
+export function showDecisionLine(store: Store, id: unknown) {
+  const decision = store.get<Decision>("content_decisions", id);
+  if (!decision) return fail("Content decision not found.", 404);
   const source = decision.source;
   try {
     if (source?.kind === "file" && source.path) {
@@ -1423,10 +1605,10 @@ export function showDecisionLine(store, id) {
 }
 
 // Open decisions and report findings, for the Conflicts and Delivery views.
-export function contentItems(store) {
+export function contentItems(store: Store) {
   return {
     decisions: store
-      .list("content_decisions")
+      .list<Decision>("content_decisions")
       .filter((d) => d.state === "open"),
     reports: store.list("content_reports"),
   };
@@ -1436,7 +1618,9 @@ export function contentItems(store) {
 // Rules plugins (§4.9 Rules plugins, R40.9). Called with an open plugin
 // session; the sets stay in this process's memory only.
 
-export function checkRuleSets(reply) {
+export function checkRuleSets(
+  reply: unknown,
+): { id: string; version: string; rules: Rule[] }[] {
   if (!record(reply) || !Array.isArray(reply.sets) || reply.sets.length > 100)
     throw Error("ruleSets reply must be {sets: [...]} with at most 100 sets.");
   return reply.sets.map((set, i) => {
@@ -1485,29 +1669,66 @@ export function checkRuleSets(reply) {
 // Load every rules plugin a configured set names, through `session`
 // (plugin-session.mjs) or `open()` that returns one. A failure keeps only
 // that plugin's sets unavailable.
-export async function loadRulePlugins(store, pluginHost) {
+// The rules plugins a policy's sets name.
+const wantedPlugins = (policy: Obj): string[] => {
+  const sets = fieldOf(policy.contentRules, "sets");
+  return (Array.isArray(sets) ? sets : []).flatMap((s) => {
+    const id = fieldOf(s, "plugin");
+    return typeof id === "string" ? [id] : [];
+  });
+};
+
+// The sets of a ruleSets reply the plugin session already checked
+// (plugin-contract.ts): {sets: [{id, version, rules: [{id, source}]}]}.
+const checkedSets = (reply: unknown) => {
+  const sets = fieldOf(reply, "sets"),
+    text = (value: unknown) => (typeof value === "string" ? value : null);
+  return (Array.isArray(sets) ? sets : []).flatMap((set) => {
+    const id = text(fieldOf(set, "id")),
+      rules = fieldOf(set, "rules");
+    if (!id) return [];
+    return [
+      {
+        id,
+        version: String(fieldOf(set, "version") ?? ""),
+        rules: (Array.isArray(rules) ? rules : []).flatMap((rule) => {
+          const ruleId = text(fieldOf(rule, "id")),
+            source = text(fieldOf(rule, "source"));
+          return ruleId && source ? [{ id: ruleId, source }] : [];
+        }),
+      },
+    ];
+  });
+};
+// A plugin host (plugins.ts pluginHost): open() starts one session.
+interface RuleHost {
+  open(): {
+    call(
+      id: string,
+      kind: string,
+      method: string,
+      params: unknown,
+    ): Promise<unknown>;
+    close?(): Promise<unknown>;
+  };
+}
+const isHost = (value: unknown): value is RuleHost =>
+  typeof fieldOf(value, "open") === "function";
+
+export async function loadRulePlugins(store: Store, pluginHost: unknown) {
   const binding = contentBinding(store);
   if (!binding?.workspaceRoot) return;
-  let policy;
+  let policy: Obj;
   try {
     policy = readPolicy(binding.workspaceRoot);
   } catch {
     return;
   }
-  const wanted = [
-    ...new Set(
-      (Array.isArray(policy?.contentRules?.sets)
-        ? policy.contentRules.sets
-        : []
-      )
-        .map((s) => s?.plugin)
-        .filter((id) => typeof id === "string"),
-    ),
-  ];
+  const wanted = [...new Set(wantedPlugins(policy))];
   for (const id of [...binding.plugins.keys()])
     if (!wanted.includes(id)) binding.plugins.delete(id);
   if (!wanted.length) return;
-  if (!pluginHost) {
+  if (!isHost(pluginHost)) {
     for (const id of wanted)
       binding.plugins.set(id, {
         loadedAt: Date.now(),
@@ -1523,12 +1744,12 @@ export async function loadRulePlugins(store, pluginHost) {
         binding.plugins.set(id, {
           loadedAt: Date.now(),
           // Checked against the contract by the plugin session.
-          sets: new Map(reply.sets.map((set) => [set.id, set])),
+          sets: new Map(checkedSets(reply).map((set) => [set.id, set])),
         });
       } catch (error) {
         binding.plugins.set(id, {
           loadedAt: Date.now(),
-          error: String(error?.message || error)
+          error: messageOf(error)
             .replace(/^Plugin \S+ /, "")
             .slice(0, 300),
         });
@@ -1540,21 +1761,16 @@ export async function loadRulePlugins(store, pluginHost) {
 }
 
 // Plugins whose sets are older than `maxAgeMs`, or not loaded yet.
-export function rulePluginsStale(store, maxAgeMs = 60_000) {
+export function rulePluginsStale(store: Store, maxAgeMs = 60_000) {
   const binding = contentBinding(store);
   if (!binding?.workspaceRoot) return false;
-  let policy;
+  let policy: Obj;
   try {
     policy = readPolicy(binding.workspaceRoot);
   } catch {
     return false;
   }
-  const wanted = (
-    Array.isArray(policy?.contentRules?.sets) ? policy.contentRules.sets : []
-  )
-    .map((s) => s?.plugin)
-    .filter((id) => typeof id === "string");
-  return wanted.some((id) => {
+  return wantedPlugins(policy).some((id) => {
     const loaded = binding.plugins.get(id);
     return !loaded || Date.now() - loaded.loadedAt > maxAgeMs;
   });
@@ -1564,17 +1780,21 @@ export function rulePluginsStale(store, maxAgeMs = 60_000) {
 // Built-in rule sets (R40.12). Each keeps the patterns, decoding and refusal
 // shape of the screen it came from; the old exports wrap these.
 
-const lower = (value) => String(value || "").toLowerCase();
-const escapeChar = (char) => char.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const lower = (value: unknown) => String(value || "").toLowerCase();
+const escapeChar = (char: string) =>
+  char.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 // builtin:planning-repository (F68): `owner/name` with any whitespace (a line
 // break included) allowed between its characters, not inside a longer name.
-function planningNamePattern(planningRepository) {
+function planningNamePattern(planningRepository: string) {
   const chars = [...lower(planningRepository)].map(escapeChar).join("\\s*");
   return new RegExp(`(?<![\\w.-])${chars}(?![\\w-])`, "giu");
 }
 
-export function findPlanningLeak(fields, planningRepository) {
+export function findPlanningLeak(
+  fields: Iterable<readonly [string, unknown]>,
+  planningRepository: string | null | undefined,
+) {
   if (!planningRepository) return null;
   const pattern = planningNamePattern(planningRepository);
   for (const [field, text] of fields) {
@@ -1599,7 +1819,7 @@ export function findPlanningLeak(fields, planningRepository) {
 // credential assignments, and credentials in URLs. Paths: absolute paths
 // under machine roots, Windows drive and UNC paths, home-relative paths, and
 // this machine's own roots. Code fences are not exempt.
-const REPLY_SECRETS = [
+const REPLY_SECRETS: [string, RegExp][] = [
   ["GitHub token", /\bgh[pousr]_[A-Za-z0-9]{30,}/],
   ["GitHub token", /\bgithub_pat_[A-Za-z0-9_]{20,}/],
   ["AWS access key", /\b(?:AKIA|ASIA)[0-9A-Z]{16}\b/],
@@ -1620,7 +1840,7 @@ const REPLY_SECRETS = [
 ];
 // A leading character that makes a slash part of a URL or a relative path.
 const PATH_START = String.raw`(?<![\w.:/~$%-])`;
-const REPLY_PATHS = [
+const REPLY_PATHS: [string, RegExp][] = [
   [
     "absolute path",
     new RegExp(
@@ -1632,20 +1852,25 @@ const REPLY_PATHS = [
   ["home-relative path", new RegExp(PATH_START + String.raw`~[\w.-]*/\S*`)],
   ["home-relative path", /\$\{?HOME\}?[\\/]|%USERPROFILE%|%HOMEPATH%/i],
 ];
-const escapeText = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const escapeText = (value: string) =>
+  value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 // Every finding as {kind, line}; never the matched text.
 export function screenReply(
-  body,
+  body: unknown,
   { roots = [] }: { roots?: (string | null | undefined)[] } = {},
 ) {
-  const own = [...new Set(roots.filter((root) => root && root.length > 1))].map(
-      (root) => [
-        "absolute path",
-        new RegExp(escapeText(root.replace(/\/$/, ""))),
-      ],
-    ),
-    findings = [];
+  const own = [
+      ...new Set(
+        roots.filter((root): root is string =>
+          Boolean(root && root.length > 1),
+        ),
+      ),
+    ].map((root): [string, RegExp] => [
+      "absolute path",
+      new RegExp(escapeText(root.replace(/\/$/, ""))),
+    ]),
+    findings: { kind: string; line: number }[] = [];
   for (const [index, line] of String(body).split("\n").entries())
     for (const [kind, pattern] of [...REPLY_SECRETS, ...REPLY_PATHS, ...own])
       if (
@@ -1658,7 +1883,7 @@ export function screenReply(
 
 // builtin:published-secrets (F70): markers, workspace publications and
 // broad-issue previews. Returns the reason or null.
-const PUBLISHED_SECRETS = [
+const PUBLISHED_SECRETS: [string, RegExp][] = [
   ["private key", /-----BEGIN (?:RSA |EC |OPENSSH |PGP )?PRIVATE KEY-----/i],
   [
     "provider or GitHub token",
@@ -1676,7 +1901,7 @@ const PUBLISHED_SECRETS = [
   ],
 ];
 
-export function secretReason(text) {
+export function secretReason(text: string) {
   for (const [reason, pattern] of PUBLISHED_SECRETS)
     if (pattern.test(text)) return reason;
   for (const token of text.match(/[A-Za-z0-9+/=_-]{48,}/g) || []) {
@@ -1715,10 +1940,17 @@ export const BUILTIN_SETS = Object.freeze([
 // ---------------------------------------------------------------------------
 // Plan boundary helpers (§4.9 Boundaries, `plan`).
 
-const specTarget = (spec, file) => `${spec.name}/${file}`;
+// A spec folder, as enforceSpec reads it.
+interface SpecFiles {
+  name: string;
+  root?: string | null;
+  folder?: string | null;
+  files?: Record<string, string>;
+}
+const specTarget = (spec: SpecFiles, file: string) => `${spec.name}/${file}`;
 // The file on disk, for the matched line on demand: `root` is the
 // checkout findSpecFolder found the folder in.
-const specSource = (spec, file) =>
+const specSource = (spec: SpecFiles, file: string): LineSource =>
   spec.root && spec.folder
     ? { kind: "file", path: path.join(spec.root, spec.folder, file) }
     : null;
@@ -1726,10 +1958,14 @@ const specSource = (spec, file) =>
 // Check every spec file. mode "refuse" throws on the first blocked file
 // (a planner's own save); mode "decide" opens decisions and returns
 // {ok, notify} (approval).
-export function enforceSpec(store, spec, { mode = "refuse" } = {}) {
-  const notify = [];
+export function enforceSpec(
+  store: Store,
+  spec: SpecFiles,
+  { mode = "refuse" } = {},
+) {
+  const notify: ContentNotice[] = [];
   let ok = true;
-  const refusals = [];
+  const refusals: { findings: Finding[]; unavailable: Unavailable[] }[] = [];
   for (const [file, text] of Object.entries(spec.files || {})) {
     const input = {
       boundary: "plan",
@@ -1745,7 +1981,7 @@ export function enforceSpec(store, spec, { mode = "refuse" } = {}) {
         });
         notify.push(...result.notify);
       } catch (error) {
-        if (error.status !== 422) throw error;
+        if (!(error instanceof ContentRefusal)) throw error;
         refusals.push(error);
       }
       continue;
@@ -1757,8 +1993,8 @@ export function enforceSpec(store, spec, { mode = "refuse" } = {}) {
     notify.push(...result.notify);
     if (!result.ok) ok = false;
   }
-  if (refusals.length) {
-    const error = Error(
+  if (refusals.length)
+    throw new ContentRefusal(
       `Content rules refused this, nothing was written: ${refusals
         .flatMap((e) => [
           ...e.findings.map(findingText),
@@ -1766,20 +2002,30 @@ export function enforceSpec(store, spec, { mode = "refuse" } = {}) {
         ])
         .filter((v, i, all) => all.indexOf(v) === i)
         .join("; ")}. Change the text and try again.`,
+      refusals.flatMap((e) => e.findings),
+      [],
     );
-    error.status = 422;
-    error.findings = refusals.flatMap((e) => e.findings);
-    throw error;
-  }
   return { ok, notify };
 }
 
 // `content.match` diagnostics for a read (plan.get, plan.lint, the spec
 // list): what approval would block now, allowances counted, nothing used up.
-export function specContentDiagnostics(store, spec) {
+export function specContentDiagnostics(store: Store, spec: SpecFiles) {
   if (!contentBinding(store)?.workspaceRoot) return [];
-  const allowances = store.list("content_allowances").filter((a) => !a.usedAt),
-    diagnostics = [];
+  const allowances = store
+      .list<Allowance>("content_allowances")
+      .filter((a) => !a.usedAt),
+    diagnostics: {
+      id: string;
+      code: string;
+      severity: string;
+      message: string;
+      file: string;
+      lineStart?: number;
+      lineEnd?: number;
+      set: string;
+      rule?: string;
+    }[] = [];
   for (const [file, text] of Object.entries(spec.files || {})) {
     const target = specTarget(spec, file),
       { findings, unavailable } = check(store, {
@@ -1831,7 +2077,7 @@ export function specContentDiagnostics(store, spec) {
 // Diff boundary helpers (§4.9 `diff`). Only added lines are checked, so a
 // line already in the base never blocks new work.
 
-const gitSync = (root, args) =>
+const gitSync = (root: string, args: string[]) =>
   execFileSync("git", args, {
     cwd: root,
     encoding: "utf8",
@@ -1843,7 +2089,7 @@ const gitSync = (root, args) =>
 // A revision that reaches git as a positional argument. A caller (a pushed
 // line, an MCP content check) names it, so a leading dash would be read as
 // an option: `--output=FILE` makes git diff write over FILE.
-export function revision(value) {
+export function revision(value: unknown): string {
   if (
     typeof value !== "string" ||
     !value ||
@@ -1856,14 +2102,21 @@ export function revision(value) {
 
 // The commit a task's work is measured against: the merge base of `head`
 // with the repository's integration branch when it exists, else its base.
-export function diffBase(repository, head) {
+export function diffBase(
+  repository: {
+    root: string;
+    integrationBranch?: unknown;
+    baseBranch?: unknown;
+  },
+  head: string,
+) {
   revision(head);
   // The base may exist only as the remote's tracking copy (git.mjs).
   for (const ref of [
     ...(repository.integrationBranch
       ? [`refs/heads/${repository.integrationBranch}`]
       : []),
-    ...branchRefs(repository.baseBranch || "main"),
+    ...branchRefs(String(repository.baseBranch || "main")),
   ])
     try {
       return gitSync(repository.root, ["merge-base", head, ref]).trim();
@@ -1872,7 +2125,7 @@ export function diffBase(repository, head) {
 }
 
 // [{target: file, line, text}] for each line `head` adds over `base`.
-export function addedLines(root, base, head) {
+export function addedLines(root: string, base: string | null, head: string) {
   revision(head);
   if (base) revision(base);
   const out = gitSync(root, [
@@ -1883,8 +2136,8 @@ export function addedLines(root, base, head) {
     "--no-renames",
     base ? `${base}..${head}` : head,
   ]);
-  const lines = [];
-  let file = null,
+  const lines: ContentLine[] = [];
+  let file: string | null = null,
     next = 0;
   for (const line of out.split("\n")) {
     if (line.startsWith("+++ ")) {
@@ -1907,7 +2160,7 @@ export function addedLines(root, base, head) {
 
 // [{target: "commit:<sha>", line, text}] for each line of each commit
 // message `head` adds over `base` (only `head` itself without a base).
-function commitMessageLines(root, base, head) {
+function commitMessageLines(root: string, base: string | null, head: string) {
   revision(head);
   if (base) revision(base);
   const out = gitSync(root, [
@@ -1925,7 +2178,7 @@ function commitMessageLines(root, base, head) {
         .replace(/\n+$/, "")
         .split("\n")
         .map((text, i) => ({
-          target: `commit:${sha.slice(0, 12)}`,
+          target: `commit:${String(sha).slice(0, 12)}`,
           line: i + 1,
           text,
         }));
@@ -1933,7 +2186,7 @@ function commitMessageLines(root, base, head) {
 }
 
 // The branch checked out at `root`, or null when HEAD is detached.
-function currentBranch(root) {
+function currentBranch(root: string) {
   try {
     return gitSync(root, ["symbolic-ref", "--quiet", "HEAD"]).trim() || null;
   } catch {
@@ -1942,8 +2195,8 @@ function currentBranch(root) {
 }
 
 // Added lines of one file's unified diff patch.
-export function patchAdded(file, patch) {
-  const lines = [];
+export function patchAdded(file: string, patch: unknown) {
+  const lines: ContentLine[] = [];
   let next = 0;
   for (const line of String(patch || "").split("\n")) {
     const hunk = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(line);
@@ -1959,7 +2212,7 @@ export function patchAdded(file, patch) {
 // ref names (R87.9, R102.7).
 export function pushLines(
   root: string,
-  base: string,
+  base: string | null,
   head: string,
   refs: (string | null | undefined)[],
 ): ContentLine[] {
@@ -1978,7 +2231,7 @@ export function pushLines(
 // `refs` names the pushed refs; unset, the branch checked out at the root.
 // {ok, findings, unavailable, notify}, or a 422 in "refuse" mode.
 export function enforceDiff(
-  store,
+  store: Store,
   {
     repository,
     head,
@@ -1986,7 +2239,13 @@ export function enforceDiff(
     mode = "decide",
     refs,
   }: {
-    repository: { root: string; [key: string]: unknown };
+    repository: {
+      root: string;
+      id?: string;
+      github?: string | null;
+      integrationBranch?: unknown;
+      baseBranch?: unknown;
+    };
     head: string;
     taskId?: string;
     mode?: string;
@@ -2004,13 +2263,13 @@ export function enforceDiff(
     store,
     {
       boundary: "diff",
-      repository: repository.github || repository.id,
+      repository: repository.github || repository.id || null,
       target: `diff:${taskId}`,
       added,
     },
     {
       mode,
-      taskId,
+      taskId: taskId ?? null,
       source: { kind: "commit", root: repository.root, commit: head },
     },
   );
@@ -2023,7 +2282,7 @@ export function enforceDiff(
     if (first) {
       const id =
           "content:" + sha256(`${first.set}\0diff:${taskId}`).slice(0, 24),
-        decision = store.get("content_decisions", id);
+        decision = store.get<Decision>("content_decisions", id);
       if (decision)
         store.transaction(() =>
           store.put("content_decisions", {
@@ -2048,7 +2307,14 @@ export function enforceDiff(
 // with `extensions.worktreeConfig` on, `git config --worktree` sets it for
 // that worktree alone, so the main checkout's hooks are never touched
 // (settles the Inferred note in §4.9; content-rules tests check it).
-export function installPushHook(worktree, { cli, workspaceRoot, taskId }) {
+export function installPushHook(
+  worktree: string,
+  {
+    cli,
+    workspaceRoot,
+    taskId,
+  }: { cli: string; workspaceRoot: string; taskId: string },
+) {
   // Git resolves symlinks in --absolute-git-dir but not in a relative
   // --git-common-dir, so compare real paths (a symlinked home or TMPDIR).
   const gitDir = gitSync(worktree, ["rev-parse", "--absolute-git-dir"]).trim(),
@@ -2062,7 +2328,7 @@ export function installPushHook(worktree, { cli, workspaceRoot, taskId }) {
     fail("The pre-push hook is installed only in a linked worktree.", 409);
   const hooks = path.join(gitDir, "avoozl-hooks"),
     hook = path.join(hooks, "pre-push"),
-    quote = (value) => `'${String(value).replace(/'/g, `'\\''`)}'`;
+    quote = (value: unknown) => `'${String(value).replace(/'/g, `'\\''`)}'`;
   const text = [
     "#!/bin/sh",
     "# Installed by Avoozl for this worktree only: content rules (design 4.9).",
@@ -2070,7 +2336,7 @@ export function installPushHook(worktree, { cli, workspaceRoot, taskId }) {
     "",
   ].join("\n");
   fs.mkdirSync(hooks, { recursive: true });
-  let current = null;
+  let current: string | null = null;
   try {
     current = fs.readFileSync(hook, "utf8");
   } catch {}
@@ -2101,7 +2367,7 @@ export function installPushHook(worktree, { cli, workspaceRoot, taskId }) {
 }
 
 // Parse pre-push stdin: `<local ref> <local sha> <remote ref> <remote sha>`.
-export function pushedCommits(stdin) {
+export function pushedCommits(stdin: unknown) {
   return String(stdin || "")
     .split("\n")
     .map((line) => line.trim().split(/\s+/))
@@ -2116,13 +2382,13 @@ export function pushedCommits(stdin) {
 
 // Avoozl's own write at a boundary (§4.9): true when it may go ahead. A
 // block opens a decision and queues its notification; nothing is written.
-function allowWrite(store, input, { taskId = null, source = null } = {}) {
+function allowWrite(store: Store, input: EnforceInput) {
   if (
     !contentBinding(store)?.workspaceRoot &&
     !PRIVATE_BOUNDARIES.has(input.boundary)
   )
     return true;
-  const result = enforce(store, input, { mode: "decide", taskId, source });
+  const result = enforce(store, input, { mode: "decide" });
   queueNotifications(store, result.notify);
   return result.ok;
 }
@@ -2131,89 +2397,123 @@ function allowWrite(store, input, { taskId = null, source = null } = {}) {
 // `github`): every issue, comment and discussion write Avoozl makes. A
 // block throws 422 with `contentBlocked`, after opening a decision; the
 // caller skips that one write and the tick goes on.
-const GITHUB_WRITES = {
-  createIssue: (args) => ({
+// What one GitHub write publishes, and how its target is named.
+interface WriteShape {
+  number?: unknown;
+  text: unknown[];
+  extra?: unknown[];
+  comment?: boolean;
+  discussion?: unknown;
+  target?: string;
+}
+const GITHUB_WRITES: Record<string, (args: unknown[]) => WriteShape> = {
+  createIssue: (args: unknown[]) => ({
     number: null,
-    text: [args[1]?.title, args[1]?.body],
+    text: [fieldOf(args[1], "title"), fieldOf(args[1], "body")],
   }),
-  updateIssue: (args) => ({
+  updateIssue: (args: unknown[]) => ({
     number: args[1],
-    text: [args[2]?.title, args[2]?.body],
+    text: [fieldOf(args[2], "title"), fieldOf(args[2], "body")],
   }),
-  createIssueComment: (args) => ({
+  createIssueComment: (args: unknown[]) => ({
     number: args[1],
     text: [args[2]],
     comment: true,
   }),
-  updateIssueComment: (args) => ({
+  updateIssueComment: (args: unknown[]) => ({
     number: null,
     text: [args[2]],
     comment: true,
   }),
-  createCommitComment: (args) => ({
+  createCommitComment: (args: unknown[]) => ({
     number: null,
     text: [args[2]],
     comment: true,
   }),
-  updateCommitComment: (args) => ({
+  updateCommitComment: (args: unknown[]) => ({
     number: null,
     text: [args[2]],
     comment: true,
   }),
-  addDiscussionComment: (args) => ({
+  addDiscussionComment: (args: unknown[]) => ({
     number: null,
     text: [args[1]],
     comment: true,
     discussion: args[0],
   }),
-  createPullRequest: (args) => ({
+  createPullRequest: (args: unknown[]) => ({
     number: null,
-    text: [args[1]?.title, args[1]?.body],
-    extra: [args[1]?.head, args[1]?.base],
+    text: [fieldOf(args[1], "title"), fieldOf(args[1], "body")],
+    extra: [fieldOf(args[1], "head"), fieldOf(args[1], "base")],
   }),
   // Writes whose only text is a ref name, a commit message or a check
   // summary (R102.7). The target names a hash, never the text.
-  createBranch: (args) => ({
+  createBranch: (args: unknown[]) => ({
     text: [],
     extra: [args[1]],
     target: `ref:${repositoryOf(args[0])}:${sha256(args[1]).slice(0, 12)}`,
   }),
-  createLinkedBranch: (args) => ({
+  createLinkedBranch: (args: unknown[]) => ({
     text: [],
-    extra: [args[0]?.name],
-    target: `ref:linked:${sha256(args[0]?.name).slice(0, 12)}`,
+    extra: [fieldOf(args[0], "name")],
+    target: `ref:linked:${sha256(fieldOf(args[0], "name")).slice(0, 12)}`,
   }),
-  mergeBranch: (args) => ({
+  mergeBranch: (args: unknown[]) => ({
     text: [],
-    extra: [args[1]?.message, args[1]?.head, args[1]?.base],
-    target: `merge:${repositoryOf(args[0])}:${sha256(args[1]?.message).slice(0, 12)}`,
+    extra: [
+      fieldOf(args[1], "message"),
+      fieldOf(args[1], "head"),
+      fieldOf(args[1], "base"),
+    ],
+    target: `merge:${repositoryOf(args[0])}:${sha256(fieldOf(args[1], "message")).slice(0, 12)}`,
   }),
 };
 
 // The writes whose text is a post: each gets broken mentions and the
 // posted marker (github-posted.mjs) before content rules read it, unless a
 // person's own operation writes it.
-const POSTS = {
-  createIssueComment: (args) => [args[0], args[1], postedText(args[2])],
-  updateIssueComment: (args) => [args[0], args[1], postedText(args[2])],
-  createCommitComment: (args) => [args[0], args[1], postedText(args[2])],
-  updateCommitComment: (args) => [args[0], args[1], postedText(args[2])],
-  addDiscussionComment: (args) => [args[0], postedText(args[1])],
-  createPullRequest: (args) => [
+const POSTS: Record<string, (args: unknown[]) => unknown[]> = {
+  createIssueComment: (args: unknown[]) => [
     args[0],
-    { ...args[1], body: postedText(args[1]?.body) },
+    args[1],
+    postedText(args[2]),
+  ],
+  updateIssueComment: (args: unknown[]) => [
+    args[0],
+    args[1],
+    postedText(args[2]),
+  ],
+  createCommitComment: (args: unknown[]) => [
+    args[0],
+    args[1],
+    postedText(args[2]),
+  ],
+  updateCommitComment: (args: unknown[]) => [
+    args[0],
+    args[1],
+    postedText(args[2]),
+  ],
+  addDiscussionComment: (args: unknown[]) => [args[0], postedText(args[1])],
+  createPullRequest: (args: unknown[]) => [
+    args[0],
+    { ...fieldsOf(args[1]), body: postedText(fieldOf(args[1], "body")) },
   ],
 };
 
-const repositoryOf = (value) =>
-  typeof value === "string"
-    ? value
-    : value?.id ||
-      (value?.owner && value?.repo ? `${value.owner}/${value.repo}` : null);
+const repositoryOf = (value: unknown): string | null => {
+  if (typeof value === "string") return value;
+  const id = fieldOf(value, "id"),
+    owner = fieldOf(value, "owner"),
+    repo = fieldOf(value, "repo");
+  return id
+    ? String(id)
+    : owner && repo
+      ? `${String(owner)}/${String(repo)}`
+      : null;
+};
 
-function githubTarget(method, args) {
-  const shape = GITHUB_WRITES[method](args),
-    repository = repositoryOf(args[0]),
+function githubTarget(shape: WriteShape, args: unknown[]) {
+  const repository = repositoryOf(args[0]),
     body = String(shape.text.at(-1) ?? ""),
     task = /"taskId"\s*:\s*"([^"]+)"/.exec(body)?.[1];
   if (shape.target) return shape.target;
@@ -2225,18 +2525,20 @@ function githubTarget(method, args) {
   return `issue:${repository}:new:${sha256(String(shape.text[0] ?? "")).slice(0, 12)}`;
 }
 
-const guarded = new WeakSet();
-export function guardGitHub<T>(github: T, store): T {
+const guarded = new WeakSet<object>();
+export function guardGitHub<T>(github: T, store: Store): T {
   if (!github || typeof github !== "object" || guarded.has(github))
     return github;
   const proxy = new Proxy(github, {
     get(target, name, receiver) {
-      const value = Reflect.get(target, name, receiver);
-      if (typeof value !== "function" || !GITHUB_WRITES[name]) return value;
-      return function guarded(...given) {
-        const head = (!personPosting() && POSTS[name]?.(given)) || [],
+      const value: unknown = Reflect.get(target, name, receiver),
+        write = typeof name === "string" ? GITHUB_WRITES[name] : undefined;
+      if (typeof value !== "function" || !write) return value;
+      return function guarded(this: unknown, ...given: unknown[]) {
+        const post = typeof name === "string" ? POSTS[name] : undefined,
+          head = (!personPosting() && post?.(given)) || [],
           args = [...head, ...given.slice(head.length)],
-          shape = GITHUB_WRITES[name](args),
+          shape = write(args),
           text = [...shape.text, ...(shape.extra || [])]
             .filter((t) => typeof t === "string")
             .join("\n"),
@@ -2246,17 +2548,16 @@ export function guardGitHub<T>(github: T, store): T {
           !allowWrite(store, {
             boundary: "github",
             repository: name === "addDiscussionComment" ? null : repository,
-            target: githubTarget(name, args),
+            target: githubTarget(shape, args),
             text,
           })
-        ) {
-          const error = Error(
-            "Content rules blocked this GitHub write; nothing was written. The decision names the rule and line.",
+        )
+          return Promise.reject(
+            refusal(
+              "Content rules blocked this GitHub write; nothing was written. The decision names the rule and line.",
+              { status: 422, contentBlocked: true },
+            ),
           );
-          error.status = 422;
-          error.contentBlocked = true;
-          return Promise.reject(error);
-        }
         // A client derived from the proxy (a counting client) keeps
         // its own `this`, so its request override still counts the write.
         return value.apply(this === proxy ? target : this, args);

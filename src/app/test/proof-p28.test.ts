@@ -563,7 +563,7 @@ test("P28: content rules block, ask, allow once, fail closed, and never leak a t
     ops.execute("workspace.tick", { sessions: [] }),
     /Unknown setting "contentRules\.sets\.0\.terms"/,
   );
-  assert.match(describeSets(store).error, /could hold a rule/);
+  assert.match(describeSets(store).error ?? "", /could hold a rule/);
   assert.equal(
     enforce(store, { boundary: "plan", target: "x", text: "plain" }).ok,
     false,
