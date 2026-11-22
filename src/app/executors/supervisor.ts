@@ -1150,7 +1150,7 @@ export function openSupervisor({
           ...(lane && definition.home ? [lane.home] : []),
           ...(values.tmp ? [values.tmp] : []),
           ...(values.repository_cache_dirs ?? []),
-          ...(gitCommonDir(row.worktree) ? [gitCommonDir(row.worktree)] : []),
+          ...[gitCommonDir(row.worktree)].filter((dir) => dir !== null),
           ...harnessReads(definition, env.HOME || os.homedir()),
           ...GIT_USER_CONFIG.map((file) =>
             path.join(env.HOME || os.homedir(), file),

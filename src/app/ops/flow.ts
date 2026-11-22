@@ -91,8 +91,8 @@ export const entries = [
       if (context.caller || context.mcp)
         fail("Only a person approves a harness, in the app or CLI.", 403);
       return approveHarnessByName({
-        configDirectory: this.configDirectory,
-        name: input.name,
+        configDirectory: this.configDirectory ?? "",
+        name: String(input.name ?? ""),
       });
     },
   },
