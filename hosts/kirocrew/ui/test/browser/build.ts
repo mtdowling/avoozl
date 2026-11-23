@@ -71,9 +71,13 @@ export async function buildHarness({ hostCss, scripts = {}, entry = path.join(he
     fs.writeFileSync(path.join(out, name), text)
     links.push(`<script src="${name}"></script>`)
   }
+  // Each page-test navigation starts a new scenario. Production keeps these
+  // values when its app is left and reopened, but carrying them between tests
+  // makes one scenario's last tab or spec decide where the next one starts.
+  const resetNavigation = "<script>localStorage.removeItem('avoozl.page'); localStorage.removeItem('avoozl.spec-place')</script>"
   fs.writeFileSync(
     path.join(out, 'index.html'),
-    `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">${links.join('')}</head><body><div id="root"></div><script src="harness.js"></script></body></html>`,
+    `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">${resetNavigation}${links.join('')}</head><body><div id="root"></div><script src="harness.js"></script></body></html>`,
   )
   return {
     dir: out,
