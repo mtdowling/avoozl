@@ -620,7 +620,11 @@ export function conversationSettings(store: Pick<Store, "getMeta">) {
 
 // The worker's agent and model are in the roles table (Settings › Models,
 // R98.7); who merges is each repository's landing block (§4.25).
-const DELIVERY_FORM_KEYS: string[] = [];
+const DELIVERY_FORM_KEYS = [
+  "timeboxMinutes",
+  "checkInMinutes",
+  "missedCheckIns",
+];
 
 export class RepositorySettings {
   store: Store;

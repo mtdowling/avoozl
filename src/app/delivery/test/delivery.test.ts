@@ -17,6 +17,7 @@ import { workspaceConfig } from "../../settings/config.ts";
 import { loopAllows, machineLoop } from "../../tick/loop.ts";
 import { laneWorkspace } from "../../tick/tick.ts";
 import { age } from "../../test/delivery-fixture.ts";
+import { unansweredCheckIns } from "../../sessions/session-bindings.ts";
 import type { Refusal } from "../../test/refusal.ts";
 import { toolResult } from "../../test/mcp-result.ts";
 import {
@@ -37,7 +38,7 @@ interface Delivery {
   id: string;
   state: string;
   attempts: unknown[];
-  nudge?: Record<string, unknown>;
+  checkIn?: Record<string, unknown>;
   [key: string]: unknown;
 }
 const deliveryOf = (store: Store, id: string) =>
@@ -158,6 +159,22 @@ async function bindTick(
     source: "tick",
     title: `avoozl:${task} Task ${task}`,
   });
+}
+
+async function dueCheckIn(t: TestContext) {
+  const { store, ops } = setup(t, {
+    tasks: [leaf("a")],
+    delivery: {
+      timeboxMinutes: 10080,
+      checkInMinutes: 10,
+      missedCheckIns: 0,
+    },
+  });
+  await bindTick(ops, "a", "slot-1");
+  const idle = [{ target: "slot-1", status: "idle" }];
+  await ops.execute<Tick>("workspace.tick", { sessions: idle });
+  age(store, "slot-1", 600);
+  return { ops, idle };
 }
 
 test("plans_prepare_worktree gives a leaf one worktree on avoozl/<task-id>, again on retry", async (t) => {
@@ -657,11 +674,11 @@ test("a failed attempt retries on the same worktree, up to the bound, then opens
 });
 
 test("a recorded failure stays failed when its closed session reads live again", async (t) => {
-  // Nearby inputs: the reopened session idle past quietMinutes (no nudge), and
+  // Nearby inputs: the reopened session idle past checkInMinutes (no request), and
   // a later working status (still failed, attempt kept once).
   const { store, ops } = setup(t, {
     tasks: [leaf("a")],
-    delivery: { quietMinutes: 1 },
+    delivery: { checkInMinutes: 1 },
   });
   await bindTick(ops, "a", "slot-1");
   await ops.execute<Tick>("workspace.tick", {
@@ -673,7 +690,7 @@ test("a recorded failure stays failed when its closed session reads live again",
   const reopened = await ops.execute<Tick>("workspace.tick", {
     sessions: [{ target: "slot-1", status: "idle" }],
   });
-  assert.deepEqual(reopened.messages, [], "a recorded attempt is not nudged");
+  assert.deepEqual(reopened.messages, [], "a recorded attempt is not prompted");
   await ops.execute<Tick>("workspace.tick", {
     sessions: [{ target: "slot-1", status: "working" }],
   });
@@ -682,15 +699,8 @@ test("a recorded failure stays failed when its closed session reads live again",
   assert.deepEqual(after.attempts, failed.attempts);
 });
 
-test("a quiet notice names a report refused for want of a caller identity", async (t) => {
-  const { store, ops } = setup(t, {
-    tasks: [leaf("a")],
-    delivery: { quietMinutes: 10, nudges: 0 },
-  });
-  await bindTick(ops, "a", "slot-1");
-  const idle = [{ target: "slot-1", status: "idle" }];
-  await ops.execute<Tick>("workspace.tick", { sessions: idle });
-  age(store, "slot-1", 600);
+test("a missed check-in notice names a report refused for want of a caller identity", async (t) => {
+  const { ops, idle } = await dueCheckIn(t);
   // No caller: the report is refused, as when Kiro Crew does not share the server.
   await assert.rejects(
     ops.execute("session.report", {
@@ -707,15 +717,8 @@ test("a quiet notice names a report refused for want of a caller identity", asyn
   assert.match(noticeText(notify), /no caller identity came from Kiro Crew/);
 });
 
-test("a quiet notice without a refused report names no identity cause", async (t) => {
-  const { store, ops } = setup(t, {
-    tasks: [leaf("a")],
-    delivery: { quietMinutes: 10, nudges: 0 },
-  });
-  await bindTick(ops, "a", "slot-1");
-  const idle = [{ target: "slot-1", status: "idle" }];
-  await ops.execute<Tick>("workspace.tick", { sessions: idle });
-  age(store, "slot-1", 600);
+test("a missed check-in notice without a refused report names no identity cause", async (t) => {
+  const { ops, idle } = await dueCheckIn(t);
   const { notify } = await ops.execute<Tick>("workspace.tick", {
     sessions: idle,
   });
@@ -723,13 +726,17 @@ test("a quiet notice without a refused report names no identity cause", async (t
   assert.doesNotMatch(noticeText(notify), /caller identity/);
 });
 
-test("a quiet session is nudged, never replaced, and a person decides past the nudge bound", async (t) => {
-  // Nearby inputs: idle for less than quietMinutes, working for hours, a
+test("a session is prompted for check-ins and never replaced", async (t) => {
+  // Nearby inputs: idle for less than checkInMinutes, working for hours, a
   // session waiting on its question, and ticks without a roster (the page).
   const { store, ops } = setup(t, {
     tasks: [leaf("a"), leaf("q")],
     lanes: { local: 1 },
-    delivery: { quietMinutes: 10, nudges: 2 },
+    delivery: {
+      timeboxMinutes: 10080,
+      checkInMinutes: 10,
+      missedCheckIns: 2,
+    },
   });
   await bindTick(ops, "a", "slot-1");
   const idle = [{ target: "slot-1", status: "idle" }];
@@ -738,7 +745,7 @@ test("a quiet session is nudged, never replaced, and a person decides past the n
   assert.deepEqual(
     (await ops.execute<Tick>("workspace.tick", { sessions: idle })).messages,
     [],
-    "not quiet yet",
+    "not due yet",
   );
   age(store, "slot-1", 600);
   assert.deepEqual(
@@ -749,17 +756,17 @@ test("a quiet session is nudged, never replaced, and a person decides past the n
   const first = await ops.execute<Tick>("workspace.tick", { sessions: idle });
   assert.equal(first.messages.length, 1);
   assert.equal(first.messages[0]?.slot, "slot-1");
-  assert.deepEqual(first.dispatch, [], "quiet is never a reason to replace");
+  assert.deepEqual(first.dispatch, [], "a missed check-in never replaces");
   assert.deepEqual(
     (await ops.execute<Tick>("workspace.tick", { sessions: idle })).messages,
     [],
-    "one nudge per quiet interval",
+    "one request per check-in interval",
   );
   const delivery = deliveryOf(store, "a");
   store.put("task_deliveries", {
     ...delivery,
-    nudge: {
-      ...delivery.nudge,
+    checkIn: {
+      ...delivery.checkIn,
       at: new Date(Date.now() - 3600_000).toISOString(),
     },
   });
@@ -768,11 +775,11 @@ test("a quiet session is nudged, never replaced, and a person decides past the n
       .length,
     1,
   );
-  const nudged = deliveryOf(store, "a");
+  const requested = deliveryOf(store, "a");
   store.put("task_deliveries", {
-    ...nudged,
-    nudge: {
-      ...nudged.nudge,
+    ...requested,
+    checkIn: {
+      ...requested.checkIn,
       at: new Date(Date.now() - 3600_000).toISOString(),
     },
   });
@@ -790,7 +797,7 @@ test("a quiet session is nudged, never replaced, and a person decides past the n
 
   const asking = setup(t, {
     tasks: [leaf("q")],
-    delivery: { quietMinutes: 1 },
+    delivery: { checkInMinutes: 1 },
   });
   await bindTick(asking.ops, "q", "slot-q");
   await asking.ops.execute(
@@ -803,9 +810,52 @@ test("a quiet session is nudged, never replaced, and a person decides past the n
   const question = await asking.ops.execute<Tick>("workspace.tick", {
     sessions: [{ target: "slot-q", status: "idle" }],
   });
-  assert.deepEqual(question.messages, [], "a question is not nudged");
+  assert.deepEqual(question.messages, [], "a question needs no check-in");
   assert.equal(question.notify?.length, 1);
   assert.match(noticeText(question.notify), /Which format\?/);
+});
+
+test("a progress report resets the missed check-in count", () => {
+  const checkIn = { count: 2, at: "2026-11-23T12:00:00.000Z" };
+  assert.equal(
+    unansweredCheckIns(
+      { report: { kind: "progress", at: "2026-11-23T12:01:00.000Z" } },
+      checkIn,
+    ),
+    0,
+  );
+  assert.equal(
+    unansweredCheckIns(
+      { report: { kind: "progress", at: "2026-11-23T11:59:00.000Z" } },
+      checkIn,
+    ),
+    2,
+  );
+});
+
+test("a worker time box pauses automatic handling without replacing it", async (t) => {
+  const { store, ops } = setup(t, {
+    tasks: [leaf("a")],
+    delivery: { timeboxMinutes: 30, checkInMinutes: 60 },
+  });
+  await bindTick(ops, "a", "slot-1");
+  age(store, "slot-1", 31);
+  const idle = [{ target: "slot-1", status: "idle" }];
+  const expired = await ops.execute<Tick>("workspace.tick", {
+    sessions: idle,
+  });
+  assert.equal(deliveryOf(store, "a").state, "decision");
+  assert.deepEqual(expired.dispatch, []);
+  assert.equal(expired.messages.length, 1);
+  assert.match(expired.messages[0]?.text ?? "", /30-minute time box/);
+  assert.equal(expired.notify?.[0]?.channel, "decision");
+  assert.match(
+    String(expired.notify?.[0]?.title ?? ""),
+    /reached its time box/,
+  );
+
+  const again = await ops.execute<Tick>("workspace.tick", { sessions: idle });
+  assert.deepEqual([again.messages, again.notify], [[], []]);
 });
 
 test("after a restart, every session the cron opened is observed before any new dispatch", async (t) => {

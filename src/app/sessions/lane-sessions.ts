@@ -118,7 +118,7 @@ function laneRequests(store: Store, bindings: SessionBinding[]) {
 
 // Whether a lane's binding still holds it: until its delivery records the
 // binding's attempt (a worker's attempt, or a review's verification), with
-// or without a report. A quiet review the tick failed after its nudges has
+// or without a report. A review the tick failed after missed check-ins has
 // no report of its own, and must still free the lane.
 function holdsLane(store: Store, binding: SessionBinding | null) {
   if (!binding || binding.interrupted || CLOSED.has(String(binding.status)))

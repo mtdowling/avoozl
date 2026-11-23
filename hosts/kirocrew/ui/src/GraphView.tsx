@@ -197,6 +197,37 @@ function Legend() {
   )
 }
 
+const EXECUTION_VARIANT = {
+  done: 'success',
+  running: 'info',
+  'needs-you': 'warning',
+  failed: 'danger',
+  waiting: undefined,
+  skipped: undefined,
+} as const
+
+// A task's internal delivery path. This sits inside the selected node's
+// details because these stages are not dependency edges in the task graph.
+function ExecutionPipeline({ task }: { task: GraphTask }) {
+  if (!task.execution?.length) return null
+  return (
+    <Box as="span" role="list" flex flexWrap items="center" gap="1" data-execution-pipeline>
+      {task.execution.map((stage, index) => (
+        <Box as="span" key={stage.id} role="listitem" inlineFlex items="center" gap="1">
+          {index > 0 && (
+            <Hint as="span" aria-hidden="true">
+              →
+            </Hint>
+          )}
+          <Badge small variant={EXECUTION_VARIANT[stage.state]}>
+            {stage.label}: {stage.state}
+          </Badge>
+        </Box>
+      ))}
+    </Box>
+  )
+}
+
 function Details(props: { task: GraphTask; batch: GraphBatch | null; neighbors: ReturnType<typeof neighbors>; onSelect: (id: string) => void }) {
   const { task, batch } = props
   const drawer = useTaskDrawer()
@@ -246,6 +277,14 @@ function Details(props: { task: GraphTask; batch: GraphBatch | null; neighbors: 
           <dd>{task.route}</dd>
           <Hint as="dt">Done when</Hint>
           <dd>{task.completion}</dd>
+          {task.execution?.length && (
+            <>
+              <Hint as="dt">Execution</Hint>
+              <dd>
+                <ExecutionPipeline task={task} />
+              </dd>
+            </>
+          )}
           {task.decision && (
             <>
               <Hint as="dt">Decision</Hint>

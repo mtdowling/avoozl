@@ -175,6 +175,32 @@ The order and nesting of the list decide which tasks wait for others.
 Task `p-1` runs first, then `p-2`. Tasks `p-4` and `p-5` wait for `p-2` and
 can run side by side. Task `p-6` waits for both reports.
 
+A parallel group may contain untagged groups to express several serial lanes.
+The list below runs the web and API lanes side by side. Each lane audits first,
+then verifies its own findings. The final task waits for both lanes.
+
+```markdown
+- [ ] `audit-split` Define the audit surfaces
+  - Each surface has an owner and an acceptance checklist
+- [ ] `audit` Audit each surface (**PARALLEL**)
+  - [ ] `audit-web` Web lane
+    - [ ] `audit-web-find` Audit the web surface
+      - Every web finding names the affected route
+    - [ ] `audit-web-verify` Verify the web findings
+      - Every web finding is reproduced or withdrawn
+  - [ ] `audit-api` API lane
+    - [ ] `audit-api-find` Audit the API surface
+      - Every API finding names the affected operation
+    - [ ] `audit-api-verify` Verify the API findings
+      - Every API finding is reproduced or withdrawn
+- [ ] `audit-merge` Publish the audit report
+  - The report contains the verified findings from both lanes
+```
+
+This split, parallel lanes and merge pattern uses only list order and nesting.
+Do not add dependency or edge bullets. A bullet that starts with `$` is invalid
+under rule 2.3.
+
 - **[3.1](github-workflow-scenarios.md#rule-31)** Tasks at one level of a list
   run in order, top to bottom. A task MUST wait for the task above it, and for
   every task inside it when that task is a group.

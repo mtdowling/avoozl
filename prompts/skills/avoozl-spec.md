@@ -54,7 +54,10 @@ repo: app
   bullet that starts with `$`, no summary bullet and no `Done when:` bullet.
 - Order is the list: tasks run top to bottom, a group's tasks run in order,
   and a group whose title ends with `(**PARALLEL**)` runs its tasks side by
-  side. A `##` phase waits for the phase above. A group has no bullets.
+  side. For parallel serial lanes, put untagged groups inside a parallel
+  group. Each nested group runs its children in order, and the next task after
+  the parallel group waits for every lane. Do not write dependency or edge
+  bullets. A `##` phase waits for the phase above. A group has no bullets.
 - A step only a person does ends its title with `(**MANUAL**)`, after any
   refs.
 - End a title with the requirements it builds in brackets and the design

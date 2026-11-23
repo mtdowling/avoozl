@@ -61,6 +61,18 @@ type StateTask = Pick<
   "id" | "title" | "status" | "decision" | "planArchived"
 >;
 const DELIVERY_STATUSES = new Set(["running", "review", "failed"]);
+type ExecutionState =
+  | "waiting"
+  | "running"
+  | "needs-you"
+  | "done"
+  | "failed"
+  | "skipped";
+type ExecutionStage = {
+  id: "worker" | "checks" | "review" | "land";
+  label: string;
+  state: ExecutionState;
+};
 
 // Rows of a table this workspace may not have yet: a database that predates
 // it, or a table another task adds later.
@@ -82,6 +94,86 @@ function optionalGet<T = StoredRecord>(
   } catch {
     return null;
   }
+}
+
+const successfulVerification = (entry: {
+  outcome?: string;
+  verdict?: string;
+}) =>
+  entry.outcome === "accepted" ||
+  entry.verdict === "approved" ||
+  entry.outcome === "approved";
+const failedVerification = (entry: { outcome?: string; verdict?: string }) =>
+  ["failed", "rejected", "refused"].includes(entry.outcome ?? "") ||
+  entry.verdict === "changes-requested";
+
+// The stages Avoozl runs for one task. These are execution stages, not graph
+// dependencies: task list order still supplies every edge in the graph.
+function taskExecution(
+  task: Task,
+  complete: boolean,
+  delivery: DeliveryRow | null,
+  bindings: SessionBinding[],
+): ExecutionStage[] {
+  const state = delivery?.state ?? "",
+    commit = delivery?.commit,
+    current = (delivery?.verifications ?? []).filter(
+      (entry) => !commit || !entry.commit || entry.commit === commit,
+    ),
+    checks = current.filter((entry) => !entry.role),
+    reviews = current.filter((entry) => Boolean(entry.role)),
+    liveWorker = bindings.some(
+      (binding) =>
+        binding.taskId === task.id &&
+        binding.role === "worker" &&
+        !FINAL_STATUSES.has(binding.status ?? ""),
+    ),
+    liveReview = bindings.some(
+      (binding) =>
+        binding.taskId === task.id &&
+        String(binding.role).startsWith("review:") &&
+        !FINAL_STATUSES.has(binding.status ?? ""),
+    );
+  const worker: ExecutionState =
+      complete || state === "integrated" || Boolean(commit)
+        ? "done"
+        : state === "decision" && delivery?.decisionStage === "timebox"
+          ? "needs-you"
+          : state === "failed" || state === "decision"
+            ? "failed"
+            : liveWorker || state === "running"
+              ? "running"
+              : "waiting",
+    checksState: ExecutionState = checks.some(failedVerification)
+      ? "failed"
+      : checks.some(successfulVerification)
+        ? "done"
+        : ["verified", "integrated"].includes(state)
+          ? "skipped"
+          : "waiting",
+    reviewState: ExecutionState = reviews.some(failedVerification)
+      ? "failed"
+      : reviews.some(successfulVerification)
+        ? "done"
+        : liveReview
+          ? "running"
+          : ["verified", "integrated"].includes(state)
+            ? "skipped"
+            : "waiting",
+    land: ExecutionState =
+      complete || state === "integrated"
+        ? "done"
+        : state === "verified"
+          ? "running"
+          : state === "decision" && delivery?.decisionStage === "integration"
+            ? "failed"
+            : "waiting";
+  return [
+    { id: "worker", label: "Worker", state: worker },
+    { id: "checks", label: "Checks", state: checksState },
+    { id: "review", label: "Review", state: reviewState },
+    { id: "land", label: "Land", state: land },
+  ];
 }
 
 function claimedLeaves(store: Store): Set<string> {
@@ -267,13 +359,19 @@ function graphStates(store: Store, data: Snapshot) {
     ),
     complete = (status: string | undefined) => statusComplete(data, status),
     live = liveSessions(store),
-    manual = manualWaitingIds(data, registered);
+    manual = manualWaitingIds(data, registered),
+    deliveryDecisions = new Set(
+      optionalList<DeliveryRow>(store, "task_deliveries")
+        .filter((delivery) => delivery.state === "decision")
+        .map((delivery) => delivery.taskId),
+    );
   // One state per node for the Graph drawing. Needs-you comes first among
   // open tasks so a person sees it even on a running or deferred task.
   const state = (task: StateTask) => {
     if (complete(task.status)) return "done";
     if (
       task.decision ||
+      deliveryDecisions.has(task.id) ||
       task.status === "blocked" ||
       statusWithoutSession(task, live, claimed) ||
       needsYou(task, manual)
@@ -406,7 +504,14 @@ export function graphView(
       [...data.tasks]
         .sort(dispatchOrder(data, startNowIds(store)))
         .map((task, i) => [task.id, i]),
-    );
+    ),
+    deliveries = new Map(
+      optionalList<DeliveryRow>(store, "task_deliveries").map((row) => [
+        row.taskId,
+        row,
+      ]),
+    ),
+    bindings = optionalList<SessionBinding>(store, "session_bindings");
   // Batch issues: one node, shown with its member tasks.
   const batches = new Map<string, Batch>();
   for (const task of data.tasks) {
@@ -474,6 +579,12 @@ export function graphView(
       batch: batchOf.get(task.id) ?? null,
       ready: ready.has(task.id),
       state: state(task),
+      execution: taskExecution(
+        task,
+        complete(task.status),
+        deliveries.get(task.id) ?? null,
+        bindings,
+      ),
       // Waits for review because its own plan text changed; shown as a
       // badge, and once per plan in Conflicts, not as needs-you.
       review: needsTextReview(data, task),
@@ -1040,6 +1151,7 @@ interface DeliveryRow {
   taskId: string;
   commit?: string;
   state?: string;
+  decisionStage?: string;
   updatedAt?: unknown;
   verifications?: Verification[];
   [key: string]: unknown;

@@ -309,7 +309,11 @@ test("a quiet review recorded as failed frees its reviewer lane for the next rev
   // chat takes the next review; before, the lane stayed busy forever.
   const { store, ops } = setup(t, {
     tasks: [leaf("a")],
-    delivery: { reviewers: undefined, nudges: 0, quietMinutes: 1 },
+    delivery: {
+      reviewers: undefined,
+      missedCheckIns: 0,
+      checkInMinutes: 1,
+    },
   });
   await tick(ops);
   await workerDone(ops, "a", "w-a");
@@ -339,7 +343,7 @@ test("a quiet review recorded as failed frees its reviewer lane for the next rev
   assert.match(
     store.get<Delivery>("task_deliveries", "a")?.verifications.at(-1)?.cause ??
       "",
-    /quiet after 0 nudges/,
+    /missed 0 check-ins/,
   );
   const again = (
     await tick(ops, { "w-a": "idle", "lane-r1": "idle" })

@@ -243,6 +243,11 @@ export interface DeliverySettings {
   on: boolean
   // The workspace's landing.pr (R119); null when not set.
   landingPr: 'draft' | 'ready' | 'auto' | null
+  delivery?: {
+    timeboxMinutes?: number
+    checkInMinutes?: number
+    missedCheckIns?: number
+  }
   // This machine's `loop`; null when it sets none. Autopilot runs here
   // only with both.
   loop?: { run: string[]; every?: string; epics?: string[] } | null

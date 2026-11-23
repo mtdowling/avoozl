@@ -34,7 +34,7 @@ interface Delivery {
   cause?: string;
   attempts: unknown[];
   verifications: { cause?: string }[];
-  reviewNudges?: Record<string, Record<string, unknown>>;
+  reviewCheckIns?: Record<string, Record<string, unknown>>;
   [key: string]: unknown;
 }
 const deliveryOf = (store: Store, id: string) =>
@@ -55,9 +55,9 @@ const tick = (ops: Operations, slots: string[] = []) =>
     sessions: slots.map((target) => ({ target, status: "idle" })),
   });
 
-test("a quiet reviewer is nudged, then failed and retried, so the graph never hangs", async (t) => {
-  // Nearby inputs: idle for less than quietMinutes, a tick without a roster,
-  // a reviewer the roster does not list, a working reviewer, one nudge per
+test("a reviewer is asked to check in, then retried, so the graph never hangs", async (t) => {
+  // Nearby inputs: idle for less than checkInMinutes, a tick without a roster,
+  // a reviewer the roster does not list, a working reviewer, one request per
   // interval, and the retry bound (a decision, not a hang).
   const { store, ops, root } = setup(t, {
     tasks: [leaf("a")],
@@ -69,8 +69,8 @@ test("a quiet reviewer is nudged, then failed and retried, so the graph never ha
       version: 1,
       delivery: {
         retries: 1,
-        quietMinutes: 10,
-        nudges: 1,
+        checkInMinutes: 10,
+        missedCheckIns: 1,
         reviewers: [
           {
             id: "c",
@@ -93,7 +93,7 @@ test("a quiet reviewer is nudged, then failed and retried, so the graph never ha
     ops.execute<Tick>("workspace.tick", { sessions });
   await run();
   age(store, "v-1", 5);
-  assert.deepEqual((await run()).messages, [], "not quiet yet");
+  assert.deepEqual((await run()).messages, [], "not due yet");
   age(store, "v-1", 600);
   assert.deepEqual(
     (await ops.execute<Tick>("workspace.tick", {})).messages,
@@ -111,25 +111,25 @@ test("a quiet reviewer is nudged, then failed and retried, so the graph never ha
   assert.deepEqual(
     [unseen.messages, unseen.dispatch],
     [[], []],
-    "an unobserved reviewer is never treated as quiet",
+    "an unobserved reviewer never misses a check-in",
   );
 
   await run();
   age(store, "v-1", 600);
-  const nudged = await run();
-  assert.equal(nudged.messages.length, 1);
-  const nudge = found(nudged.messages[0]);
-  assert.equal(nudge.slot, "v-1");
-  assert.ok(nudge.text.includes(commit));
-  assert.deepEqual(nudged.dispatch, [], "a nudge does not replace");
-  assert.deepEqual((await run()).messages, [], "one nudge per quiet interval");
+  const requested = await run();
+  assert.equal(requested.messages.length, 1);
+  const checkIn = found(requested.messages[0]);
+  assert.equal(checkIn.slot, "v-1");
+  assert.ok(checkIn.text.includes(commit));
+  assert.deepEqual(requested.dispatch, [], "a check-in does not replace");
+  assert.deepEqual((await run()).messages, [], "one request per interval");
 
   const delivery = deliveryOf(store, "a");
   store.put("task_deliveries", {
     ...delivery,
-    reviewNudges: {
+    reviewCheckIns: {
       c: {
-        ...delivery.reviewNudges?.c,
+        ...delivery.reviewCheckIns?.c,
         at: new Date(Date.now() - 3600_000).toISOString(),
       },
     },
@@ -148,7 +148,7 @@ test("a quiet reviewer is nudged, then failed and retried, so the graph never ha
   assert.equal(failed.state, "done", "the worker's commit still waits");
   assert.match(
     failed.verifications.at(-1)?.cause ?? "",
-    /review c quiet after 1 nudges/,
+    /review c missed 1 check-ins/,
   );
 
   // Past the retry bound: a decision for a person, not a hang.
@@ -160,9 +160,9 @@ test("a quiet reviewer is nudged, then failed and retried, so the graph never ha
   const second = deliveryOf(store, "a");
   store.put("task_deliveries", {
     ...second,
-    reviewNudges: {
+    reviewCheckIns: {
       c: {
-        ...second.reviewNudges?.c,
+        ...second.reviewCheckIns?.c,
         at: new Date(Date.now() - 3600_000).toISOString(),
       },
     },

@@ -191,6 +191,33 @@ Implementation, integration, and acceptance are separate steps, and each keeps
 its own record. Avoozl never replaces a worker only because its activity went
 quiet. It checks the durable session and delivery records first.
 
+### Time boxes and check-ins
+
+Autopilot bounds unattended work by wall-clock time, not by model credits.
+**Settings › Autopilot › Run limits** writes these settings:
+
+```json
+{
+  "delivery": {
+    "timeboxMinutes": 240,
+    "checkInMinutes": 15,
+    "missedCheckIns": 3
+  }
+}
+```
+
+`timeboxMinutes` starts when a worker attempt starts. When it expires, Avoozl
+pauses automatic handling and puts the task in **Needs you**. It leaves the
+session and worktree intact, so you can inspect the work, let the session
+finish, or close it and retry. A progress report does not extend this absolute
+time box.
+
+`checkInMinutes` is the interval for progress reports. When an idle worker or
+reviewer reaches it without a progress or final report, Avoozl asks the same
+session to check in. A progress report resets this interval. After
+`missedCheckIns` requests, Avoozl asks you to inspect the session. It never
+replaces a session merely because it missed a check-in.
+
 ### Review
 
 Every task gets a reviewer before it lands. The reviewer is a separate session
@@ -219,8 +246,8 @@ shows it was not a defect. After `reviewRounds` rounds (default 3) with a
 defect still open, the task waits in **Needs you** with the open findings and
 does not land. A review round spends no `retries`.
 
-A reviewer turn that ends without a verdict is nudged and never counts as
-approval. `reviewers: []` turns review off for the workspace or, under
+A reviewer turn that ends without a verdict is asked to check in and never
+counts as approval. `reviewers: []` turns review off for the workspace or, under
 `repositories`, for one repository. A `reviewers` list replaces the default
 reviewer with review roles of your own, each with an `id`, `focus`, `agent`
 and `distinctFrom` rule.
