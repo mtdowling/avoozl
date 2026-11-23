@@ -598,6 +598,12 @@ export async function buildDemo(
     path.join(checkout, "README.md"),
     "# Recipe Box\n\nMade-up demo app.\n",
   );
+  git(checkout, "add", ".");
+  git(checkout, "commit", "-q", "-m", "Start");
+
+  // Keep the sample specs out of the initial main commit. They begin as
+  // working-tree drafts so plan.approve can make the explicit local approval
+  // commit that production Local only workspaces require.
   const { files, members } = sampleSpecs();
   for (const [name, folder] of Object.entries(files))
     for (const [file, text] of Object.entries(folder)) {
@@ -605,8 +611,6 @@ export async function buildDemo(
       fs.mkdirSync(path.dirname(target), { recursive: true });
       fs.writeFileSync(target, text);
     }
-  git(checkout, "add", ".");
-  git(checkout, "commit", "-q", "-m", "Start");
 
   const config = demoConfig(root),
     store = new Store(config.dbPath);
