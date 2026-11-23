@@ -557,24 +557,6 @@ export interface ApprovalCommit {
   hash: string;
 }
 
-// A local checkout has no GitHub merge, signature or branch-protection
-// evidence. In that mode, only the same explicit approval message the app
-// writes counts. This keeps an agent-authored setup or draft commit that
-// inherited the person's git identity from silently approving a spec.
-async function explicitLocalApproval(
-  root: string,
-  commit: string,
-  spec: string,
-) {
-  const message = await git(root, ["show", "-s", "--format=%B", commit]).catch(
-    () => "",
-  );
-  return (
-    message.trim() === `Approve spec ${spec}` ||
-    /^Approve [2-9][0-9]* specs(?:\n|$)/.test(message)
-  );
-}
-
 export async function approvalCommits(
   root: string,
   {
@@ -632,14 +614,8 @@ export async function approvalCommits(
     }
     if (!touched.size || !(await allowed(email, commit))) continue;
     const evidence = allowed.used?.get(commit) ?? null;
-    for (const spec of touched) {
-      if (
-        evidence === "local" &&
-        !(await explicitLocalApproval(root, commit, spec))
-      )
-        continue;
+    for (const spec of touched)
       found.push({ spec, commit, email, name, at, evidence });
-    }
   }
   const object = (commit: string, spec: string, file: string) =>
       `${commit}:${specPath(root, spec)}/${file}`,

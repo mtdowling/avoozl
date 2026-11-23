@@ -45,17 +45,11 @@ function commitSpec(
     author,
     committer,
     files,
-    message,
-  }: {
-    author: string;
-    committer: string;
-    files?: Record<string, string>;
-    message?: string;
-  },
+  }: { author: string; committer: string; files?: Record<string, string> },
 ) {
   writeSpec(root, name, files ?? specFiles());
   run(["add", "--", `.kiro/specs/${name}`]);
-  run(["commit", "-q", "-m", message ?? `Spec ${name}`], {
+  run(["commit", "-q", "-m", `Spec ${name}`], {
     GIT_AUTHOR_NAME: "A",
     GIT_AUTHOR_EMAIL: author,
     GIT_COMMITTER_NAME: "C",
@@ -345,7 +339,7 @@ test("the tick adopts an approver's spec commit on main, and nothing else", asyn
     return publish();
   };
   // Drafts on disk, as their spec branches hold them.
-  for (const name of ["merged", "foreign", "generated", "clicked"]) {
+  for (const name of ["merged", "foreign", "clicked"]) {
     writeSpec(r.root, name, specFiles());
     await ops.execute("plan.create", { spec: name });
   }
@@ -354,17 +348,9 @@ test("the tick adopts an approver's spec commit on main, and nothing else", asyn
   const squash = commitSpec(r, "merged", {
     author: OWNER,
     committer: "noreply@github.com",
-    message: "Approve spec merged",
   });
   // Someone else's spec commit, with the owner as committer.
   commitSpec(r, "foreign", { author: OTHER, committer: OWNER });
-  // A generated setup commit inherits the owner's local git identity, but is
-  // still a draft until the person uses the explicit approval action.
-  commitSpec(r, "generated", {
-    author: OWNER,
-    committer: OWNER,
-    message: "Initialize Python SDK rewrite",
-  });
   await tick();
   const merged = planOf(store, "merged");
   assert.equal(merged.state, "approved");
@@ -380,9 +366,7 @@ test("the tick adopts an approver's spec commit on main, and nothing else", asyn
   assert.deepEqual(queuedAtPublish, [{ merged: squash }]);
   assert.equal(taskStates(store, "merged").length, 3);
   assert.equal(planOf(store, "foreign").state, "draft");
-  assert.equal(planOf(store, "generated").state, "draft");
   assert.deepEqual(taskStates(store, "foreign"), []);
-  assert.deepEqual(taskStates(store, "generated"), []);
   // Activity names the commit and the approver, once.
   const rows = tickApprovals(store);
   assert.equal(rows.length, 1);
@@ -422,7 +406,6 @@ test("the tick adopts an approver's spec commit on main, and nothing else", asyn
     author: OWNER,
     committer: OWNER,
     files,
-    message: "Approve spec clicked",
   });
   await tick();
   const clicked = planOf(store, "clicked");
@@ -456,11 +439,7 @@ test("with specs.branch, approvals and ticks are read and written on that branch
   // An approver's commit on the specs branch approves on the tick.
   writeSpec(r.root, "merged", specFiles());
   await ops.execute("plan.create", { spec: "merged" });
-  commitSpec(r, "merged", {
-    author: OWNER,
-    committer: OWNER,
-    message: "Approve spec merged",
-  });
+  commitSpec(r, "merged", { author: OWNER, committer: OWNER });
   await ops.execute("workspace.tick", {});
   assert.equal(planOf(store, "merged").state, "approved");
   // A tick committed on the specs branch is read there.

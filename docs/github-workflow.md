@@ -315,14 +315,10 @@ whoever authors it, and it approves nothing, even when an approver authors it.
   merging a pull request that changes the spec, or by pushing a commit to the
   specs branch. Anyone MAY open the pull request. A runner MUST NOT require
   anything of the commit message or the committer, so a squash merge made by
-  GitHub counts. In a Local only workspace, where GitHub supplies no merge,
-  signature, or branch-protection evidence, the person MUST use Avoozl's
-  **Approve** action. Its `Approve spec <name>` commit is the local evidence;
-  another local commit that inherits the person's Git identity is still a
-  draft.
+  GitHub counts.
 - **[7.2](github-workflow-scenarios.md#rule-72)** A commit approves only with
   evidence that an approver stands behind it. The evidence MUST be one of
-  these four:
+  these:
   - the commit is the merge commit of a pull request whose GitHub `merged_by`
     is an approver;
   - the commit has a GitHub-verified signature, and the account that signed it
@@ -330,12 +326,10 @@ whoever authors it, and it approves nothing, even when an approver authors it.
     approver);
   - the repository declares that branch protection lets only approvers push to
     and merge into the specs branch, and the commit's author is an approver.
-  - in Local only mode, Avoozl created the explicit `Approve spec <name>`
-    commit as the checkout's configured person.
 
   Under the first two, the author's name and email prove nothing, because
-  anyone can write them. A commit with none of the four approves nothing. A
-  runner MUST say which of the four it uses.
+  anyone can write them. A commit with none of the three approves nothing. A
+  runner MUST say which of the three it uses.
 - **[7.3](github-workflow-scenarios.md#rule-73)** A spec is approved when its
   current spec text equals the text the latest approval left. The current text
   is read on the task's done branch. A runner MUST NOT run a task of a spec that
