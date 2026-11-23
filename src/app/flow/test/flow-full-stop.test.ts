@@ -201,9 +201,11 @@ test("a full stop stops each running chat Avoozl opened and marks it interrupted
       .some((n) => /All agents stopped/.test(n.payload.title)),
   );
 
-  // The tick neither nudges the stopped chat nor counts it as a failure,
+  // The tick neither requests a check-in nor counts the stopped chat as a failure,
   // and nothing new starts, checks and reviews included.
-  const policy = deliveryPolicy({ delivery: { retries: 0, quietMinutes: 1 } });
+  const policy = deliveryPolicy({
+    delivery: { retries: 0, checkInMinutes: 1 },
+  });
   const { messages } = reconcileDeliveries(store, policy, {
     script: true,
     now: Date.parse("2026-11-14T00:00:00Z"),

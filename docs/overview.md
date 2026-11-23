@@ -92,7 +92,9 @@ The page has seven views, in this order in the nav. It opens on Insights.
   day, lead time per task, time per stage, review rounds, rework and the saved
   retros. See [Insights](flow.md#insights).
 - **Specs:** the spec list and each spec's details.
-- **Graph:** the dependency graph of a spec, an epic or every spec.
+- **Graph:** the dependency graph of a spec, an epic or every spec. Select a
+  task to see its internal Worker → Checks → Review → Land execution stages;
+  those stages are not extra dependency edges.
 - **In flight:** live sessions, claim branches, this machine's lanes,
   integration branches and the delivery columns.
 - **Needs you:** Decisions, where a worker handed work back, a spec or issue

@@ -75,7 +75,8 @@ import { specFolderPath } from "../specs/specs-path.ts";
 import {
   FINAL_STATUSES,
   listSessionBindings,
-  quietStep,
+  checkInStep,
+  unansweredCheckIns,
 } from "../sessions/session-bindings.ts";
 import { queryTasks, statusComplete } from "../../query.ts";
 import { rankKeys } from "../specs/ranking.ts";
@@ -154,12 +155,17 @@ interface PlanRef {
   files?: Record<string, string>;
   [key: string]: unknown;
 }
-// A nudge a quiet session got, and when a person was told.
-interface Nudge {
+// A check-in request a session got, and when a person was told.
+interface CheckIn {
   slot?: string;
   count?: number;
   at?: string;
   notifiedAt?: string;
+}
+// The wall-clock time box of one worker session.
+interface Timebox {
+  slot?: string;
+  at?: string;
 }
 // One recorded writer attempt of a delivery.
 export interface DeliveryAttempt {
@@ -206,8 +212,9 @@ export interface Delivery {
   cause?: string;
   decisionNotifiedAt?: string;
   questionNotified?: string;
-  nudge?: Nudge;
-  reviewNudges?: Record<string, Nudge>;
+  checkIn?: CheckIn;
+  reviewCheckIns?: Record<string, CheckIn>;
+  timebox?: Timebox;
   rebases?: unknown[];
   updatedAt?: string;
   [key: string]: unknown;
@@ -247,8 +254,9 @@ export interface ReviewRole {
 export interface DeliveryPolicy {
   concurrency: number;
   retries: number;
-  quietMinutes: number;
-  nudges: number;
+  timeboxMinutes: number;
+  checkInMinutes: number;
+  missedCheckIns: number;
   reviewRounds: number;
   agent: string;
   model?: string;
@@ -324,8 +332,9 @@ interface PlanOptions {
 export const DELIVERY_DEFAULTS = Object.freeze({
   concurrency: 1,
   retries: 2,
-  quietMinutes: 15,
-  nudges: 3,
+  timeboxMinutes: 240,
+  checkInMinutes: 15,
+  missedCheckIns: 3,
   reviewRounds: 3,
   agent: "kirocrew-worker",
 });
@@ -351,8 +360,9 @@ const bounded = (value: unknown, min: number, max: number): boolean =>
 // holds src/avoozl-config.schema.json to these lists.
 const DELIVERY_LIMITS = Object.freeze({
   retries: [0, 10],
-  quietMinutes: [1, 1440],
-  nudges: [0, 10],
+  timeboxMinutes: [1, 10080],
+  checkInMinutes: [1, 1440],
+  missedCheckIns: [0, 10],
   reviewRounds: [1, 10],
 });
 export const DELIVERY_KEYS = Object.freeze([
@@ -1323,7 +1333,8 @@ export async function retryDelivery(
         sameCommit !== null &&
         delivery.decisionStage === "integration" &&
         delivery.commit === sameCommit,
-      { decisionNotifiedAt, decisionStage, cause, nudge, ...rest } = delivery,
+      { decisionNotifiedAt, decisionStage, cause, checkIn, timebox, ...rest } =
+        delivery,
       next = {
         ...rest,
         ...(dismiss.length
@@ -1375,12 +1386,16 @@ const identityRefusedSince = (store: Store, binding: SessionBinding) => {
   return Boolean(at && Date.parse(at) >= Date.parse(binding.boundAt));
 };
 
-// Record each attempt's outcome once, and plan nudges and notifications for
-// the script. Writes only on a new outcome or an intent the script will carry
-// out (`script` is true only when the caller is the cron that sends them).
+// Record each attempt's outcome once, and plan check-ins, time boxes and
+// notifications for the script. Writes only on a new outcome or an intent the
+// script will carry out (`script` is true only when the caller is the cron that
+// sends them).
 export function reconcileDeliveries(
   store: Store,
-  policy: Pick<DeliveryPolicy, "retries" | "quietMinutes" | "nudges">,
+  policy: Pick<
+    DeliveryPolicy,
+    "retries" | "timeboxMinutes" | "checkInMinutes" | "missedCheckIns"
+  >,
   { script, now = Date.now() }: { script?: unknown; now?: number },
 ) {
   const messages: SessionMessage[] = [],
@@ -1478,12 +1493,55 @@ export function reconcileDeliveries(
           cause: `Kiro Crew no longer lists session ${binding.slot}, and it has not reported`,
           updatedAt: at,
         };
+    } else if (
+      open &&
+      binding.source === "tick" &&
+      now - Date.parse(binding.boundAt) >= policy.timeboxMinutes * 60_000
+    ) {
+      // A time box is wall-clock time from the start of this attempt. Progress
+      // reports satisfy check-ins but do not buy more time. Keep the session
+      // and worktree intact so a person can inspect or let it finish.
+      if (delivery.timebox?.slot !== binding.slot)
+        next = {
+          ...delivery,
+          state: "decision",
+          decisionStage: "timebox",
+          cause: `worker reached its ${policy.timeboxMinutes}-minute time box`,
+          timebox: { slot: binding.slot, at },
+          updatedAt: at,
+        };
     } else if (open && delivery.state !== "running") {
-      const { cause, decisionNotifiedAt, ...rest } = delivery;
+      const { cause, decisionNotifiedAt, decisionStage, timebox, ...rest } =
+        delivery;
       next = { ...rest, state: "running", updatedAt: at };
     }
     if (script) {
-      if (next.state === "decision" && !next.decisionNotifiedAt && open) {
+      if (
+        next.state === "decision" &&
+        next.decisionStage === "timebox" &&
+        !next.decisionNotifiedAt &&
+        open
+      ) {
+        messages.push({
+          slot: binding.slot,
+          task: taskId,
+          text: `Avoozl task ${taskId}: this attempt reached its ${policy.timeboxMinutes}-minute time box. Stop at a safe point and report progress, done, blocked or question. Avoozl has paused automatic handling and will not replace this session.`,
+        });
+        notify.push({
+          channel: "decision",
+          task: taskId,
+          slot: binding.slot,
+          title: `${taskId} reached its time box`,
+          text: `${next.cause}. Its session and worktree are still intact.`,
+          resume:
+            "Open the session to inspect it. Let it finish there, or close it and retry the task when you are ready.",
+        });
+        next = { ...next, decisionNotifiedAt: at };
+      } else if (
+        next.state === "decision" &&
+        !next.decisionNotifiedAt &&
+        open
+      ) {
         notify.push({
           channel: "decision",
           task: taskId,
@@ -1521,36 +1579,45 @@ export function reconcileDeliveries(
         }
       } else if (
         open &&
+        next.decisionStage !== "timebox" &&
         binding.status === "idle" &&
         binding.source === "tick"
       ) {
         // Only the cron messages a session it opened; a task taken by hand is a
-        // person's and is never nudged.
-        // Quiet: the session ended its turn without a done or blocked report.
-        // It is nudged, never replaced; past the nudge bound a person decides.
-        const nudge = next.nudge?.slot === binding.slot ? next.nudge : null,
-          step = quietStep(binding, nudge, policy, now);
-        if (step === "nudge") {
+        // person's and is never asked to check in. A progress report resets the
+        // interval. A missed check-in never replaces the session.
+        const checkIn =
+            next.checkIn?.slot === binding.slot ? next.checkIn : null,
+          unanswered = unansweredCheckIns(binding, checkIn),
+          step = checkInStep(binding, checkIn, policy, now);
+        if (step === "request") {
           messages.push({
             slot: binding.slot,
             task: taskId,
-            text: `Avoozl task ${taskId}: you have not reported a result. Continue the task in its worktree, then report done, blocked or question the way your brief says.`,
+            text: `Avoozl task ${taskId}: check in with a progress report now. Continue in the same worktree, then report done, blocked or question when the task reaches one of those states.`,
           });
           next = {
             ...next,
-            nudge: { slot: binding.slot, count: (nudge?.count || 0) + 1, at },
+            checkIn: {
+              slot: binding.slot,
+              count: unanswered + 1,
+              at,
+            },
           };
-        } else if (step === "exhausted" && !nudge?.notifiedAt) {
+        } else if (step === "exhausted" && !checkIn?.notifiedAt) {
           notify.push({
             channel: "decision",
             task: taskId,
             slot: binding.slot,
-            title: `${taskId} is quiet`,
-            text: `The worker has not reported after ${nudge?.count || 0} nudges. Avoozl will not replace its session.${identityRefusedSince(store, binding) ? " A plans_report was refused because no caller identity came from Kiro Crew: turn on sharing for avoozl:avoozl in MCP Management, approve it and restart the gateway." : ""}`,
+            title: `${taskId} missed its check-ins`,
+            text: `The worker missed ${unanswered} check-in requests. Avoozl will not replace its session.${identityRefusedSince(store, binding) ? " A plans_report was refused because no caller identity came from Kiro Crew: turn on sharing for avoozl:avoozl in MCP Management, approve it and restart the gateway." : ""}`,
             resume:
               "Open the session and tell the worker to continue, or close it to retry.",
           });
-          next = { ...next, nudge: { ...nudge, notifiedAt: at } };
+          next = {
+            ...next,
+            checkIn: { ...checkIn, notifiedAt: at },
+          };
         }
       }
     }
@@ -2513,12 +2580,15 @@ function roleRecord(binding: Partial<SessionBinding>): RoleRecord | null {
   return null;
 }
 
-// The nudge record a quiet review session keeps on its delivery.
-const nudgeOf = (delivery: Delivery, roleId: string) =>
-  delivery.reviewNudges?.[roleId];
-const withNudge = (delivery: Delivery, roleId: string, nudge: Nudge) => ({
+// The check-in record an idle review session keeps on its delivery.
+const checkInOf = (delivery: Delivery, roleId: string) =>
+  delivery.reviewCheckIns?.[roleId];
+const withCheckIn = (delivery: Delivery, roleId: string, checkIn: CheckIn) => ({
   ...delivery,
-  reviewNudges: { ...(delivery.reviewNudges || {}), [roleId]: nudge },
+  reviewCheckIns: {
+    ...(delivery.reviewCheckIns || {}),
+    [roleId]: checkIn,
+  },
 });
 
 // Record each role session's outcome once (§5.2 steps 5–8). Verdicts name
@@ -2617,21 +2687,22 @@ export function reconcileVerifications(
           };
       }
       if (!record) {
-        // Quiet like a worker: nudged up to the bound (only the cron sends
-        // messages), then failed, so a new session of this role opens.
-        const held = nudgeOf(next, roleId),
-          nudge = held?.slot === binding.slot ? held : null,
-          step = script ? quietStep(binding, nudge, policy, now) : "wait";
-        if (step === "nudge") {
+        // Check in like a worker: request up to the bound (only the cron sends
+        // messages), then fail so a new session of this role opens.
+        const held = checkInOf(next, roleId),
+          checkIn = held?.slot === binding.slot ? held : null,
+          unanswered = unansweredCheckIns(binding, checkIn),
+          step = script ? checkInStep(binding, checkIn, policy, now) : "wait";
+        if (step === "request") {
           messages.push({
             slot: binding.slot ?? "",
             task: task.id,
-            text: `Avoozl review ${roleId} for ${task.id}: you have not reported a verdict, and a turn without one is no review. Review commit ${subject}, then call plans_report with kind "done", the commit, your verdict, findings and closures, or "blocked" with the reason.`,
+            text: `Avoozl review ${roleId} for ${task.id}: check in now. Continue reviewing commit ${subject}, then call plans_report with kind "done", the commit, your verdict, findings and closures, or "blocked" with the reason.`,
           });
           next = {
-            ...withNudge(next, roleId, {
+            ...withCheckIn(next, roleId, {
               slot: binding.slot,
-              count: (nudge?.count || 0) + 1,
+              count: unanswered + 1,
               at,
             }),
             updatedAt: at,
@@ -2640,7 +2711,7 @@ export function reconcileVerifications(
         if (step !== "exhausted") continue;
         record = {
           outcome: "failed",
-          cause: `review ${roleId} quiet after ${nudge?.count || 0} nudges without a verdict`,
+          cause: `review ${roleId} missed ${unanswered} check-ins without a verdict`,
         };
       }
       const entry = {

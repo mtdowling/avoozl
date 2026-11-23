@@ -1032,7 +1032,14 @@ export async function pullFullStop(
         };
         if (delivery.attempts.some((a) => a.attempt === binding.attempt))
           continue;
-        const { cause, nudge, decisionNotifiedAt, ...kept } = delivery;
+        const {
+          cause,
+          checkIn,
+          timebox,
+          decisionStage,
+          decisionNotifiedAt,
+          ...kept
+        } = delivery;
         store.put("task_deliveries", {
           ...kept,
           attempts: [

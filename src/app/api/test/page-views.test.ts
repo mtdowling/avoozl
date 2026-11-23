@@ -23,6 +23,7 @@ interface Graph {
     decision?: string;
     state: string;
     epic?: string | null;
+    execution?: { id: string; label: string; state: string }[];
   }[];
   edges: {
     id?: string;
@@ -174,6 +175,37 @@ test("graph view shows kind, authority, status, blocking edges and ready leaves"
   assert.equal(byId.g?.epic, "other");
   assert.equal(byId.a?.epic, null);
   assert.deepEqual(rows(store), before);
+});
+
+test("graph view shows delivery stages inside a task node", async (t) => {
+  const { store, ops } = graphFixture(t);
+  store.put("task_deliveries", {
+    id: "b",
+    taskId: "b",
+    state: "verified",
+    commit: "1".repeat(40),
+    attempts: [],
+    verifications: [
+      { outcome: "accepted", commit: "1".repeat(40) },
+      {
+        role: "review",
+        outcome: "accepted",
+        verdict: "approved",
+        commit: "1".repeat(40),
+      },
+    ],
+  });
+  const graph = await ops.execute<Graph>("graph.view", {});
+  const task = found(graph.tasks.find((item) => item.id === "b"));
+  assert.deepEqual(
+    task.execution?.map((stage) => [stage.label, stage.state]),
+    [
+      ["Worker", "done"],
+      ["Checks", "done"],
+      ["Review", "done"],
+      ["Land", "running"],
+    ],
+  );
 });
 
 test("query and task.get say the state the Graph draws, beside the status", async (t) => {

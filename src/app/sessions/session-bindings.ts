@@ -600,21 +600,36 @@ export function recordSessionStatus(
 }
 
 // What to do about a session the cron opened that ended its turn without a
-// done or blocked report: "wait", "nudge", or "exhausted" once the nudge bound
-// is spent. Only an observed idle status counts, so a session Avoozl cannot see
-// (disconnected, or a lapsed lease) is never treated as quiet.
-export function quietStep(
+// progress or final report: "wait", "request", or "exhausted" once the missed
+// check-in bound is spent. Only an observed idle status counts, so a session
+// Avoozl cannot see (disconnected, or a lapsed lease) is never treated as
+// missing a check-in.
+export function unansweredCheckIns(
   binding: Partial<SessionBinding>,
-  nudge: { at?: string; count?: number } | null | undefined,
-  policy: { quietMinutes: number; nudges: number },
+  checkIn: { at?: string; count?: number } | null | undefined,
+) {
+  if (
+    binding.report?.at &&
+    (!checkIn?.at || Date.parse(binding.report.at) > Date.parse(checkIn.at))
+  )
+    return 0;
+  return checkIn?.count || 0;
+}
+
+export function checkInStep(
+  binding: Partial<SessionBinding>,
+  checkIn: { at?: string; count?: number } | null | undefined,
+  policy: { checkInMinutes: number; missedCheckIns: number },
   now: number,
 ) {
   if (binding.status !== "idle" || binding.source !== "tick") return "wait";
   const since = Math.max(
-    ...[binding.boundAt, binding.statusAt, binding.report?.at, nudge?.at]
+    ...[binding.boundAt, binding.statusAt, binding.report?.at, checkIn?.at]
       .filter((value): value is string => Boolean(value))
       .map((value) => Date.parse(value)),
   );
-  if (now - since < policy.quietMinutes * 60_000) return "wait";
-  return (nudge?.count || 0) < policy.nudges ? "nudge" : "exhausted";
+  if (now - since < policy.checkInMinutes * 60_000) return "wait";
+  return unansweredCheckIns(binding, checkIn) < policy.missedCheckIns
+    ? "request"
+    : "exhausted";
 }

@@ -16,6 +16,11 @@ import type { ConflictsView } from "../../test/view-shapes.ts";
 // What delivery.settings.get and .update answer.
 interface Settings {
   on: boolean;
+  delivery: {
+    timeboxMinutes?: number;
+    checkInMinutes?: number;
+    missedCheckIns?: number;
+  };
   loop: { run: string[]; every?: string } | null;
   hash: string;
   landingPr?: string;
@@ -78,6 +83,31 @@ test("picking Autopilot writes delivery and this machine's loop; Off removes onl
   assert.equal(off.on, true, "the workspace block stays for other machines");
   assert.equal(machineValue().loop, undefined);
   assert.deepEqual(machineValue().lanes, { local: 2 });
+});
+
+test("Autopilot saves wall-clock limits and check-ins", async (t) => {
+  const { workspace, get, update } = setup(t, {
+    delivery: { reviewRounds: 2 },
+  });
+  const saved = await update({
+    expectedHash: (await get()).hash,
+    delivery: {
+      timeboxMinutes: 180,
+      checkInMinutes: 20,
+      missedCheckIns: 2,
+    },
+  });
+  assert.deepEqual(saved.delivery, {
+    timeboxMinutes: 180,
+    checkInMinutes: 20,
+    missedCheckIns: 2,
+  });
+  assert.deepEqual(workspace().delivery, {
+    reviewRounds: 2,
+    timeboxMinutes: 180,
+    checkInMinutes: 20,
+    missedCheckIns: 2,
+  });
 });
 
 test("a bad loop writes nothing, and only a person changes it", async (t) => {

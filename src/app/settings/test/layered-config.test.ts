@@ -29,7 +29,7 @@ test("configuration layers merge deterministically and resolve their own paths",
     version: 1,
     name: "Global",
     dbPath: "state/global.sqlite",
-    delivery: { retries: 1, quietMinutes: 5 },
+    delivery: { retries: 1, checkInMinutes: 5 },
   });
   writeJson(repositoryFile, {
     version: 1,
@@ -59,10 +59,10 @@ test("configuration layers merge deterministically and resolve their own paths",
     loaded.config.documents,
     path.join(workspaceRoot, "command-plans"),
   );
-  assert.deepEqual(loaded.config.delivery, { retries: 2, quietMinutes: 5 });
+  assert.deepEqual(loaded.config.delivery, { retries: 2, checkInMinutes: 5 });
   assert.deepEqual(loaded.configWithoutRepository.delivery, {
     retries: 1,
-    quietMinutes: 5,
+    checkInMinutes: 5,
   });
   assert.deepEqual(
     loaded.sources.map(({ label }) => label),

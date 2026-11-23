@@ -46,6 +46,13 @@ export interface GraphTask extends TaskOwner {
   status: string | null
   complete: boolean
   ready: boolean
+  // The task's delivery stages. These describe execution inside a node, not
+  // dependency edges between nodes. Older backends omit them.
+  execution?: {
+    id: 'worker' | 'checks' | 'review' | 'land'
+    label: string
+    state: 'waiting' | 'running' | 'needs-you' | 'done' | 'failed' | 'skipped'
+  }[]
   // The batch issue it shares (an ID in `Graph.batches`), or null. Older
   // backends omit it.
   batch?: string | null

@@ -44,6 +44,22 @@ interface LoopForm {
   every: string
   epics: string
 }
+interface LimitForm {
+  timeboxMinutes: string
+  checkInMinutes: string
+  missedCheckIns: string
+}
+const limitForm = (delivery: Settings['delivery']): LimitForm => ({
+  timeboxMinutes: String(delivery?.timeboxMinutes ?? 240),
+  checkInMinutes: String(delivery?.checkInMinutes ?? 15),
+  missedCheckIns: String(delivery?.missedCheckIns ?? 3),
+})
+const limitsOf = (form: LimitForm) => ({
+  timeboxMinutes: Number(form.timeboxMinutes),
+  checkInMinutes: Number(form.checkInMinutes),
+  missedCheckIns: Number(form.missedCheckIns),
+})
+const sameLimits = (delivery: Settings['delivery'], form: LimitForm) => JSON.stringify(limitsOf(limitForm(delivery))) === JSON.stringify(limitsOf(form))
 const loopForm = (loop: Loop | null | undefined): LoopForm => {
   const from = loop ?? DEFAULT_LOOP
   return { run: [...from.run], every: from.every ?? '', epics: (from.epics ?? []).join(', ') }
@@ -121,6 +137,7 @@ export default function DeliverySettings({ workspaceId }: { workspaceId: string 
   // The workspace's landing.pr; null is unset (draft).
   const [pr, setPr] = useState<PrMode | null>(null)
   const [form, setForm] = useState<LoopForm>(loopForm(null))
+  const [limits, setLimits] = useState<LimitForm>(limitForm(undefined))
   const [message, setMessage] = useState<{ ok?: string; error?: string } | null>(null)
   const [modeError, setModeError] = useState<string | null>(null)
   const [turning, setTurning] = useState(false)
@@ -129,17 +146,24 @@ export default function DeliverySettings({ workspaceId }: { workspaceId: string 
     if (!value) return
     setPr(value.landingPr ?? null)
     setForm(loopForm(value.loop))
+    setLimits(limitForm(value.delivery))
   }, [value])
   const prDirty = Boolean(value) && pr !== (value?.landingPr ?? null)
   // The loop saves here only while it is on; while off, picking Autopilot
   // writes it.
   const loopDirty = Boolean(value?.loop) && !sameLoop(value?.loop, loopOf(form))
-  const dirty = prDirty || loopDirty
+  const limitsDirty = Boolean(value?.on) && !sameLimits(value?.delivery, limits)
+  const dirty = prDirty || loopDirty || limitsDirty
   const save = async () => {
     if (!value) return
     setMessage(null)
     try {
-      await run('delivery.settings.update', { expectedHash: value.hash, ...(prDirty ? { landingPr: pr } : {}), ...(loopDirty ? { loop: loopOf(form) } : {}) })
+      await run('delivery.settings.update', {
+        expectedHash: value.hash,
+        ...(prDirty ? { landingPr: pr } : {}),
+        ...(loopDirty ? { loop: loopOf(form) } : {}),
+        ...(limitsDirty ? { delivery: limitsOf(limits) } : {}),
+      })
       await reload()
       setMessage({ ok: 'Saved.' })
     } catch (caught) {
@@ -170,7 +194,14 @@ export default function DeliverySettings({ workspaceId }: { workspaceId: string 
     try {
       await run(
         'delivery.settings.update',
-        next === 'autopilot' ? { delivery: {}, expectedHash: value.hash, turnOn: true, loop: loopOf(form) } : { expectedHash: value.hash, loop: null },
+        next === 'autopilot'
+          ? {
+              delivery: sameLimits(value.delivery, limits) ? {} : limitsOf(limits),
+              expectedHash: value.hash,
+              turnOn: true,
+              loop: loopOf(form),
+            }
+          : { expectedHash: value.hash, loop: null },
       )
       await reload()
     } catch (caught) {
@@ -265,6 +296,70 @@ export default function DeliverySettings({ workspaceId }: { workspaceId: string 
             </Field>
           </Stack>
         </Section>
+        <Section
+          level="sub"
+          title="Run limits"
+          blurb="Wall-clock limits for unattended sessions. Progress check-ins show that work is still active; they do not spend credits or extend the time box."
+        >
+          {mode === 'off' && (
+            <Hint as="p" size="sm">
+              Written when you pick Autopilot.
+            </Hint>
+          )}
+          <Stack gap={3} data-autopilot-limits>
+            <Field
+              id="avoozl-timebox-minutes"
+              label="Time box"
+              raw="delivery.timeboxMinutes"
+              width="sm"
+              help="Wall-clock minutes from the start of a worker attempt. At the limit, Avoozl pauses automatic handling and asks you to inspect the intact session and worktree."
+              note="Default: 240 minutes."
+            >
+              <Input
+                id="avoozl-timebox-minutes"
+                type="number"
+                min="1"
+                max="10080"
+                value={limits.timeboxMinutes}
+                onChange={(e: { target: { value: string } }) => setLimits({ ...limits, timeboxMinutes: e.target.value })}
+              />
+            </Field>
+            <Field
+              id="avoozl-check-in-minutes"
+              label="Check in every"
+              raw="delivery.checkInMinutes"
+              width="sm"
+              help="Minutes an idle worker or reviewer may go without a progress or final report before Avoozl asks it to check in."
+              note="Default: 15 minutes."
+            >
+              <Input
+                id="avoozl-check-in-minutes"
+                type="number"
+                min="1"
+                max="1440"
+                value={limits.checkInMinutes}
+                onChange={(e: { target: { value: string } }) => setLimits({ ...limits, checkInMinutes: e.target.value })}
+              />
+            </Field>
+            <Field
+              id="avoozl-missed-check-ins"
+              label="Missed check-ins"
+              raw="delivery.missedCheckIns"
+              width="sm"
+              help="Requests a session may miss before Avoozl asks you to inspect it. Missing one never replaces the session."
+              note="Default: 3."
+            >
+              <Input
+                id="avoozl-missed-check-ins"
+                type="number"
+                min="0"
+                max="10"
+                value={limits.missedCheckIns}
+                onChange={(e: { target: { value: string } }) => setLimits({ ...limits, missedCheckIns: e.target.value })}
+              />
+            </Field>
+          </Stack>
+        </Section>
         <Section level="sub" title="Who merges" blurb="How Avoozl opens pull requests for pr landing, and who merges them. A repository's Landing tab can override this.">
           {mode === 'off' && (
             <Hint as="p" size="sm" data-autopilot-off-note>
@@ -293,12 +388,13 @@ export default function DeliverySettings({ workspaceId }: { workspaceId: string 
         dirty={dirty}
         error={message?.error}
         ok={message?.ok}
-        note={loopDirty ? "Writes landing.pr in .avoozl.json and loop in this machine's config." : 'Writes landing.pr in .avoozl.json.'}
+        note={loopDirty ? "Writes workspace settings in .avoozl.json and loop in this machine's config." : 'Writes workspace settings in .avoozl.json.'}
         onSave={() => void save()}
         onDiscard={() => {
           setMessage(null)
           setPr(value.landingPr ?? null)
           setForm(loopForm(value.loop))
+          setLimits(limitForm(value.delivery))
         }}
       />
     </Stack>

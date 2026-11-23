@@ -179,8 +179,8 @@ async function setup() {
     // A quiet chat is nudged a minute after its turn ends without a report:
     // the gateway restart cuts the worker's turn, and the nudge is the
     // message the cron must send. The default reviewer stays on.
-    quietMinutes: 1,
-    nudges: 3,
+    checkInMinutes: 1,
+    missedCheckIns: 3,
   };
   config.lanes = { local: 1, reviewers: 1 };
   config.roles = { worker: { harness: "kirocrew", agent: AGENT } };
@@ -383,7 +383,7 @@ async function watch() {
       }
       const worker = s.bindings.find((b) => b.role === "worker");
       // While the worker's chat has a turn running, restart the gateway:
-      // the turn is cut, trust must come back, and the pass nudges the chat.
+      // the turn is cut, trust must come back, and the pass asks for a check-in.
       if (!restarted && worker) {
         const slot = listSlots().find((row) => row.key === worker.slot);
         if (
