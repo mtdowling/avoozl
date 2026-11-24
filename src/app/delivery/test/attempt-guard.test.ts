@@ -1,17 +1,20 @@
 // Task stall-1.1: one guard, previousAttemptEnded, checks every new worker
-// attempt (stalled-workers SW2, §D2). Each path is driven by a fake executor
-// read, and none opens an attempt until a read confirms the last one ended.
+// attempt (stalled-workers SW2, §D2). Each binding shape the planner sees is
+// driven by the reads its executor can give: nothing opens while the end is
+// unconfirmed, and one attempt opens once it is confirmed.
 import assert from "node:assert/strict";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
 import {
   GONE_GRACE_MS,
+  busyTaskIds,
   deliveryPolicy,
   planReadyDispatches,
   previousAttemptEnded,
   reconcileDeliveries,
 } from "../delivery.ts";
 import { observeSessions } from "../../executors/kirocrew/session-observer.ts";
+import { Operations } from "../../api/operations.ts";
 import { Store } from "../../store/store.ts";
 import { snapshot } from "../../test/fixtures.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
@@ -22,6 +25,7 @@ const policy = deliveryPolicy({
   lanes: { local: 4 },
   delivery: { retries: 3, timeboxMinutes: 600 },
 });
+const BLOCKED = { kind: "blocked", text: "stuck", at: LONG_AGO };
 
 const binding = (extra: Record<string, unknown>) => ({
   id: "s-a",
@@ -31,55 +35,111 @@ const binding = (extra: Record<string, unknown>) => ({
   attempt: 1,
   source: "tick",
   title: "avoozl:a Task a",
-  boundAt: new Date().toISOString(),
+  boundAt: LONG_AGO,
   statusAt: LONG_AGO,
   ...extra,
 });
 
-// Each path that opens a worker attempt, as the store holds it just before.
-const PATHS = {
-  // The planner's retry start: the attempt was recorded failed, and its
-  // session still runs.
-  retry: (store: Store, reported = true) => {
-    store.put(
-      "session_bindings",
-      binding({
-        status: "working",
-        ...(reported
-          ? { report: { kind: "blocked", text: "stuck", at: LONG_AGO } }
-          : {}),
-      }),
-    );
-    store.put("task_deliveries", {
-      id: "a",
-      taskId: "a",
-      state: "failed",
-      attempts: [
-        { attempt: 1, slot: "s-a", outcome: "failed", cause: "blocked: x" },
-      ],
-    });
-  },
-  // The vanished resume: a session that never reported, last read gone
-  // before the grace ran out.
-  vanished: (store: Store, reported = true, statusAt = LONG_AGO) =>
-    store.put(
-      "session_bindings",
-      binding({
-        status: "gone",
-        statusAt,
-        ...(reported
-          ? { report: { kind: "progress", text: "Halfway.", at: LONG_AGO } }
-          : {}),
-      }),
-    ),
-};
-
-// What the fake executor answers for the slot.
-const READS = {
-  working: async () => "working",
-  "idle with no report": async () => "idle",
+// What a Kiro Crew slot read can answer.
+type Read = () => Promise<string>;
+const reads = (...statuses: string[]) =>
+  Object.fromEntries(statuses.map((s) => [s, async () => s] as [string, Read]));
+const FAILED: Record<string, Read> = {
   "a failed read": async () => {
     throw Error("refused (403)");
+  },
+};
+
+interface Shape {
+  // The store just before the path would open attempt 2.
+  seed: (store: Store, ops: Operations) => unknown;
+  // Reads that leave the end unconfirmed, each seeded afresh.
+  unconfirmed: Record<string, Read>;
+  // What confirms the end: a read, or a step the shape takes itself.
+  confirm: (store: Store) => Promise<void>;
+}
+
+const SHAPES: Record<string, Shape> = {
+  // The planner's retry start: a tick worker reported blocked while running.
+  "tick retry": {
+    seed: (store) =>
+      store.put(
+        "session_bindings",
+        binding({ status: "working", report: BLOCKED }),
+      ),
+    unconfirmed: { ...reads("working"), ...FAILED },
+    confirm: (store) => observeSessions(store, async () => "idle").then(),
+  },
+  // A tick worker with no report yet: idle is a turn, not an end.
+  "tick, no report": {
+    seed: (store) =>
+      store.put("session_bindings", binding({ status: "working" })),
+    unconfirmed: { ...reads("working", "idle"), ...FAILED },
+    confirm: (store) => observeSessions(store, async () => "closed").then(),
+  },
+  // The vanished resume: gone, read before the grace ran out.
+  vanished: {
+    seed: (store) =>
+      store.put(
+        "session_bindings",
+        binding({
+          status: "gone",
+          statusAt: new Date(Date.now() - 60_000).toISOString(),
+        }),
+      ),
+    unconfirmed: { ...reads("working", "idle"), ...FAILED },
+    confirm: async (store) => {
+      await observeSessions(store, async () => "gone");
+      const row = store.get<Record<string, unknown>>("session_bindings", "s-a");
+      store.put("session_bindings", {
+        ...row,
+        id: "s-a",
+        statusAt: new Date(Date.now() - GONE_GRACE_MS).toISOString(),
+      });
+    },
+  },
+  // A full stop, then Resume: Kiro Crew keeps the stopped chat, so the
+  // first read after the stop that finds it idle confirms it.
+  interrupted: {
+    seed: async (store, ops) => {
+      store.put("session_bindings", binding({ status: "idle" }));
+      const { stop } = await ops.execute<{ stop: { id: string } }>(
+        "flow.stop",
+        { full: true, reason: "pause" },
+      );
+      await ops.execute("flow.resume", { stopId: stop.id }, undefined, {
+        mcp: true,
+      });
+    },
+    unconfirmed: { ...reads("working"), ...FAILED },
+    confirm: (store) => observeSessions(store, async () => "idle").then(),
+  },
+  // A hand take (avoozl take): no session to read, so its final report is
+  // its end.
+  "hand take": {
+    seed: (store) =>
+      store.put(
+        "session_bindings",
+        binding({
+          id: "manual-a-1",
+          slot: "manual-a-1",
+          source: "conductor",
+          conductor: "cli",
+          statusAt: undefined,
+        }),
+      ),
+    unconfirmed: { ...reads("working", "idle"), ...FAILED },
+    confirm: async (store) => {
+      const row = store.get<Record<string, unknown>>(
+        "session_bindings",
+        "manual-a-1",
+      );
+      store.put("session_bindings", {
+        ...row,
+        id: "manual-a-1",
+        report: BLOCKED,
+      });
+    },
   },
 };
 
@@ -93,50 +153,46 @@ function setup(t: TestContext) {
     edges: [],
   });
   store.put("repositories", { id: "r1", root: temporaryDirectory("r1-") });
-  return store;
+  const ops = new Operations(store, {
+    workspaceRoot: root,
+    sessionStopper: async () => {},
+  });
+  return { store, ops };
 }
 
-for (const [pathName, seed] of Object.entries(PATHS))
-  for (const [readName, read] of Object.entries(READS))
-    test(`${pathName}: a read of ${readName} opens no attempt`, async (t) => {
-      const store = setup(t);
-      // Gone, read before the grace ran out.
-      seed(
-        store,
-        readName !== "idle with no report",
-        new Date(Date.now() - GONE_GRACE_MS + 60_000).toISOString(),
-      );
-      await observeSessions(store, read);
-      reconcileDeliveries(store, policy, {});
-      assert.deepEqual(planReadyDispatches(store, policy), []);
-      const delivery = store.get<{ attempts: { vanished?: boolean }[] }>(
-        "task_deliveries",
-        "a",
-      );
-      assert.ok(!delivery?.attempts.some((a) => a.vanished));
+// One tick's worth: read the sessions, record outcomes, plan starts.
+async function tick(store: Store, read: Read) {
+  await observeSessions(store, read);
+  reconcileDeliveries(store, policy, {});
+  return planReadyDispatches(store, policy).map((d) => [d.task, d.attempt]);
+}
+
+for (const [shapeName, shape] of Object.entries(SHAPES)) {
+  for (const [readName, read] of Object.entries(shape.unconfirmed))
+    test(`${shapeName}: a read of ${readName} opens no attempt`, async (t) => {
+      const { store, ops } = setup(t);
+      await shape.seed(store, ops);
+      for (let round = 0; round < 3; round += 1)
+        assert.deepEqual(await tick(store, read), [], `round ${round}`);
+      assert.ok(busyTaskIds(store).has("a"));
     });
+  test(`${shapeName}: one attempt opens once the end is confirmed`, async (t) => {
+    const { store, ops } = setup(t);
+    await shape.seed(store, ops);
+    await shape.confirm(store);
+    const failing: Read = async () => {
+      throw Error("refused (403)");
+    };
+    assert.deepEqual(await tick(store, failing), [["a", 2]]);
+  });
+}
 
-test("each path opens one attempt once a read confirms the end", async (t) => {
-  for (const [pathName, seed] of Object.entries(PATHS)) {
-    const store = setup(t);
-    // Idle after its blocked report, or gone past the grace.
-    seed(store);
-    await observeSessions(store, async () =>
-      pathName === "retry" ? "idle" : "gone",
-    );
-    reconcileDeliveries(store, policy, {});
-    assert.deepEqual(
-      planReadyDispatches(store, policy).map((d) => [d.task, d.attempt]),
-      [["a", 2]],
-      pathName,
-    );
-  }
-});
-
-test("previousAttemptEnded holds only for the ends SW2.1 names", () => {
+test("previousAttemptEnded holds only for the ends SW2.1 and SW2.2 name", () => {
   const now = Date.parse("2026-11-24T12:00:00.000Z"),
     settled = new Date(now - GONE_GRACE_MS).toISOString(),
-    fresh = new Date(now - 1000).toISOString();
+    fresh = new Date(now - 1000).toISOString(),
+    before = new Date(now - 5000).toISOString(),
+    stop = { stop: "x", at: new Date(now - 2000).toISOString() };
   const rows: [Record<string, unknown>, boolean][] = [
     [{ status: "closed" }, true],
     [{ status: "lost" }, true],
@@ -148,6 +204,9 @@ test("previousAttemptEnded holds only for the ends SW2.1 names", () => {
     [{ status: "idle", report: { kind: "progress" } }, false],
     [{ status: "idle", report: { kind: "question" } }, false],
     [{ status: "idle" }, false],
+    [{ status: "idle", statusAt: fresh, interrupted: stop }, true],
+    [{ status: "idle", statusAt: before, interrupted: stop }, false],
+    [{ status: "working", statusAt: fresh, interrupted: stop }, false],
     [{ status: "working", report: { kind: "done" } }, false],
     [{ status: "queued" }, false],
     [{ status: "unknown" }, false],

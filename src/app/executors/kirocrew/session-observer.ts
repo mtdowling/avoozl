@@ -12,7 +12,11 @@
 // hold it). It cannot tell a closed session from a lost one, so "gone" is
 // not final: a gone worker is resumed once, and a second vanish opens a
 // decision (delivery.mjs).
-import { liveAttempt, previousAttemptEnded } from "../../delivery/delivery.ts";
+import {
+  liveAttempt,
+  previousAttemptEnded,
+  statusRead,
+} from "../../delivery/delivery.ts";
 import { ingestToolRows, toolCallsReadable } from "../../flow/flow.ts";
 import {
   listSessionBindings,
@@ -47,8 +51,7 @@ export async function observeSessions(
     // the workers they opened on another crew. A finished attempt is still
     // read until a status confirms it ended, so the next attempt may open.
     if (
-      binding.source !== "tick" ||
-      binding.relay ||
+      !statusRead(binding) ||
       (!liveAttempt(binding) && previousAttemptEnded(binding, now))
     )
       continue;

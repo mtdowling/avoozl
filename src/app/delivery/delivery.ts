@@ -77,6 +77,7 @@ import { specFolderPath } from "../specs/specs-path.ts";
 import {
   FINAL_STATUSES,
   listSessionBindings,
+  stoppedAt,
   checkInStep,
   unansweredCheckIns,
 } from "../sessions/session-bindings.ts";
@@ -1234,14 +1235,27 @@ const ENDING_REPORTS = new Set(["done", "blocked", "wait"]);
 // The only test of whether a task may get a new worker attempt (SW2, §D2):
 // its executor confirmed the previous one ended. A refused or failed status
 // read leaves the stored status as it was, so it never counts as an end;
-// quiet, a missed message or an expired lease never does either.
+// quiet, a missed message or an expired lease never does either. A stop
+// Avoozl sent ends the attempt once a read after it finds the session idle
+// (SW2.2): Kiro Crew keeps a stopped chat, so idle is all it can say.
 export const previousAttemptEnded = (
-  binding: Pick<SessionBinding, "status" | "statusAt" | "boundAt" | "report">,
+  binding: Pick<
+    SessionBinding,
+    "status" | "statusAt" | "boundAt" | "report" | "interrupted"
+  >,
   now: number,
 ) =>
   FINAL_STATUSES.has(binding.status ?? "") ||
   goneSettled(binding, now) ||
-  (binding.status === "idle" && ENDING_REPORTS.has(binding.report?.kind ?? ""));
+  (binding.status === "idle" &&
+    (ENDING_REPORTS.has(binding.report?.kind ?? "") ||
+      (stoppedAt(binding) > 0 &&
+        Date.parse(binding.statusAt ?? "") >= stoppedAt(binding))));
+
+// An attempt whose session status Avoozl reads: one the tick opened here.
+// A hand take or a relay has no session read, so its final report is its end.
+export const statusRead = (binding: { source?: string; relay?: unknown }) =>
+  binding.source === "tick" && !binding.relay;
 
 export const liveAttempt = (
   binding: Pick<SessionBinding, "interrupted" | "status" | "report">,
@@ -2026,7 +2040,7 @@ export function busyTaskIds(
     // A retry or a vanished resume opens only once the guard holds.
     if (
       !delivery?.attempts.some((a) => a.attempt === binding.attempt) ||
-      !previousAttemptEnded(binding, now)
+      (statusRead(binding) && !previousAttemptEnded(binding, now))
     )
       claimed.add(taskId);
   }

@@ -533,6 +533,10 @@ const STATUSES = new Set([
 ]);
 export const FINAL_STATUSES = new Set(["closed", "lost"]);
 
+// When Avoozl's full stop of a session took effect, or 0.
+export const stoppedAt = (binding: Pick<SessionBinding, "interrupted">) =>
+  Date.parse(String((binding.interrupted as { at?: unknown })?.at ?? "")) || 0;
+
 // The roster is text: one line per session, "`<slot>` (<title>) — <status>…",
 // or "`<slot>` — <status> (…)" for closed and lost rows. The bound title is
 // skipped first, so a title holding " — idle" cannot pose as a status.
@@ -585,11 +589,17 @@ export function recordSessionStatus(
       reading && JSON.stringify(reading) !== JSON.stringify(binding.served)
         ? reading
         : null;
-    if (!served && (!status || binding.status === status))
+    // The first read after Avoozl stopped the session confirms the stop
+    // (SW2.2), so it is kept even when the status is the same.
+    const confirms =
+      !!status &&
+      stoppedAt(binding) >
+        Date.parse(binding.statusAt ?? binding.boundAt ?? "");
+    if (!served && !confirms && (!status || binding.status === status))
       return { binding, status, changed: false };
     const next: SessionBinding = {
       ...binding,
-      ...(status && status !== binding.status
+      ...(status && (confirms || status !== binding.status)
         ? { status, statusAt: new Date().toISOString() }
         : {}),
       ...(served ? { served } : {}),
