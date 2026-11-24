@@ -6,7 +6,17 @@
 import { Input } from './ui/Input'
 import { Field, fieldDescribedBy } from './ui/Field.tsx'
 import { RadioFold } from './ui/RadioFold.tsx'
-import { CONFLICT_DEFAULTS, MERGE_METHODS, MERGE_METHOD_TEXT, PR_MODES, PR_MODE_TEXT, valueSource, type RepositoryForm } from './settings-api.ts'
+import {
+  CONFLICT_DEFAULTS,
+  CONFLICT_MODES,
+  CONFLICT_MODE_TEXT,
+  MERGE_METHODS,
+  MERGE_METHOD_TEXT,
+  PR_MODES,
+  PR_MODE_TEXT,
+  valueSource,
+  type RepositoryForm,
+} from './settings-api.ts'
 import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Stack } from './ui/Stack'
@@ -34,7 +44,7 @@ type Part = { id: string; repository: RepositoryForm; set: (change: Partial<Repo
 export const LANDING_PART_TEXT = {
   conflicts: {
     title: 'Conflicts',
-    blurb: "How many times a landing conflict goes back to the task's worker chat before Avoozl asks you.",
+    blurb: "What a conflict with the base does, and how many times it goes back to the task's worker chat before Avoozl asks you.",
   },
   merge: {
     title: 'Who merges',
@@ -48,6 +58,17 @@ export const LANDING_MODES = ['direct', 'pr', 'off'] as const
 export function ConflictFields({ id, repository, set }: Part) {
   return (
     <Stack gap={3} data-conflicts>
+      <RadioFold
+        name={`${id}-conflict-mode`}
+        label="When the branch conflicts"
+        value={(repository.conflictMode || 'fix') as (typeof CONFLICT_MODES)[number]}
+        onChange={(value) => set({ conflictMode: value })}
+        sections={CONFLICT_MODES.map((mode) => ({
+          key: mode,
+          title: `${CONFLICT_MODE_TEXT[mode].title} (conflicts.mode: ${mode})`,
+          line: `${CONFLICT_MODE_TEXT[mode].line}${!repository.conflictMode && mode === 'fix' ? ' Not set on this repository; this is the default.' : ''}`,
+        }))}
+      />
       <Line
         id={`${id}-max-attempts`}
         label="Attempts per conflict"

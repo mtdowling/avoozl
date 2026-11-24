@@ -2295,6 +2295,30 @@ export class GitHubClient {
     return data?.markPullRequestReadyForReview?.pullRequest ?? null;
   }
 
+  // GitHub auto-merge, armed on a pull request by its node id for one exact
+  // head (`expectedHeadOid`): a later push disarms it (workflow rule 17.7).
+  async enablePullRequestAutoMerge(
+    nodeId: string,
+    { head, method }: { head: string; method: string },
+  ) {
+    const data = await this.graphql<{
+      enablePullRequestAutoMerge?: {
+        pullRequest?: { number?: number } | null;
+      } | null;
+    }>(
+      `mutation($input:EnablePullRequestAutoMergeInput!){enablePullRequestAutoMerge(input:$input){pullRequest{number}}}`,
+      {
+        input: {
+          pullRequestId: nodeId,
+          expectedHeadOid: head,
+          mergeMethod: method.toUpperCase(),
+        },
+      },
+      "arm auto-merge on the pull request",
+    );
+    return data?.enablePullRequestAutoMerge?.pullRequest ?? null;
+  }
+
   // The public crew audit's reads (R85.6): issue and pull request comments,
   // issues and pull requests updated since `since`, the most recently
   // updated pull requests, and the branches under `prefix`.

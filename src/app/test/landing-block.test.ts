@@ -48,6 +48,7 @@ test("Avoozl's own repository keeps pr, draft pull requests, squash and 2 rounds
     mergeBatch: "auto",
     commitPrefix: "",
     maxAttempts: 2,
+    conflictMode: "fix",
   });
   assert.deepEqual(applyLandingModes(store as unknown as Store, config), []);
   assert.equal(store.get("repositories", "avoozl")?.landing, "pr");
