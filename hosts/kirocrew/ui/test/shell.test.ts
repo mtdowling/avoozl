@@ -64,7 +64,10 @@ for (const dark of [false, true]) {
     assert.equal(wider, nav.width + 16)
     assert.equal(await page.evaluate(`localStorage.getItem(${JSON.stringify(NAV.key)})`), String(wider), 'resizing saves the width')
     await page.reload()
-    await page.until(`Boolean(document.querySelector('[data-left-nav="open"]'))`)
+    // The nav can mount before its saved width is applied to the layout.
+    await page.until(`
+      document.querySelector('[data-left-nav="open"]')?.getBoundingClientRect().width === ${wider}
+    `)
     assert.equal((await box('[data-left-nav]')).width, wider, 'the width is remembered')
     // Collapse.
     await page.evaluate(`document.querySelector('[data-nav-collapse]').click()`)

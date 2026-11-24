@@ -3,6 +3,7 @@
 import test, { type TestContext } from "node:test";
 import assert from "node:assert/strict";
 import { fixture } from "../../test/fixtures.ts";
+import { found } from "../../test/view-shapes.ts";
 import { landNext, landingQueue, enqueueLanding } from "../landing-queue.ts";
 import {
   approveMerge,
@@ -319,6 +320,24 @@ test("a later tick with fresh steps records the maintainer's merge", async (t) =
   // The queue of the first setup; only the steps are new.
   assert.equal((await landNext(x.store, Q, steps(github))).state, "landed");
   assert.equal(landingQueue(x.store, Q).length, 0);
+});
+
+test("a merged pull request whose head is not the checked commit is not counted as landed", async (t) => {
+  // Nearby input: the same merge at the checked head is observed as landed.
+  const observed = async (head: string) => {
+    const github = fakeGithub({
+      pull: {
+        exists: true,
+        head: { sha: head },
+        merged_at: "2026-11-17T01:00:00Z",
+        merged_by: { login: "maintainer" },
+      },
+    });
+    const x = await setup(t, github);
+    return x.steps.observe?.(found(landingQueue(x.store, Q)[0]));
+  };
+  assert.equal((await observed(COMMIT))?.merged, true);
+  assert.equal(await observed("d".repeat(40)), null);
 });
 
 test("a fork in the target's own organization names its head repository", async (t) => {
