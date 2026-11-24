@@ -167,6 +167,13 @@ test("repository configure then rebuild finds the specs, ticks, claims and spec 
     env,
   );
   assert.equal(out.status, 0, out.stderr);
+  // .avoozl.json owns the repository, so rebuild finds it again.
+  assert.equal(
+    JSON.parse(
+      fs.readFileSync(path.join(checkout.root, ".avoozl.json"), "utf8"),
+    ).repositories.app.root,
+    ".",
+  );
   out = await run(["rebuild", ...workspace], env);
   assert.equal(out.status, 0, out.stderr);
   const rebuilt: {

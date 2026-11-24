@@ -421,6 +421,7 @@ export async function landPullRequests(
         // GitHub rights are the signed-in login's.
         target = String(repository.github),
         githubLogin = String((await personOf(github, target)) ?? ""),
+        landing = landingSettings(config, target, repository),
         required =
           readGitHubPolicyOrNull(workspaceRoot)?.repositories?.[target]
             ?.requiredChecks ?? [],
@@ -435,7 +436,7 @@ export async function landPullRequests(
           checks: required,
           local: localRequired(store, repository, required),
           login: githubLogin,
-          method: "merge",
+          method: landing.method,
           env,
           machine,
           configFile,
@@ -444,7 +445,7 @@ export async function landPullRequests(
             typeof repository.commitPrefix === "string"
               ? repository.commitPrefix
               : undefined,
-          pr: landingSettings(config, target, repository).pr,
+          pr: landing.pr,
         });
       const result = await landNext(
         store,
