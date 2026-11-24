@@ -134,7 +134,7 @@ const REMOVED_FACTS: Record<string, string> = {
 const DEFAULTS: Record<string, KeySpec> = {
   repo: { as: "repository", type: "text" },
 };
-const SPEC_KEYS: string[] = [];
+const SPEC_KEYS = ["category"];
 const FRONT_KEYS = [...Object.keys(DEFAULTS), ...SPEC_KEYS];
 // Front-matter keys the list form removed: the lint error
 // `frontmatter.removed-key`.

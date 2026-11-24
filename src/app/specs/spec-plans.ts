@@ -53,6 +53,7 @@ import {
   LETTERED,
   NAMED,
   NUMBERED,
+  refSources,
   resolveRefs,
   splitRefs,
   taskToken,
@@ -731,10 +732,16 @@ export function parseSpec({
         "A spec has requirements.md or bugfix.md, not both. Remove one.",
       ),
     );
-  // The plan's category lives in YAML front-matter at the top of its prose
-  // (Requirement 30.9). A block a person must fix is a warning: it changes
-  // only how the plan is grouped, never what is delivered.
-  for (const file of ["requirements.md", "bugfix.md"]) {
+  // Category front matter lives in the requirements or the single spec file.
+  const holders = taskFiles(files),
+    tasksFile = taskFile(files),
+    tasksText = specTasks(files)?.text ?? "";
+  const proseFiles = new Set([
+    "requirements.md",
+    "bugfix.md",
+    ...(tasksFile === TASKS_FILE ? [] : [tasksFile]),
+  ]);
+  for (const file of proseFiles) {
     const problem = frontMatter(files[file]).problem;
     if (problem)
       diagnostics.push(
@@ -745,9 +752,6 @@ export function parseSpec({
   }
   // The task list is in tasks.md or one file's `## Tasks` section
   // (spec-tasks.mjs); the prose files are optional.
-  const holders = taskFiles(files),
-    tasksFile = taskFile(files),
-    tasksText = specTasks(files)?.text ?? "";
   if (!holders.length)
     diagnostics.push(
       diagnostic(
@@ -789,6 +793,7 @@ export function parseSpec({
     );
 
   const items = specItems(name, tasksText),
+    sources = refSources(files, tasksFile),
     byKey = new Map<string, SpecItem>();
   for (const item of items) {
     if (!item.key) {
@@ -819,7 +824,7 @@ export function parseSpec({
         ),
       );
     else byKey.set(item.key, item);
-    const resolved = resolveRefs(item, files);
+    const resolved = resolveRefs(item, sources);
     item.resolvedRefs = resolved.refs;
     for (const found of resolved.problems)
       diagnostics.push(
@@ -1440,7 +1445,10 @@ export function readCritique(
 // The category written in the spec's front-matter, or null. Avoozl reads it
 // and never writes it, and never guesses one (Requirement 30.9).
 export function specCategory(files: Record<string, string | undefined> = {}) {
-  return frontMatter(files["requirements.md"] ?? files["bugfix.md"]).category;
+  const filename = taskFile(files);
+  const combined = filename === TASKS_FILE ? undefined : files[filename];
+  return frontMatter(files["requirements.md"] ?? files["bugfix.md"] ?? combined)
+    .category;
 }
 
 export function specTitle(spec: {
