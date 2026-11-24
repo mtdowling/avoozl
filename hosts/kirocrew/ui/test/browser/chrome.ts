@@ -223,6 +223,11 @@ export async function launch(chrome: string) {
         await call('Page.navigate', { url })
         await loaded
       },
+      async reload() {
+        const loaded = once('Page.loadEventFired', sessionId)
+        await call('Page.reload')
+        await loaded
+      },
       evaluate,
       // What makes the page scroll sideways: the deepest elements outside a
       // scroll box that run past the window, or whose text spills out, as

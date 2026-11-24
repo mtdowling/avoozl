@@ -50,7 +50,7 @@ for (const dark of [false, true]) {
   test(`desktop (${theme}): the nav is a left column; it collapses to a thin bar with vertical text, and both are remembered`, { skip }, async () => {
     await page.open(harness.url({ page: 'app', theme }), { width: 1280, height: 800, dark })
     await page.evaluate('localStorage.clear()')
-    await page.open(harness.url({ page: 'app', theme }), { width: 1280, height: 800, dark })
+    await page.reload()
     await page.until(`Boolean(document.querySelector('[data-left-nav="open"]'))`)
     const nav = await box('[data-left-nav]')
     const pane = await box('[data-avoozl-pane]')
@@ -62,7 +62,8 @@ for (const dark of [false, true]) {
     await settle()
     const wider = (await box('[data-left-nav]')).width
     assert.equal(wider, nav.width + 16)
-    await page.open(harness.url({ page: 'app', theme }), { width: 1280, height: 800, dark })
+    assert.equal(await page.evaluate(`localStorage.getItem(${JSON.stringify(NAV.key)})`), String(wider), 'resizing saves the width')
+    await page.reload()
     await page.until(`Boolean(document.querySelector('[data-left-nav="open"]'))`)
     assert.equal((await box('[data-left-nav]')).width, wider, 'the width is remembered')
     // Collapse.
@@ -71,7 +72,7 @@ for (const dark of [false, true]) {
     const bar = await box('[data-left-nav="collapsed"]')
     assert.ok(bar.width <= 40, `a thin bar (${bar.width})`)
     assert.equal(await page.evaluate(`getComputedStyle(document.querySelector('[data-left-nav="collapsed"] [data-nav-collapsed-item]')).writingMode`), 'vertical-rl')
-    await page.open(harness.url({ page: 'app', theme }), { width: 1280, height: 800, dark })
+    await page.reload()
     await page.until(`Boolean(document.querySelector('[data-left-nav]'))`)
     assert.ok(await page.evaluate(`Boolean(document.querySelector('[data-left-nav="collapsed"]'))`), 'collapse is remembered')
     await page.evaluate(`document.querySelector('[data-nav-expand]').click()`)
