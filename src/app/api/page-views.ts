@@ -9,6 +9,7 @@ import {
   isManual,
   taskAuthority,
   taskCompletion,
+  taskDone,
   taskKind,
   taskRepository,
   taskRoute,
@@ -54,8 +55,7 @@ import { taskPluginChecks } from "../plugins/check-stages.ts";
 import { contextChip } from "../context/context-record.ts";
 
 const BLOCKING = new Set(["requires", "sequence"]);
-// The fields a task's Graph state is judged from: a stored task, or the
-// task.get row built from one.
+// The fields the needs-you checks read from a task.
 type StateTask = Pick<
   Task,
   "id" | "title" | "status" | "decision" | "planArchived"
@@ -383,7 +383,7 @@ function graphStates(store: Store, data: Snapshot) {
     if (live.has(task.id)) return "running";
     // Done as `next` counts it once nothing else holds it: the task's
     // completion level reached, such as a leaf merged into its base.
-    if (completionReached(task, undefined, complete)) return "done";
+    if (taskDone(task, complete)) return "done";
     return ready.has(task.id) ? "ready" : "waiting";
   };
   return {
@@ -403,10 +403,14 @@ const STATE_LABELS = new Map(NODE_STATES);
 // it, for `query` and `task.get`. The rule is graph.view's own, so the two
 // never disagree. The stored status stays; the state sits beside it.
 export function withGraphState(store: Store, data: Snapshot) {
-  const { state } = graphStates(store, data);
+  const { state, complete } = graphStates(store, data);
   return (task: Task & Record<string, unknown>) => {
     const id = state(task),
-      word = { state: id, stateLabel: STATE_LABELS.get(id) },
+      word = {
+        state: id,
+        stateLabel: STATE_LABELS.get(id),
+        complete: taskDone(task, complete),
+      },
       out: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(task)) {
       out[key] = value;
@@ -578,13 +582,13 @@ export function graphView(
       completion: taskCompletion(task),
       repository: taskRepository(task),
       status: task.status ?? null,
-      complete: complete(task.status),
+      complete: taskDone(task, complete),
       batch: batchOf.get(task.id) ?? null,
       ready: ready.has(task.id),
       state: state(task),
       execution: taskExecution(
         task,
-        complete(task.status),
+        taskDone(task, complete),
         deliveries.get(task.id) ?? null,
         bindings,
       ),
@@ -1025,7 +1029,7 @@ export function deliveryView(
       // A sub-issue link GitHub refused or the cap left out (R59.9, R59.15).
       subIssue: task.github?.unlinked ?? null,
       status: task.status ?? null,
-      complete: statusComplete(data, task.status),
+      complete: taskDone(task, (status) => statusComplete(data, status)),
       repository: taskRepository(task),
       ...ownership(task),
       sessions: (bindings.get(id) || [])
@@ -1304,7 +1308,7 @@ export function conflictsView(
   );
   for (const id of manual) {
     const task = byId.get(id);
-    if (!task || complete(task.status)) continue;
+    if (!task || taskDone(task, complete)) continue;
     items.push({
       kind: "needs-human",
       taskId: id,
@@ -1328,7 +1332,7 @@ export function conflictsView(
       task && optionalGet<DeliveryRow>(store, "task_deliveries", task.id);
     if (
       !task ||
-      complete(task.status) ||
+      taskDone(task, complete) ||
       delivery?.state === "integrated" ||
       !(
         FINAL_STATUSES.has(binding.status ?? "") || binding.status === "gone"

@@ -91,6 +91,7 @@ import {
   completionReached,
   isManual,
   isRefused,
+  taskDone,
   taskKind,
   taskRepository,
 } from "../../work-model.ts";
@@ -213,7 +214,7 @@ export function nextView(
             link: sessionUrl(binding.slot),
           }
         : {};
-    if (complete(task.status) || completionReached(task, undefined, complete)) {
+    if (taskDone(task, complete)) {
       result.done.push(item);
       continue;
     }
