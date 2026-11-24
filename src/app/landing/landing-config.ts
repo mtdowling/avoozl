@@ -3,6 +3,9 @@
 import type { Store } from "../store/store.ts";
 
 export const DEFAULT_CONFLICT_ROUNDS = 2;
+// What a conflict with the base does (R87.6): `fix` sends it to the task's
+// worker to resolve in the same pull request; `ask` puts it in Needs you.
+export const CONFLICT_MODES = Object.freeze(["fix", "ask"]);
 const MAX_ROUNDS = 10;
 export const LANDING_MODES = Object.freeze(["direct", "pr", "off"]);
 // How a `pr` repository's pull requests open and merge (R119):
@@ -24,7 +27,10 @@ export interface LandingConfig {
   github?: {
     repositories?: Record<
       string,
-      { landing?: unknown; conflicts?: { maxAttempts?: number } }
+      {
+        landing?: unknown;
+        conflicts?: { maxAttempts?: number; mode?: string };
+      }
     >;
   };
   // validateLandingConfig checks unionPaths is a list of paths.
@@ -44,7 +50,8 @@ interface RepositoryRow {
 // The one landing block of a GitHub repository (design §4.25, R87.1): a key
 // in the block wins, then the default. `github` is the owner/name, and
 // `repository` the checkout's repository row, for its `landing`.
-// {mode, pr, method, mergeBatch, commitPrefix, maxAttempts}; `mode` is null when nothing sets it.
+// {mode, pr, method, mergeBatch, commitPrefix, maxAttempts, conflictMode};
+// `mode` is null when nothing sets it.
 // `pr` is the repository's landing.pr, then the workspace's, then draft.
 export function landingSettings(
   config: LandingConfig | null | undefined,
@@ -60,6 +67,7 @@ export function landingSettings(
     mergeBatch: block.mergeBatch ?? "auto",
     commitPrefix: block.commitPrefix ?? "",
     maxAttempts: entry?.conflicts?.maxAttempts ?? DEFAULT_CONFLICT_ROUNDS,
+    conflictMode: entry?.conflicts?.mode ?? "fix",
   };
 }
 

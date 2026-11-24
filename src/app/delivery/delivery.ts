@@ -1,5 +1,6 @@
 import { kirocrewRequest } from "../executors/kirocrew.ts";
 import { commitSubject } from "../landing/landing-config.ts";
+import { readGitHubPolicyOrNull } from "../github/github-policy.ts";
 import { briefCell } from "../workers/worker-briefs.ts";
 import { cliCommand } from "../workers/report-command.ts";
 import { repositoryExecutor } from "../executors/process.ts";
@@ -3232,12 +3233,14 @@ export async function rebaseForIntegration(
       .split("\n")
       .filter(Boolean);
     await inTask(["merge", "--abort"]).catch(() => {});
+    // The base head it conflicted with: one try per conflict (R87.6).
+    const baseHead = await inTask(["rev-parse", target]).catch(() => null);
     throw Object.assign(
       Error(
         `Merging ${target} into the task branch failed: ${(error as Error).message.split("\n")[0]}`,
       ),
       { status: 409 },
-      files.length ? { conflict: { base: target, files } } : {},
+      files.length ? { conflict: { base: target, files, baseHead } } : {},
     );
   }
   const head = await inTask(["rev-parse", "HEAD"]);
@@ -3342,9 +3345,26 @@ export async function integrateVerified(
           continue;
         }
       }
+      // A fix of a landing conflict keeps every line the base added, or
+      // says why, before anything is pushed (workflow rule 16.6).
+      const { checkResolution } = await import(
+          "../landing/landing-conflicts.ts"
+        ),
+        resolution = await checkResolution(store, delivery, repository, {
+          at,
+          direct: viaDirect,
+        });
+      if (resolution && !resolution.ok) {
+        if (resolution.notice) notify.push(resolution.notice);
+        store.transaction(() =>
+          store.put("task_deliveries", resolution.delivery),
+        );
+        continue;
+      }
+      const checked = resolution?.delivery ?? delivery;
       if (viaPullRequest) {
         next = await queuePullRequest(store, {
-          delivery,
+          delivery: checked,
           repository,
           worktree,
           task,
@@ -3355,7 +3375,7 @@ export async function integrateVerified(
         continue;
       }
       if (viaDirect) {
-        next = queueDirect(store, { delivery, repository, task, at });
+        next = queueDirect(store, { delivery: checked, repository, task, at });
         store.transaction(() => store.put("task_deliveries", next));
         continue;
       }
@@ -3377,7 +3397,7 @@ export async function integrateVerified(
         expectedCommit: delivery.commit,
       });
       next = {
-        ...delivery,
+        ...checked,
         state: "integrated",
         integratedCommit: entry.integratedCommit,
         into: entry.into,
@@ -3388,7 +3408,7 @@ export async function integrateVerified(
       // a refusal with its message.
       const error = caught as Error & {
         contention?: unknown;
-        conflict?: { base: string; files: string[] };
+        conflict?: { base: string; files: string[]; baseHead: string | null };
       };
       if (error.contention) continue;
       // The base moved under a verified task and the merge conflicts: the
@@ -3399,6 +3419,12 @@ export async function integrateVerified(
         const { sendConflictBack } = await import(
           "../landing/landing-conflicts.ts"
         );
+        const repositoryId = worktree?.repository || taskRepository(task) || "",
+          github = store.get<Repository>("repositories", repositoryId)?.github,
+          policy = github
+            ? readGitHubPolicyOrNull(contentBinding(store)?.workspaceRoot)
+                ?.repositories?.[github]
+            : null;
         const sent = sendConflictBack(
           store,
           {
@@ -3408,10 +3434,18 @@ export async function integrateVerified(
               tasks: [delivery.taskId],
               base: error.conflict.base,
               files: error.conflict.files,
-              baseHead: null,
+              baseHead: error.conflict.baseHead,
+              repositoryId,
+              spec: task?.planId ?? null,
             },
           },
-          { now },
+          {
+            now,
+            mode: policy?.conflicts.mode ?? "fix",
+            ...(policy?.conflicts.maxAttempts != null
+              ? { rounds: policy.conflicts.maxAttempts }
+              : {}),
+          },
         );
         messages.push(...sent.messages);
         notify.push(...sent.notify);

@@ -1385,8 +1385,12 @@ want it to.
    **Merge** in Avoozl (`landing.merge`) for that exact head, which merges
    it guarded by the head.
 5. With `auto`, Avoozl SHALL merge the pull request from the tick once checks
-   and reviews pass on the exact head. Avoozl SHALL NOT arm GitHub
-   auto-merge.
+   and reviews pass on the exact head. While it waits only for a review,
+   Avoozl MAY arm GitHub auto-merge for that exact head, and only once the
+   head contains the current base and its checks passed. After each later
+   merge of the base into the branch it SHALL arm it again once the checks
+   pass on the new head. It SHALL NOT arm it with `draft` or `ready`, or on
+   a pull request that closes a labeled issue.
 6. **Approve** and **Merge** SHALL be a person's only: refused for agents,
    MCP and the tick.
 7. WHEN a pull request closes without merging THEN its task SHALL stay
@@ -1549,9 +1553,20 @@ pressing merge.
    work lock (`withWorkLock`, `src/app/git/git.ts`). Stop the line SHALL
    pause the queue; a paused queue SHALL keep its order.
 6. WHEN a merge of the base into the task branch conflicts THEN Avoozl SHALL
-   send the conflict to the same worker with the list of conflicted files,
-   for at most the repository's `conflicts.maxAttempts` rounds (default 2).
-   A later failure SHALL go to Needs you.
+   send the conflict to the same worker with the list of conflicted files.
+   The worker SHALL merge the base into the same branch, never rebase or
+   force push, so an open pull request stays the same pull request. Each
+   conflict SHALL get one try, within the repository's
+   `conflicts.maxAttempts` rounds (default 2); the same base head
+   conflicting again SHALL go to Needs you. `conflicts.mode` SHALL be `fix`
+   (the default) or `ask`, which sends every conflict to Needs you. A pull
+   request a person opened SHALL keep its conflict for them, and Stop the
+   line SHALL hold the round until it clears. Before the fix is pushed, a
+   lost-change check SHALL confirm that every line the base added in a
+   conflicted file is still there or is quoted with a reason in the
+   worker's report. WHEN the check fails THEN Avoozl SHALL push nothing and
+   raise one Needs you row. After the push, Avoozl SHALL post one comment on
+   the pull request naming each conflicted file and how it was resolved.
 9. Every push and merge SHALL pass the pre-push content rule (Requirement 40)
    on the commit messages, the branch name and the added lines first.
 10. A push or merge made by the tick SHALL run as the tick's own process,
