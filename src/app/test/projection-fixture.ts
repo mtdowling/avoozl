@@ -120,11 +120,11 @@ export const BATCH_SPEC = (() => {
     "tasks.md": [
       "# Tasks",
       "",
-      "- [ ] 1 Goal",
-      "  - [ ] 1.1 First",
-      "  - [ ] 1.2 Second",
-      "  - [ ] 1.3 Third",
-      "  - [ ] 1.4 Fourth",
+      "- [ ] `1` Goal",
+      "  - [ ] `1.1` First",
+      "  - [ ] `1.2` Second",
+      "  - [ ] `1.3` Third",
+      "  - [ ] `1.4` Fourth",
       "",
     ].join("\n"),
     "avoozl/manifest.json": JSON.stringify({

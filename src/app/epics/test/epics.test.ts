@@ -76,7 +76,7 @@ function epic(
   writeSpec(root, name, {
     "requirements.md": `# Epic ${name}\n\nRewrite the runtime.\n\n## What done means\n\nEvery member plan is done.\n`,
     "design.md": "# Design\n\nAlpha, then beta.\n",
-    "tasks.md": `# Plans\n\n${members.map((m, i) => `- [ ] ${i + 1} Plan ${m}\n`).join("")}`,
+    "tasks.md": `# Plans\n\n${members.map((m, i) => `- [ ] \`${i + 1}\` Plan ${m}\n`).join("")}`,
     "avoozl/manifest.json": JSON.stringify(
       {
         kind: "epic",
@@ -120,7 +120,7 @@ test("front-matter names an epic beside a category; a bad name is a problem", ()
 
 test("phases come from the nearest heading, else No phase", () => {
   const text =
-    "# Tasks\n\n- [ ] 0 Before\n\n## Phase 1: Load\n\n- [ ] 1 One\n\n### Detail\n\n- [ ] 2 Two\n\n## Phase 1: Load\n\n- [ ] 3 Three\n";
+    "# Tasks\n\n- [ ] `0` Before\n\n## Phase 1: Load\n\n- [ ] `1` One\n\n### Detail\n\n- [ ] `2` Two\n\n## Phase 1: Load\n\n- [ ] `3` Three\n";
   const byLine = headingPhases(text);
   assert.equal(
     byLine.get(3),
@@ -259,8 +259,8 @@ const owners = (store: Store) =>
 
 test("an epic from before Requirement 59 gets its plan on open, once", async (t) => {
   const { root, store, ops } = workspace(t);
-  plan(root, "alpha", { tasks: "- [ ] 1 One\n", entries: { 1: leaf() } });
-  plan(root, "beta", { tasks: "- [ ] 1 One\n", entries: { 1: leaf() } });
+  plan(root, "alpha", { tasks: "- [ ] `1` One\n", entries: { 1: leaf() } });
+  plan(root, "beta", { tasks: "- [ ] `1` One\n", entries: { 1: leaf() } });
   await approve(ops, "alpha");
   await approve(ops, "beta");
   writeLegacy(store);
@@ -302,7 +302,7 @@ test("an epic from before Requirement 59 gets its plan on open, once", async (t)
 
 test("a commit gives each epic from before Requirement 59 its plan", async (t) => {
   const { root, store, ops } = workspace(t);
-  plan(root, "alpha", { tasks: "- [ ] 1 One\n", entries: { 1: leaf() } });
+  plan(root, "alpha", { tasks: "- [ ] `1` One\n", entries: { 1: leaf() } });
   await approve(ops, "alpha");
   writeLegacy(store);
   store.mutate("Any change", () => {});

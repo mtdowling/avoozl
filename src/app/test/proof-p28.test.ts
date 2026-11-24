@@ -87,9 +87,15 @@ const leaf = (summary: string, extra: Record<string, unknown> = {}) => ({
 });
 
 const tasksMd = (note: string) =>
-  ["# Tasks", "", note, "", "- [ ] 1 Write a", "- [ ] 2 Write b on a", ""].join(
-    "\n",
-  );
+  [
+    "# Tasks",
+    "",
+    note,
+    "",
+    "- [ ] `1` Write a",
+    "- [ ] `2` Write b on a",
+    "",
+  ].join("\n");
 
 const spec = (note = "Plain words only.") => ({
   "requirements.md": "# Content rules proof\n\nTwo leaves, a then b.\n",

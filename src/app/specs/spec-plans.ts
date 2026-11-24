@@ -51,8 +51,8 @@ import {
 import { graphBlockProblems } from "./graph.ts";
 import {
   LETTERED,
-  NAMED,
   NUMBERED,
+  TASK_ID,
   resolveRefs,
   splitRefs,
   taskToken,
@@ -81,8 +81,11 @@ export interface SpecItem {
   id: string | null;
   title: string;
   refs?: { requirements: string[]; design: string[] };
+  // The task text after the ID, refs and tags included: what a lease or
+  // another runner names the task by (Workflow v1 15.10). `title` drops
+  // the refs for display.
+  text?: string;
   line: number;
-  bareId?: boolean;
   tagBeforeRefs?: boolean;
   mark: string;
   parent: Omit<SpecItem, "mark" | "parent"> | null;
@@ -569,13 +572,10 @@ export function specItems(name: string, text: string): SpecItem[] {
     if (!match) return;
     const mark = match[1].toLowerCase(),
       text = match[2].trim(),
-      // An ID may be a code span, `dl-1`, or bare; Avoozl writes it as a
-      // code span (taskToken), and this repository's spec lint refuses a
-      // bare one (Workflow v1 2.1).
+      // The ID is a code span (Workflow v1 2.1); a bare first word is none.
       quoted = /^`([^`\s]+)`(?:\s+|$)(.*)$/.exec(text),
-      [token = "", ...rest] = quoted
-        ? [quoted[1], quoted[2]]
-        : text.split(/\s+/),
+      token = quoted && TASK_ID.test(quoted[1]) ? quoted[1] : null,
+      rest = token ? (quoted?.[2] ?? "") : text,
       line = index + 1,
       {
         title,
@@ -583,21 +583,25 @@ export function specItems(name: string, text: string): SpecItem[] {
         ...refs
       }: ReturnType<typeof splitRefs> & {
         tagBeforeRefs?: boolean;
-      } = splitRefs(rest.join(" ")),
+      } = splitRefs(rest),
       indent = (/^\s*/.exec(raw)?.[0] ?? "").length;
     while (open.length && open[open.length - 1].indent >= indent) open.pop();
     const parent = open[open.length - 1]?.item ?? null,
-      marks = {
-        ...(quoted ? {} : { bareId: true }),
-        ...(tagBeforeRefs ? { tagBeforeRefs } : {}),
-      };
-    let item: Omit<SpecItem, "mark" | "parent">;
-    if (NUMBERED.test(token) || LETTERED.test(token)) {
-      const key = token.replace(/\.$/, "");
-      item = { key, id: `${name}.${key}`, title, refs, line, ...marks };
-    } else if (NAMED.test(token))
-      item = { key: token, id: token, title, refs, line, ...marks };
-    else item = { key: null, id: null, title: text, line };
+      // Numbers and lettered items are namespaced by the spec.
+      item: Omit<SpecItem, "mark" | "parent"> = !token
+        ? { key: null, id: null, title: text, line }
+        : {
+            key: token,
+            id:
+              NUMBERED.test(token) || LETTERED.test(token)
+                ? `${name}.${token}`
+                : token,
+            title,
+            text: rest.trim(),
+            refs,
+            line,
+            ...(tagBeforeRefs ? { tagBeforeRefs } : {}),
+          };
     items.push({ ...item, mark, parent });
     open.push({ indent, item });
   });
@@ -793,16 +797,21 @@ export function parseSpec({
   for (const item of items) {
     if (!item.key) {
       // A tick completes the task it names (spec-ticks.mjs): with no ID it
-      // names none.
-      const ticked = item.mark === "x";
+      // names none. A first word that could be an ID is one not yet in a
+      // code span (Workflow v1 2.1).
+      const word = item.title.split(/\s+/)[0],
+        bare = TASK_ID.test(word) && /[\d._-]/.test(word),
+        ticked = item.mark === "x" && !bare;
       diagnostics.push(
         diagnostic(
           ticked ? "task.ticked-unknown-id" : "task.missing-id",
           tasksFile,
           item.line,
-          ticked
-            ? `This item is ticked [x] but has no task ID, so it completes no task. Start it with a task ID, such as "- [x] 1.2 ${item.title.slice(0, 60)}".`
-            : `Start this item with a task ID, such as "- [ ] 1.2 ${item.title.slice(0, 60)}".`,
+          bare
+            ? `Write task ID "${word}" as a code span: ${taskToken(word.replace(/^(\d+(?:\.\d+)*)\.$/, "$1"))}.`
+            : ticked
+              ? `This item is ticked [x] but has no task ID, so it completes no task. Start it with a task ID, such as "- [x] \`1.2\` ${item.title.slice(0, 60)}".`
+              : `Start this item with a task ID, such as "- [ ] \`1.2\` ${item.title.slice(0, 60)}".`,
         ),
       );
       continue;
@@ -1563,20 +1572,16 @@ export function proposeSpecWork(
   // Its summary goes under the item as bullets.
   // A task never names checks; an older caller's list is ignored.
   const {
-    id: given,
+    id: key,
     title,
     summary,
     checks: _checks,
     ...entry
   } = proposal as Record<string, unknown>;
-  if (
-    typeof given !== "string" ||
-    !(NAMED.test(given) || NUMBERED.test(given) || LETTERED.test(given))
-  )
+  if (typeof key !== "string" || !TASK_ID.test(key))
     fail(
-      'Give the proposed task an ID with a separator, such as "cache-invalidation".',
+      'Give the proposed task an ID of letters, digits, ".", "_" or "-", such as "cache-invalidation".',
     );
-  const key = given.replace(/\.$/, "");
   if (typeof title !== "string" || /[\r\n]/.test(title))
     fail("Each task needs a title of 1–240 characters on one line.");
   validateProposal({ ...structuredClone(entry), title, summary });

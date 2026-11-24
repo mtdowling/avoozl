@@ -103,6 +103,8 @@ test("spec lint refuses a bare ID, an ID another spec holds, a task naming anoth
         "  - Each row is one token",
         "- [ ] p-2 Report unknown tokens",
         "  - Each unknown token has a line",
+        "- [ ] `p-3` Count tokens",
+        "  - Each file has a count",
         "",
       ].join("\n"),
       "design.md": "---\nkind: epic\nrepo: app\n---\n# Parser\n",
@@ -112,7 +114,7 @@ test("spec lint refuses a bare ID, an ID another spec holds, a task naming anoth
         "- [ ] `p-1` Reuse an ID",
         "  - It is refused",
         "- [ ] `r-1` Write the report",
-        "  - It waits for `p-2`",
+        "  - It waits for `p-3`",
         "- [ ] `r-2` Read the parser spec",
         "  - The parser spec's tokens appear in the report",
         "",
@@ -134,6 +136,6 @@ test("spec lint refuses a bare ID, an ID another spec holds, a task naming anoth
   );
   assert.match(
     run.stdout,
-    /tasks\.md:3 Task "r-1" names task p-2 of spec parser/,
+    /tasks\.md:3 Task "r-1" names task p-3 of spec parser/,
   );
 });

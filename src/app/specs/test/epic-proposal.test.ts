@@ -49,7 +49,7 @@ function parent(root: string, members: string[], entryExtra = {}) {
   writeSpec(root, "parent", {
     "requirements.md": "# Parent\n\nShared requirements: R1 and R2.\n",
     "design.md": "# Design\n\nOne sub-spec per repository.\n",
-    "tasks.md": `# Sub-specs\n\n${members.map((m, i) => `- [ ] ${i + 1} Sub-spec ${m}\n`).join("")}`,
+    "tasks.md": `# Sub-specs\n\n${members.map((m, i) => `- [ ] \`${i + 1}\` Sub-spec ${m}\n`).join("")}`,
     "avoozl/manifest.json": JSON.stringify(
       {
         kind: "epic",

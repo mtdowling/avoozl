@@ -122,19 +122,32 @@ test("each kind's IDs come from its own file, with the line they are on", () => 
   assert.equal(design.get("§D1"), 7);
 });
 
-test("a task ID reads the same bare or as a code span, and neither is a lint error", () => {
+test("a task ID is any code-span token, compared exactly; a bare one is no ID", () => {
   const items = specItems(
     "config",
-    "- [ ] `load-1` Load [R1.1] (§4.26)\n- [ ] load-2 Load more\n- [ ] 1.1 Numbered\n",
+    [
+      "- [ ] `load-1` Load [R1.1] (§4.26)",
+      "- [ ] `parse` Parse the file",
+      "- [ ] `P-4` Upper case",
+      "- [ ] `p-4` Lower case",
+      "- [ ] `1.1` Numbered",
+      "- [ ] load-2 Load more",
+      "",
+    ].join("\n"),
   );
   assert.deepEqual(
     items.map(({ key, id, title }) => ({ key, id, title })),
     [
       { key: "load-1", id: "load-1", title: "Load" },
-      { key: "load-2", id: "load-2", title: "Load more" },
+      { key: "parse", id: "parse", title: "Parse the file" },
+      { key: "P-4", id: "P-4", title: "Upper case" },
+      { key: "p-4", id: "p-4", title: "Lower case" },
       { key: "1.1", id: "config.1.1", title: "Numbered" },
+      { key: null, id: null, title: "load-2 Load more" },
     ],
   );
+  // Refs are cut from the title for display; the task text keeps them.
+  assert.equal(items[0].text, "Load [R1.1] (§4.26)");
   assert.deepEqual(items[0].refs, {
     requirements: ["R1.1"],
     design: ["§4.26"],
@@ -143,12 +156,9 @@ test("a task ID reads the same bare or as a code span, and neither is a lint err
   assert.equal(taskToken("load-1"), "`load-1`");
   assert.equal(taskToken("1.2"), "`1.2`");
   const parsed = parseSpec(spec("- [ ] load-2 Load more\n  - It loads\n"));
-  assert.deepEqual(problems(parsed), []);
-  assert.equal(
-    specHash(spec("- [ ] load-2 Load more\n  - It loads\n").files) ===
-      specHash(spec("- [ ] `load-2` Load more\n  - It loads\n").files),
-    false,
-    "the form is part of the spec text",
+  assert.deepEqual(
+    parsed.diagnostics.map((d) => [d.code, d.message]),
+    [["task.missing-id", 'Write task ID "load-2" as a code span: `load-2`.']],
   );
 });
 
@@ -257,8 +267,8 @@ test("approval puts a task's refs on it, and graph.view shows them", async (t) =
     "requirements.md": REQUIREMENTS,
     "design.md": DESIGN,
     "tasks.md": legacy["tasks.md"].replace(
-      "1.2 Validate loaded config",
-      "1.2 Validate loaded config [R1.2] (§D1)",
+      "`1.2` Validate loaded config",
+      "`1.2` Validate loaded config [R1.2] (§D1)",
     ),
   });
   const plan = await ops.execute<PlanDraft>("plan.create", { spec: "config" }),

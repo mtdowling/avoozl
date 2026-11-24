@@ -1,5 +1,5 @@
 // Task IDs and the requirement and design refs on a tasks.md item
-// (Requirement 115, design §4.43). A named ID may be bare or a code span.
+// (Requirement 115, design §4.43). The ID is a code span.
 // The title may end in `[R91.5, R94.4a]`, the requirements it builds, then
 // `(§4.26)`, the design sections it follows:
 //
@@ -15,12 +15,12 @@
 // A range `R47.1–R47.6` (or `NK1 to NK9`) checks both ends; the second end
 // may leave out the first end's letters.
 const FENCE = /^\s*(```|~~~)/;
-// Task IDs. `1`, `2.14`: Kiro's own numbering, written bare; a trailing
-// period is Kiro's style.
+// Task IDs (Workflow v1 2.1). An ID is a code span holding TASK_ID:
+// `parse`, `P-4`, `1.2` and `cache-invalidation` all are. IDs compare
+// exactly. A bare first word is never an ID.
+export const TASK_ID = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+// `1`, `2.14`: Kiro's numbering; with LETTERED, namespaced by the spec.
 export const NUMBERED = /^\d+(?:\.\d+)*\.?$/;
-// Any other ID has a separator, so a plain first word is not read as an ID.
-// Read bare or as a code span; Avoozl writes `cache-invalidation`.
-export const NAMED = /^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)+$/;
 // `P1`, `P2b`: a proof or other lettered item, namespaced like a number.
 export const LETTERED = /^[A-Z]\d+[a-z]?$/;
 

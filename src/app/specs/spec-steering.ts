@@ -29,18 +29,18 @@ wants other rules. Avoozl never overwrites a changed copy.
 
 ## Task IDs
 
-- Every checklist item in \`tasks.md\` starts with its task ID, then its
-  title: \`- [ ] 1. Read the config file\` or \`- [ ] 1.2 Validate config\`.
-- Use Kiro's numbers (\`1\`, \`1.1\`, \`1.2\`; a trailing period is fine), or a
-  lowercase named ID with a hyphen or period in it. Write a named ID as a
-  code span:
+- Every checklist item in \`tasks.md\` starts with its task ID as a code
+  span, then its title: \`\`- [ ] \`1.2\` Validate config\`\` or
   \`\`- [ ] \`cache-invalidation\` Drop stale entries\`\`.
+- An ID is letters, digits, \`.\`, \`_\` and \`-\`, starting with a letter or
+  digit. IDs compare exactly. A bare ID with no code span is no ID, and lint
+  refuses the item.
 - Each ID appears once. Never reuse an ID for other work, and never
   renumber an item that exists.
 - Group phases under \`##\` headings.
 - End a title with the requirements it builds in brackets, then the design
-  sections it follows in parentheses: \`- [ ] 1.2 Validate config [R1.2]
-  (§2.1)\`. \`R1.2\` is criterion 2 of \`Requirement 1\` (\`DL1.2\` under
+  sections it follows in parentheses: \`\`- [ ] \`1.2\` Validate config
+  [R1.2] (§2.1)\`\`. \`R1.2\` is criterion 2 of \`Requirement 1\` (\`DL1.2\` under
   \`Requirement DL1\`), \`§2.1\` the design heading that starts with \`2.1\`
   (\`§D1\` for \`## D1.\`). Lint refuses a ref the spec does not define.
 
@@ -65,7 +65,7 @@ wants other rules. Avoozl never overwrites a changed copy.
   ---
   repo: app
   ---
-  - [ ] 1.2 Validate config
+  - [ ] \`1.2\` Validate config
     - An unknown key is reported with its path
   \`\`\`
 

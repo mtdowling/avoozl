@@ -229,7 +229,7 @@ test("the tick lands a merge batch, then each landed member's ref is gone and th
 function specInCode(w: World) {
   const file = path.join(w.checkout, ".kiro/specs/s/tasks.md");
   fs.mkdirSync(path.dirname(file), { recursive: true });
-  fs.writeFileSync(file, "# Tasks\n\n- [ ] 1.1 First\n- [ ] 1.2 Second\n");
+  fs.writeFileSync(file, "# Tasks\n\n- [ ] `1.1` First\n- [ ] `1.2` Second\n");
   git(w.checkout, "add", ".");
   git(w.checkout, "commit", "-qm", "Spec");
   git(w.checkout, "push", "-q", "origin", "main");
@@ -270,7 +270,7 @@ test("after a direct landing Avoozl deletes the claim branch it created, and no 
   );
   assert.match(
     git(w.origin, "show", "main:.kiro/specs/s/tasks.md"),
-    /- \[x\] 1\.1 First/,
+    /- \[x\] `1\.1` First/,
     "the tick landed with the work",
   );
   assert.deepEqual(deleted, ["avoozl/s/t1"]);
@@ -282,7 +282,7 @@ test("landed work keeps its own claim until its tick is known on the done branch
   const w = await workspace(t),
     file = path.join(w.checkout, ".kiro/specs/s/tasks.md");
   fs.mkdirSync(path.dirname(file), { recursive: true });
-  fs.writeFileSync(file, "# Tasks\n\n- [x] 1.1 First\n  - It works\n");
+  fs.writeFileSync(file, "# Tasks\n\n- [x] `1.1` First\n  - It works\n");
   git(w.checkout, "add", ".");
   git(w.checkout, "commit", "-qm", "Land t1 with its tick");
   const landed = git(w.checkout, "rev-parse", "HEAD"),

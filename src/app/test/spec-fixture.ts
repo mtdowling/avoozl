@@ -129,9 +129,9 @@ export const legacySpecFiles = () => ({
   "tasks.md": [
     "# Tasks",
     "",
-    "- [ ] 1 Load and validate configuration",
-    "  - [ ] 1.1 Read the config file",
-    "  - [ ] 1.2 Validate loaded config",
+    "- [ ] `1` Load and validate configuration",
+    "  - [ ] `1.1` Read the config file",
+    "  - [ ] `1.2` Validate loaded config",
     "",
   ].join("\n"),
   "avoozl/manifest.json":
