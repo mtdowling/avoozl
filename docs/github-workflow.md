@@ -1,7 +1,15 @@
 # Workflow v1
 
-Workflow v1 defines how independent runners claim, check and land tasks from
-specs on GitHub. Runners coordinate through commits, branches and issues.
+Your team writes a spec and approves it on GitHub. A runner picks a ready
+task, claims it, checks the finished work and lands it according to the
+repository's settings. Runners share progress through commits, branches and
+issues.
+
+For a team walkthrough, see the [epic rollout example](overview.md#epic-rollout).
+To look up a decision, go to [approval](#7-approval),
+[assignment](#8-spec-issues-and-assignment) or [who merges](#17-landing-modes).
+If you're building a runner, [conformance](#conformance) lists the rules your
+implementation needs to follow.
 
 ```markdown
 ---
@@ -19,11 +27,9 @@ repo: widget
     - Each unknown token appears as an object
 ```
 
-This is the task list of the approved spec `parser`, assigned to the runner.
-Task `p-1` is ticked, so the runner claims `p-2`. It creates the branch
-`avoozl/parser/p-2` and takes a lease before work starts. Once `p-2` lands and
-its box is ticked, `p-4` and `p-5` run side by side. See [Terms](#terms) for
-each word.
+The assigned runner sees that `p-1` is done. It creates the work branch
+`avoozl/parser/p-2` and takes a lease to start `p-2`. Once that task lands and
+its box is checked, both report tasks can run.
 
 ```mermaid
 flowchart LR
@@ -44,17 +50,15 @@ The words MUST, MUST NOT, SHOULD and MAY are used as in
 
 ## Terms
 
-Each term below has one meaning in this document.
-
 | Term | Meaning |
 | --- | --- |
 | Runner | A program that reads specs, claims ready tasks, has an agent or a person do them, checks the result and lands it. Each runner acts as one GitHub login, such as `acme-alice`. Several runners may share a login. |
 | Writer | A user with write access to the repository. |
-| Approver | A person the repository trusts to approve specs: the repository's allowed approvers list, or every writer when the list is empty. |
-| Specs branch | The branch that holds the specs: the default branch unless the repository's settings name another, such as `plans`. |
+| Approver | A person on the repository's list of allowed approvers. If the list is empty, any writer can approve. |
+| Specs branch | The branch where the team keeps its specs. It defaults to the repository's default branch. The repository can configure another branch, such as `plans`. |
 | Spec | A subfolder of the specs folder (1). |
 | Task file | The file that holds a spec's tasks: its `tasks.md`, or its one file with a `## Tasks` heading (1.2). |
-| Spec text | A spec's files (1.2) with every task checkbox set to open, so a tick changes no spec text. |
+| Spec text | The contents of the spec files in 1.2, read as if all task boxes were open. Checking a box records progress. |
 | Task text | A task's title and acceptance bullets, as the done branch holds them (7.3). |
 | Leaf | A task with no children. |
 | Group | A task with children. |
@@ -63,19 +67,20 @@ Each term below has one meaning in this document.
 | File-backed task | A task in a task file. The other kind is a labeled issue (11). |
 | Spec issue | The issue whose assignee decides which login runs a spec (8.2). |
 | Integration branch | A branch a person creates, named exactly as a spec's folder, to collect that spec's tasks (14). |
-| Base | The branch a task lands on: its spec's integration branch, the outermost one up a link chain (14.1), else the default branch. |
-| Done branch | The branch whose task file says whether a task is done: its base when the base is an integration branch that holds the task file of the task's own spec, else the specs branch (14.6). For a task of a linked spec, that base is the outermost parent's integration branch (14.1). |
-| Claim | A runner's hold on a task: its claim branch and the lease on it (15). |
+| Base | The branch where the work lands. Use the outermost integration branch in the spec's chain of parents, counting the spec itself. If none exists, use the default branch (14.1). |
+| Done branch | The branch where the runner reads and updates a task's checkbox. Use the base if it's an integration branch that contains this spec's task file. Otherwise, use the specs branch (14.1, 14.6). |
+| Claim | A runner reserves a task by creating a claim branch and taking a lease on it (15). |
 | Claim branch | `avoozl/<spec>/<task>`, the branch a task is worked and checked on. |
 | Start commit | The base's head a claim branch was created at. The lease commit records it (15.1). |
-| Lease | A ref named `avoozl-lease/<spec>/<task>/<generation>` (15.5). The newest lease, the one with the highest generation, gives its holder permission to push to the claim branch until it is released (15.6). |
+| Lease | Permission to push to a claim branch, recorded in `avoozl-lease/<spec>/<task>/<generation>`. The highest generation identifies the newest lease (15.5). Releasing it ends the holder's permission to push (15.6). |
 | Stale hours | The runner's setting for how long a claim branch and its newest lease may go without a new commit before the claim is stale (15.4, 15.6). |
 | Landed work | Checked work that is on the base, or whose pull request merged (16.5). |
 
 ## 1. Spec folders
 
-A repository's specs live under one folder, `.kiro/specs` by default. Each
-subfolder is one spec.
+Put each spec in its own folder under `.kiro/specs`, the default specs folder.
+Here, `parser` has a separate task file and `config` keeps everything in one
+file.
 
 ```text
 .kiro/specs/
@@ -87,8 +92,8 @@ subfolder is one spec.
     config.md         the whole spec, tasks under ## Tasks
 ```
 
-A spec in one file keeps its tasks in a `## Tasks` section. The list under
-that heading is the task list, and its `###` headings are phases (3.6).
+In a single-file spec, put tasks under `## Tasks` and phases under `###`
+headings (3.6).
 
 ```markdown
 ---
@@ -113,27 +118,28 @@ Settings load from one file.
 The file is read once at start.
 ```
 
-Task `c-1` is ticked, so task `c-2` is ready. The `## Notes` heading ends the
-task list, because a heading of level 2 or 1 ends a section.
+Here, `c-1` is done, `c-2` is ready, and `## Notes` ends the task list.
 
 - **1.1** A spec MUST be a subfolder of the specs folder, and its name MUST be
   the folder name.
 - **[1.2](github-workflow-scenarios.md#rule-12)** A spec MUST have exactly one
-  task file: a `tasks.md`, or, with no `tasks.md`, one `.md` file directly in
-  the folder with a `## Tasks` heading outside code fences. In `tasks.md` the
-  whole file is the task list. In a single file the task list is the lines under
-  `## Tasks`, up to the next heading of level 2 or 1. Every other line of the
-  folder's `.md` files is prose: an approver approves it and agents read it, but
-  a runner reads no task from it. A runner MUST refuse a folder with a
-  `tasks.md` and a file with a `## Tasks` heading, or with two files that have
-  one, and MUST name both files.
+  task file. The runner reads tasks from one of two places.
+
+  - In `tasks.md`, the whole file is the task list.
+  - If the folder has no `tasks.md`, use a `.md` file directly in the
+    folder with a `## Tasks` heading outside code fences. Read from that heading
+    up to the next level 1 or level 2 heading, or the end of the file.
+
+  Treat the remaining Markdown in the spec as prose for approvers and agents.
+  A runner MUST refuse a folder that has both a `tasks.md` and a file with a
+  `## Tasks` heading, or two files with that heading. It MUST name both files.
 - **1.3** Files in subfolders, files that are not Markdown, and symlinks are
   not part of the spec.
 
 ## 2. Tasks
 
-A task is a checkbox line, `- [ ]` open or `- [x]` ticked, with an ID in a
-code span and a title. The sub-bullets say what done means.
+Start each task with `- [ ]` (open) or `- [x]` (done), followed by its ID and
+title. List the results someone can check beneath each leaf task.
 
 ```markdown
 - [ ] `cache-drop` Drop stale entries
@@ -156,7 +162,8 @@ Text after the title, such as a requirement reference, is part of the title.
 
 ## 3. Order
 
-The order and nesting of the list decide which tasks wait for others.
+List tasks in the order they need to finish. Nest tasks that can run together
+under a group marked `(**PARALLEL**)`.
 
 ```markdown
 - [ ] `p-1` Read the token table
@@ -175,9 +182,11 @@ The order and nesting of the list decide which tasks wait for others.
 Task `p-1` runs first, then `p-2`. Tasks `p-4` and `p-5` wait for `p-2` and
 can run side by side. Task `p-6` waits for both reports.
 
-A parallel group may contain untagged groups to express several serial lanes.
-The list below runs the web and API lanes side by side. Each lane audits first,
-then verifies its own findings. The final task waits for both lanes.
+<details>
+<summary>Example of two teams working in parallel</summary>
+
+The web and API teams can audit at the same time. Each team verifies its own
+findings before the combined report is published.
 
 ```markdown
 - [ ] `audit-split` Define the audit surfaces
@@ -197,30 +206,32 @@ then verifies its own findings. The final task waits for both lanes.
   - The report contains the verified findings from both lanes
 ```
 
-This split, parallel lanes and merge pattern uses only list order and nesting.
-Do not add dependency or edge bullets. A bullet that starts with `$` is invalid
-under rule 2.3.
+List order and nesting express these dependencies. Dependency bullets starting
+with `$` are invalid under 2.3.
 
-- **[3.1](github-workflow-scenarios.md#rule-31)** Tasks at one level of a list
-  run in order, top to bottom. A task MUST wait for the task above it, and for
-  every task inside it when that task is a group.
+</details>
+
+- **[3.1](github-workflow-scenarios.md#rule-31)** Tasks at the same level run
+  from top to bottom. Each task MUST wait for the one above it to finish. If
+  the preceding task is a group, that includes every task inside the group.
 - **[3.2](github-workflow-scenarios.md#rule-32)** A runner MUST NOT claim or
-  work a group. A group's box MUST be ticked when every child is ticked and open
-  otherwise, and a runner MUST refuse a spec where it is not. When landings
-  leave a group open with every child ticked, as two children landing on bases
-  that lack each other's tick do, a runner that reads the base after that merge
-  SHOULD tick the box in a commit of its own that changes only that box.
+  work a group. Its box MUST be checked when all children are checked
+  and open otherwise. The runner MUST refuse an inconsistent spec. Two
+  children can land independently, each before the other's tick is visible. If
+  their merge leaves all children checked and the group open, the runner that
+  reads the merged base SHOULD check the group's box in a separate commit that
+  changes only that box.
 - **[3.3](github-workflow-scenarios.md#rule-33)** A group's children run in
   order, unless its title ends with `(**PARALLEL**)`. The children of a tagged
   group run side by side, and each waits for what the group waits for.
 - **[3.4](github-workflow-scenarios.md#rule-34)** A nested group runs its
   children in order unless its own title carries the tag, even inside a parallel
   group.
-- **[3.5](github-workflow-scenarios.md#rule-35)** The tag MUST be exactly
-  `(**PARALLEL**)`, in capitals, at the end of the title of a group with at
-  least two children. A runner MUST refuse a title that holds the word
-  `parallel`, in any casing, in parentheses or bold in any other form, a tagged
-  task with no children, and a tagged group with fewer than two children.
+- **[3.5](github-workflow-scenarios.md#rule-35)** To mark a group as parallel,
+  its title MUST end with exactly `(**PARALLEL**)`, and it must have at least
+  two children. A runner MUST refuse a tagged leaf or a tagged group with
+  fewer than two children. It also refuses any other use of the word
+  `parallel` in parentheses or bold, regardless of case.
 - **[3.6](github-workflow-scenarios.md#rule-36)** `##` headings in `tasks.md`,
   and `###` headings under a single file's `## Tasks`, are phases, and phases
   run in order. The first task of a phase MUST wait for every task of the phase
@@ -228,7 +239,8 @@ under rule 2.3.
 
 ## 4. Manual tasks
 
-A task only a person does ends its title with `(**MANUAL**)`.
+End a task title with `(**MANUAL**)` to reserve it for a person. Here, the
+release waits for the owner to review the notes and check the box.
 
 ```markdown
 - [ ] `m-2` Sign off the package (**MANUAL**)
@@ -239,19 +251,20 @@ A task only a person does ends its title with `(**MANUAL**)`.
   `(**MANUAL**)` is a manual task. A runner MUST NOT offer it as ready and MUST
   NOT give it to an agent. A person does it and ticks it on its done branch
   (18.1). Tasks that depend on it wait for that tick.
-- **[4.2](github-workflow-scenarios.md#rule-42)** The tag MUST be exactly
-  `(**MANUAL**)`, in capitals, at the end of a leaf's title. A runner MUST
-  refuse a title that holds the word `manual`, in any casing, in parentheses or
-  bold in any other form, and a group that carries the tag.
+- **[4.2](github-workflow-scenarios.md#rule-42)** The title of a manual leaf
+  MUST end with exactly `(**MANUAL**)`. A runner MUST refuse a group with this
+  tag. It also refuses other forms of the word `manual` in parentheses or
+  bold, regardless of case.
 
 ## 5. Front matter
 
-Front matter names the repository a spec changes.
+Which repository does the spec change? Set `repo` in the file's front matter.
+The parser example uses `repo: widget`.
 
-- **[5.1](github-workflow-scenarios.md#rule-51)** The front matter of a spec's
-  files MUST hold only `category` and `repo`. A runner MUST refuse any other
-  key. `category` is the group a spec is listed under. `repo` is the one
-  repository the spec changes.
+- **[5.1](github-workflow-scenarios.md#rule-51)** A spec's front matter MUST
+  use only the keys `category` and `repo`. Use `category` to group specs in a
+  listing. Use `repo` to identify the repository the spec changes. A runner
+  MUST refuse any other key.
 - **5.2** A spec MUST change one repository. A change across repositories is
   one spec per repository, linked from a parent spec (6).
 - **5.3** A runner that runs specs for more than one repository MUST refuse a
@@ -259,8 +272,9 @@ Front matter names the repository a spec changes.
 
 ## 6. Linked specs
 
-A parent spec links each member spec with a Markdown link in a task title,
-inline or reference-style.
+Link to another spec's task file in a parent task title. Use an inline or
+reference-style Markdown link. Here, the first task writes the reports spec
+and the second runs it.
 
 ```markdown
 - [ ] `report-spec` Write the report spec
@@ -275,23 +289,25 @@ inline or reference-style.
   single-file spec, is a spec group. Its children are the linked spec's tasks.
   In the example, `report-spec` is a leaf and `report-build` is a spec group. A
   link to an ordinary document leaves the task as it is.
-- **[6.2](github-workflow-scenarios.md#rule-62)** A linked spec's tasks MUST be
-  ready only when the spec group's own wait is met, the linked spec is approved,
-  and the linked spec's own order allows them.
-- **[6.3](github-workflow-scenarios.md#rule-63)** A spec group's box is ticked
-  when every task of the linked spec is. The commit that ticks the linked spec's
-  last task SHOULD tick the spec group's box when both files are on one specs
-  branch. Otherwise the runner ticks it in its own commit. When the linked
-  spec's tasks are done on an integration branch, the spec group is ticked on
-  the parent spec's done branch once every task of the linked spec is done on
-  its own done branch. Each of these ticks is a checkbox-only commit under 7.5,
-  even on another repository's specs branch, so it needs no approval and
-  approves nothing.
+- **[6.2](github-workflow-scenarios.md#rule-62)** A linked spec's tasks MUST
+  wait until the parent group's prerequisites are done and the linked spec is
+  approved. Within the linked spec, its own task order determines which tasks
+  are ready.
+- **[6.3](github-workflow-scenarios.md#rule-63)** Check the parent group's box
+  when all tasks in the linked spec are checked. If both task files are on the
+  same specs branch, the commit that checks the last linked task SHOULD also
+  check the parent group. Otherwise, record the parent's tick in a separate
+  commit. For work on an integration branch, read each linked task's checkbox
+  on its own done branch. Once all are done, check the group on the parent's
+  done branch. The checkbox updates follow 7.5, including across repositories.
+  They require no new approval and grant none.
 - **[6.4](github-workflow-scenarios.md#rule-64)** A runner MUST refuse a spec
-  group with sub-items of its own, a spec linked as a spec group more than once
-  in a repository, and a link to a spec folder that does not exist. The last
-  case is allowed when an earlier unticked task stands in the same list, because
-  that task writes the spec.
+  group in any of these cases.
+
+  - The group has sub-items of its own.
+  - The same repository links the spec as a group more than once.
+  - The link points to a missing spec folder. Allow this last case if an
+    earlier task in the same list is still open. That task can create the spec.
 - **[6.5](github-workflow-scenarios.md#rule-65)** A task MUST NOT name a task of
   another spec. Order across specs is the order of spec groups in a parent.
 
@@ -344,28 +360,32 @@ Checking off an existing task just records that the work is done.
 
 ## 8. Spec issues and assignment
 
-The assignee of a spec's issue decides which login runs the spec.
+Assign the spec's GitHub issue to the teammate who will drive it. Their runner
+checks the assignment on the spec and its parents (8.3). For work already
+underway, use the handoff in 8.4.
 
 - **8.1** When a spec is approved and has no spec issue, a runner SHOULD create
   one in the spec's repository. A runner acting as the approving commit's
   author SHOULD be the one to do it, so runners do not race. The new issue
   copies the assignees of the pull request that approved the spec.
-- **[8.2](github-workflow-scenarios.md#rule-82)** A spec issue is an open issue
-  in the spec's repository whose body holds a line that is exactly
-  `<!-- avoozl-spec:NAME -->`, where `NAME` is the spec's folder name and
-  matches `[A-Za-z0-9._-]+`. A runner MUST read the marker only from an issue
-  body whose author is a writer. It MUST look for an existing issue before it
-  creates one. When two open issues name one spec, the newer one is the
-  duplicate and the runner SHOULD close it.
+- **[8.2](github-workflow-scenarios.md#rule-82)** Find the spec's issue among
+  the open issues in its repository. Look for a line in the issue body that
+  reads exactly `<!-- avoozl-spec:NAME -->`. Replace `NAME` with the spec
+  folder name, which matches `[A-Za-z0-9._-]+`. The runner MUST accept this
+  marker only if the issue's author is a writer. It MUST look for an existing
+  issue before creating one. If two open issues name the same spec, the runner
+  SHOULD close the newer one as a duplicate.
 - **[8.3](github-workflow-scenarios.md#rule-83)** A runner MUST run a spec only
   when the spec issue, and the issue of every parent spec that links it, is
   assigned to the runner's own login and to no one else.
-- **[8.4](github-workflow-scenarios.md#rule-84)** A person takes a spec by
-  assigning themselves and releases it by removing themselves. To give a spec to
-  another login, the current runner stops claiming new tasks, pushes every claim
-  branch it holds, keeps those branches and releases each lease (15.6), and a
-  person changes the assignee. The new login's runner resumes each pushed claim
-  branch (15.7).
+- **[8.4](github-workflow-scenarios.md#rule-84)** Assign yourself to the spec
+  issue to take the spec. Remove yourself to release it. To hand work in
+  progress to a teammate, use this order.
+
+  1. The current runner stops claiming new tasks, pushes each claim branch it
+     holds and releases each lease (15.6). Keep the branches.
+  2. A person changes the issue's assignee.
+  3. The new assignee's runner resumes the pushed branches (15.7).
 
 For a runner acting as `acme-alice`:
 
@@ -379,8 +399,8 @@ For a runner acting as `acme-alice`:
 
 ## 9. Labels
 
-A runner can filter work by label. A team can require its existing `agent-ok`
-label and exclude issues labeled `needs-design`.
+For example, require `agent-ok` and exclude `needs-design` to pick up work that's
+ready for implementation. An issue with both labels waits.
 
 - **9.1** A runner using filters MUST take new work only from issues that
   carry every required label and none of the excluded labels. Only labels
@@ -392,9 +412,9 @@ label and exclude issues labeled `needs-design`.
 
 ## 10. Stopping a spec
 
-A writer stops a spec by labeling its issue. The default stop label is
-`avoozl:stopped`, and a repository can use another name, such as `team:hold`
-(9.2). Runners that should stop together need the same name.
+A repository writer can pause a spec and its linked specs by labeling its
+issue. Runners that should stop together need the same stop label. The default
+is `avoozl:stopped` (9.2).
 
 - **[10.1](github-workflow-scenarios.md#rule-101)** A spec is stopped while a
   writer's stop label is on its spec issue or on the issue of any parent spec
@@ -408,10 +428,11 @@ A writer stops a spec by labeling its issue. The default stop label is
 
 ## 11. Labeled issues
 
-An open issue with no file-backed spec can serve as a one-task spec. A writer
-labels an issue that asks for a warning, and its author later edits the body
-to ask for an error. The runner then waits for a writer to authorize the
-edit.
+A writer labels a GitHub issue to authorize a fix. Suppose the issue asks for
+a warning and someone edits it to ask for an error. The writer must remove and
+reapply the label to authorize the revised request.
+
+An open issue without a file-backed spec supplies one task.
 
 | Spec part | From the issue |
 | --- | --- |
@@ -420,12 +441,12 @@ edit.
 | Title | The issue's title |
 | Done bullet | The issue's body |
 
-- **11.1** At least one required label MUST be configured. The issue MUST
-  pass the runner's label filters (9.1). A writer's `labeled` event for a
-  required label on the issue authorizes exactly the title and body at that
-  event. Removing that label or editing either field ends the authorization,
-  even if the text is restored. A writer authorizes the current text by
-  removing and reapplying the label.
+- **11.1** The runner MUST have at least one required label configured. The
+  issue MUST pass the label filters in 9.1. When a writer adds a required
+  label, GitHub records a `labeled` event. That event authorizes the title and
+  body as they were at that moment. Removing the label or editing the title or
+  body ends authorization, even if someone later restores the text. To
+  authorize the current version, a writer removes and reapplies the label.
 - **11.2** Before claiming, the runner MUST verify that the issue is open,
   assigned solely to its login, and authorized under 11.1. The claim branch
   MUST be `avoozl/issue-<number>/issue-<number>`. Before starting work, the
@@ -439,17 +460,18 @@ edit.
   again, SHOULD name the landed commit on the issue, and MUST close it. If
   the text changed, the holder MUST leave the issue open for the writer to
   review.
-- **11.4** On resume, the lease holder MUST verify that the issue is open,
-  assigned solely to its login, and still authorized by the recorded event.
-  Whoever merges or pushes the work to the base MUST repeat that check
-  immediately before landing. If any condition fails, or the order of edits and
-  labels is unclear, the runner MUST pause the work. After an edit, a writer
-  authorizes the new text. The holder records the new event under 11.2,
-  reconciles the work with the authorized text and reruns the checks.
+- **11.4** Before resuming work, the lease holder MUST verify that the issue
+  is open, the runner is its only assignee, and the recorded label event still
+  authorizes the issue text. Whoever pushes or merges to the base MUST
+  repeat those checks immediately before landing. If a check fails or the
+  sequence of edits and labels is unclear, the runner MUST pause. After an
+  edit, a writer authorizes the revised text. The holder records the new event
+  (11.2), brings the work into line with that text and reruns the checks.
 
 ## 12. Ready tasks
 
-A runner ranks only the tasks it can claim.
+Before ranking unfinished tasks, the runner checks which ones it can claim. A
+task must meet every condition in 12.1.
 
 - **[12.1](github-workflow-scenarios.md#rule-121)** A task is ready when all
   the following conditions hold.
@@ -468,59 +490,63 @@ A runner ranks only the tasks it can claim.
 
 ## 13. Next task
 
-A runner picks the ready leaf that unblocks the most work. Two ready leaves
-can each unblock three open leaves. The leaf that heads a chain of three wins
-over the leaf whose three leaves run in parallel.
+Start with the task that unblocks the most work. If two tasks each unlock
+three others, a chain of three takes priority over three parallel tasks.
 
 - **[13.1](github-workflow-scenarios.md#rule-131)** A runner MUST pick the ready
   leaf with the most distinct open leaves that depend on it, directly or
   indirectly, under sections 3 and 6. Count a leaf once even if two paths reach
   it. On a tie, pick the leaf with the longest dependency path below it,
   measured in open leaves on that path.
-- **[13.2](github-workflow-scenarios.md#rule-132)** For equal scores, a runner
-  MUST use the order in the task file. Across files, compare the specs
-  repository's `owner/name`, then the repository-relative task file path, in
-  ascending UTF-8 byte order. For labeled issues (11), use the issue's
-  repository for this comparison. Within a repository, tied issues follow file
-  tasks in ascending issue number.
+- **[13.2](github-workflow-scenarios.md#rule-132)** If both scores tie, the
+  runner MUST use task file order for tasks in the same file. For tasks in
+  different files, sort first by the specs repository's `owner/name`, then by
+  the file's path relative to that repository. Use ascending UTF-8 byte order
+  for both comparisons. For a labeled issue, use the repository that holds the
+  issue. Within each repository, list tied file tasks first, followed by tied
+  issues in ascending issue number.
 
 ## 14. Integration branches
 
-A person creates a branch named for a spec to collect its tasks there.
+To collect work before it reaches the default branch, create a branch on
+origin named after the spec folder. Rule 14.1 determines where work lands when
+both a parent and a linked spec have integration branches.
 
-- **[14.1](github-workflow-scenarios.md#rule-141)** When a branch named exactly
-  as a spec's folder exists on origin, the spec's tasks, and the tasks of every
-  spec it links, directly or not, land on that branch. The outermost such spec
-  up a link chain wins. Otherwise a spec's tasks land on the default branch.
+- **[14.1](github-workflow-scenarios.md#rule-141)** Look on origin for
+  branches named exactly after the task's spec folder or any of its parent
+  spec folders. If several match, use the branch for the outermost matching
+  spec. All tasks in that spec and the specs it links, including nested links,
+  land there. If none match, land on the default branch.
 - **14.2** A runner MUST NOT create an integration branch and MUST NOT merge
   one into the default branch. A person does both.
-- **[14.3](github-workflow-scenarios.md#rule-143)** Before it claims a task on
-  an integration branch, a runner MUST merge the default branch into it with a
-  merge commit and push it, when the default branch's head is not already in the
-  integration branch. Otherwise nothing happens. A runner MUST NOT rebase or
-  force push.
+- **[14.3](github-workflow-scenarios.md#rule-143)** Before claiming a task,
+  check whether the integration branch contains the current head of the
+  default branch. If it does, the branch is ready. Otherwise the runner MUST
+  merge the default branch into it with a merge commit and push the result. It
+  MUST NOT rebase or force push.
 - **14.4** Tasks claimed together SHOULD start from one merged head.
 - **14.5** When the merge conflicts, a runner MUST NOT claim a task on that
   branch until a person resolves it.
-- **[14.6](github-workflow-scenarios.md#rule-146)** A task's done branch is its
-  base when the base is an integration branch that holds the task file of the
-  task's own spec. For a task of a linked spec, that base is the outermost
-  parent's integration branch (14.1). Otherwise the done branch is the specs
-  branch, even when the task lands on an integration branch. A task is done when
-  its box is ticked on its done branch (18.1), and a task that waits for it is
-  ready once the tick is there. A tick on an integration branch reaches the
-  default branch when a person merges that branch.
+- **[14.6](github-workflow-scenarios.md#rule-146)** Use the base as the task's
+  done branch if it's an integration branch and contains the task file for the
+  task's own spec. For a linked spec, determine the base using the outermost
+  matching parent under 14.1. In every other case, use the specs branch to
+  track completion. Once the checkbox is ticked on the done branch, the task
+  counts as done (18.1) and satisfies that dependency for later tasks. A tick
+  on an integration branch reaches the default branch when a person merges it.
 
 ## 15. Claims
 
-A claim is a branch created at the current base head, plus a lease on it. The
-lease is a branch named `avoozl-lease/<spec>/<task>/<generation>` that points
-to a commit with the claim branch's head as its parent and the same tree.
-Creating each ref MUST fail if it already exists. This gives one runner the
-claim when two race for it, even when they share a login.
+A claim branch holds the work. A lease gives one runner permission to push to
+it, even when several runners share a GitHub login.
 
-The lease commit's message records the start commit and the task text as
-approved:
+Create the claim branch at the current head of the base. The lease is a branch
+named `avoozl-lease/<spec>/<task>/<generation>`. Its commit has the claim head
+as its parent and the same file tree. Creating either ref MUST fail if that
+ref already exists.
+
+Record the start commit and the approved task text in the lease commit
+message, as in this example.
 
 ```text
 Lease parser/p-2 generation 1
@@ -530,13 +556,12 @@ Task: Report unknown tokens
 Done: An unknown token is reported with its line and column
 ```
 
-A lease taken on an existing claim (15.7) copies `Start` from the lease before
-it, or uses the claim branch's head when no lease exists, because no agent runs
-before the first lease. It records the task text approved when it takes the
-lease.
+On an existing claim, copy `Start` from the previous lease. For the first
+lease, use the claim head. An agent starts only after that lease exists.
+Record the task text approved at the time of the new lease (15.7).
 
-A runner releases its lease by moving the lease ref to a release commit, a
-child of the lease commit with the same tree:
+To release a lease, point its ref at a child of the lease commit with the
+same file tree. The release message follows this format.
 
 ```text
 Release parser/p-2 generation 1
@@ -575,36 +600,38 @@ sequenceDiagram
 - **15.4** When a claim branch has no new commit for the stale hours, the
   runner SHOULD notify the assignee. A runner MUST NOT delete another runner's
   claim branch on its own. A person can delete the branch to free the task.
-- **[15.5](github-workflow-scenarios.md#rule-155)** A runner takes a lease by
-  creating generation `n + 1`, where `n` is the highest generation whose ref
-  exists for the task, or `0` when none does. A runner whose create fails MUST
-  NOT work on the task. Lease refs stay until their claim branch goes (15.6), so
-  a generation number is never used twice for one claim branch, and the newest
-  lease is always the highest generation.
-- **[15.6](github-workflow-scenarios.md#rule-156)** A holder MUST renew its
-  lease at least every half of the stale hours by moving the lease ref to a new
-  lease commit. A runner that stops working a task it holds MUST release its
-  lease by moving the lease ref to a release commit. A released lease grants no
-  push. A lease is stale when its lease commit and the claim branch's newest
-  commit are both older than the stale hours. A stale or released lease needs no
-  cleanup, because the next generation replaces it. Lease refs are deleted only
-  with their claim branch, or once it is gone. A runner MUST NOT delete a lease
-  another runner may still hold: the newest lease, when it is neither released
-  nor stale. A runner deletes only leases it created, with one exception: a
-  runner that deletes a claim branch it may delete (20.5) MUST delete every
-  older lease of that task with it, whoever created them.
-- **[15.7](github-workflow-scenarios.md#rule-157)** A runner MAY resume an
-  existing claim branch of a spec assigned to its own login, after a handoff
-  (8.4) or a restart, when the claim has no lease or its newest lease is stale
-  or released (15.6). It resumes by taking a lease (15.5), so one runner resumes
-  it, even when several share the login.
-- **[15.8](github-workflow-scenarios.md#rule-158)** A runner that takes a lease
-  on an existing claim (15.7) MUST push a takeover commit to the claim branch
-  before it works or lands. The takeover commit is a child of the branch's head
-  that changes no file. GitHub moves a branch only forward, so a push from the
-  old holder, built on the head before the takeover, is rejected. A runner whose
-  takeover push is rejected reads the head again and pushes the takeover on top
-  of it.
+- **[15.5](github-workflow-scenarios.md#rule-155)** To take a lease, find the
+  highest generation that still has a lease ref for this task. Create the next
+  generation, starting at 1 if there are no refs. If creation fails, the
+  runner MUST NOT work on the task. Keep lease refs until the claim branch
+  goes away (15.6). That keeps generation numbers unique for the lifetime of
+  the claim and makes the highest generation the newest lease.
+- **[15.6](github-workflow-scenarios.md#rule-156)** The runner that holds the
+  lease MUST renew it at least once per half of the configured stale interval.
+  To renew, move the lease ref to a new lease commit. When the runner stops
+  working on the task, it MUST release the lease by moving that ref to a
+  release commit. Releasing the lease ends the holder's permission to push.
+
+  A lease is stale only when both the lease commit and the newest commit on
+  the claim branch are older than the configured interval. The next generation
+  replaces a stale or released lease without any cleanup.
+
+  Delete lease refs only when deleting the claim branch or after the branch is
+  gone. A runner MUST NOT delete the newest lease while it is active (neither
+  stale nor released). Normally a runner deletes only leases it created. When
+  it deletes a claim branch under 20.5, it MUST also delete all older leases
+  for that task, including leases other runners created.
+- **[15.7](github-workflow-scenarios.md#rule-157)** After a restart or handoff
+  (8.4), a runner MAY resume a claim branch if the spec is assigned to its
+  login and the branch has no lease or its newest lease is stale or released
+  (15.6). To resume, take a new lease (15.5). Only one runner can take that
+  generation, even if several use the same login.
+- **[15.8](github-workflow-scenarios.md#rule-158)** After taking a lease on an
+  existing claim (15.7), the runner MUST push a takeover commit before it
+  works on or lands the task. Make an empty commit with the current claim head
+  as its parent. An old holder trying to push from the previous head will then
+  fail the fast-forward check. If GitHub rejects the takeover push,
+  read the latest head and push the takeover commit on top of it.
 - **[15.9](github-workflow-scenarios.md#rule-159)** A holder MUST push its work
   to the claim branch, run the checks on that pushed head, and land only that
   exact head. It MUST read the claim's leases again right before the push to the
@@ -617,19 +644,19 @@ sequenceDiagram
   labeled issue, the runner verifies the recorded label event under 11.3 and
   11.4.
 
-No GitHub call makes a push to the base depend on a lease, so one race stays.
-An old holder that reads its leases, then loses the lease to a takeover, can
-still push to the base before its next read. It can land only the claim head
-it already pushed and checked (15.9), because every later push to the claim
-branch is rejected (15.8). A takeover needs a stale lease (15.6) or a handoff
-the old holder took part in (8.4), so the old holder was silent for the stale
-hours, and the window is the time between its last lease read and its push.
-The new holder merges the base in first (16.1) and finds that work already
-there.
+GitHub handles the lease read and the push to the base as separate operations.
+The old holder can read its lease, lose it to a takeover, then push to the
+base before it reads the lease again. A takeover requires a stale lease or a
+handoff involving the old holder (8.4, 15.6). During that window the old
+holder can land only the claim head it already pushed and checked (15.9). The
+takeover commit blocks further pushes from the old head (15.8). When the new
+holder merges the base into its branch (16.1), it sees any work the old holder
+already landed.
 
 ## 16. Landing
 
-Landing puts the checked work on the base and records completion.
+The runner tests the commit it intends to land. If the destination branch
+changes first, the runner merges that change and tests again.
 
 - **[16.1](github-workflow-scenarios.md#rule-161)** A runner MUST merge the
   current base into the claim branch, include the tick when 16.2 requires it,
@@ -638,13 +665,18 @@ Landing puts the checked work on the base and records completion.
   claimed until the work has landed and the holder has recorded completion on
   the done branch (18.1) or the issue (11.3). The holder SHOULD then delete the
   claim branch and the task's leases (20.5).
-- **[16.2](github-workflow-scenarios.md#rule-162)** A file-backed task's tick
-  MUST be on its done branch. When the done branch is the base, the tick MUST be
-  in the same commit as the work, or in a commit on the claim branch before the
-  checks run. When the done branch is another branch, such as the specs branch
-  of another repository, the runner ticks the task there in its own commit once
-  the work has landed. That commit changes only the checkbox (7.5), so it needs
-  no approval and approves nothing.
+- **[16.2](github-workflow-scenarios.md#rule-162)** The runner MUST record a
+  file-backed task's tick on its done branch. The timing depends on where that
+  branch lives.
+
+  If the done branch is the base, the tick MUST be part of the head that
+  passes checks. Include it in the work commit or add it to the claim branch
+  before running checks.
+
+  If the done branch is elsewhere, land the work first. Then tick the box in a
+  separate commit on the done branch. This applies, for example, when a
+  separate repository holds the specs. That commit changes only the checkbox
+  and follows the approval rule in 7.5.
 - **[16.3](github-workflow-scenarios.md#rule-163)** A runner MUST run the
   repository's checks on the exact head that will land, and MUST land nothing
   when they fail. In `direct` mode that head is the commit pushed to the base.
@@ -653,20 +685,22 @@ Landing puts the checked work on the base and records completion.
   not checked.
 - **16.4** A runner MUST NOT rebase a branch someone else may hold, and MUST
   NOT force push.
-- **[16.5](github-workflow-scenarios.md#rule-165)** A claim holds landed work
-  only when the checked work commit differs from the start commit and either the
-  base contains it or a pull request from the claim branch merged with that
-  commit as its head. If the claim branch was deleted, find the merged pull
-  request by its head ref. After an interruption, a runner on the spec
-  assignee's login MAY record a missing tick on the done branch (15.10, 16.2).
-  When the claim branch remains, it first takes a lease on it (15.7). For a
-  labeled issue, the lease holder verifies the authorization before closing it
-  (11.3). Once it records completion, the runner SHOULD delete any remaining
-  claim branch and the task's leases (20.5).
+- **[16.5](github-workflow-scenarios.md#rule-165)** To determine whether the
+  work landed, first verify that the checked work commit differs from the
+  start commit. Then confirm that the base contains the checked commit or that
+  a pull request from the claim branch merged with that commit as its head. If
+  the claim branch is gone, use its head ref to find the merged pull request.
+
+  After an interruption, a runner using the spec assignee's login MAY record a
+  missing tick on the done branch (15.10, 16.2). If the claim branch still
+  exists, first take a lease on it (15.7). For a labeled issue, the lease
+  holder verifies authorization before closing the issue (11.3). After
+  recording completion, the runner SHOULD delete any remaining claim branch
+  and the task's leases (20.5).
 
 ## 17. Landing modes
 
-The repository's landing mode decides who lands the checked work.
+Choose who lands checked work in each repository.
 
 | Mode | Action |
 | --- | --- |
@@ -686,12 +720,11 @@ merges it. The default is `draft`.
 - **[17.3](github-workflow-scenarios.md#rule-173)** In `ready` pull request
   mode, a runner MUST open the pull request ready for review and MUST NOT merge
   it. A person merges it.
-- **[17.4](github-workflow-scenarios.md#rule-174)** In `auto` pull request mode,
-  a runner opens the pull request ready for review and merges it once checks
-  pass on the pull request's head. It MUST condition the merge on the exact head
-  that passed checks (16.3) and read the base head again immediately before
-  merging. If either head has moved, it MUST repeat the merge and checks in
-  16.1.
+- **[17.4](github-workflow-scenarios.md#rule-174)** In `auto` mode, the runner
+  opens the pull request ready for review and merges it once checks pass. It
+  MUST make the merge conditional on the exact pull request head that passed
+  (16.3) and read the base head again immediately before merging. If either
+  head has moved, it MUST repeat the merge and checks in 16.1.
 - **[17.5](github-workflow-scenarios.md#rule-175)** In `off` mode a runner MUST
   push the claim branch only.
 - **[17.6](github-workflow-scenarios.md#rule-176)** While a pull request is
@@ -708,8 +741,8 @@ base between the runner's last read and the merge.
 
 ## 18. Done tasks
 
-A file-backed task is done when its checkbox is ticked. A labeled issue is
-done when it closes (11.3).
+Look for a checked box on the task's done branch (14.6), or a closed issue for
+work taken from a labeled issue (11.3).
 
 - **[18.1](github-workflow-scenarios.md#rule-181)** A runner MUST treat a
   file-backed task as done only when its box is ticked on its done branch. The
@@ -718,19 +751,21 @@ done when it closes (11.3).
 
 ## 19. Review output
 
-The runner that holds a task's lease may publish findings from its own review
-or checks, so a person can read them on GitHub without access to the runner.
+The runner holding the lease can post its review findings or check results on
+GitHub. Look on the task's pull request or, if there isn't one, the spec
+issue.
 
 - **19.1** A runner publishing findings MUST identify the task and the
   reviewed commit. It posts a comment on the task's pull request if one
   exists, or on the spec issue otherwise.
-- **19.2** Review output is advisory. A runner MUST NOT submit a GitHub
-  approval or change request as review output. Publishing or resolving a
-  finding grants no spec approval and satisfies no required review or check.
+- **19.2** Publish review findings as advice. A runner MUST NOT submit them as
+  a GitHub approval or change request. Posting or resolving a finding neither
+  approves a spec nor satisfies a required review or check.
 
 ## 20. Runner limits
 
-These limits apply in every landing mode.
+These limits on GitHub actions, approvals and checks apply in every landing
+mode.
 
 - **[20.1](github-workflow-scenarios.md#rule-201)** A runner MUST NOT push to
   the base without the repository's checks passing on that exact head (16.3).
@@ -741,11 +776,12 @@ These limits apply in every landing mode.
 - **[20.4](github-workflow-scenarios.md#rule-204)** A runner MUST NOT force
   push, rewrite history, or rebase a shared branch (16.4).
 - **[20.5](github-workflow-scenarios.md#rule-205)** A runner MUST NOT delete
-  another runner's claim branch. It MAY delete its own claim branch, the one
-  whose newest lease it holds or released, after the task lands or when it
-  releases the claim unlanded: on a stop (10.2), when it gives up the task, or
-  in cleanup after an interruption (16.5). It deletes the task's leases with it
-  (15.6), and MUST NOT delete any other branch or lease it did not create.
+  another runner's claim branch. Its own claim branch is the one whose newest
+  lease it holds or released. It MAY delete that branch after landing the
+  task, or when giving up the claim before landing. This includes stopping
+  under 10.2, giving up the task and cleaning up after an interruption (16.5).
+  Delete the task's leases along with the branch (15.6). The runner MUST NOT
+  delete any other branch or lease it did not create.
 - **[20.6](github-workflow-scenarios.md#rule-206)** A runner MUST NOT grant
   approval: it MUST NOT merge a spec pull request, land spec text on the specs
   branch (7.5), or change the list of approvers.
@@ -762,8 +798,8 @@ These limits apply in every landing mode.
 
 ## Conformance
 
-A runner conforms when it follows the required rules, the rules of each
-optional part it supports, and the kit cases for those parts.
+A conforming runner follows the required rules and the rules for its optional
+features. It passes the workflow kit cases for both.
 
 ### Required rules
 
@@ -779,11 +815,11 @@ optional part it supports, and the kit cases for those parts.
 | Done tasks | 18 |
 | Runner limits | 20 |
 
-A runner supports at least one landing mode.
+Implement at least one landing mode.
 
 ### Optional parts
 
-A runner that leaves out an optional part gives the result in the last column.
+The last column describes runners that omit the feature.
 
 | Optional part | Sections | Without it |
 | --- | --- | --- |
@@ -808,9 +844,9 @@ required rules and for each optional part it supports.
 
 ### Kit coverage
 
-The kit checks every rule not listed below. A snapshot case holds the state a
-runner read and the answer it gave, so it cannot show what a runner writes or
-when. A scenario runs runners against a repository and shows both.
+Snapshot cases check decisions. Scenarios also check what runners write and
+when. The tables list gaps and partial coverage. The kit checks every other
+rule.
 
 | Rules | Why the kit does not check them |
 | --- | --- |
@@ -831,6 +867,5 @@ The kit checks these rules in part:
 | 16.5 | Whether a claim holds landed work, and where the tick goes | Which runner writes the tick |
 | 17.6 | That no runner takes a task while its pull request is open | That a runner merges the base into the claim branch when the base moves |
 
-Section 20 has one case for each rule. A case lists actions and the rule each
-one breaks, so it checks the decision for the actions it names, not what a
-runner does in the field.
+Section 20 has one case per rule. Each checks which listed actions the
+runner would refuse. These cases exercise the decision only.
