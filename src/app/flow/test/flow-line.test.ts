@@ -8,10 +8,12 @@ import { linePausedTaskIds } from "../flow.ts";
 import {
   findCulprit,
   heldByStop,
+  judgeBaseFailures,
   lineNeedsYou,
   watchLine,
 } from "../flow-line.ts";
 import { runLocalChecks } from "../flow-checks.ts";
+import { planCheckRuns } from "../../delivery/delivery.ts";
 import { deliveryWorkspace, git, leaf } from "../../test/delivery-fixture.ts";
 import { withStatus } from "../../test/refusal.ts";
 import {
@@ -306,4 +308,110 @@ test("a worker's check run runs the repository's checks on its commit", async (t
   assert.equal(ran.passed, true);
   assert.equal(ran.checks[0].commit, head);
   assert.ok(Number.isInteger(ran.checks[0].durationMs));
+});
+
+// A task whose check run failed `node check.mjs` on its commit, branched
+// from main's head.
+function rejected(s: ReturnType<typeof setup>, taskId: string) {
+  git(s.checkout, "checkout", "-q", "-b", "task-" + taskId);
+  fs.writeFileSync(path.join(s.checkout, taskId + ".txt"), taskId + "\n");
+  git(s.checkout, "add", "-A");
+  git(s.checkout, "commit", "-q", "-m", "Work " + taskId);
+  const commit = git(s.checkout, "rev-parse", "HEAD");
+  git(s.checkout, "checkout", "-q", "main");
+  s.store.put("task_deliveries", {
+    id: taskId,
+    taskId,
+    state: "failed",
+    commit,
+    attempts: [{ attempt: 1, commit, outcome: "failed" }],
+    verifications: [
+      {
+        attempt: 1,
+        commit,
+        outcome: "rejected",
+        checks: [
+          { name: "node check.mjs", command: "node check.mjs", exitCode: 1 },
+        ],
+      },
+    ],
+  });
+  return commit;
+}
+
+test("a base failure of a check that never passed on main holds the task and stops nothing", async (t) => {
+  const s = setup(t, [leaf("old"), leaf("a1")]);
+  // Integrated long ago; the check has never been seen green here.
+  s.land("old", "broken");
+  const base = git(s.checkout, "rev-parse", "HEAD");
+  rejected(s, "a1");
+  const { notify } = await judgeBaseFailures(s.store, s.config);
+  assert.equal(s.store.list("flow_stops").length, 0, "no stop");
+  assert.equal(
+    s.store.read().tasks.some((x: Task) => x.id === "old.fix-1"),
+    false,
+    "no fix task blames an old commit",
+  );
+  assert.deepEqual(
+    notify.map((n) => n.title),
+    ["node check.mjs fails on main here"],
+  );
+  const held = storedRow<{
+    state: string;
+    attempts: { outcome: string }[];
+    verifications: {
+      outcome: string;
+      noBaseline?: boolean;
+      base?: string;
+      released?: string;
+    }[];
+  }>(s.store, "task_deliveries", "a1");
+  assert.equal(held.state, "done");
+  assert.equal(held.attempts[0].outcome, "done", "no writer attempt spent");
+  assert.equal(held.verifications[0].outcome, "held");
+  assert.equal(held.verifications[0].base, base);
+  // Not checked again while main stays where it was.
+  assert.deepEqual(planCheckRuns(s.store), []);
+  await watchLine(s.store, s.config);
+  assert.equal(
+    storedRow<typeof held>(s.store, "task_deliveries", "a1").verifications[0]
+      .released,
+    undefined,
+  );
+  // Main moves: the hold is released, so the task is judged again.
+  s.land(null, "next.txt");
+  await watchLine(s.store, s.config);
+  assert.ok(
+    storedRow<typeof held>(s.store, "task_deliveries", "a1").verifications[0]
+      .released,
+  );
+});
+
+test("an open stop on a check that never passed on main closes, and its unstarted fix task goes", async (t) => {
+  const s = setup(t, [leaf("old")]);
+  s.land("old", "broken");
+  s.store.mutate("Add fix task", (data) => {
+    data.tasks.push({ ...leaf("old.fix-1"), flowFix: { stop: "s1" } });
+  });
+  s.store.put("flow_stops", {
+    id: "s1",
+    repositoryId: "app",
+    check: "node check.mjs",
+    branch: "main",
+    culprit: "old",
+    scope: "dependents",
+    openedAt: "2026-11-24T00:00:00Z",
+    closedAt: null,
+    fixTaskId: "old.fix-1",
+  });
+  const { notify } = await watchLine(s.store, s.config);
+  assert.deepEqual(
+    notify.map((n) => n.title),
+    ["Line stop closed: node check.mjs has not passed on main here"],
+  );
+  assert.ok(storedRow<LineStop>(s.store, "flow_stops", "s1").closedAt);
+  assert.equal(
+    s.store.read().tasks.some((x: Task) => x.id === "old.fix-1"),
+    false,
+  );
 });

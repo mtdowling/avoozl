@@ -94,6 +94,10 @@ interface Verification {
   role?: string;
   outcome?: string;
   baseChecked?: boolean;
+  // Held because the check also fails on `base` and has never passed on
+  // the branch here: judged again once the branch moves past `base`.
+  noBaseline?: boolean;
+  base?: string;
   commit?: string;
   checks?: ReportedCheck[];
   released?: string;
@@ -407,6 +411,7 @@ function closeStop(
   stop: Stop,
   notify: LineNotice[],
   now: number,
+  title = `Line green: ${stop.check ?? "the line"} passes on ${stop.branch}`,
 ) {
   const at = new Date(now).toISOString(),
     closed = {
@@ -415,10 +420,24 @@ function closeStop(
       timeToFixMs: Math.max(0, now - Date.parse(stop.openedAt ?? "")),
     };
   store.transaction(() => putStop(store, closed));
+  // A fix task the line made and no worker started has nothing left to
+  // fix, so it goes.
+  const fix = stop.fixTaskId;
+  if (
+    fix &&
+    fixOpen(store, fix) &&
+    !store.get("task_deliveries", fix) &&
+    !openStops(store).some((s) => s.fixTaskId === fix)
+  )
+    store.mutate("Remove fix task " + fix, (draft) => {
+      draft.tasks = draft.tasks.filter(
+        (t) => t.id !== fix || t.status !== "planned",
+      );
+    });
   notify.push({
     channel: "failure",
     task: stop.fixTaskId,
-    title: `Line green: ${stop.check ?? "the line"} passes on ${stop.branch}`,
+    title,
     text: `Dispatch resumed after ${Math.round(closed.timeToFixMs / 60_000)} min.`,
     resume: "Nothing to do.",
   });
@@ -537,6 +556,22 @@ export async function watchLine(
         repositoryId: repository.id,
         green: {},
       };
+    // A stop on a check that never passed on this branch has no baseline:
+    // nothing broke that worked, so it closes (R44.1).
+    for (const stop of openStops(store))
+      if (
+        stop.repositoryId === repository.id &&
+        stop.check &&
+        !stop.manual &&
+        !state.green[stop.check]
+      )
+        closeStop(
+          store,
+          stop,
+          notify,
+          now,
+          `Line stop closed: ${stop.check} has not passed on ${stop.branch} here`,
+        );
     if (state.head === head) continue;
     const known = Object.keys(state.green).length > 0;
     // Nothing known green and a head Avoozl did not integrate: nothing to
@@ -604,11 +639,23 @@ export async function watchLine(
 // onto the fixed branch first, so the new head is a new round (R36.9).
 async function releaseHeld(store: Store, repository: Repository) {
   if (openStops(store).some((s) => s.repositoryId === repository.id)) return;
+  let head: string | null = null;
+  try {
+    head = await git(repository.root, [
+      "rev-parse",
+      "--verify",
+      "--quiet",
+      await landingRef(repository),
+    ]);
+  } catch {}
   for (const delivery of store.list<DeliveryRow>("task_deliveries")) {
     if (delivery.state !== "done") continue;
     const held = (delivery.verifications || []).filter(
       (v) =>
-        v.outcome === "held" && v.commit === delivery.commit && !v.released,
+        v.outcome === "held" &&
+        v.commit === delivery.commit &&
+        !v.released &&
+        (!v.noBaseline || (head !== null && head !== v.base)),
     );
     if (!held.length) continue;
     const worktree = store.get<{ repository?: string; path?: string }>(
@@ -715,15 +762,24 @@ export async function judgeBaseFailures(
         ]);
       } catch {}
     const result = base && argv ? await run(repository, base, argv) : null,
-      broken = result && result.exitCode !== 0;
+      broken = result && result.exitCode !== 0,
+      green =
+        (failingName &&
+          store.get<LandingRecord>("flow_records", landingId(repository.id))
+            ?.green?.[failingName]) ||
+        null,
+      // Never green on the branch here: no task broke it, so no stop.
+      noBaseline = Boolean(broken && !green),
+      branch = landingOf(repository);
     const verifications = (delivery.verifications || []).map((v, i, all) =>
       i === all.length - 1
         ? broken
           ? {
               ...v,
               outcome: "held",
-              cause: `not judged: \`${failingName}\` also fails on the base ${String(base).slice(0, 12)}`,
+              cause: `not judged: \`${failingName}\` also fails on the base ${String(base).slice(0, 12)}${noBaseline ? ` and has not passed on ${branch} here` : ""}`,
               baseChecked: true,
+              ...(noBaseline ? { noBaseline: true, base: base as string } : {}),
             }
           : { ...v, baseChecked: true }
         : v,
@@ -744,14 +800,19 @@ export async function judgeBaseFailures(
         state: "done",
         commit: last.commit,
       };
-      const stateRecord = store.get<LandingRecord>(
-          "flow_records",
-          landingId(repository.id),
-        ),
-        green = (failingName && stateRecord?.green?.[failingName]) || null,
-        culprit = await findCulprit(store, repository, argv, green, base, {
-          run,
+      if (noBaseline)
+        notify.push({
+          channel: "failure",
+          task: delivery.taskId,
+          title: `${failingName} fails on ${branch} here`,
+          text: `\`${failingName}\` fails on ${String(base).slice(0, 12)} and has not passed on ${branch} on this machine, so it cannot judge ${delivery.taskId}. Fix the check or what it needs here; ${delivery.taskId} is judged again when ${branch} moves.`,
+          resume: `Fix \`${failingName}\` on this machine, or change the repository's checks.`,
         });
+    }
+    if (broken && base && argv && result && !noBaseline) {
+      const culprit = await findCulprit(store, repository, argv, green, base, {
+        run,
+      });
       openStop(store, repository, {
         check: failingName,
         culprit,

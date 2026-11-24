@@ -56,7 +56,7 @@ function setup(
       undefined,
       context,
     );
-  return { ops, workspace, machineValue, get, update };
+  return { ops, root, workspace, machineValue, get, update };
 }
 
 test("picking Autopilot writes delivery and this machine's loop; Off removes only the loop", async (t) => {
@@ -167,4 +167,30 @@ test("Needs you says Autopilot is off while ready tasks wait on a missing loop",
     JSON.stringify({ version: 1, loop: { run: ["specs"] } }),
   );
   assert.deepEqual(await off(), []);
+});
+
+test("autopilot on adds only delivery and keeps the file as Biome formats it", async (t) => {
+  const { ops, root } = setup(t),
+    filename = path.join(root, ".avoozl.json"),
+    before = [
+      "{",
+      '  "$schema": "./src/avoozl-config.schema.json",',
+      '  "version": 1,',
+      '  "repositories": {',
+      '    "code": {',
+      '      "root": ".",',
+      '      "checks": {',
+      '        "test": ["npm", "run", "test:changed"]',
+      "      }",
+      "    }",
+      "  }",
+      "}",
+      "",
+    ].join("\n");
+  fs.writeFileSync(filename, before);
+  await ops.execute("autopilot.set", { on: true });
+  assert.equal(
+    fs.readFileSync(filename, "utf8"),
+    before.replace("    }\n  }\n}\n", '    }\n  },\n  "delivery": {}\n}\n'),
+  );
 });

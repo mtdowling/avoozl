@@ -3037,12 +3037,16 @@ function judgeable(store: Store, data: Snapshot) {
         taskRepository(task) || "",
       );
     if (!task || !repository?.root) continue;
-    // Held by a stopped line: no new checks session until it is green.
+    // Held by a stopped line: no new checks session until it is green. A
+    // check with no baseline holds until the branch moves (flow-line.ts
+    // releaseHeld).
+    const held = (delivery.verifications || []).filter(
+      (v) => v.outcome === "held" && v.commit === delivery.commit,
+    );
     if (
-      (delivery.verifications || []).some(
-        (v) => v.outcome === "held" && v.commit === delivery.commit,
-      ) &&
-      openStops(store).some((s) => s.repositoryId === repository.id)
+      held.some((v) => v.noBaseline && !v.released) ||
+      (held.length &&
+        openStops(store).some((s) => s.repositoryId === repository.id))
     )
       continue;
     out.push({ delivery, task, repository });
