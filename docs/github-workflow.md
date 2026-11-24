@@ -605,11 +605,18 @@ Lease parser/p-2 generation 1
 Start: 0a1b2c3d4e5f60718293a4b5c6d7e8f901234567
 Task: Report unknown tokens
 Done: An unknown token is reported with its line and column
+Feedback: pull 41 through 2026-11-24T17:02:11Z line:2219 comment:2231
 ```
 
-On an existing claim, copy `Start` from the previous lease. For the first
-lease, use the claim head. An agent starts only after that lease exists.
-Record the task text approved at the time of the new lease (15.7).
+A `Feedback:` line names a source (`pull` or `issue` and its number), the
+time of the newest comment delivered from it, and the keys delivered in the
+10 minutes before that time (21.3). A comment at or before that window is
+delivered. A runner without feedback routing (21) writes no `Feedback:` line.
+
+On an existing claim, copy `Start` and every `Feedback:` line from the
+previous lease. For the first lease, use the claim head. An agent starts only
+after that lease exists. Record the task text approved at the time of the new
+lease (15.7).
 
 To release a lease, point its ref at a child of the lease commit with the
 same file tree. The release message follows this format.
@@ -865,6 +872,31 @@ mode.
 - **[20.10](github-workflow-scenarios.md#rule-2010)** A runner MUST NOT write
   private names, paths or hosts to a public repository.
 
+## 21. Feedback routing
+
+A runner can deliver comments from GitHub to the worker of a task. These rules
+say which comments reach which worker, and how a delivery is recorded so that
+another runner never sends it again.
+
+- **21.1** A runner MAY deliver a comment to the worker of a task only from the
+  task's pull request, from the task's labeled issue, or from the spec issue
+  when the comment holds the task's ID in a code span and the ID is a task of
+  that spec. A spec issue comment that names no task MUST NOT go to any
+  worker.
+- **21.2** A runner MUST deliver only comments whose author is a writer, an
+  approver, or a bot the repository lists, and MUST treat delivered text as
+  untrusted input (20.8). It MUST NOT deliver its own posted comments.
+- **21.3** A runner MUST key each comment by kind and GitHub ID and deliver a
+  key at most once. It MUST record what it delivered in the `Feedback:` lines
+  of a lease commit (15.6), and a new lease MUST copy them (15.7).
+- **21.4** Only the holder of the newest lease MAY deliver. A runner MUST NOT
+  deliver while the spec is stopped (10.2).
+- **21.5** A comment on a done task MUST NOT reopen it.
+- **21.6** A comment MUST NOT change a task's acceptance. A worker that finds a
+  comment asking for more keeps the current behavior, and the runner shows the
+  request to a person, who changes the spec by approval (7.5) or the issue by
+  relabeling (11.1).
+
 ## Conformance
 
 A conforming runner follows the required rules and the rules for its optional
@@ -904,6 +936,7 @@ The last column describes runners that omit the feature.
 | Label filters | 9.1 | Required and excluded labels do not affect this runner's claims |
 | Labeled issues | 9.1, 11 | The runner makes no spec from an issue |
 | Review output | 19 | The runner posts no review |
+| Feedback routing | 21 | The runner delivers no comment to a worker |
 
 ### Workflow kit
 
@@ -921,7 +954,7 @@ rule.
 
 | Rules | Why the kit does not check them |
 | --- | --- |
-| 13.3, 16.6 | No case |
+| 13.3, 16.6, 21.1, 21.2, 21.3, 21.4, 21.5, 21.6 | No case |
 
 The kit checks these rules in part:
 
