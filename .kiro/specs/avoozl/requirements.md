@@ -261,12 +261,13 @@ vocabulary.
 
 1. A repository MAY set `labels.require` and `labels.exclude`. A spec SHALL
    run on this runner only when its spec issue carries every `require`
-   label and no `exclude` label. Labels SHALL compare without case.
+   label and no `exclude` label. Labels SHALL compare without case. An
+   `exclude` label SHALL hold the spec whoever added it.
 2. A `require` label SHALL count only when the actor of its newest `labeled`
    event has write, maintain or admin permission.
 3. `labels.stop` (default `avoozl:stopped`) SHALL stop a spec while a
-   writer's stop label is on its spec issue or on a parent spec's. A removal
-   by anyone but a writer SHALL NOT clear the stop.
+   writer's stop label is on its spec issue or on a parent spec's. Only a
+   removal by an approver SHALL clear the stop.
 4. The filters SHALL hold new claims only. A task already claimed SHALL
    keep running whatever its filter labels say later; a stop SHALL also
    hold a claimed task's push and landing.
@@ -281,16 +282,21 @@ deliver it, so that one gesture starts a small piece of work.
 #### Acceptance criteria
 
 1. An open issue that passes its repository's `labels.require`, each label
-   added by a writer, is assigned to this runner's login, and is not a spec
-   issue SHALL become task `issue-<n>`: the issue's title, and its body as
-   its one done bullet.
+   added by a writer, is assigned solely to this runner's login, and is not
+   a spec issue SHALL become task `issue-<n>`: the issue's title, and its
+   body as its one done bullet.
 2. The task SHALL live in the workspace cache only, claim
    `avoozl/issue-<n>/issue-<n>`, and land like any task.
-3. The task's definition SHALL be pinned to the title and body it was read
-   with.
+3. The task's definition SHALL be pinned to the title and body as they were
+   at the writer's `labeled` event that authorized them. An edit after that
+   event SHALL end the authorization until a writer labels the issue again.
 4. `pr` landing SHALL write `Closes #<n>` in the pull request. `direct`
    landing SHALL close the issue with a comment naming the landed commit.
-   Avoozl SHALL write nothing else to the issue.
+   Before Avoozl merges the pull request, arms auto-merge on it or pushes to
+   the base, it SHALL check again that the issue is open, solely assigned to
+   this login and still authorized; on a failed check it SHALL land nothing,
+   leave the issue open and raise one Needs you row. Avoozl SHALL write
+   nothing else to the issue.
 5. A task whose issue closed SHALL be done; one whose issue stops
    qualifying SHALL go unless its work has started.
 
@@ -2105,15 +2111,17 @@ approval and a task opens the text it builds.
 
 #### Acceptance criteria
 
-1. A task ID MAY be written bare or as a code span: ``- [ ] `dl-1` Open the
-   decision`` and `- [ ] dl-1 Open the decision` name the same task, and
-   neither is a lint error. Avoozl's own writers SHALL write a named ID as a
-   code span, and its prompts and docs SHALL recommend it. Kiro's numbers
-   (`1.`, `1.1`) stay bare.
+1. A task ID SHALL be a code span holding `[A-Za-z0-9][A-Za-z0-9._-]*`:
+   ``- [ ] `dl-1` Open the decision``, `` `parse` `` and `` `1.2` `` are task
+   IDs, and IDs compare exactly. A task whose ID is not in a code span, as
+   `- [ ] dl-1 Open the decision` or Kiro's bare `1.`, SHALL be a lint
+   error naming the line. The spec skill converts bare IDs to code spans.
 2. A trailing `[...]` on a task's title SHALL be read as requirement refs and
    a trailing `(...)` as design refs, each a comma-separated list, and the
    title SHALL be shown without them. A trailing bracket whose first entry
-   is not ref-shaped SHALL stay title text.
+   is not ref-shaped SHALL stay title text. The refs are stripped for display
+   only: the task text a lease records and compares keeps the full title,
+   refs included.
 3. A requirement ref SHALL be `R<n>` for a `Requirement <n>:` heading, or the
    heading's own ID (`DL2` for `Requirement DL2:`), with an optional `.<m>`
    for its numbered criterion `<m>.`. A design ref SHALL be `§` and the
@@ -2201,8 +2209,10 @@ who has it and no two people drive one spec.
    own login and to no one else. A spec issue with no assignee, another
    login, or two or more assignees SHALL hold the spec, with the reason
    naming the assignees.
-5. An approved spec with no spec issue is not shared, so it SHALL run on
-   this workspace until the tick publishes its issue (Requirement 102.2).
+5. An approved spec in a repository with a GitHub name and no spec issue
+   SHALL wait, with the reason "spec issue not published yet", until the
+   tick publishes its issue (Requirement 102.2). A repository with no GitHub
+   name is local-only, and its approved specs SHALL run on this workspace.
 6. Each pass SHALL read the spec issues once and cache each spec's result;
    the ready rule SHALL read the cache. A spec whose read fails SHALL keep
    its last result.
