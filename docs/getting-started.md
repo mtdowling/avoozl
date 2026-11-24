@@ -52,25 +52,23 @@ run `npm run build && kirocrew app update avoozl` in the checkout.
 ## Run it without Kiro Crew
 
 Without Kiro Crew, a timer runs the tick ([below](#run-the-tick-on-a-timer)).
-To use the page too, set `serve.enabled` (and, if you like, a fixed
-`serve.port`) in this machine's `config.json`:
+The tick also keeps the page up on `127.0.0.1` only. It has no host or
+bind option. Sign a browser in with a one-time owner link, printed by:
+
+```sh
+avoozl link
+```
+
+To fix the page's port, set `serve.port` in this machine's `config.json`. To
+turn the page off, set `serve.enabled` to `false`:
 
 ```json
 {
   "version": 1,
   "serve": {
-    "enabled": true,
-    "port": 4800
+    "enabled": false
   }
 }
-```
-
-The next tick starts the page on `127.0.0.1` only, and each tick after keeps
-it up. It has no host or bind option. Sign a browser in with a one-time owner
-link, printed by:
-
-```sh
-avoozl link
 ```
 
 Without Kiro Crew, a button that opens a chat opens a **Start a session**

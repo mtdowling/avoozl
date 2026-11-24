@@ -1819,7 +1819,7 @@ the last tick did.
 3. Settings › Models SHALL set a harness and a model per role.
 4. A headless machine SHALL get the CLI (`avoozl status` and
    `avoozl runner status --json`), and the standalone page that each tick
-   keeps up when `serve.enabled` is set ([standalone-web](standalone-web.md)).
+   keeps up unless `serve.enabled` is `false` ([standalone-web](standalone-web.md)).
    Avoozl SHALL host no other UI and SHALL serve nothing beyond
    `127.0.0.1`.
 5. `.avoozl.json` SHALL hold one `roles` table with one row per role:
@@ -2464,7 +2464,7 @@ issue's body holds one that names its epic
   `avoozl-responder` and `avoozl-check-decide`. Implementation tasks use the
   `worker` role's agent (§4.10).
 - **Standalone page**: `src/app/serve/serve-server.ts` serves the same page
-  on `127.0.0.1` when `serve.enabled` (§4.7).
+  on `127.0.0.1` unless `serve.enabled` is `false` (§4.7).
 
 #### 4.2 App manifest shape
 
@@ -2723,7 +2723,7 @@ each with actions. The ones dispatch uses: `plans_maintain` (`tick`),
 - The node backend binds `127.0.0.1` on a port the gateway assigns, and
   every route except the gateway's health probe refuses a request without a
   valid gateway-signed principal with 401 (F33). There is no host option.
-- The standalone page, kept up when the machine sets `serve.enabled`,
+- The standalone page, kept up unless the machine sets `serve.enabled: false`,
   binds `127.0.0.1` only. Every
   request is checked for Host, method and a live session cookie, and a write
   also for Origin, `Sec-Fetch-Site`, Content-Type and a CSRF header
@@ -3889,9 +3889,9 @@ in `tick/loop.ts`, checked by `validateLoop` first); Off sends `loop:
 null`. Needs you adds one `needs-human` row with reason `autopilot-off`
 while tasks are ready and `machineLoop` is null.
 
-With `serve.enabled`, each tick keeps the standalone page (the
+Unless `serve.enabled` is `false`, each tick keeps the standalone page (the
 `standalone-web` spec) up on `127.0.0.1` only, signed in by a one-time
-owner link from `avoozl link`, for machines with no Kiro Crew.
+owner link from `avoozl link`.
 
 #### 4.32 Branches and spec issues
 

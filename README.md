@@ -136,10 +136,10 @@ Open Kiro Crew's App Store, review Avoozl's trust request, and enable it. The
 To run Avoozl without Kiro Crew, run `avoozl tick` on a timer: launchd,
 systemd or cron, with the lines in
 [Getting started](docs/getting-started.md#run-the-tick-on-a-timer), or a chat
-that follows the `avoozl-drive` skill. Each tick is one pass that exits. With
-`serve.enabled` in the machine's `config.json`, the tick also keeps the page
-up on `127.0.0.1`, and `avoozl link` prints a one-time link that signs your
-browser in. Claude Code users can load the plugin in `hosts/claude-code/`.
+that follows the `avoozl-drive` skill. Each tick is one pass that exits. The tick
+also keeps the page up on `127.0.0.1`, and `avoozl link` prints a one-time
+link that signs your browser in. `serve.enabled: false` in the machine's
+`config.json` turns the page off. Claude Code users can load the plugin in `hosts/claude-code/`.
 
 ## Create a workspace
 

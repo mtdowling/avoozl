@@ -5,13 +5,15 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import net from "node:net";
+import os from "node:os";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
 import { loadLayeredConfig } from "../settings/layered-config.ts";
 import { machineStatus } from "../workspace/machine-status.ts";
 import { supervisorPaths } from "../executors/supervisor.ts";
 import { hostPage } from "../executors/page-child.ts";
-import { temporaryDirectory } from "./temporary.ts";
+import { readServeConfig } from "../settings/serve-config.ts";
+import { takenPort, temporaryDirectory } from "./temporary.ts";
 
 const until = async <T>(
   check: () => T | Promise<T>,
@@ -38,6 +40,24 @@ async function freePort() {
   return address.port;
 }
 
+// Whether the process is gone (no pid counts as gone).
+const ended = (pid: number) => {
+  if (!pid) return true;
+  try {
+    process.kill(pid, 0);
+    return false;
+  } catch {
+    return true;
+  }
+};
+
+// This machine's IPv4 addresses other than loopback.
+const nonLoopbackAddresses = () =>
+  Object.values(os.networkInterfaces())
+    .flat()
+    .filter((entry) => entry && entry.family === "IPv4" && !entry.internal)
+    .map((entry) => entry?.address ?? "");
+
 // serve.json and page.json as the page child writes them.
 interface PageState {
   pid: number;
@@ -52,7 +72,10 @@ const readJson = (file: string): PageState | null => {
   }
 };
 
-async function hosted(t: TestContext, serve: Record<string, unknown>) {
+async function hosted(
+  t: TestContext,
+  serve: Record<string, unknown> | undefined,
+) {
   const root = temporaryDirectory(),
     stateDirectory = path.join(root, "state"),
     configDirectory = path.join(root, "config");
@@ -111,11 +134,16 @@ test("with serve.enabled a tick starts the server child and records its pid and 
   // The next tick finds the same child and starts no second one.
   assert.equal(h.tick()?.pid, state.pid);
   // `avoozl status` shows the origin (SW9.3).
-  const status = machineStatus({ stateDirectory: h.stateDirectory });
+  const status = machineStatus({
+    stateDirectory: h.stateDirectory,
+    configDirectory: h.configDirectory,
+  });
   assert.deepEqual(status.serve, {
+    enabled: true,
     running: true,
     origin: state.origin,
     pid: state.pid,
+    open: "avoozl link",
   });
 });
 
@@ -167,7 +195,7 @@ test("the tick process itself listens on no socket (SW9.4)", async (t) => {
   assert.equal(listening.length, 0);
 });
 
-test("without serve.enabled no server starts and status says so (SW9.1, SW9.3)", async (t) => {
+test("serve.enabled: false turns the page off: no server starts and status says so (SW9.1, SW9.3)", async (t) => {
   const off = await hosted(t, { enabled: false });
   assert.equal(off.page(), null);
   assert.equal(
@@ -175,10 +203,119 @@ test("without serve.enabled no server starts and status says so (SW9.1, SW9.3)",
     false,
   );
   assert.deepEqual(
-    machineStatus({ stateDirectory: off.stateDirectory }).serve,
-    {
-      running: false,
-    },
+    machineStatus({
+      stateDirectory: off.stateDirectory,
+      configDirectory: off.configDirectory,
+    }).serve,
+    { enabled: false, running: false },
+  );
+});
+
+test("with no serve block the page is on, on 127.0.0.1, and needs a sign-in link (SW9.1, SW3.6, SW4.5)", async (t) => {
+  const h = await hosted(t, undefined);
+  const state = await until(
+    () => readJson(path.join(h.stateDirectory, "serve.json")),
+    "serve.json",
+  );
+  assert.match(state.origin ?? "", /^http:\/\/127\.0\.0\.1:\d+$/);
+  // Nothing answers on another address of this machine at that port.
+  const reach = (host: string) =>
+    new Promise<boolean>((resolve) => {
+      const socket = net.connect({ host, port: state.port ?? 0 });
+      // An address that drops the packet counts as not answering.
+      socket.setTimeout(1000, () => {
+        socket.destroy();
+        resolve(false);
+      });
+      socket.once("connect", () => {
+        socket.destroy();
+        resolve(true);
+      });
+      socket.once("error", () => resolve(false));
+    });
+  assert.equal(await reach("127.0.0.1"), true);
+  for (const host of nonLoopbackAddresses())
+    assert.equal(await reach(host), false, host);
+  // No route answers without a session; a link without a good token is refused.
+  for (const route of ["/", "/apps/avoozl", "/apps/avoozl/api/workspaces"])
+    assert.equal((await fetch(`${state.origin}${route}`)).status, 401, route);
+  for (const route of ["/login", "/login?token=not-a-token"])
+    assert.equal(
+      (await fetch(`${state.origin}${route}`, { redirect: "manual" })).status,
+      403,
+      route,
+    );
+  const status = machineStatus({
+    stateDirectory: h.stateDirectory,
+    configDirectory: h.configDirectory,
+  }).serve;
+  assert.equal(status.enabled, true);
+  assert.equal(status.open, "avoozl link");
+});
+
+test("a page whose port is taken says so in status, and the tick goes on (SW3.2)", async (t) => {
+  const port = await takenPort(t);
+  const h = await hosted(t, { port });
+  const problem = await until(
+    () =>
+      machineStatus({
+        stateDirectory: h.stateDirectory,
+        configDirectory: h.configDirectory,
+      }).serve.problem,
+    "the page's problem",
+  );
+  assert.equal(
+    problem,
+    `The standalone page cannot start: port ${port} is in use`,
+  );
+  // The next tick tries again and does not throw.
+  h.tick();
+  const pagePid = () =>
+    readJson(path.join(supervisorPaths(h.stateDirectory).root, "page.json"))
+      ?.pid ?? 0;
+  await until(() => ended(pagePid()), "the retried page to exit");
+  // Turned off, the old problem is gone.
+  fs.writeFileSync(
+    h.configFile,
+    JSON.stringify({ version: 1, serve: { enabled: false } }),
+  );
+  assert.equal(h.tick(), null);
+  assert.equal(
+    machineStatus({
+      stateDirectory: h.stateDirectory,
+      configDirectory: h.configDirectory,
+    }).serve.problem,
+    undefined,
+  );
+});
+
+test("readServeConfig: on with no file or no serve block, off only when it says false or is bad", () => {
+  const dir = temporaryDirectory(),
+    file = path.join(dir, "config.json");
+  assert.deepEqual(readServeConfig(dir), { enabled: true, port: 0 });
+  for (const [value, enabled] of [
+    [{ version: 1 }, true],
+    [{ version: 1, serve: {} }, true],
+    [{ version: 1, serve: { enabled: true, port: 4100 } }, true],
+    [{ version: 1, serve: { enabled: false } }, false],
+    [{ version: 1, serve: { enabled: "no" } }, false],
+  ] as const) {
+    fs.writeFileSync(file, JSON.stringify(value));
+    assert.equal(readServeConfig(dir).enabled, enabled, JSON.stringify(value));
+  }
+  fs.writeFileSync(file, "{ not json");
+  assert.equal(readServeConfig(dir).enabled, false);
+});
+
+test("a test run's AVOOZL_NO_PAGE starts no page", () => {
+  const root = temporaryDirectory();
+  assert.equal(
+    hostPage({
+      stateDirectory: path.join(root, "state"),
+      configDirectory: path.join(root, "config"),
+      env: { ...process.env, AVOOZL_NO_PAGE: "1" },
+    }),
+    null,
   );
 });
 

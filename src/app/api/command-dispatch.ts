@@ -153,6 +153,8 @@ export const APP_OPERATIONS = new Set([
   "flow.settings.update",
   "telemetry.status",
   "telemetry.configure",
+  // Settings > Workspaces > Browser page: where the standalone page is.
+  "page.status",
   "delivery.settings.get",
   "delivery.settings.update",
   "delivery.runner.release",

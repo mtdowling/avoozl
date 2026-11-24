@@ -52,14 +52,36 @@ Settings that belong to one machine, such as `lanes` and `serve`, live in
 
 ## Standalone server
 
-The page runs without Kiro Crew when this machine's `config.json` sets
-`serve.enabled`, and optionally a fixed `serve.port`. Each `avoozl tick`
-keeps it up: the next tick starts it, starts it again on the same port if it
-stopped, and stops it once `serve.enabled` is off. It listens on `127.0.0.1`
-only and prints no link; run `avoozl link` in that machine's shell for a
-one-time owner link that signs one browser in. `avoozl status` shows the
-page's origin. See [Getting started](getting-started.md#run-the-tick-on-a-timer)
-for the timer that runs the tick.
+Each `avoozl tick` keeps the page up in a plain browser tab, with or
+without Kiro Crew. To open it, run `avoozl link` in this machine's shell and
+open the one-time owner link it prints:
+
+```sh
+avoozl link
+```
+
+The link signs one browser in. The page listens on `127.0.0.1` only, on a
+port of its own choosing unless `serve.port` fixes one. Every request needs
+the session the link starts, and every write needs its CSRF token.
+`avoozl status` shows the page's origin under `machine.serve`, and
+**Settings › Workspaces › Browser page** shows it inside Kiro Crew. When the
+page cannot start, such as when `serve.port` is taken, both say why and the
+next tick tries again.
+
+To turn the page off, set `serve.enabled` to `false` in this machine's
+`config.json`. The next tick stops it.
+
+```json
+{
+  "version": 1,
+  "serve": {
+    "enabled": false
+  }
+}
+```
+
+See [Getting started](getting-started.md#run-the-tick-on-a-timer) for the
+timer that runs the tick.
 
 Without Kiro Crew, a button that opens a chat opens a **Start a session**
 dialog. **Start** runs the message as a read-only `assist` session on a

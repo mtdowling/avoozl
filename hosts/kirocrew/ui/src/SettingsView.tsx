@@ -70,6 +70,7 @@ import { AskForHelp, DangerBtn, IconLabel, SectionHeading, TipBtn, ViewHeading }
 import { Plus, Trash2, Workflow, type LucideIcon } from './icons.ts'
 import { linkHref } from './views-api.ts'
 import { NoticesSettings } from './NoticesSettings.tsx'
+import { PageSettings } from './PageSettings.tsx'
 import { TelemetrySettings } from './TelemetrySettings.tsx'
 import { ErrorText } from './ui/ErrorText'
 import { Row } from './ui/Row'
@@ -1032,6 +1033,7 @@ function SettingsBody(
       <Box flex flexCol gap="3.5">
         <WorkspaceView selected={workspaceId} onSelect={props.onSelectWorkspace} onListChange={props.onListChange} />
         <NoticesSettings workspaceId={workspaceId} />
+        <PageSettings workspaceId={workspaceId} />
         <TelemetrySettings workspaceId={workspaceId} />
       </Box>
     )

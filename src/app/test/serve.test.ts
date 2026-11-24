@@ -13,7 +13,7 @@ import { sandboxSecretPaths } from "../executors/sandbox.ts";
 import { ABSOLUTE_MS, IDLE_MS, LINK_TTL_MS } from "../serve/serve-auth.ts";
 import { contentSecurityPolicy, startServe } from "../serve/serve-server.ts";
 import { initializeWorkspace } from "../workspace/workspace.ts";
-import { temporaryDirectory } from "./temporary.ts";
+import { takenPort, temporaryDirectory } from "./temporary.ts";
 import { found } from "./view-shapes.ts";
 
 const cli = fileURLToPath(new URL("../../../cli.ts", import.meta.url));
@@ -181,14 +181,7 @@ test("the listener is on 127.0.0.1 and nowhere else (SW3.6)", async (t) => {
 });
 
 test("a taken port exits with 'port N is in use' and tries no other (SW3.2)", async (t) => {
-  const holder = net.createServer();
-  await new Promise<void>((resolve) =>
-    holder.listen(0, "127.0.0.1", () => resolve()),
-  );
-  t.after(() => holder.close());
-  const held = holder.address();
-  assert.ok(held && typeof held === "object");
-  const taken = held.port;
+  const taken = await takenPort(t);
   const root = temporaryDirectory(),
     workspace = path.join(root, "ws");
   initializeWorkspace(workspace);

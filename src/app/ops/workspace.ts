@@ -20,6 +20,7 @@ import {
 import { requirePrivateRepository } from "../github/github.ts";
 import { HARNESS_UNCONFINED } from "../executors/harness-definitions.ts";
 import { machineAvoozlPaths } from "../settings/host-config.ts";
+import { pageStatus } from "../workspace/machine-status.ts";
 import { claimsOf, labelsOf } from "../settings/repository-settings.ts";
 import { startTelemetry } from "../telemetry/index.ts";
 import { startPluginUpdateChecks } from "../plugins/plugin-updates.ts";
@@ -211,6 +212,22 @@ export const entries = [
     policy: routed,
     handler(this: Operations, {}: OperationCall) {
       return globalLocalIgnoreStatus();
+    },
+  },
+
+  {
+    name: "page.status",
+    class: "observe",
+    github: "check-in",
+    policy: notOnMcp(
+      "A chat has no use for the page's address; Settings and avoozl status show it.",
+    ),
+    handler(this: Operations, {}: OperationCall) {
+      const machine = machineAvoozlPaths();
+      return pageStatus(
+        machine.stateDirectory,
+        this.configDirectory ?? machine.configDirectory,
+      );
     },
   },
 

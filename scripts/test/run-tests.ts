@@ -66,6 +66,8 @@ process.env.XDG_STATE_HOME = path.join(scratch, "state");
 for (const dir of [process.env.XDG_CONFIG_HOME, process.env.XDG_STATE_HOME])
   fs.mkdirSync(dir);
 delete process.env.KIROCREW_HOME;
+// The page is on by default; a test's tick starts none (page-child.ts).
+process.env.AVOOZL_NO_PAGE = "1";
 process.env.AVOOZL_TEST_GUARD = JSON.stringify([...new Set(guard)]);
 // Sandboxed children inherit NODE_OPTIONS, and their sandbox hides the home
 // folder the checkout sits in, so the guard loads from the temp folder.

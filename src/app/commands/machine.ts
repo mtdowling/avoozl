@@ -5,6 +5,7 @@ import { startAppBackend } from "../executors/kirocrew/app-backend.ts";
 import { serveKirocrew, serveWorkspace } from "../mcp/mcp-stdio.ts";
 import { machineAvoozlPaths } from "../settings/host-config.ts";
 import { machineStatus, serveStatus } from "../workspace/machine-status.ts";
+import { readServeConfig } from "../settings/serve-config.ts";
 import { reportByToken } from "../workers/report-match.ts";
 import { LinkStore } from "../serve/serve-auth.ts";
 import { Store } from "../store/store.ts";
@@ -110,7 +111,11 @@ export const commands: Command[] = [
       const running = serveStatus(machine.stateDirectory);
       if (!running.running || !running.origin)
         throw Error(
-          "The standalone page is not running. Set serve.enabled in this machine's config.json and run: avoozl tick",
+          running.problem
+            ? `${running.problem}. Fix it and run: avoozl tick`
+            : readServeConfig(machine.configDirectory).enabled
+              ? "The standalone page is not running yet. Run: avoozl tick"
+              : "The standalone page is off: serve.enabled is false in this machine's config.json. Remove it (or set it to true) and run: avoozl tick",
         );
       const links = new LinkStore(machine.stateDirectory);
       try {

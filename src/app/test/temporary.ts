@@ -1,4 +1,5 @@
-import { after } from "node:test";
+import { after, type TestContext } from "node:test";
+import net from "node:net";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -58,4 +59,14 @@ export function temporaryDirectory(prefix = "avoozl-") {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
   directories.add(root);
   return root;
+}
+
+// A port on 127.0.0.1 another listener holds until the test ends.
+export async function takenPort(t: TestContext) {
+  const holder = net.createServer();
+  await new Promise<void>((resolve) =>
+    holder.listen(0, "127.0.0.1", () => resolve()),
+  );
+  t.after(() => holder.close());
+  return (holder.address() as net.AddressInfo).port;
 }

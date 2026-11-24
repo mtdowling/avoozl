@@ -411,6 +411,15 @@ const telemetryView = () => ({
   local: { spans: 5120, points: 48210, days: 90, spanCap: 200000, pointCap: 1000000 },
 })
 answer('telemetry.status', telemetryView)
+// Settings > Workspaces > Browser page. &pageStatus=off|problem|starting picks
+// the state; the default is a running page.
+answer('page.status', () => {
+  const state = query.get('pageStatus')
+  if (state === 'off') return { enabled: false, running: false }
+  if (state === 'problem') return { enabled: true, running: false, problem: 'The standalone page cannot start: port 4100 is in use' }
+  if (state === 'starting') return { enabled: true, running: false }
+  return { enabled: true, running: true, origin: 'http://127.0.0.1:4100', pid: 4242, open: 'avoozl link' }
+})
 answer('telemetry.configure', (body) => {
   const input = body.input as { enabled?: boolean; endpoint?: string; headers?: string[] }
   telemetrySaved = { ...telemetrySaved, endpoint: input.endpoint || null, headers: input.headers ?? telemetrySaved.headers }
