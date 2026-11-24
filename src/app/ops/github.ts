@@ -16,7 +16,7 @@ import {
   machineIdentity,
 } from "../github/github-sync.ts";
 import { fail } from "../store/store.ts";
-import { person, routed } from "../api/operation-policy.ts";
+import { routed, audited, destructive } from "../api/operation-policy.ts";
 import type { OperationCall, Operations } from "../api/operations.ts";
 
 export const entries = [
@@ -159,13 +159,8 @@ export const entries = [
     name: "github.job.confirm",
     class: "protect",
     github: null,
-    policy: person("Only a person allows a high-risk GitHub step."),
+    policy: destructive,
     handler(this: Operations, { input, context }: OperationCall) {
-      if (!context.person)
-        fail(
-          "Only a person allows a high-risk GitHub step, in the Avoozl page or the CLI.",
-          403,
-        );
       if (!Array.isArray(input.steps) || !input.steps.length)
         fail("Name the steps to allow.");
       const grants = this.grants.allow(
@@ -183,9 +178,7 @@ export const entries = [
     name: "github.settings.update",
     class: "protect",
     github: "check-in",
-    policy: person(
-      "Only a person changes GitHub settings, including Who counts.",
-    ),
+    policy: audited,
     async handler(this: Operations, { input }: OperationCall) {
       const policy = normalizeGitHubPolicy(policySection(input.github));
       if (this.github?.available?.())
@@ -212,7 +205,7 @@ export const entries = [
     name: "github.repository.connect",
     class: "protect",
     github: "check-in",
-    policy: person("Only a person connects a repository to GitHub."),
+    policy: audited,
     async handler(this: Operations, { input }: OperationCall) {
       const store = this.store;
 
@@ -240,7 +233,7 @@ export const entries = [
     name: "github.configure",
     class: "protect",
     github: "check-in",
-    policy: person("Only a person changes GitHub setup."),
+    policy: audited,
     async handler(this: Operations, { input }: OperationCall) {
       const store = this.store;
 

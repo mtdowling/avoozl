@@ -7,11 +7,7 @@ import {
   workspaceConfig,
 } from "../settings/config.ts";
 import { loadHostConfig, machineAvoozlPaths } from "../settings/host-config.ts";
-import {
-  agentSession,
-  agentSessionNote,
-  cliRefusal,
-} from "../mcp/mcp-policy.ts";
+import { agentSession } from "../mcp/mcp-policy.ts";
 import { Operations } from "../api/operations.ts";
 import { RepositorySettings } from "../settings/repository-settings.ts";
 import { Store } from "../store/store.ts";
@@ -172,22 +168,15 @@ try {
       }),
     });
   // Without a server, every CLI write goes through Operations in process.
-  // `local` marks the caller as the person at this machine's command line.
+  // `local` marks the caller as this machine's command line, which Activity
+  // names as cli. `--yes` is the input's `confirm: true` for a delete.
   const localOrRequest = async <T = unknown>(
     operation: string,
     input: Record<string, unknown> = {},
     expectedRevision?: number,
   ): Promise<T> => {
-    // Person-only operations are refused only in a supervisor child (R95.5).
-    const refusal = cliRefusal(operation, input, { env: process.env });
-    if (refusal) throw Error(refusal);
-    // From an agent session they run and say so; an approval records it.
-    const note = agentSessionNote(operation, input, process.env);
-    if (note) {
-      console.error(note);
-      if (operation === "plan.approve" && input.evidence === undefined)
-        input = { ...input, evidence: note };
-    }
+    if (options.yes === true && input.confirm === undefined)
+      input = { ...input, confirm: true };
     const store = new Store(requireDatabase());
     try {
       return await localOperations(store).execute<T>(

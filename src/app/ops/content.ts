@@ -9,19 +9,17 @@ import {
 } from "../content/content-rules.ts";
 import { inspectPlugins } from "../plugins/plugins.ts";
 import { fail } from "../store/store.ts";
-import { person, routed } from "../api/operation-policy.ts";
+import { routed, audited } from "../api/operation-policy.ts";
+import { callerName } from "../store/activity-log.ts";
 import type { OperationCall, Operations } from "../api/operations.ts";
 
-// Settings > Content rules editing: a person only. Terms are private, so
-// a session can neither read nor write them.
+// Settings > Content rules editing, and the terms file it writes.
 function contentTermsGetHandler(
   this: Operations,
-  { name, input, context }: OperationCall,
+  { name, input }: OperationCall,
 ) {
   const store = this.store;
 
-  if (context.caller || context.mcp)
-    fail("Only a person edits content rules, in the Avoozl page.", 403);
   if (name === "content.terms.get") return readTermsFile(store, input);
   if (name === "content.terms.update") return writeTermsFile(store, input);
   const written = this.settingsFile().updateContentRules(input, {
@@ -63,21 +61,21 @@ export const entries = [
     name: "content.terms.get",
     class: "protect",
     github: "check-in",
-    policy: person("Only a person reads content-rule terms."),
+    policy: audited,
     handler: contentTermsGetHandler,
   },
   {
     name: "content.terms.update",
     class: "protect",
     github: "check-in",
-    policy: person("Only a person edits content-rule terms."),
+    policy: audited,
     handler: contentTermsGetHandler,
   },
   {
     name: "content.sets.update",
     class: "protect",
     github: "check-in",
-    policy: person("Only a person edits content-rule sets."),
+    policy: audited,
     handler: contentTermsGetHandler,
   },
 
@@ -85,12 +83,11 @@ export const entries = [
     name: "content.allow",
     class: "protect",
     github: "check-in",
-    policy: person("Only a person allows a blocked write once."),
+    policy: audited,
     handler(this: Operations, { input, context }: OperationCall) {
       const store = this.store;
       return allowOnce(store, input, {
-        operator: this.operator,
-        caller: context.caller || context.mcp ? context.caller || "mcp" : null,
+        operator: callerName(context, this.operator),
       });
     },
   },
@@ -99,15 +96,10 @@ export const entries = [
     name: "content.show",
     class: "protect",
     github: "check-in",
-    policy: person("Only a person reads a matched line."),
-    handler(this: Operations, { input, context }: OperationCall) {
+    policy: audited,
+    handler(this: Operations, { input }: OperationCall) {
       const store = this.store;
 
-      if (context.caller || context.mcp)
-        fail(
-          "Only a person reads a matched line, in the Avoozl page or the CLI.",
-          403,
-        );
       return showDecisionLine(store, input.id);
     },
   },

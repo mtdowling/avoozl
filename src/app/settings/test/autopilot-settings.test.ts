@@ -110,7 +110,7 @@ test("Autopilot saves wall-clock limits and check-ins", async (t) => {
   });
 });
 
-test("a bad loop writes nothing, and only a person changes it", async (t) => {
+test("a bad loop writes nothing, and an agent tool may change it", async (t) => {
   const { workspace, get, update } = setup(t);
   const { hash } = await get();
   await assert.rejects(
@@ -123,14 +123,11 @@ test("a bad loop writes nothing, and only a person changes it", async (t) => {
     /loop\.run must list/,
   );
   assert.equal(workspace().delivery, undefined);
-  for (const context of [
-    { mcp: true },
-    { caller: { sessionKey: "dashboard:agent" } },
-  ])
-    await assert.rejects(
-      update({ expectedHash: hash, loop: { run: ["specs"] } }, context),
-      withStatus(403),
-    );
+  const saved = await update(
+    { expectedHash: hash, loop: { run: ["specs"] } },
+    { caller: { sessionKey: "dashboard:agent" }, mcp: true },
+  );
+  assert.deepEqual(saved.loop, { run: ["specs"] });
 });
 
 test("landing.pr saves while Autopilot is off, and starts nothing", async (t) => {

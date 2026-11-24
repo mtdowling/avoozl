@@ -1,8 +1,7 @@
 // Manual tasks (design §4.16, Requirement 61.9–61.15): a leaf only a person
-// does. It is never dispatched; a person marks it done (Done, Skipped or
-// Refused) or reopens it, from the page or the CLI. Done and Skipped
-// release its dependents; Refused is a no-go and keeps them held. Operations.perform refuses both
-// over MCP (mcp-policy.mjs) before this runs.
+// does. It is never dispatched; it is marked done (Done, Skipped or
+// Refused) or reopened from the page, the CLI or plans_control. Done and
+// Skipped release its dependents; Refused is a no-go and keeps them held.
 import { statusComplete } from "../../model.ts";
 import { isManual } from "../../work-model.ts";
 import { recordSpan } from "../flow/flow.ts";

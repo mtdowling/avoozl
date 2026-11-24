@@ -6,7 +6,6 @@
     "src/app/cli/postinstall.mjs",
     "bin/*",
     "hosts/kirocrew/bin/avoozl.mjs",
-    "hosts/claude-code/hooks/guard.ts",
     "scripts/**/*.ts",
     "workflow-kit/load.ts",
     "src/**/test/**/*.ts",

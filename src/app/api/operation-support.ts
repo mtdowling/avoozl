@@ -534,3 +534,13 @@ export function kiroCrewSessions(store: Store, taskId: string) {
       url: sessionUrl(binding.slot),
     }));
 }
+
+// Refuses an input that leaves out one of `keys`, naming the shape the
+// operation takes (`{source, id}`), before anything reads it.
+export function requireInput(
+  input: Record<string, unknown> | undefined,
+  keys: string[],
+) {
+  if (keys.some((key) => typeof input?.[key] !== "string" || !input[key]))
+    fail(`Name ${keys.length > 1 ? "them" : "it"}: {${keys.join(", ")}}.`);
+}

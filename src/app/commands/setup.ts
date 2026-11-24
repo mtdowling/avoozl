@@ -10,7 +10,6 @@ import {
   type CommandContext,
   help,
 } from "../cli/command-help.ts";
-import { confirmHighRisk, refuseAgentYes } from "../cli/confirm-high-risk.ts";
 
 const CANCELLED = "Cancelled: nothing was written.";
 
@@ -177,6 +176,10 @@ export async function runWorkspace({
       ["remove", "start", "drain", "resume", "stop"].includes(action)
     ) {
       const id = text(options.id) || positionals[1];
+      if (action === "remove" && options.yes !== true)
+        throw Error(
+          "workspace remove takes a workspace off this machine's list. Add --yes to run it.",
+        );
       result = await live(
         `/api/workspaces/${encodeURIComponent(id)}/lifecycle`,
         { method: "POST", body: { action } },
@@ -258,8 +261,8 @@ export const commands: Command[] = [
       ),
       help(
         "setup",
-        "workspace remove|start|drain|resume|stop|set-default ID",
-        "",
+        "workspace remove|start|drain|resume|stop|set-default ID [--yes]",
+        "remove needs --yes",
       ),
       help(
         "setup",
@@ -415,8 +418,8 @@ export const commands: Command[] = [
       ),
       help(
         "setup",
-        "plugins disable|enable|remove ID",
-        "Stop, restart, or remove a plugin; its tasks park as needs you",
+        "plugins disable|enable|remove ID [--yes]",
+        "Stop, restart, or remove a plugin (remove needs --yes); its tasks park as needs you",
       ),
       help(
         "setup",

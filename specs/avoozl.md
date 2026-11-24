@@ -478,8 +478,8 @@ public repository.
    SHALL be refused.
 4. Before a plugin's first load, and again whenever its version or content
    hash changes, Avoozl SHALL show its id, version, parts, location, and
-   content hash, and SHALL load it only after a person approves in
-   Settings. The approval SHALL be stored on this machine, not in Git. The
+   content hash, and SHALL load it only after it is approved in Settings,
+   the CLI or `plans_plugin_admin`. The approval SHALL be stored on this machine, not in Git. The
    tick SHALL NOT approve a plugin.
 5. Avoozl SHALL run each plugin's code in its own local child process that
    talks to Avoozl only over stdio. Avoozl SHALL give it no port. A plugin
@@ -642,8 +642,8 @@ between attempts.
    A closure that fails the check SHALL be refused.
 5. An `observation` closed either way SHALL be closed. A `defect` closed as
    `unchanged` SHALL stay open, so `approved` stays refused while it does.
-6. Only a person SHALL dismiss an open finding, when retrying a delivery
-   that stopped for a decision; the dismissal SHALL be recorded with who and
+6. A retry of a delivery that stopped for a decision SHALL be able to
+   dismiss an open finding; the dismissal SHALL be recorded with who and
    why.
 7. Rules about a domain's own artifacts SHALL stay in that repository's
    validation script, run as one of the repository's checks. Avoozl SHALL
@@ -720,8 +720,8 @@ public or shared repositories cannot leak what the company keeps private.
 7. The owner SHALL be able to allow a blocked write once, with a reason.
    The allowance SHALL be recorded with who, why, and when, SHALL cover only
    that rule, that target, and that exact content (by hash), and SHALL be
-   used up by the one write. Only a person SHALL allow, from the app page or
-   the CLI; the tick and agent sessions SHALL NOT.
+   used up by the one write. The app page, the CLI and the
+   `plans_content_admin` MCP tool SHALL allow; the tick SHALL NOT.
 8. Receipts, events, decisions, notifications, logs, and the GitHub text
    Avoozl writes SHALL NOT contain a matched private term in clear text;
    they SHALL show the rule set, the rule id, and the location. The app page
@@ -874,8 +874,8 @@ of every later task building on it.
    can act on, or fails past its retry bound.
 10. The owner MAY press **Run anyway**, which SHALL ask for confirmation,
     resume starts in the scope while the stop stays open, and record who
-    pressed it and when. Only a person SHALL be able to run anyway; agent
-    and plugin callers SHALL be refused.
+    pressed it and when. Run anyway SHALL be in the page, the CLI and the
+    `plans_control` MCP tool.
 11. The culprit task SHALL stay landed and accepted. Avoozl SHALL NOT
     reopen or revert it by itself.
 
@@ -1032,11 +1032,11 @@ request gets fixed and merges without me.
 10. Avoozl pushes, updates and merges the pull request (Requirement 87); the
     worker only edits and commits.
 
-#### Requirement 56: Fewer MCP tools, every safe action
+#### Requirement 56: Fewer MCP tools, every action
 
-**User story:** As the owner, I want a session to reach every safe Avoozl
-action through a few MCP tools, so that its tool list stays short and
-nothing a person must decide can be done from a chat.
+**User story:** As the owner, I want an agent to reach every Avoozl action
+through a few MCP tools, so that Avoozl is wholly configurable by agents,
+with deletes confirmed and every change recorded with who made it.
 
 ##### Acceptance criteria
 
@@ -1044,15 +1044,23 @@ nothing a person must decide can be done from a chat.
    an `action` field whose values are listed in its schema. Each action
    SHALL call one existing operation, with that operation's authority class
    unchanged.
-2. Approving a plan or plugin, Allow once, choosing a conflict winner,
-   content-rule terms, Who counts and other settings, adding or removing
-   repositories, GitHub setup writes, flow settings and Run anyway, Plan
-   this and Deliver this, and deletes SHALL be person only. An MCP call that
-   reaches one, under any tool name, SHALL be refused before anything runs,
-   saying to do it in the Avoozl app. A test SHALL fail when an operation
-   has neither an MCP route nor a written reason it has none, and a test
-   SHALL check that each person-only operation is refused. Marking a manual
-   task done or reopening it is person only too (Requirement 61.13).
+2. Approvals (a plan, a plugin, a harness, landing), Allow once,
+   content-rule terms, Who counts and other settings, Autopilot, adding or
+   removing repositories and workspaces, GitHub setup writes, Run anyway,
+   Resume, Plan this and Deliver this, manual tasks and deletes SHALL be
+   audited operations. Each SHALL have an action on one of the tools
+   `plans_autopilot`, `plans_settings`, `plans_setup`,
+   `plans_plugin_admin`, `plans_content_admin` and `plans_control`, and
+   one CLI command. No older grouped tool SHALL gain one, so no role's
+   allowed tools grow. A test SHALL fail when an operation has neither an
+   MCP route nor a written reason it has none, and a test SHALL check that
+   an agent tool reaches each audited operation.
+2a. A delete, or a step that allows one (a high-risk GitHub step), SHALL run
+   only when its input says `confirm: true` (the CLI's `--yes`), or when
+   the owner's own page session calls it, which asks in the page. Any
+   other call SHALL be refused before anything runs, naming the flag.
+2b. Each audited call SHALL write one Activity row whose summary names the
+   caller: `agent tool` (MCP), `cli` or `owner session`.
 3. Only registered tools SHALL be listed or answered. A narrow tool that a
    shipped agent, role prompt or brief names (such as `plans_report`,
    `plans_next` or `plans_land`) SHALL stay as a current tool, so no agent's
@@ -1137,7 +1145,7 @@ do, such as a team review, so that a person's step gates the work after it.
 
 ##### Acceptance criteria
 
-9. A leaf whose title ends with `(**MANUAL**)` SHALL be a step only a person
+9. A leaf whose title ends with `(**MANUAL**)` SHALL be a step a person
    does. Its plain sub-bullets say what the person checks. Lint SHALL refuse
    the tag on a group and any other form of the word `manual` in
    parentheses or bold.
@@ -1152,8 +1160,8 @@ do, such as a team review, so that a person's step gates the work after it.
     **Skipped** or **Refused**, and SHALL record who, when and the choice.
     Done and Skipped SHALL release the tasks that wait on it; Refused SHALL
     keep them held. Skipped SHALL show on the task.
-13. Marking a manual leaf done or reopening it SHALL be person only (page
-    and CLI). An MCP call SHALL be refused under Requirement 56.2.
+13. Marking a manual leaf done or reopening it SHALL be in the page, the
+    CLI and `plans_control` (Requirement 56.2).
 15. Flow timing (Requirement 43) SHALL count a manual leaf's time in Needs
     you as waiting on a person, and SHALL leave it out of first-pass rate.
 
@@ -1207,9 +1215,8 @@ something wrong, so that nothing new builds on it while it is looked at.
    stop with who pulled it, its scope and its reason, and how many tasks it
    pauses. Each open stop SHALL also be one Needs you row.
 7. A pulled stop SHALL close only through **Resume**. Resume SHALL be one
-   button on the banner and one CLI command, SHALL be a person's only, and
-   SHALL record who resumed it and when. Agent, app-token and plugin
-   callers SHALL be refused with 403.
+   button on the banner, one CLI command and one `plans_control` action,
+   and SHALL record who resumed it and when.
 8. A pulled stop SHALL never resume by itself: no passing check, integrated
    fix or tick SHALL close it. An automatic stop (Requirement 44) SHALL
    keep its own rules: Resume SHALL NOT change it, and Run anyway SHALL NOT
@@ -1230,9 +1237,9 @@ something wrong, so that nothing new builds on it while it is looked at.
     count as a failure toward the retry limit, and SHALL NOT be nudged.
 13. The confirm for **Stop all agents** SHALL warn that replies in progress
     are lost, and that committed and saved files are kept.
-14. Only a person SHALL pull or resume a full stop. An MCP call SHALL be
-    refused with the usual person-only refusal, and nothing SHALL be
-    recorded. A pull that cannot reach Kiro Crew to stop sessions (the CLI
+14. A full stop SHALL be pulled from the page, the CLI or `plans_control`
+    action `stop_all`; `stop_line` SHALL NOT pull one. A pull that cannot
+    reach Kiro Crew to stop sessions (the CLI
     without the app backend) SHALL be refused with nothing recorded. A
     session Kiro Crew refuses to stop SHALL be named on the stop and left
     running, and its attempt SHALL NOT be marked.
@@ -1292,7 +1299,8 @@ what and when without reading chats, the tick log or GitHub.
 9. `activity.list` SHALL read the log with `source`, `kind`, `actor`,
    `limit` (at most 100) and `offset`, and SHALL be the `activity` action
    of the `plans_view` MCP tool. Recent task events SHALL be `plans_view`
-   action `recent`. `activity.settings.update` SHALL be a person's only.
+   action `recent`. `activity.settings.update` SHALL be a
+   `plans_settings` action.
 
 #### Requirement 73: Searchable task and spec pickers
 
@@ -1368,7 +1376,7 @@ want it to.
    pull requests: `draft` (the default), `ready` or `auto`. It MAY be set
    for the workspace at the top level of `.avoozl.json`, and for one
    repository in its landing block, which wins. Any other value SHALL be
-   refused on load. Only a person SHALL change it.
+   refused on load.
 2. Each pull request Avoozl opens SHALL be a draft exactly when `landing.pr`
    is `draft`.
 3. A draft SHALL wait with reason `draft` and one Needs you row. It SHALL
@@ -1391,8 +1399,8 @@ want it to.
    merge of the base into the branch it SHALL arm it again once the checks
    pass on the new head. It SHALL NOT arm it with `draft` or `ready`, or on
    a pull request that closes a labeled issue.
-6. **Approve** and **Merge** SHALL be a person's only: refused for agents,
-   MCP and the tick.
+6. **Approve** and **Merge** SHALL be in the page, the CLI (`avoozl
+   landing ready|merge`) and `plans_control`, and never run from the tick.
 7. WHEN a pull request closes without merging THEN its task SHALL stay
    claimed and Needs you SHALL show one row for it, with Delete claim
    branch to make the task ready again.
@@ -1408,14 +1416,12 @@ chatty agent cannot reach my secrets or my approvals.
 
 ##### Acceptance criteria
 
-1. WHEN the CLI is run with `KIROCREW_SPAWNED=1` or `KIRO_SESSION_ID` set
-   THEN it SHALL run a person-only operation and SHALL record that it ran
-   in an agent session. The command line is a person's tool, so it does not
-   refuse. A supervisor child (`AVOOZL_CHILD`) SHALL be refused
-   (Requirement 95.5).
-2. The docs SHALL say plainly that person-only stops MCP and app tokens, not
-   code running as the user. A draft request to Kiro Crew for passing the
-   proxy secret by descriptor or a 0600 file SHALL be kept in
+1. The CLI SHALL run every operation for whoever runs it, an agent
+   session and a supervisor child included, and Activity SHALL name the
+   call `cli` (Requirement 56.2b).
+2. The docs SHALL say plainly that the app token stops other local users,
+   not code running as the user. A draft request to Kiro Crew for passing
+   the proxy secret by descriptor or a 0600 file SHALL be kept in
    `docs/kirocrew-requests/`.
 3. A new `.avoozl` folder SHALL be 0700 and a new database 0600, set before
    the database opens. Backups SHALL be 0600. An existing workspace SHALL be
@@ -1687,7 +1693,7 @@ that I approve, so that a new agent CLI needs no code change.
    refused when the file is loaded.
 3. A definition SHALL be approved by hash (`avoozl harness`,
    `harness.approve`), as the worktree helper is (R83.4). A changed file
-   SHALL not run until a person approves its new hash.
+   SHALL not run until its new hash is approved.
 4. Permission for unattended children: a write role SHALL use the
    harness's workspace-write sandbox, whose write roots are the task
    folder, the temp directory, and the cache directories the repository
@@ -1746,17 +1752,14 @@ page reload and a backend restart, and its exit is never lost.
    same session id, and record a child it cannot find as `gone`
    (Requirement 88.4 applies).
 5. Every child SHALL get the environment variable `AVOOZL_CHILD=1` with its
-   session ID. The CLI SHALL refuse a person-only command in a child. This
-   is a speed bump, not a guarantee: the child runs as the owner and could
-   unset the marker, write the database or call `gh`.
-6. "A child never does a person-only act" SHALL hold only through the
-   sandbox: for a `process` child the workspace database, the GitHub and
-   other credentials, and the Kiro Crew home SHALL be outside its read and
-   write roots, and its network SHALL be off or restricted to what the
+   session ID.
+6. For a `process` child the workspace database, the GitHub and other
+   credentials, and the Kiro Crew home SHALL be outside its read and write
+   roots, and its network SHALL be off or restricted to what the
    repository names. A harness that cannot do this SHALL be refused for
    unattended roles unless the owner opts in for that machine.
-7. For a `kirocrew` chat, person-only refusal SHALL stay a speed bump, and
-   the docs SHALL say so plainly.
+7. A `kirocrew` chat SHALL get no such sandbox: it runs as the owner, with
+   the owner's files, and the docs SHALL say so plainly.
 
 #### Requirement 96: One way to finish
 
@@ -1833,8 +1836,10 @@ the last tick did.
    and below it every Autopilot setting, with this machine's `loop.run` and
    `loop.every`. Autopilot SHALL show as on only when the `delivery` block
    and this machine's `loop` are both set. Picking Autopilot SHALL write
-   both; picking Off SHALL remove this machine's `loop` only. Each SHALL be
-   a person's alone. While tasks are ready and this machine has no `loop`,
+   both; picking Off SHALL remove this machine's `loop` only. The same
+   switch SHALL be `avoozl autopilot on|off|status [--workspace W]` and
+   `plans_autopilot` (operations `autopilot.set` and `autopilot.status`).
+   While tasks are ready and this machine has no `loop`,
    Needs you SHALL show one row saying Autopilot is off on this machine and
    how to turn it on.
 8. Saving Settings › Models SHALL write `roles`.
@@ -1855,7 +1860,7 @@ issue per task or exposing private planning information.
    one for its epic, never one per task.
 2. The tick SHALL publish the spec issue in its home repository for each
    approval this workspace adopts or makes (workflow v1 rule 8.1);
-   `avoozl spec publish` SHALL stay a person's retry. An issue the
+   `avoozl spec publish` SHALL stay the retry. An issue the
    workspace already holds for the spec or epic SHALL be reused.
 3. A successor SHALL start once its prerequisite's tick reaches the base
    branch. Checkbox marks SHALL stay outside the approved revision hash.
@@ -1988,8 +1993,8 @@ read my credentials or reach the network through its checks.
    readable, writable, prepare}`, kept in its repository settings. `run`
    SHALL be `sandbox` (the default) or `unconfined`; `network` SHALL be
    `off` (the default) or `on`; `readable` and `writable` SHALL be absolute
-   paths; `prepare` SHALL be command arguments. Only a person SHALL set it,
-   with `repository.configure` or Settings › Repository setup › Landing.
+   paths; `prepare` SHALL be command arguments. It SHALL be set with
+   `repository.configure` or Settings › Repository setup › Landing.
 2. With `sandbox`, every check (Avoozl's own check runs, integration's and
    landing's candidate runs) SHALL run in the process sandbox, writing only
    the check's folder, its own temp folder, a per-repository cache folder
@@ -2103,7 +2108,7 @@ rebuilds its database from main and GitHub.
 7. An item pushed over MCP SHALL become a GitHub issue in its source's
    repository at once, or be refused when the source names no GitHub
    repository.
-8. `avoozl rebuild` (operation `workspace.rebuild`, a person's) SHALL, from
+8. `avoozl rebuild` (operation `workspace.rebuild`) SHALL, from
    an empty database, make every spec folder a plan, approve again each
    spec whose current text an approver committed, as that commit's author,
    and record each landing commit's tasks in Activity. A database that is
@@ -2280,8 +2285,9 @@ what git and GitHub already hold.
    which commits the reviewed draft in a checkout here, authored as the
    person's own git identity (R114.5); or telling a chat to approve, which
    makes that commit in the person's checkout, authored as the person with
-   no co-authors. `plan.approve` SHALL stay person-only and SHALL NOT be a
-   tool an agent calls on its own. Nothing else SHALL be stored.
+   no co-authors. `plan.approve` SHALL make that same commit whoever calls
+   it, an agent over `plans_control` included, and Activity SHALL name the
+   caller. Nothing else SHALL be stored.
 3. A spec pull request SHALL be a pull request, reviewed like any other on
    GitHub, and merging it SHALL be the approval when an approver merged it.
 4. The driver SHALL be the spec issue's single assignee (R116), set by a
@@ -2744,7 +2750,7 @@ each with actions. The ones dispatch uses: `plans_maintain` (`tick`),
 - Content rules (§4.9) check every GitHub write, push, brief and approval
   against the rule sets `.avoozl.json` names; the terms stay out of Git, and
   findings never log them.
-- Plugins run only after a person approves their exact version and hash,
+- Plugins run only after their exact version and hash are approved,
   each in a local child process over stdio, with no port and no listener
   (§4.8).
 
@@ -2985,9 +2991,9 @@ boundary, target, and line. The decision view shows the matched line only
 when a person opens it, read again from the source; it is never stored.
 **Allow once** (`content.allow`) takes a reason and records who, why, when,
 the rule, the target, and the SHA-256 of the exact content. The next write
-of that exact content at that target passes that rule once. Only a person
-can allow: the app page and the CLI can, and the MCP tools that sessions
-call cannot (403).
+of that exact content at that target passes that rule once. The app page,
+the CLI and `plans_content_admin` action `allow` can allow; the record
+names who did.
 
 **Unavailable sets fail closed.** A set `.avoozl.json` names that is
 missing on this machine, refused, from a missing, unapproved, or broken
@@ -3173,8 +3179,8 @@ fix integrates ─▶ checks pass on head ─▶ resume, close stop with time to
   before any other ready leaf, and its brief allows a revert of the culprit
   commit.
 - **Run anyway.** A person may resume dispatch while the stop stays open
-  (`avoozl flow run-anyway`). It is recorded and shown on the banner. Agents
-  and plugins cannot press it.
+  (`avoozl flow run-anyway`, `plans_control` action `run_anyway`). It is
+  recorded and shown on the banner.
 - **Needs you.** The stop goes into **Needs you** only when the fix task
   asks a question, is blocked on something only a person can do, or fails
   past its retry bound.
@@ -3191,7 +3197,7 @@ Stop the line ─▶ dialog: scope + one-line reason ─▶ flow.stop
 flow_stops row { manual: true, by, scope, target, reason, openedAt }
    │ dispatch skips every task in scope (fix tasks too); running chats untouched
    ▼
-banner: who, when, scope, reason, paused count ─▶ Resume (person) ─▶ flow.resume
+banner: who, when, scope, reason, paused count ─▶ Resume ─▶ flow.resume
 ```
 
 - **Scope.** `all` pauses every task; `repo` every task in one repository;
@@ -3199,8 +3205,9 @@ banner: who, when, scope, reason, paused count ─▶ Resume (person) ─▶ flo
   dependents.
 - **Who.** `flow.stop` is an `execute` operation. The page and the CLI pull
   as a person; an agent session pulls through `plans_session` action
-  `stop_line`, and the stop names the session. `flow.resume` is person only
-  and refuses agent and MCP callers with 403.
+  `stop_line`, and the stop names the session. `flow.resume` is the
+  page's Resume, `avoozl flow resume` and `plans_control` action
+  `resume_stop`, and records who resumed.
 - **Never by itself.** A pulled stop has no check or fix task, so only
   Resume closes it.
 - **CLI.** `avoozl flow stop --scope all|repo|spec|task [--repository ID]
@@ -3214,7 +3221,7 @@ every running chat Avoozl opened stops at once.
 
 ```text
 Stop all agents ─▶ confirm (replies in progress are lost; files are kept)
-   ▼ flow.stop {full: true, reason}   (person only; MCP refused)
+   ▼ flow.stop {full: true, reason}   (plans_control stop_all; never stop_line)
 flow_stops row { manual, full, scope: all, by, reason, sessions: [] }
    ▼ for each live binding the tick opened (any role)
 POST /api/chat/slots/<slot>/stop (app backend, app token)
@@ -3276,7 +3283,7 @@ them.
 
 | # | Fact | Evidence |
 | --- | --- | --- |
-| F108 | An MCP request carries Kiro Crew's caller block, which names a session key, not a person. Person-only operations refuse a session caller or MCP with 403. | `src/app/executors/kirocrew/app-mcp.ts`; `src/app/api/operation-policy.ts` |
+| F108 | An MCP request carries Kiro Crew's caller block, which names a session key, not a person. Audited operations record that caller in Activity, and deletes need `confirm: true`. | `src/app/executors/kirocrew/app-mcp.ts`; `src/app/api/operation-policy.ts` |
 | F112 | Each store table is its own SQLite table of `id` and JSON `body`, on an allowlist in `store.ts`; `incoming_items` and `intake_sources` are two. | `src/app/store/store.ts` |
 
 ##### The open items read
@@ -3326,10 +3333,10 @@ policy is refused, so no item lives only in this database. Each result is
 
 `intake.submit` (act), `intake.list` (observe: filters `source`, `kind`,
 `state`, `untriaged`, 100 per page), `intake.view` (observe: one record
-with its route, findings, and history) and `intake.sources`. A person's
-**Plan this** and **Deliver this** (`intake.plan`, `intake.deliver`) and
-**Confirm** (`intake.confirm`) refuse a session caller or MCP with 403
-(F108); a GitHub item starts from its issue instead. The CLI is
+with its route, findings, and history) and `intake.sources`. **Plan
+this** and **Deliver this** (`intake.plan`, `intake.deliver`) and
+**Confirm** (`intake.confirm`) are `plans_control` actions too, recorded
+with the caller (F108); a GitHub item starts from its issue instead. The CLI is
 `avoozl intake [list]`, `avoozl intake view SOURCE ID`,
 `avoozl intake submit --source ID --file ITEMS.json`,
 `avoozl intake sources`, `avoozl intake deliver|plan SOURCE ID` and
@@ -3390,8 +3397,8 @@ bullets say what the person checks.
   and **Mark done** (`ManualTask.tsx`). The dialog offers **Done**,
   **Skipped** or **Refused**. Done and Skipped release the tasks that wait
   on it; Refused is a no-go and keeps them held. `task.manual.complete` and
-  `task.manual.reopen` (`manual-tasks.ts`) are person only, from the page
-  and the CLI; MCP refuses them (Requirement 56.2).
+  `task.manual.reopen` (`manual-tasks.ts`) run from the page, the CLI and
+  `plans_control` (Requirement 56.2).
 - **Flow.** The time from its last blocker finishing to Mark done is
   recorded as waiting on a person (`recordSpan`).
 
@@ -3476,8 +3483,8 @@ with no change parses no record and writes nothing.
 ##### Retention, reads and the tab
 
 `activity.retentionDays` (default 30, 1-365) is a `.avoozl.json` key, read
-and saved by `activity.settings.get` and person-only
-`activity.settings.update` from the Activity tab's Keep activity field.
+and saved by `activity.settings.get` and `activity.settings.update` from
+the Activity tab's Keep activity field.
 Each tick calls `pruneActivity`. `activity.list {source, kind, actor,
 limit ≤ 100, offset}` returns `{items, total, sources, kinds, actors,
 counts, retentionDays}` newest first, each item with its `repository` (its
@@ -3545,7 +3552,7 @@ then `draft`. `validateLandingConfig` and the landing block validator in
 `github-policy.ts` refuse any other value. Settings › Autopilot shows the
 workspace's value (`delivery.settings.update` with `landingPr`); a
 repository's Landing tab shows its own (`PrModeFields`), whose first
-choice is **The workspace's setting**. Both saves are person only.
+choice is **The workspace's setting**.
 
 **Open.** `pullSteps.prepare` sends `draft: pr === "draft"`.
 `draft-pulls.test.ts` reads every `.createPullRequest(` call in `src/` and
@@ -3813,7 +3820,7 @@ a shell, and a placeholder may not sit next to shell text.
 | Write roots | Task folder, temp, and the cache directories in repository config. The worktree's git directory is in the main checkout, so the child only edits and Avoozl commits after it exits. |
 | Allow-list | Per repository, the build and test commands an unattended child may run without a prompt (`harness-allow.ts`). `git push` is never on it. |
 | Kiro Crew chats | Trust mode is set again each tick, or workers stall unattended. |
-| Person-only | Children get `AVOOZL_CHILD=1`, and the CLI refuses person-only commands there. The child runs as the owner, so the sandbox is what keeps the database, credentials and the Kiro Crew home out of its reach. |
+| Child marker | Children get `AVOOZL_CHILD=1`. The child runs as the owner, so the sandbox is what keeps the database, credentials and the Kiro Crew home out of its reach. |
 
 **Supervisor pass.** Each `avoozl tick` runs the supervisor pass
 (`supervisor.ts`), which owns children: session id, pid, start time, exit
@@ -4319,7 +4326,7 @@ branches, and Approve squashes them onto the specs branch as the person
 clicking, so a draft reaches it only through an approval. A tick commit
 changes only marks, which `specHash` ignores, so it approves nothing new.
 
-**Rebuild.** `workspace.rebuild` (CLI `avoozl rebuild`, person only)
+**Rebuild.** `workspace.rebuild` (CLI `avoozl rebuild`)
 refuses a database with plans, then runs `Operations.readFromGit` over
 every spec folder: it creates a plan per folder and approves each one whose
 current text matches an approval commit, owners first (`adoptApprovals`),
@@ -4481,7 +4488,8 @@ pull request or an issue, and SQLite is rebuilt from them.
 branch (§4.45, `specsBranch`); `adoptCommitted(group, commits, branch)`
 approves every spec a commit holds with its current text, in
 `adoptApprovals` passes. **Approve** (`approveInGit`) writes the same
-commit as the person; `plan.approve` is person only.
+commit as the person; `plan.approve` writes it for any caller, and
+Activity names the caller.
 
 **Landing.** `merge-batch.ts` and `landing-pulls.ts` push or merge through
 `guarded-push.ts`; `queueDirect` and `queuePullRequest` queue a verified
@@ -4878,13 +4886,13 @@ filters by epic.
 
 Requirement 83.
 
-**S4, CLI gate.** `cliRefusal` in `src/app/mcp/mcp-policy.ts` runs at the
-top of `localOrRequest` in `src/app/cli/cli.ts`. It uses `PERSON_ONLY` and
-`mcpRefusal`, so the MCP and CLI lists cannot drift, and it refuses a
-person-only operation only inside a supervisor child (`AVOOZL_CHILD`). In a
-Kiro Crew agent session (`KIROCREW_SPAWNED=1` or `KIRO_SESSION_ID`) the CLI
-runs the operation and notes it (`agentSessionNote`). The request for a
-descriptor or 0600 file is in `docs/kirocrew-requests/`.
+**S4, CLI calls.** `localOrRequest` in `src/app/cli/cli.ts` runs every
+operation with `{local: true}`, so Activity names the call `cli`, and turns
+`--yes` into the input's `confirm: true`. `agentSession`
+(`src/app/mcp/mcp-policy.ts`) still tells a Kiro Crew agent session
+(`KIROCREW_SPAWNED=1` or `KIRO_SESSION_ID`) apart, for GitHub posting and
+the credential helper. The request for a descriptor or 0600 file is in
+`docs/kirocrew-requests/`.
 
 **S5, file modes.** `Store` creates `.avoozl` and `.avoozl/local` 0700 and the
 database 0600 before SQLite opens it, and `tightenWorkspace` chmods existing

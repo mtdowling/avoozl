@@ -28,7 +28,6 @@ import {
 import { git } from "../../git/git.ts";
 import fs from "node:fs";
 import { snapshot } from "../../test/fixtures.ts";
-import { mcpRefusal } from "../../mcp/mcp-policy.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
 import path from "node:path";
 import { commandContext } from "../../test/command-context.ts";
@@ -197,18 +196,29 @@ test("Avoozl deletes no claim branch on its own: reads and Needs you leave them 
   assert.deepEqual(github.calls.delete, []);
 });
 
-test("claim.delete is a person's: refused over MCP, and deletes only a claim branch of a registered repository", async (t) => {
+test("claim.delete needs confirm, and deletes only a claim branch of a registered repository", async (t) => {
   const { root, store } = workspace(t),
     github = fakeGitHub(HEADS),
     ops = new Operations(store, { workspaceRoot: root, github });
   await refreshClaims(store, github);
-  assert.ok(mcpRefusal("claim.delete", {}), "refused over MCP");
   await assert.rejects(
-    ops.execute("claim.delete", { repository: "o/app", branch: "main" }),
+    ops.execute("claim.delete", {
+      repository: "o/app",
+      branch: "avoozl/search/s-1",
+    }),
+    /Pass confirm: true/,
+  );
+  await assert.rejects(
+    ops.execute("claim.delete", {
+      confirm: true,
+      repository: "o/app",
+      branch: "main",
+    }),
     /Name a claim branch/,
   );
   await assert.rejects(
     ops.execute("claim.delete", {
+      confirm: true,
       repository: "o/elsewhere",
       branch: "avoozl/search/s-1",
     }),
@@ -216,6 +226,7 @@ test("claim.delete is a person's: refused over MCP, and deletes only a claim bra
   );
   assert.deepEqual(
     await ops.execute("claim.delete", {
+      confirm: true,
       repository: "o/app",
       branch: "avoozl/search/s-1",
     }),
@@ -280,6 +291,7 @@ test("avoozl claim delete asks Allow? first, and deletes nothing without a yes",
     repository: "o/app",
     branch: "avoozl/search/s-1",
     allow: ["g1"],
+    confirm: true,
   });
 });
 

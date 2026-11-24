@@ -1,10 +1,13 @@
 // Avoozl's grouped MCP tools (R56): one tool per thing a session acts on, each
 // with an `action` naming one existing operation. The authority class of each
-// operation (operation-table.mjs) is unchanged, and person-only operations
-// (mcp-policy.mjs) have no action here and are refused under any name.
+// operation (operation-table.mjs) is unchanged. Approvals, settings, setup and
+// deletes have their own tools (plans_autopilot, plans_settings, plans_setup,
+// plans_plugin_admin, plans_content_admin, plans_control), so no role that is
+// allowed an older tool gains them. Activity records each of their calls with
+// the caller, and a delete runs only with `confirm: true` in its input.
 //
 // Each action is [operation, hint] or [operation, hint, shape], where `shape`
-// rewrites the input before the call (a GitHub setup preview never confirms).
+// rewrites the input before the call (stop_line never stops every agent).
 type Shape = (input: Record<string, unknown>) => Record<string, unknown>;
 type Action = [operation: string, hint: string, shape?: Shape];
 interface GroupedTool {
@@ -80,7 +83,7 @@ const tools: Record<string, GroupedTool> = {
   },
   plans_plan: {
     summary:
-      "Plans and their Kiro spec folders. Approval is a person's: an approver's commit on main, or Approve in the app.",
+      "Plans and their Kiro spec folders. Approve with plans_control approve_plan, Approve in the app, or an approver's commit on main.",
     actions: {
       list: ["plan.list", "stored plans"],
       table: ["plan.table", "plans grouped with progress"],
@@ -161,14 +164,14 @@ const tools: Record<string, GroupedTool> = {
       checks: ["flow.checks.run", "run declared checks at HEAD"],
       stop_line: [
         "flow.stop",
-        "pull the Andon cord: {scope: all|repo|spec|task, repository?, spec?, taskId?, reason}; only a person resumes",
+        "pull the Andon cord: {scope: all|repo|spec|task, repository?, spec?, taskId?, reason}; plans_control resume_stop resumes",
+        ({ full: _full, ...rest }) => rest,
       ],
       reply: ["reply.post", "post a responder's one reply"],
     },
   },
   plans_conflicts: {
-    summary:
-      "Conflicts and open decisions. Choosing a GitHub conflict winner is a person's, in the app.",
+    summary: "Conflicts and open decisions.",
     actions: {
       view: ["conflicts.view", "open conflicts and decisions"],
       settle: [
@@ -179,7 +182,7 @@ const tools: Record<string, GroupedTool> = {
   },
   plans_intake: {
     summary:
-      "A person's requests, saved searches, and incoming items from intake sources. Plan this and Deliver this are a person's, in the app.",
+      "A person's requests, saved searches, and incoming items from intake sources. Plan this and Deliver this are in plans_control.",
     actions: {
       capture: [
         "task.capture",
@@ -218,7 +221,7 @@ const tools: Record<string, GroupedTool> = {
   },
   plans_github: {
     summary:
-      "GitHub reads. Setup writes and settings are a person's, in the app.",
+      "GitHub reads. Setup writes are in plans_setup and settings in plans_settings.",
     actions: {
       landing_queue: [
         "landing.view",
@@ -255,7 +258,7 @@ const tools: Record<string, GroupedTool> = {
   },
   plans_repos: {
     summary:
-      "Registered repositories, read only. Adding or removing one is a person's, in the app.",
+      "Registered repositories, read only. Add or remove one with plans_setup.",
     actions: {
       list: ["repositories.list", "registered repositories"],
       detect: [
@@ -267,7 +270,7 @@ const tools: Record<string, GroupedTool> = {
   },
   plans_plugins: {
     summary:
-      "Plugins, read only. Adding, approving or removing one is a person's, in the app.",
+      "Plugins, read only. Add, approve or remove one with plans_plugin_admin.",
     actions: {
       list: ["plugins.list", "installed plugins"],
       preview: ["plugin.preview", "what a plugin source holds"],
@@ -278,13 +281,201 @@ const tools: Record<string, GroupedTool> = {
     },
   },
   plans_content: {
-    summary: "Content rules. Terms and Allow once are a person's, in the app.",
+    summary: "Content rules. Terms and Allow once are in plans_content_admin.",
     actions: {
       rules: ["content.rules", "rule sets and their state"],
       check: ["content.check", "check text against the rules"],
     },
   },
 };
+
+// The tools for approvals, settings, setup and deletes (R56.2).
+Object.assign(tools, {
+  plans_autopilot: {
+    summary:
+      "Autopilot for this workspace: the repository's delivery block and this machine's loop, switched together as Settings › Autopilot does.",
+    actions: {
+      status: ["autopilot.status", "whether Autopilot is on, and why not"],
+      set: ["autopilot.set", "turn it on or off: {on: true|false}"],
+      release_runner: [
+        "delivery.runner.release",
+        "remove delivery.runner so the tick runs this workspace: {expectedHash?}",
+      ],
+    },
+  },
+  plans_settings: {
+    summary:
+      "Change workspace and machine settings. Read them with plans_workspace.",
+    actions: {
+      workspace: ["configuration.update", "the .avoozl.json settings"],
+      flow: ["flow.settings.update", "flow settings"],
+      models: ["models.settings.update", "chat models per role"],
+      delivery: [
+        "delivery.settings.update",
+        "delivery limits, landing.pr and this machine's loop",
+      ],
+      conversations: ["conversations.settings.update", "conversation settings"],
+      activity: [
+        "activity.settings.update",
+        "how many days the activity log keeps rows",
+      ],
+      github: ["github.settings.update", "GitHub settings, Who counts"],
+      telemetry: ["telemetry.configure", "telemetry export"],
+      agent_instructions: [
+        "agent.instructions.toggle",
+        "turn one agent rule on or off",
+      ],
+      epic_context: ["context.machine.set", "this machine's epicContext block"],
+    },
+  },
+  plans_setup: {
+    summary:
+      "Repositories, the workspace repository, GitHub setup, harnesses and rebuild.",
+    actions: {
+      add_repositories: [
+        "repositories.configure",
+        "add or change registered repositories",
+      ],
+      remove_repositories: [
+        "repositories.remove",
+        `remove registered repositories; needs confirm: true`,
+      ],
+      repository: ["repository.configure", "add or change one repository"],
+      remove_repository: [
+        "repository.remove",
+        `remove one repository; needs confirm: true`,
+      ],
+      workspace_repository: [
+        "workspace.repository.configure",
+        "set the workspace repository",
+      ],
+      publish_workspace_repository: [
+        "workspace.repository.publish",
+        "publish the workspace repository",
+      ],
+      sync_workspace_repository: [
+        "workspace.repository.sync",
+        "sync the workspace repository",
+      ],
+      connect_github: [
+        "github.repository.connect",
+        "connect a repository to GitHub",
+      ],
+      configure_github: ["github.configure", "set up GitHub on a repository"],
+      allow_github_steps: [
+        "github.job.confirm",
+        `allow high-risk GitHub steps: {steps: [{job, target, permissionsHash}]}; returns grant ids to pass as allow; needs confirm: true`,
+      ],
+      rebuild: ["workspace.rebuild", "rebuild the cache from git and GitHub"],
+      list_workspaces: [
+        "catalog.list",
+        "the workspaces registered on this machine",
+      ],
+      change_workspace: [
+        "catalog.change",
+        "add, start, resume, stop, drain or set-default a workspace: {action, id, root?}",
+      ],
+      remove_workspace: [
+        "catalog.remove",
+        "take a workspace off this machine's list: {id}; needs confirm: true",
+      ],
+      approve_harness: [
+        "harness.approve",
+        "approve a harness definition: {name}",
+      ],
+      probe_harness: ["harness.probe", "check a harness's sign-in: {name}"],
+      run_on: [
+        "needskirocrew.runon",
+        "run a role that waits on Kiro Crew on a harness: {role, harness}",
+      ],
+    },
+  },
+  plans_plugin_admin: {
+    summary: "Change plugins. Read them with plans_plugins.",
+    actions: {
+      add: ["plugin.add", "add a plugin"],
+      approve: ["plugin.approve", "approve a plugin"],
+      disable: ["plugin.disable", "disable a plugin"],
+      remove: ["plugin.remove", `remove a plugin; needs confirm: true`],
+      update: ["plugin.update", "update a plugin"],
+      pick_credentials: [
+        "plugin.credentials.pick",
+        "which credentials plugin serves a host",
+      ],
+      check_updates: ["plugin.updates.check", "check for plugin updates"],
+      configure_updates: [
+        "plugin.updates.configure",
+        "turn the daily update check on or off",
+      ],
+      map: ["plugin.map", "map a checks plugin's server"],
+      answer: ["plugin.answer", "answer a context plugin's questions"],
+      flip_check: ["check.decide.flip", "Run it or Skip it on a plugin check"],
+    },
+  },
+  plans_content_admin: {
+    summary: "Content-rule terms, sets and Allow once.",
+    actions: {
+      terms: ["content.terms.get", "read the private terms file"],
+      update_terms: ["content.terms.update", "write the terms file"],
+      update_sets: ["content.sets.update", "replace contentRules.sets"],
+      allow: ["content.allow", "allow one blocked write once: {id, reason}"],
+      show: ["content.show", "the matched line of a decision: {id}"],
+    },
+  },
+  plans_control: {
+    summary:
+      "Approvals, landing and delivery decisions, Needs you actions, and intake.",
+    actions: {
+      approve_plan: [
+        "plan.approve",
+        "approve a spec revision: {id, expectedHash} with expectedRevision",
+      ],
+      publish_spec: ["spec.publish", "make the GitHub issues of a spec"],
+      take: ["runner.take", "take a task by hand: {taskId}"],
+      delete_claim: [
+        "claim.delete",
+        `delete a stale claim branch; needs confirm: true`,
+      ],
+      allow_verify: [
+        "verify.allow",
+        "let a commit's protected paths land: {taskId, reason}",
+      ],
+      resume_lane: ["lane.resume", "resume a closed lane"],
+      ready_pr: ["landing.ready", "release a draft pull request"],
+      merge_pr: ["landing.merge", "merge a pull request Avoozl opened"],
+      land_integration: [
+        "integration.land",
+        "approve landing an integration branch",
+      ],
+      task_done: [
+        "task.manual.complete",
+        "mark a manual task done: {taskId, choice?: done|skipped|refused}",
+      ],
+      task_reopen: ["task.manual.reopen", "reopen a manual task: {taskId}"],
+      stop_all: [
+        "flow.stop",
+        "stop every agent: {reason}",
+        (input) => ({ ...input, full: true }),
+      ],
+      resume_stop: ["flow.resume", "resume a pulled stop: {stopId}"],
+      run_anyway: ["flow.runAnyway", "Run anyway past a flow limit"],
+      delete_report: ["report.delete", `delete a report; needs confirm: true`],
+      send_message: ["session.send", "send a message to a process session"],
+      open_session: ["session.open", "open a session"],
+      confirm_item: [
+        "intake.confirm",
+        "confirm an incoming item's changed text",
+      ],
+      deliver_item: ["intake.deliver", "Deliver this on an incoming item"],
+      plan_item: ["intake.plan", "Plan this on an incoming item"],
+      add_source: ["intake.source.add", "add an intake source"],
+      remove_source: [
+        "intake.source.remove",
+        `remove an intake source; needs confirm: true`,
+      ],
+    },
+  },
+} satisfies Record<string, GroupedTool>);
 
 export const GROUPED_TOOLS = tools;
 

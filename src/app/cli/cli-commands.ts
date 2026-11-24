@@ -12,6 +12,7 @@ import { commands as data } from "../commands/data.ts";
 import { commands as context } from "../commands/context.ts";
 import { commands as telemetry } from "../commands/telemetry.ts";
 import { commands as insights } from "../commands/insights.ts";
+import { commands as admin } from "../commands/admin.ts";
 
 export const COMMANDS = [
   ...plans,
@@ -23,6 +24,7 @@ export const COMMANDS = [
   ...context,
   ...telemetry,
   ...insights,
+  ...admin,
 ];
 
 const byWords = new Map();

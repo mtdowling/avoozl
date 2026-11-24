@@ -8,8 +8,8 @@ import { enqueueSessionRequests } from "./session-requests.ts";
 
 export const SEND_MAX_CHARS = 8000;
 // The resume turn's first line, so the child tells the person's message from
-// relayed text; the process brief names it (processSteps). Only a person
-// queues a send (session.send is person-only), so the line is Avoozl's own.
+// relayed text; the process brief names it (processSteps). Only
+// session.send queues a send, so the line is Avoozl's own.
 export const PERSON_MESSAGE_HEAD =
   "From the person who runs this task, sent with Send message on the Avoozl page:";
 export const personMessage = (text: string) =>

@@ -350,15 +350,6 @@ test("P28: content rules block, ask, allow once, fail closed, and never leak a t
     id: blocked.id,
   });
   assert.equal(shown.text, "Codename zorblat stays internal.");
-  await assert.rejects(
-    ops.execute(
-      "content.allow",
-      { id: blocked.id, reason: "x" },
-      undefined,
-      planner,
-    ),
-    (error: StatusError) => error.status === 403,
-  );
   const allowed = await ops.execute<{
     allowances: { by: string; reason: string; contentHash: string }[];
   }>("content.allow", {

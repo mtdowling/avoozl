@@ -1,9 +1,7 @@
 // The sandbox for unattended `process` children (R95.6, design §4.28). A
-// child runs as the owner, so the person-only refusal in the CLI is only a
-// speed bump (R95.5). "A child never does a person-only act" holds only
-// because the child cannot reach what such an act needs: the workspace
-// databases, the GitHub and other credentials, Avoozl's machine config and
-// state, and the Kiro Crew home. Those paths are neither readable nor
+// child runs as the owner, so what keeps it to its task is that it cannot
+// reach the workspace databases, the GitHub and other credentials, Avoozl's
+// machine config and state, or the Kiro Crew home. Those paths are neither readable nor
 // writable, writes go only to the session's write roots, the network is off
 // (or, on macOS, limited to named loopback ports such as a proxy), and the
 // credential variables are taken out of the environment.

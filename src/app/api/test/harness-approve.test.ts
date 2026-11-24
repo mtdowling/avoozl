@@ -69,31 +69,27 @@ test("approve refuses a missing file and a bad name", async (t) => {
   );
 });
 
-test("an agent, over MCP or from a session, cannot approve, and the policy keeps it off agent roles", async (t) => {
+test("an agent over MCP or from a session approves, and the approval is audited", async (t) => {
   const { ops, configDirectory } = setup(t);
   const contexts: OperationContext[] = [
     { mcp: true },
     { caller: { sessionKey: "worker-session" } },
   ];
   for (const context of contexts)
-    await assert.rejects(
-      ops.execute(
-        "harness.approve",
-        { name: "example-cli" },
-        undefined,
-        context,
-      ),
-      (error: StatusError) => error.status === 403,
+    await ops.execute(
+      "harness.approve",
+      { name: "example-cli" },
+      undefined,
+      context,
     );
   assert.equal(
     fs.existsSync(path.join(configDirectory, "harness-approvals.json")),
-    false,
+    true,
   );
-  const policy = OPERATIONS.get("harness.approve").policy;
-  assert.equal(policy.kind, "person");
+  assert.equal(OPERATIONS.get("harness.approve").policy.audit, true);
 });
 
-test("the CLI lists and approves with no workspace, and refuses inside a supervisor child", () => {
+test("the CLI lists and approves with no workspace, inside a supervisor child too", () => {
   const machine = temporaryDirectory("avoozl-harness-cli-"),
     config = path.join(machine, "config"),
     env: NodeJS.ProcessEnv = {
@@ -116,9 +112,9 @@ test("the CLI lists and approves with no workspace, and refuses inside a supervi
   fs.mkdirSync(folder, { recursive: true });
   fs.writeFileSync(file, '{"name": "example-cli"}\n');
   assert.equal(run(["harness", "list"]).trim(), "example-cli  not approved");
-  assert.throws(
-    () => run(["harness", "approve", "example-cli"], { AVOOZL_CHILD: "1" }),
-    /Only a person/,
+  assert.match(
+    run(["harness", "approve", "example-cli"], { AVOOZL_CHILD: "1" }),
+    /Approved example-cli/,
   );
   const hash = harnessDefinitionHash(fs.readFileSync(file)),
     shown = run(["harness", "approve", "example-cli"]);

@@ -261,9 +261,9 @@ test("a title edit after a person started it holds the item's task and keeps its
   assert.equal(task().title, "Fix the export");
 });
 
-test("a person confirms an item's new text, and a later edit holds it again", async (t) => {
-  // Nearby inputs: a stale hash is refused; a task not held is refused; a
-  // session or MCP caller is refused before anything is read.
+test("a confirm takes an item's new text, and a later edit holds it again", async (t) => {
+  // Nearby inputs: a stale hash is refused; a task not held is refused. An
+  // agent tool reaches the operation, which checks the hash.
   const { store, source, item, context, taken, first, task, dispatch } =
       startedT9(t),
     view = () => viewItem(store, { source: "tickets", id: "T9" });
@@ -327,7 +327,7 @@ test("a person confirms an item's new text, and a later edit holds it again", as
         undefined,
         caller,
       ),
-      (error: Refusal) => error.status === 403,
+      /changed since you read it/,
     );
 });
 

@@ -1,6 +1,6 @@
 ---
 name: avoozl
-description: Work with Avoozl from this tool. Plan specs, read tasks and Needs you, and report on work through the avoozl MCP tools. A person approves a spec and answers a person-only Needs you item at their own prompt; this skill says how. Use when the user mentions Avoozl, a spec, a task, or Needs you.
+description: Work with Avoozl from this tool. Plan specs, read tasks and Needs you, and report on work through the avoozl MCP tools. A person decides on a spec and on a Needs you decision; this skill says how. Use when the user mentions Avoozl, a spec, a task, or Needs you.
 ---
 
 # Avoozl
@@ -23,14 +23,14 @@ reads and plans through the `avoozl` MCP server (`avoozl mcp`), and the
   Then tell them it is ready to review.
 - Report on a task you were given with the tools its brief names.
 
-## What only the person does
+## What the person decides
 
-You never approve a spec, answer a person-only Needs you item, approve a
-harness, or close a decision for the person. The MCP tools refuse these, and
-this package refuses the matching `avoozl` shell commands from you. When one
-is due, tell the person the exact command and let them run it at their own
-prompt, in a terminal of their own (in Claude Code, a line starting with `!`
-runs as the person):
+You never approve a spec, answer a Needs you decision, approve a harness, or
+close a decision unless the person asks you to in this chat. Avoozl would run
+them for you (the `plans_control` and `plans_setup` tools, and a delete with
+`confirm: true`), and records who did. When one is due, tell the person the
+exact command, or run it once they say so (in Claude Code, a line starting
+with `!` runs as the person):
 
 - Approve a spec: `avoozl plan approve NAME`, which previews it, then
   `avoozl plan approve NAME --yes --expect HASH` with the hash it printed.

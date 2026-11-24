@@ -181,7 +181,7 @@ test("a kirocrew start on a headless tick opens one item across three ticks and 
   });
 });
 
-test("Run on from a person moves the role and cancels its waiting kirocrew start", async () => {
+test("Run on moves the role and cancels its waiting kirocrew start", async () => {
   const m = machine();
   askWorker(m);
   await tickWorkspace(m.directory, m.paths);
@@ -192,25 +192,18 @@ test("Run on from a person moves the role and cancels its waiting kirocrew start
       configDirectory: m.paths.configDirectory,
     });
     await assert.rejects(
-      ops.execute(
-        "needskirocrew.runon",
-        { role: "worker", harness: "fake-cli" },
-        undefined,
-        { mcp: true },
-      ),
-      withStatus(403),
-    );
-    await assert.rejects(
       ops.execute("needskirocrew.runon", {
         role: "worker",
         harness: "not-here",
       }),
       /not an approved harness/,
     );
-    await ops.execute("needskirocrew.runon", {
-      role: "worker",
-      harness: "fake-cli",
-    });
+    await ops.execute(
+      "needskirocrew.runon",
+      { role: "worker", harness: "fake-cli" },
+      undefined,
+      { mcp: true },
+    );
     const saved = JSON.parse(
       fs.readFileSync(path.join(m.directory, ".avoozl.json"), "utf8"),
     );

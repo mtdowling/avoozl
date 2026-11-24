@@ -1,7 +1,7 @@
 // Epic context operations (epic-context EC2.3, EC4.5, EC9.4): the machine
 // block, a plugin ask's answer, and the Settings page's read. Changing any of
-// them is a person's act, refused for MCP, a bound session and a child.
-import { notOnMcp, person } from "../api/operation-policy.ts";
+// them is recorded in Activity with its caller.
+import { notOnMcp, audited } from "../api/operation-policy.ts";
 import { contentBinding } from "../content/content-rules.ts";
 import { contextView, setAnswer } from "../context/plugin-context.ts";
 import {
@@ -13,18 +13,8 @@ import {
 import { recentContextSessions } from "../context/context-record.ts";
 import { inspectPlugins, readPluginSettings } from "../plugins/plugins.ts";
 import { fail } from "../store/store.ts";
-import type {
-  OperationCall,
-  OperationContext,
-  Operations,
-} from "../api/operations.ts";
-
-// A plugin as the loader inspects it, as far as these reads go.
-
-const refuseAgent = (context: OperationContext, what: string) => {
-  if (context.caller || context.mcp)
-    fail(`Only a person ${what}, in Settings or the CLI.`, 403);
-};
+import { requireInput } from "../api/operation-support.ts";
+import type { OperationCall, Operations } from "../api/operations.ts";
 
 export const entries = [
   {
@@ -60,9 +50,8 @@ export const entries = [
     name: "context.machine.set",
     class: "protect",
     github: null,
-    policy: person("Only a person changes this machine's epic context."),
-    handler(this: Operations, { input, context }: OperationCall) {
-      refuseAgent(context, "changes this machine's epic context");
+    policy: audited,
+    handler(this: Operations, { input }: OperationCall) {
       if (!this.configDirectory)
         fail("This workspace has no machine configuration folder.", 409);
       const value = input?.epicContext ?? null;
@@ -74,9 +63,9 @@ export const entries = [
     name: "plugin.answer",
     class: "protect",
     github: null,
-    policy: person("Only a person answers a plugin's questions."),
-    handler(this: Operations, { input, context }: OperationCall) {
-      refuseAgent(context, "answers a plugin's questions");
+    policy: audited,
+    handler(this: Operations, { input }: OperationCall) {
+      requireInput(input, ["id"]);
       const options = this.pluginOptions;
       if (!options?.workspaceRoot) fail("Plugins need a workspace root.", 409);
       const plugin = setAnswer(

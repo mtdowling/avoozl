@@ -1,18 +1,20 @@
-// Settings' plugin list and actions (§4.8, R34.9). Approval is a person's act
-// in Settings or the CLI: an agent session cannot approve a plugin, and no MCP
-// tool offers it. Operations.pluginOperation holds the work.
+// Settings' plugin list and actions (§4.8, R34.9), from Settings, the CLI or
+// the plans_plugin_admin MCP tool. Operations.pluginOperation holds the work.
 import { contentBinding } from "../content/content-rules.ts";
-import { person, routed } from "../api/operation-policy.ts";
+import { audited, destructive, routed } from "../api/operation-policy.ts";
 import { setMapping } from "../plugins/plugin-checks.ts";
 import { flipDecide, submitDecide } from "../plugins/check-decide.ts";
 import { stageResults } from "../plugins/check-stages.ts";
 import { fail } from "../store/store.ts";
+import { callerName } from "../store/activity-log.ts";
+import { requireInput } from "../api/operation-support.ts";
 import type { OperationCall, Operations } from "../api/operations.ts";
 
 async function pluginHandler(
   this: Operations,
   { name, input, context }: OperationCall,
 ) {
+  if (BY_ID.has(name)) requireInput(input, ["id"]);
   const result = await this.pluginOperation(name, input, context);
   // A plugin change reloads rules plugins on the next operation.
   if (!["plugins.list", "plugin.preview"].includes(name))
@@ -20,8 +22,14 @@ async function pluginHandler(
   return result;
 }
 
-const changesPlugins = person("Only a person changes plugins.");
 const reads = ["plugins.list", "plugin.preview"];
+// The plugin writes that name one declared plugin.
+const BY_ID = new Set([
+  "plugin.approve",
+  "plugin.disable",
+  "plugin.remove",
+  "plugin.update",
+]);
 const writes = [
   "plugin.add",
   "plugin.approve",
@@ -36,12 +44,10 @@ const writes = [
   "plugin.updates.configure",
 ];
 
-// A checks plugin's server mapping (plugin-checks PK10.3): a person's act
-// only, refused over MCP and for an app token. A changed mapping leaves the
-// plugin's approval stale.
-function mapHandler(this: Operations, { input, context }: OperationCall) {
-  if (context.caller || context.mcp)
-    fail("Only a person maps a plugin's server, in Settings or the CLI.", 403);
+// A checks plugin's server mapping (plugin-checks PK10.3). A changed
+// mapping leaves the plugin's approval stale.
+function mapHandler(this: Operations, { input }: OperationCall) {
+  requireInput(input, ["id"]);
   const options = this.pluginOptions;
   if (!options?.workspaceRoot) fail("Plugins need a workspace root.", 409);
   const plugin = setMapping(options, input ?? {});
@@ -62,18 +68,18 @@ export const entries = [
     name,
     class: "protect",
     github: null,
-    policy: changesPlugins,
+    policy: name === "plugin.remove" ? destructive : audited,
     handler: pluginHandler,
   })),
   {
     name: "plugin.map",
     github: null,
     class: "protect",
-    policy: changesPlugins,
+    policy: audited,
     handler: mapHandler,
   },
   // A plugin check's decide call (plugin-checks D5): its bound session's
-  // one answer, and a person's Run it / Skip it.
+  // one answer, and Run it / Skip it.
   {
     name: "check.decide.submit",
     github: null,
@@ -87,12 +93,10 @@ export const entries = [
     name: "check.decide.flip",
     github: null,
     class: "protect",
-    policy: person("Only a person runs or skips a plugin check."),
+    policy: audited,
     handler(this: Operations, { input, context }: OperationCall) {
-      if (context.caller || context.mcp)
-        fail("Only a person runs or skips a plugin check.", 403);
       return flipDecide(this.store, input, {
-        by: this.operator || (context.local ? "cli" : "dashboard"),
+        by: callerName(context, this.operator),
       });
     },
   },

@@ -170,7 +170,7 @@ export const commands: Command[] = [
       help(
         "deliver",
         "lane resume LANE",
-        "Open a new session for a lane a person closed, on the next tick (a person only)",
+        "Open a new session for a lane a person closed, on the next tick",
       ),
     ],
     async run({ positionals, localOrRequest, need }) {
@@ -212,10 +212,10 @@ export const commands: Command[] = [
       help(
         "deliver",
         "claim delete REPOSITORY BRANCH [--yes]",
-        "Delete a stale claim branch on origin so its task is ready again; asks first (a person only)",
+        "Delete a stale claim branch on origin so its task is ready again; asks first, or --yes",
       ),
     ],
-    async run({ options, positionals, localOrRequest, need, env }) {
+    async run({ options, positionals, localOrRequest, need }) {
       if (positionals[0] !== "delete")
         throw Error("Use claim delete REPOSITORY BRANCH.");
       const usage = "claim delete REPOSITORY BRANCH",
@@ -230,7 +230,7 @@ export const commands: Command[] = [
             action: `Delete ${branch}`,
           }),
         ],
-        { yes: options.yes === true, localOrRequest, env },
+        { yes: options.yes === true, localOrRequest },
       );
       if (allow === null) {
         console.log("Cancelled: nothing was deleted.");
@@ -238,7 +238,12 @@ export const commands: Command[] = [
       }
       console.log(
         JSON.stringify(
-          await localOrRequest("claim.delete", { repository, branch, allow }),
+          await localOrRequest("claim.delete", {
+            repository,
+            branch,
+            allow,
+            confirm: true,
+          }),
           null,
           2,
         ),
@@ -304,11 +309,6 @@ export const commands: Command[] = [
       ),
     ],
     async run({ options, positionals, localOrRequest }) {
-      // Taking a task by hand is a person's: not from an agent the supervisor started.
-      if (process.env.AVOOZL_CHILD)
-        throw Error(
-          "Taking a task is a person's. This command is running inside an agent the supervisor started.",
-        );
       console.log(
         JSON.stringify(
           await localOrRequest("runner.take", {
@@ -461,7 +461,7 @@ export const commands: Command[] = [
       help(
         "deliver",
         "task done TASK_ID [--skipped|--refused]",
-        "Mark a manual task done, skipped or refused (a person only;\nrefused is a no-go and keeps its dependents held)",
+        "Mark a manual task done, skipped or refused (refused is a\nno-go and keeps its dependents held)",
       ),
     ],
     run: runTaskDone,
@@ -472,7 +472,7 @@ export const commands: Command[] = [
       help(
         "deliver",
         "task reopen TASK_ID",
-        "Reopen a manual task; its dependents wait again (a person only)",
+        "Reopen a manual task; its dependents wait again",
       ),
     ],
     run: runTaskDone,
@@ -510,13 +510,7 @@ export const commands: Command[] = [
   },
   {
     command: "flow resume",
-    help: [
-      help(
-        "deliver",
-        "flow resume STOP_ID",
-        "Resume a pulled stop (a person only)",
-      ),
-    ],
+    help: [help("deliver", "flow resume STOP_ID", "Resume a pulled stop")],
     async run({ positionals, localOrRequest, need }) {
       console.log(
         JSON.stringify(
@@ -535,7 +529,7 @@ export const commands: Command[] = [
       help(
         "deliver",
         "flow run-anyway STOP_ID --confirm",
-        "Resume dispatch while a line stop stays open (a person only)",
+        "Resume dispatch while a line stop stays open",
       ),
     ],
     async run({ options, positionals, localOrRequest, need }) {

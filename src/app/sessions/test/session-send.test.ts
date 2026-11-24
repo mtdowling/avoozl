@@ -9,7 +9,6 @@ import test from "node:test";
 import type { TestContext } from "node:test";
 import { Operations } from "../../api/operations.ts";
 import { classifyOperation } from "../../api/operation-table.ts";
-import { mcpRefusal } from "../../mcp/mcp-policy.ts";
 import { bindSession, type SessionBinding } from "../session-bindings.ts";
 import {
   enqueueSessionRequests,
@@ -155,29 +154,27 @@ test("an empty, long, unknown, chat or ended session send is refused", (t) => {
   );
 });
 
-test("session.send is a person's write: MCP and agent sessions are refused", async (t) => {
+test("session.send is audited, and MCP and agent sessions may send", async (t) => {
   const { root, store } = workspace(t);
   const slot = processSession(store);
   assert.equal(classifyOperation("session.send"), "execute");
-  assert.match(mcpRefusal("session.send", {}) ?? "", /^Only a person/);
   const ops = new Operations(store, { workspaceRoot: root });
   const contexts: OperationContext[] = [
     { mcp: true },
     { caller: { sessionKey: "chat-9" } },
   ];
-  for (const context of contexts)
-    await assert.rejects(
-      ops.execute("session.send", { slot, text: "hi" }, undefined, context),
-      (error: StatusError) => error.status === 403,
+  for (const context of contexts) {
+    const result = await ops.execute<{ state: string }>(
+      "session.send",
+      { slot, text: "hi" },
+      undefined,
+      context,
     );
-  const result = await ops.execute<{ state: string }>("session.send", {
-    slot,
-    text: "hi",
-  });
-  assert.equal(result.state, "queued");
+    assert.equal(result.state, "queued");
+  }
   assert.equal(
     store.list("session_requests").filter((r) => r.kind === "send").length,
-    1,
+    2,
   );
 });
 

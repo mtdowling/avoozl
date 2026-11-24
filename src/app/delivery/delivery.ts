@@ -1,4 +1,5 @@
 import { kirocrewRequest } from "../executors/kirocrew.ts";
+import { callerName } from "../store/activity-log.ts";
 import { commitSubject } from "../landing/landing-config.ts";
 import { readGitHubPolicyOrNull } from "../github/github-policy.ts";
 import { briefCell } from "../workers/worker-briefs.ts";
@@ -1257,10 +1258,10 @@ const failuresSince = (delivery: Delivery, attempts: DeliveryAttempt[]) =>
 const reviewRoundsSince = (delivery: Delivery, attempts: DeliveryAttempt[]) =>
   attempts.slice(delivery.retryFrom || 0).filter((a) => a.review).length;
 
-// plans_task (action: retry): a person resumes a leaf that stopped for a decision.
+// plans_task (action: retry): resume a leaf that stopped for a decision.
 // The next attempt resumes on the same worktree with a fresh retry budget.
-// `dismiss: [{finding, reason}]` closes open review findings by reference;
-// only a person may (R37.6), so a session caller is refused.
+// `dismiss: [{finding, reason}]` closes open review findings by reference
+// (R37.6), recorded with who dismissed them.
 // Whether the task's worktree still exists and is at `commit`.
 async function worktreeAt(store: Store, task: Task, commit: unknown) {
   const worktree = store.get<Worktree>("task_worktrees", task.id),
@@ -1295,10 +1296,6 @@ export async function retryDelivery(
   // Sending work back with a reason is a correction (§4.24, R78.1).
   if (input.reason !== undefined && !printable(input.reason, 300))
     fail("Say why in at most 300 characters.");
-  if (input.reason && (mcp || callerSlot(caller)))
-    fail("Only a person sends work back with a reason.", 403);
-  if (dismiss.length && (mcp || callerSlot(caller)))
-    fail("Only a person dismisses a review finding, not a session.", 403);
   for (const entry of dismiss)
     if (
       !isRecord(entry) ||
@@ -1346,7 +1343,7 @@ export async function retryDelivery(
                 ...dismissals.map((entry) => ({
                   finding: entry.finding,
                   reason: entry.reason.trim(),
-                  by: local ? "cli" : "dashboard",
+                  by: callerName({ caller, mcp, local }),
                   at,
                 })),
               ],

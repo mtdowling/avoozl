@@ -638,6 +638,7 @@ test("repository removal clears persisted configuration and records the action",
   configuration.updateExecutionRepository(repository);
 
   const removed = await ops.execute<{ removed: boolean }>("repository.remove", {
+    confirm: true,
     id: repository.id,
   });
 
@@ -685,7 +686,7 @@ test("repository removal refuses locks and GitHub connections", async (t) => {
   ];
   for (const [id, message] of refusals)
     await assert.rejects(
-      ops.execute("repository.remove", { id }),
+      ops.execute("repository.remove", { id, confirm: true }),
       (error: Refusal) => error.status === 409 && message.test(error.message),
     );
 

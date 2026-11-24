@@ -224,28 +224,21 @@ test("a red or unaccepted head cannot be approved", async (t) => {
   );
 });
 
-test("landing is a person's: refused over MCP and for an agent, allowed for the page", async (t) => {
+test("an agent tool approves landing over MCP", async (t) => {
   const store = workspace(t),
     github = fake({ checks: [pass] });
   await step(store, github);
   const ops = new Operations(store, { github, workspaceRoot: "/nope" });
   const input = { repository: REPO, branch: BRANCH, head: view(store).head };
-  await assert.rejects(
-    ops.execute("integration.land", input, undefined, { mcp: true }),
-    /person/,
-  );
-  await assert.rejects(
-    ops.execute("integration.land", input, undefined, {
-      caller: { sessionKey: "s" },
-    }),
-    /person/,
-  );
   assert.equal(view(store).landing, null);
   assert.equal(
     (await ops.execute<{ branches: unknown[] }>("integration.view", {}))
       .branches.length,
     1,
   );
-  await ops.execute("integration.land", input);
+  await ops.execute("integration.land", input, undefined, {
+    caller: { sessionKey: "s" },
+    mcp: true,
+  });
   assert.equal(view(store).landing.head, input.head);
 });

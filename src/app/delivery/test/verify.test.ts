@@ -228,7 +228,7 @@ test("checks run warm in the task worktree, which keeps its build output", async
   assert.equal(run.checks?.[1]?.notRun, "timed out after 1 s");
 });
 
-test("a file outside declared paths runs no check; a protected path waits for a person", async (t) => {
+test("a file outside declared paths runs no check; a protected path waits for an allow", async (t) => {
   // Nearby inputs: an undeclared file (no checks run), a workflow file
   // (protected), a session or an early allowance (refused), and the person's
   // allowance for that exact commit (the next run passes the paths).
@@ -275,18 +275,10 @@ test("a file outside declared paths runs no check; a protected path waits for a 
     verifications: [{ attempt: 1, by: "avoozl", commit, ...pathOutcome(held) }],
   });
   assert.throws(
-    () => allow({}, { caller: { sessionKey: "dashboard:w-1" } }),
-    (e: Refusal) => e.status === 403,
-  );
-  assert.throws(
-    () => allow({}, { mcp: true }),
-    (e: Refusal) => e.status === 403,
-  );
-  assert.throws(
     () => allow({ reason: "" }),
     (e: Refusal) => e.status === 400,
   );
-  allow({}, { local: true });
+  allow({}, { mcp: true });
   const delivery = storedRow<Delivery>(store, "task_deliveries", "a");
   assert.deepEqual([delivery.state, delivery.cause], ["done", undefined]);
   queueCheckRun(store, {
@@ -334,7 +326,7 @@ async function judgedAfter(store: Store, ops: Operations, files: string[]) {
   };
 }
 
-test("the tick fails an attempt outside declared paths and holds a protected path for a person", async (t) => {
+test("the tick fails an attempt outside declared paths and holds a protected path for an allow", async (t) => {
   // Nearby inputs: an undeclared file (the writer's attempt fails and
   // retries) and a workflow file (a decision, no attempt spent, one notice).
   const outside = setup(t, { paths: ["src/**"] });
@@ -351,21 +343,12 @@ test("the tick fails an attempt outside declared paths and holds a protected pat
   assert.match(held.delivery.cause ?? "", /touches protected paths/);
   assert.equal(held.delivery.attempts[0]?.outcome, "done", "no attempt spent");
   assert.equal(held.delivery.verifications.at(-1)?.outcome, "protected");
-  // Through the operation: a session is refused, the command line is not.
-  await assert.rejects(
-    ops.execute(
-      "verify.allow",
-      { taskId: "a", reason: "CI change" },
-      undefined,
-      { caller: { sessionKey: "dashboard:w-1" } },
-    ),
-    (e: Refusal) => e.status === 403,
-  );
+  // Through the operation, from a session too.
   await ops.execute(
     "verify.allow",
     { taskId: "a", reason: "CI change" },
     undefined,
-    { local: true },
+    { caller: { sessionKey: "dashboard:w-1" } },
   );
   assert.equal(
     storedRow<Delivery>(store, "task_deliveries", "a").state,

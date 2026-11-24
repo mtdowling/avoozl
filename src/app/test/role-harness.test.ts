@@ -151,27 +151,17 @@ test("models.settings saves harnesses and lists this machine's definitions", asy
       proved: [],
     },
   ]);
-  await assert.rejects(
-    ops.execute(
-      "models.settings.update",
-      {
-        roles: { worker: { harness: "fake-cli" } },
-        expectedHash: before.hash,
-      },
-      undefined,
-      { mcp: true },
-    ),
-    (e: StatusError) => e.status === 403,
-  );
   const table = {
     checkDecide: { model: "m1" },
     worker: { harness: "fake-cli" },
     reviewer: { harness: "kirocrew" },
   };
-  const saved = await ops.execute<ModelSettings>("models.settings.update", {
-    roles: table,
-    expectedHash: before.hash,
-  });
+  const saved = await ops.execute<ModelSettings>(
+    "models.settings.update",
+    { roles: table, expectedHash: before.hash },
+    undefined,
+    { mcp: true },
+  );
   assert.deepEqual(saved.roles, table);
   const file = () =>
     JSON.parse(fs.readFileSync(path.join(root, ".avoozl.json"), "utf8"));

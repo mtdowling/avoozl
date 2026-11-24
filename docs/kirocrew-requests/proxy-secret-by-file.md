@@ -35,10 +35,11 @@ it once and delete or ignore it.
 
 ## Effect on Avoozl
 
-With the secret passed this way, Avoozl's
-[person-only rule](../person-only.md) would stop a same-user agent from
-signing as the owner. With the secret in the environment, the rule stops MCP
-calls and app tokens, not code running as you.
+With the secret passed this way, a same-user agent could not sign a
+request as the owner's page session, whose calls
+[Activity](../agent-access.md#activity-names-the-caller) records as
+`owner session`. With the secret in the environment, code running as you
+can.
 
 ## Windows and restarts
 

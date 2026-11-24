@@ -18,7 +18,9 @@ import { machineAvoozlPaths } from "../settings/host-config.ts";
 import { runOn } from "../tick/needs-kirocrew.ts";
 import { fail } from "../store/store.ts";
 import path from "node:path";
-import { person, notOnMcp, routed } from "../api/operation-policy.ts";
+import { notOnMcp, routed, audited } from "../api/operation-policy.ts";
+import { callerName, principalOf } from "../store/activity-log.ts";
+import { requireInput } from "../api/operation-support.ts";
 import type { OperationCall, Operations } from "../api/operations.ts";
 import type { Repository } from "../git/git.ts";
 
@@ -86,10 +88,8 @@ export const entries = [
     name: "harness.approve",
     class: "execute",
     github: "check-in",
-    policy: person("Only a person approves a program to run on this machine."),
+    policy: audited,
     handler(this: Operations, { input, context }: OperationCall) {
-      if (context.caller || context.mcp)
-        fail("Only a person approves a harness, in the app or CLI.", 403);
       return approveHarnessByName({
         configDirectory: this.configDirectory ?? "",
         name: String(input.name ?? ""),
@@ -102,13 +102,8 @@ export const entries = [
     name: "harness.probe",
     class: "execute",
     github: "check-in",
-    policy: person("Only a person runs a harness's sign-in check."),
+    policy: audited,
     handler(this: Operations, { input, context }: OperationCall) {
-      if (context.caller || context.mcp)
-        fail(
-          "Only a person checks a harness's sign-in, in the app or CLI.",
-          403,
-        );
       const { stateDirectory, catalogPath } = machineAvoozlPaths();
       return probeHarness({
         configDirectory: this.machineFolder(),
@@ -118,21 +113,16 @@ export const entries = [
       });
     },
   },
-  // Run on (NK8.2): a person moves a role that waits on Kiro Crew to one
+  // Run on (NK8.2): move a role that waits on Kiro Crew to one
   // of this machine's approved harnesses.
   {
     name: "needskirocrew.runon",
     class: "execute",
     github: "check-in",
-    policy: person("Only a person chooses the harness a waiting role runs on."),
-    handler(this: Operations, { input, context }: OperationCall) {
+    policy: audited,
+    handler(this: Operations, { input }: OperationCall) {
       const store = this.store;
-
-      if (context.caller || context.mcp)
-        fail(
-          "Only a person chooses where a role runs, in the Avoozl app.",
-          403,
-        );
+      requireInput(input, ["role", "harness"]);
       return runOn(
         store,
         { role: String(input.role), harness: String(input.harness) },
@@ -150,10 +140,8 @@ export const entries = [
     name: "models.settings.update",
     class: "execute",
     github: "check-in",
-    policy: person("Only a person changes chat models."),
+    policy: audited,
     handler(this: Operations, { input, context }: OperationCall) {
-      if (context.caller || context.mcp)
-        fail("Only a person changes chat models, in Settings.", 403);
       const written = this.settingsFile().updateModelSettings(input);
       this.configuration?.reload();
       return written;
@@ -174,7 +162,7 @@ export const entries = [
     name: "flow.settings.update",
     class: "execute",
     github: "check-in",
-    policy: person("Only a person changes flow settings."),
+    policy: audited,
     handler(this: Operations, { input }: OperationCall) {
       const written = this.settingsFile().updateFlowSettings(input);
       this.configuration?.reload();
@@ -182,60 +170,39 @@ export const entries = [
     },
   },
 
-  // Run anyway (R44.10): a person only, confirmed and recorded.
+  // Run anyway (R44.10): confirmed in the page and recorded.
   {
     name: "flow.runAnyway",
     class: "execute",
     github: "check-in",
-    policy: person("Only a person presses Run anyway."),
+    policy: audited,
     handler(this: Operations, { input, context }: OperationCall) {
       const store = this.store;
 
-      if (context.caller || context.mcp)
-        fail(
-          "Only a person presses Run anyway, in the Avoozl page or the CLI.",
-          403,
-        );
       return runAnyway(store, input, {
-        operator: context.local ? "cli" : this.operator || "dashboard",
+        operator: callerName(context, this.operator),
       });
     },
   },
-  // Pull the Andon cord (R64): a person or an agent session stops new
-  // dispatch in a scope; only a person resumes.
+  // Pull the Andon cord (R64): stop new dispatch in a scope, or with
+  // `full` stop every agent.
   {
     name: "flow.stop",
     class: "execute",
     github: "check-in",
-    policy: person(
-      "Only a person stops all agents.",
-      (input) => input?.full === true,
-    ),
+    policy: audited,
     handler(this: Operations, { input, context }: OperationCall) {
       const store = this.store;
-      if (input.full === true) {
-        if (context.caller || context.mcp)
-          fail("Only a person stops all agents. Do it in the Avoozl app.", 403);
+      const by = {
+        kind: principalOf(context) === "agent tool" ? "agent" : "person",
+        name: callerName(context, this.operator),
+      };
+      if (input.full === true)
         return pullFullStop(store, input, {
-          by: {
-            kind: "person",
-            name: context.local ? "cli" : this.operator || "dashboard",
-          },
+          by,
           stopSession: this.sessionStopper,
         });
-      }
-      return pullCord(store, input, {
-        by:
-          context.caller || context.mcp
-            ? {
-                kind: "agent",
-                name: `session:${context.caller?.sessionKey || context.caller || "mcp"}`,
-              }
-            : {
-                kind: "person",
-                name: context.local ? "cli" : this.operator || "dashboard",
-              },
-      });
+      return pullCord(store, input, { by });
     },
   },
 
@@ -243,17 +210,12 @@ export const entries = [
     name: "flow.resume",
     class: "execute",
     github: "check-in",
-    policy: person("Only a person resumes a pulled stop."),
+    policy: audited,
     handler(this: Operations, { input, context }: OperationCall) {
       const store = this.store;
 
-      if (context.caller || context.mcp)
-        fail(
-          "Only a person resumes a pulled stop, in the Avoozl page or the CLI.",
-          403,
-        );
       return resumeStop(store, input, {
-        by: context.local ? "cli" : this.operator || "dashboard",
+        by: callerName(context, this.operator),
       });
     },
   },

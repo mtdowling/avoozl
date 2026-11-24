@@ -12,7 +12,6 @@ import {
 import { normalizeHostConfig } from "../../settings/host-config.ts";
 import { loadLayeredConfig } from "../../settings/layered-config.ts";
 import { OPERATIONS } from "../../api/operation-table.ts";
-import { mcpRefusal, cliRefusal } from "../../mcp/mcp-policy.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
 
 // The block as a test edits it: any key may be set to a wrong value.
@@ -130,27 +129,17 @@ test("a repository file and a layered workspace config refuse epicContext, namin
   );
 });
 
-test("context.machine.set is a person's act: refused over MCP, for a bound caller and for a child", async () => {
+test("context.machine.set is audited and an agent tool may call it", async () => {
   const entry = OPERATIONS.get("context.machine.set");
-  assert.equal(entry.policy.kind, "person");
-  assert.ok(mcpRefusal("context.machine.set", { epicContext: good() }));
-  assert.ok(
-    cliRefusal(
-      "context.machine.set",
-      { epicContext: good() },
-      { env: { AVOOZL_CHILD: "1", AVOOZL_CHILD_SESSION: "process-x" } },
-    ),
-  );
-  assert.equal(
-    cliRefusal("context.machine.set", {}, { env: {} }),
-    null,
-    "a terminal is allowed",
-  );
-  const calls = { configDirectory: "/nonexistent" };
+  assert.equal(entry.policy.kind, "routed");
+  assert.equal(entry.policy.audit, true);
+  const configDirectory = temporaryDirectory("avoozl-epic-machine-");
   for (const context of [{ caller: { slot: "s" } }, { mcp: true }])
-    await assert.rejects(
-      async () =>
-        entry.handler.call(calls, { input: { epicContext: good() }, context }),
-      /Only a person/,
+    assert.deepEqual(
+      entry.handler.call(
+        { configDirectory },
+        { input: { epicContext: null }, context },
+      ),
+      { epicContext: null },
     );
 });

@@ -26,7 +26,7 @@ import { fail } from "../store/store.ts";
 import { readDeliveryPolicy } from "../tick/tick.ts";
 import { workspaceRepositories } from "../workspace/workspace-repositories.ts";
 import path from "node:path";
-import { person, notOnMcp, routed } from "../api/operation-policy.ts";
+import { notOnMcp, routed, audited } from "../api/operation-policy.ts";
 import type { OperationCall, Operations } from "../api/operations.ts";
 
 export const entries = [
@@ -156,15 +156,10 @@ export const entries = [
     name: "session.send",
     class: "execute",
     github: "check-in",
-    policy: person("Only a person sends a message to a process session."),
+    policy: audited,
     handler(this: Operations, { input, context }: OperationCall) {
       const store = this.store;
 
-      if (context.caller || context.mcp)
-        fail(
-          "Only a person sends a message to a process session, in the Avoozl page.",
-          403,
-        );
       return queueSessionSend(store, input);
     },
   },
@@ -174,12 +169,10 @@ export const entries = [
     name: "session.open",
     class: "execute",
     github: "check-in",
-    policy: person("Only a person opens a session, in the Avoozl page."),
+    policy: audited,
     handler(this: Operations, { input, context }: OperationCall) {
       const store = this.store;
 
-      if (context.caller || context.mcp)
-        fail("Only a person opens a session, in the Avoozl page.", 403);
       const workspaceRoot =
         this.workspaceRoot ?? fail("Opening a session needs a workspace.", 409);
       return openSession(store, input, {

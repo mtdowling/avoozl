@@ -12,7 +12,7 @@ import { approveMerge, releaseDraft } from "../landing/landing-pulls.ts";
 import { loadLayeredConfig } from "../settings/layered-config.ts";
 import { manualTake } from "../workers/manual-take.ts";
 import { deliverNotifications } from "../tick/notifications.ts";
-import { stampPrompts } from "../api/operation-support.ts";
+import { requireInput, stampPrompts } from "../api/operation-support.ts";
 import { deliveryView } from "../api/page-views.ts";
 import { claimNext, nextView } from "../workers/runner.ts";
 import { claimsView, deleteClaim } from "../workers/claims.ts";
@@ -30,7 +30,12 @@ import {
   validateLoop,
   writeMachineLoop,
 } from "../tick/loop.ts";
-import { person, notOnMcp, routed } from "../api/operation-policy.ts";
+import {
+  notOnMcp,
+  routed,
+  audited,
+  destructive,
+} from "../api/operation-policy.ts";
 import type { OperationCall, Operations } from "../api/operations.ts";
 
 // This machine's loop for Settings › Autopilot; a file that cannot be read
@@ -41,6 +46,23 @@ function machineLoopSettings(operations: Operations) {
   } catch (error) {
     return { loop: null, loopError: (error as Error).message };
   }
+}
+
+// What turning Autopilot on writes when this machine has no loop yet, as
+// Settings › Autopilot does (DeliverySettings.tsx DEFAULT_LOOP).
+const DEFAULT_LOOP = { run: ["specs"] };
+
+// Autopilot runs only with both switches (R54.8): the workspace's
+// `delivery` block and this machine's `loop`.
+function autopilotStatus(operations: Operations) {
+  const settings = operations.settingsFile().readDeliverySettings(),
+    machine = machineLoopSettings(operations);
+  return {
+    on: settings.on && Boolean(machine.loop),
+    delivery: settings.on,
+    ...machine,
+    hash: settings.hash,
+  };
 }
 
 export const entries = [
@@ -66,21 +88,16 @@ export const entries = [
       return nextView(this.store, options);
     },
   },
-  // Taking a task by hand is the person's at this machine's command line
-  // (worker-paths WP2.7): never over MCP or from an agent session.
+  // Take a task by hand on this machine (worker-paths WP2.7), from
+  // `avoozl take` or plans_take_task.
   {
     name: "runner.take",
     class: "execute",
     github: "check-in",
-    policy: person("Only a person takes a task by hand."),
-    async handler(this: Operations, { input, context }: OperationCall) {
+    policy: audited,
+    async handler(this: Operations, { input }: OperationCall) {
       const store = this.store;
-
-      if (context.local !== true || context.caller || context.mcp)
-        fail(
-          "Taking a task is a person's: run avoozl take TASK from the command line.",
-          403,
-        );
+      requireInput(input, ["taskId"]);
       return stampPrompts(
         store,
         await manualTake(
@@ -112,27 +129,25 @@ export const entries = [
       });
     },
   },
-  // Delete branch on a stale claim: a person's, from Needs you
-  // or `avoozl claim delete`, as the high-risk claim-delete job that only
-  // the confirm's grant lets through.
+  // Delete branch on a stale claim, from Needs you, `avoozl claim delete`
+  // or plans_control, as the high-risk claim-delete job that only the
+  // confirm's grant lets through.
   {
     name: "claim.delete",
     class: "protect",
     github: "claim-delete",
-    policy: person("Only a person deletes a claim branch."),
+    policy: destructive,
     handler(this: Operations, { input }: OperationCall) {
       return deleteClaim(this.store, this.github, input);
     },
   },
-  // Let the tick run it (WP1.3): a person's, from the page or the CLI.
+  // Let the tick run it (WP1.3).
   {
     name: "delivery.runner.release",
     class: "protect",
     github: "check-in",
-    policy: person("Only a person lets the tick run this workspace."),
+    policy: audited,
     handler(this: Operations, { input, context }: OperationCall) {
-      if (context.caller || context.mcp)
-        fail("Only a person lets the tick run this workspace.", 403);
       const file = this.settingsFile();
       file.removeDeliveryRunner({
         expectedHash: input.expectedHash ?? file.readFile().hash,
@@ -155,16 +170,47 @@ export const entries = [
   },
 
   {
+    name: "autopilot.status",
+    class: "observe",
+    github: "check-in",
+    policy: routed,
+    handler(this: Operations) {
+      return autopilotStatus(this);
+    },
+  },
+  // On writes the delivery block (empty when missing) and this machine's
+  // loop (kept when set); off removes the loop and keeps the block, as the
+  // page's switch does.
+  {
+    name: "autopilot.set",
+    class: "protect",
+    github: "check-in",
+    policy: audited,
+    handler(this: Operations, { input }: OperationCall) {
+      if (typeof input?.on !== "boolean") fail("Say on: true or on: false.");
+      const file = this.settingsFile(),
+        before = autopilotStatus(this);
+      if (input.on) {
+        if (!before.delivery)
+          file.updateDeliverySettings({
+            delivery: {},
+            turnOn: true,
+            expectedHash: before.hash,
+          });
+        if (!before.loop)
+          writeMachineLoop(loopFile(this.configDirectory), DEFAULT_LOOP);
+      } else if (before.loop)
+        writeMachineLoop(loopFile(this.configDirectory), null);
+      this.configuration?.reload();
+      return autopilotStatus(this);
+    },
+  },
+  {
     name: "delivery.settings.update",
     class: "protect",
     github: "check-in",
-    policy: person("Only a person changes delivery settings."),
+    policy: audited,
     handler(this: Operations, { input, context }: OperationCall) {
-      if (context.caller || context.mcp)
-        fail(
-          "Only a person changes delivery settings, in the Avoozl page.",
-          403,
-        );
       // `loop`: this machine's loop (an object), or null to remove it.
       // Checked before anything is written.
       const { loop, ...workspace } = input ?? {};
@@ -186,7 +232,7 @@ export const entries = [
     name: "verify.allow",
     class: "protect",
     github: "check-in",
-    policy: person("Only a person lets a commit's protected paths land."),
+    policy: audited,
     handler(this: Operations, { input, context }: OperationCall) {
       const store = this.store;
       return allowProtectedPaths(store, input, {
@@ -292,7 +338,7 @@ export const entries = [
     name: "lane.resume",
     class: "execute",
     github: "check-in",
-    policy: person("Only a person resumes a closed lane."),
+    policy: audited,
     handler(this: Operations, { input }: OperationCall) {
       return resumeLane(this.store, input ?? {});
     },
@@ -343,13 +389,8 @@ export const entries = [
     name: "landing.ready",
     class: "execute",
     github: "land",
-    policy: person("Only a person releases a draft pull request."),
+    policy: audited,
     async handler(this: Operations, { input, context }: OperationCall) {
-      if (context.caller || context.mcp)
-        fail(
-          "Only a person releases a draft pull request, in the Avoozl page or on GitHub.",
-          403,
-        );
       if (!this.github?.available?.()) fail("GitHub is not available.", 503);
       return releaseDraft(this.store, this.github, input);
     },
@@ -361,13 +402,8 @@ export const entries = [
     name: "landing.merge",
     class: "protect",
     github: null,
-    policy: person("Only a person merges a pull request Avoozl opened."),
+    policy: audited,
     handler(this: Operations, { input, context }: OperationCall) {
-      if (context.caller || context.mcp)
-        fail(
-          "Only a person merges a pull request Avoozl opened, in the Avoozl page or on GitHub.",
-          403,
-        );
       const { commit, ...at } = input;
       return approveMerge(this.store, at, {
         commit: String(commit),
@@ -380,15 +416,10 @@ export const entries = [
     name: "integration.land",
     class: "execute",
     github: "integration",
-    policy: person("Only a person approves landing an integration branch."),
+    policy: audited,
     handler(this: Operations, { input, context }: OperationCall) {
       const store = this.store;
 
-      if (context.caller || context.mcp)
-        fail(
-          "Only a person approves landing a branch, in the Avoozl page.",
-          403,
-        );
       return landBranch(store, input, {
         by: context.local ? "cli" : this.operator || "dashboard",
       });

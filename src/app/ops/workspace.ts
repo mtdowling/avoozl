@@ -19,8 +19,12 @@ import {
 } from "../github/github-sync.ts";
 import { requirePrivateRepository } from "../github/github.ts";
 import { HARNESS_UNCONFINED } from "../executors/harness-definitions.ts";
-import { machineAvoozlPaths } from "../settings/host-config.ts";
+import {
+  machineAvoozlPaths,
+  WorkspaceRegistry,
+} from "../settings/host-config.ts";
 import { pageStatus } from "../workspace/machine-status.ts";
+import { requireInput } from "../api/operation-support.ts";
 import { claimsOf, labelsOf } from "../settings/repository-settings.ts";
 import { startTelemetry } from "../telemetry/index.ts";
 import { startPluginUpdateChecks } from "../plugins/plugin-updates.ts";
@@ -44,7 +48,12 @@ import {
   syncWorkspaceRepository,
   workspaceRepositoryStatus,
 } from "../workspace/workspace-repository.ts";
-import { person, notOnMcp, routed } from "../api/operation-policy.ts";
+import {
+  notOnMcp,
+  routed,
+  audited,
+  destructive,
+} from "../api/operation-policy.ts";
 import type { OperationCall, Operations } from "../api/operations.ts";
 
 export const entries = [
@@ -53,10 +62,8 @@ export const entries = [
     name: "workspace.rebuild",
     class: "protect",
     github: "check-in",
-    policy: person("Only a person rebuilds the workspace, from the CLI."),
+    policy: audited,
     handler(this: Operations, { context }: OperationCall) {
-      if (context.caller || context.mcp)
-        fail("Only a person rebuilds the workspace, from the CLI.", 403);
       return this.rebuild();
     },
   },
@@ -197,7 +204,7 @@ export const entries = [
     name: "configuration.update",
     class: "protect",
     github: "check-in",
-    policy: person("Only a person changes workspace settings."),
+    policy: audited,
     async handler(this: Operations, { input }: OperationCall) {
       if (!this.configuration)
         fail("Configuration editing is unavailable from this server.", 404);
@@ -266,7 +273,7 @@ export const entries = [
     name: "repositories.configure",
     class: "protect",
     github: "check-in",
-    policy: person("Only a person adds or changes a repository."),
+    policy: audited,
     async handler(this: Operations, { input }: OperationCall) {
       const store = this.store;
 
@@ -378,7 +385,7 @@ export const entries = [
     name: "repositories.remove",
     class: "protect",
     github: "check-in",
-    policy: person("Only a person removes a repository."),
+    policy: destructive,
     async handler(this: Operations, { input }: OperationCall) {
       const store = this.store;
 
@@ -410,7 +417,7 @@ export const entries = [
     name: "workspace.repository.configure",
     class: "protect",
     github: "check-in",
-    policy: person("Only a person sets the workspace repository."),
+    policy: audited,
     async handler(this: Operations, { input }: OperationCall) {
       const store = this.store;
 
@@ -440,7 +447,7 @@ export const entries = [
     name: "workspace.repository.publish",
     class: "protect",
     github: "workspace-publish",
-    policy: person("Only a person publishes the workspace repository."),
+    policy: audited,
     async handler(this: Operations, { input }: OperationCall) {
       const store = this.store;
 
@@ -457,7 +464,7 @@ export const entries = [
     name: "workspace.repository.sync",
     class: "protect",
     github: "workspace-publish",
-    policy: person("Only a person syncs the workspace repository."),
+    policy: audited,
     async handler(this: Operations, {}: OperationCall) {
       const store = this.store;
 
@@ -474,7 +481,7 @@ export const entries = [
     name: "repository.configure",
     class: "protect",
     github: "check-in",
-    policy: person("Only a person adds or changes a repository."),
+    policy: audited,
     async handler(this: Operations, { input }: OperationCall) {
       const store = this.store;
 
@@ -538,7 +545,7 @@ export const entries = [
     name: "repository.remove",
     class: "protect",
     github: "check-in",
-    policy: person("Only a person removes a repository."),
+    policy: destructive,
     handler(this: Operations, { input }: OperationCall) {
       const store = this.store;
 
@@ -569,4 +576,65 @@ export const entries = [
       return { ...repository, removed: true };
     },
   },
+  // This machine's workspace catalog, as `avoozl workspace` changes it.
+  {
+    name: "catalog.list",
+    class: "observe",
+    github: null,
+    policy: routed,
+    handler() {
+      return withRegistry((registry) => registry.describe());
+    },
+  },
+  {
+    name: "catalog.change",
+    class: "protect",
+    github: null,
+    policy: audited,
+    handler(this: Operations, { input }: OperationCall) {
+      const { action, id, ...registration } = input ?? {};
+      if (typeof action !== "string" || !CATALOG_CHANGES.has(action))
+        fail(`Say action: ${[...CATALOG_CHANGES].join(", ")}.`);
+      requireInput(input, ["id"]);
+      return withRegistry((registry) =>
+        action === "add"
+          ? registry.add(String(id), registration)
+          : action === "set-default"
+            ? registry.setDefault(String(id))
+            : action === "drain"
+              ? registry.drain(String(id))
+              : registry.setEnabled(String(id), action !== "stop"),
+      );
+    },
+  },
+  // Off this machine's list; its folder, database and repositories stay.
+  {
+    name: "catalog.remove",
+    class: "protect",
+    github: null,
+    policy: destructive,
+    handler(this: Operations, { input }: OperationCall) {
+      requireInput(input, ["id"]);
+      return withRegistry((registry) => registry.remove(String(input.id)));
+    },
+  },
 ];
+
+const CATALOG_CHANGES = new Set([
+  "add",
+  "start",
+  "resume",
+  "stop",
+  "drain",
+  "set-default",
+]);
+
+// Opens this machine's catalog for one call.
+function withRegistry<T>(use: (registry: WorkspaceRegistry) => T): T {
+  const registry = new WorkspaceRegistry({ env: process.env });
+  try {
+    return use(registry);
+  } finally {
+    registry.close();
+  }
+}

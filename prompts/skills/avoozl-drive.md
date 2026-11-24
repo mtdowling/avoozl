@@ -56,11 +56,12 @@ Pass it on; do not do the work yourself.
 Anything else that changes what runs goes to the person as a command for
 them to type.
 
-## What only the person does
+## What the person decides
 
-You never approve a spec, answer a person-only Needs you item, approve a
-harness, resume a stopped line, or mark a task done for them. Avoozl refuses
-these from an agent. Give the person the command to run at their own prompt:
+You never approve a spec, answer a Needs you decision, approve a harness,
+resume a stopped line, or mark a task done unless the person asks you to in
+this chat. Avoozl would run them for you, and records who did. Give the
+person the command, or run it once they say so:
 
 - Approve a spec: `avoozl plan approve NAME`, then
   `avoozl plan approve NAME --yes --expect HASH` with the hash it printed.

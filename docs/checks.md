@@ -89,8 +89,8 @@ Avoozl's git credential helper, `avoozl credential`.
 
 ## Isolation
 
-Every check runs in the repository's `isolation`. Only a person sets it, in
-**Settings › Repository setup**.
+Every check runs in the repository's `isolation`, set in **Settings ›
+Repository setup** or with `repository.configure`.
 
 ```json [.avoozl.json]
 {
@@ -141,6 +141,6 @@ one row naming the folder and its free space. The row clears once there is room.
 
 - [Checks part](plugins.md#checks-part) for checks a plugin ships, which every
   machine with the plugin runs on the repositories it names
-- [Person-only operations](person-only.md) for the sandbox around unattended
+- [Agent access](agent-access.md) for the sandbox around unattended
   sessions
 - [Delivery](delivery.md) for registering a repository and its checks

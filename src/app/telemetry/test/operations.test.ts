@@ -27,24 +27,30 @@ function setup(t: TestContext) {
   };
 }
 
-test("telemetry.configure is person-only and telemetry.status is not on MCP", async (t) => {
+test("telemetry.configure is audited and on MCP, and telemetry.status is not on MCP", async (t) => {
   const { ops, file } = setup(t);
   const contexts: OperationContext[] = [
     { mcp: true },
     { caller: { sessionKey: "worker-session" } },
   ];
   for (const context of contexts)
-    await assert.rejects(
-      ops.execute("telemetry.configure", { enabled: true }, undefined, context),
-      (error: StatusError) => error.status === 403,
+    await ops.execute(
+      "telemetry.configure",
+      { enabled: false },
+      undefined,
+      context,
     );
-  assert.equal(fs.existsSync(file), false);
-  assert.equal(OPERATIONS.get("telemetry.configure").policy.kind, "person");
+  assert.equal(fs.existsSync(file), true);
+  assert.equal(OPERATIONS.get("telemetry.configure").policy.audit, true);
   assert.equal(OPERATIONS.get("telemetry.status").policy.kind, "notOnMcp");
   assert.equal(OPERATIONS.get("telemetry.status").class, "observe");
-  assert.ok(
-    !JSON.stringify(GROUPED_TOOLS).toLowerCase().includes("telemetry"),
-    "no MCP tool names telemetry",
+  assert.deepEqual(
+    Object.values(GROUPED_TOOLS).flatMap((tool) =>
+      Object.values(tool.actions)
+        .map(([operation]) => operation)
+        .filter((operation) => operation.startsWith("telemetry")),
+    ),
+    ["telemetry.configure"],
   );
 });
 

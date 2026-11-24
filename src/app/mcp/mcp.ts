@@ -7,7 +7,6 @@ import {
 import type { Store } from "../store/store.ts";
 import { workspaceIdentity } from "../store/identity.ts";
 import { classifyOperation } from "../api/operation-table.ts";
-import { mcpRefusal, PERSON_ONLY } from "./mcp-policy.ts";
 import { GROUPED_TOOLS, groupedCall, groupedToolList } from "./mcp-tools.ts";
 
 // The part of Operations an MCP server calls.
@@ -94,11 +93,11 @@ export const NARROW_TOOLS: Record<
   ],
   plans_take_task: [
     "runner.take",
-    "Refused over MCP: taking a task by hand is a person's, with avoozl take TASK at the command line. The tick starts every other task.",
+    "Take one task by hand on this machine, as avoozl take TASK does: {taskId}. Makes its claim branch and worktree and returns the brief. Recorded in Activity with the caller.",
   ],
   plans_approve_plan: [
     "plan.approve",
-    "Approve a stored spec revision as a commit on main, and create its tasks. Requires expectedHash and expectedRevision from plan.preview. approvedBy and evidence are optional. retitled lists approved task IDs whose tasks.md item text may change in this approval. Only a person approves, so an agent or MCP caller is refused.",
+    "Approve a stored spec revision as a commit on main, and create its tasks. Requires expectedHash and expectedRevision from plan.preview. approvedBy and evidence are optional. retitled lists approved task IDs whose tasks.md item text may change in this approval. Recorded in Activity with the caller.",
   ],
 };
 const operations = NARROW_TOOLS;
@@ -115,14 +114,10 @@ const narrowCall = (name: string, args: { input?: unknown }): Route => {
       }
     : { error: "input must be an object." };
 };
-const describe = (operation: string, description: string) =>
-  PERSON_ONLY.has(operation)
-    ? `Person only: refused over MCP; do it in the Avoozl app. ${description}`
-    : description;
 export const WORKSPACE_TOOLS = Object.entries(operations).map(
   ([name, [operation, description]]) => ({
     name,
-    description: describe(operation, description),
+    description,
     inputSchema: {
       type: "object",
       properties: {
@@ -217,16 +212,13 @@ export async function handleMcp(
     const refuse = (text: string) =>
       ok({ isError: true, content: [{ type: "text", text }] });
     if (route.error !== undefined) return refuse(route.error);
-    // Checked again in Operations.perform; refusing here names the tool.
-    const refusal = mcpRefusal(route.operation, route.input);
-    if (refusal) return refuse(refusal);
     const { operation } = route;
     try {
       const result = await ops.execute(
         operation,
         route.input,
         args.expectedRevision,
-        // `mcp`: a session's transport, never a person's (content.allow).
+        // `mcp`: an agent tool's transport, which Activity names.
         { caller: attestedCaller ? kiroCrewCaller(message) : null, mcp: true },
       );
       return ok({

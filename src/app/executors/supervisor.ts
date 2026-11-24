@@ -1173,8 +1173,6 @@ export function openSupervisor({
         keepEnv: [...(definition.keepEnv ?? []), ...reach.keep],
         // Avoozl pushes; an agent gets no push credentials (R102.4). The
         // sandbox then sets git's own empty credential helper.
-        // The child marker makes the CLI refuse person-only commands, even
-        // on the command line (R95.5).
         // A name a context server's mapping reads never reaches the worker.
         env: withoutNames(
           withoutPushCredentials({

@@ -9,7 +9,6 @@ import { validateManifest } from "../../plugins/plugins.ts";
 import { contextSources, contextView, setAnswer } from "../plugin-context.ts";
 import { setMapping } from "../../plugins/plugin-checks.ts";
 import { OPERATIONS } from "../../api/operation-table.ts";
-import { mcpRefusal } from "../../mcp/mcp-policy.ts";
 import { contextMachine, type ContextManifest } from "./context-fixture.ts";
 import { found } from "../../test/view-shapes.ts";
 
@@ -261,18 +260,16 @@ test("readPluginSettings keeps context through plugin edits", () => {
   });
 });
 
-test("answer, map and approve are refused over MCP", () => {
-  for (const name of ["plugin.answer", "plugin.map", "plugin.approve"]) {
-    assert.equal(found(OPERATIONS.get(name)).policy.kind, "person", name);
-    assert.ok(mcpRefusal(name, {}), name);
-  }
+test("answer, map and approve are audited, and an agent tool reaches them", () => {
+  for (const name of ["plugin.answer", "plugin.map", "plugin.approve"])
+    assert.equal(found(OPERATIONS.get(name)).policy.audit, true, name);
   assert.throws(
     () =>
       found(OPERATIONS.get("plugin.answer")).handler.call(
         { pluginOptions: { workspaceRoot: "x" } },
         { input: {}, context: { mcp: true } },
       ),
-    /Only a person/,
+    /Name it: \{id\}/,
   );
 });
 

@@ -78,7 +78,10 @@ test("workspace CLI registers, controls, lists, and removes a workspace", () => 
   const started = invoke(["workspace", "start", "cli-workspace"], env);
   assert.equal(started.state, "closed");
 
-  const removed = invoke(["workspace", "remove", "cli-workspace"], env);
+  const removed = invoke(
+    ["workspace", "remove", "cli-workspace", "--yes"],
+    env,
+  );
   assert.equal(removed.databasePreserved, true);
   assert.equal(invoke(["workspace", "list"], env).workspaces.length, 0);
 });

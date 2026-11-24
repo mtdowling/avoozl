@@ -234,7 +234,7 @@ test("avoozl next puts every local leaf in one bucket with what it waits on", as
   );
 });
 
-test("every take and next goes through Operations.execute, and MCP may not take", async (t) => {
+test("every take and next goes through Operations.execute, from MCP too", async (t) => {
   // Nearby inputs: the CLI (another process, the local caller), the app's
   // MCP server (attested caller), and an unattested MCP call.
   const { root, store, ops } = setup(t, { tasks: [leaf("a"), leaf("b")] });
@@ -247,27 +247,34 @@ test("every take and next goes through Operations.execute, and MCP may not take"
   const viaCli = run(root, "take", "a");
   assert.equal(viaCli.binding.conductor, "cli");
   assert.deepEqual(ids(run(root, "next").ready), ["b"]);
-  for (const attestedCaller of [true, false]) {
-    const denied = await handleMcp(
-      tool("plans_take_task", { taskId: "b" }, "dashboard:c"),
-      ops,
-      { attestedCaller },
-    );
-    assert.equal((denied.body?.result as { isError?: boolean }).isError, true);
-  }
+  const taken = await handleMcp(
+    tool("plans_take_task", { taskId: "b" }, "dashboard:c"),
+    ops,
+    { attestedCaller: true },
+  );
+  const takenResult = taken.body?.result as {
+    isError?: boolean;
+    content: { text: string }[];
+  };
+  assert.equal(takenResult.isError, undefined, takenResult.content[0]?.text);
+  assert.ok(executed.includes("runner.take"));
   const listed = await handleMcp(tool("plans_next", {}, "dashboard:c"), ops, {
     attestedCaller: true,
   });
   const content = listed.body?.result as {
     structuredContent: { running: Row[] };
   };
-  assert.deepEqual(ids(content.structuredContent.running), ["a"]);
+  assert.deepEqual(ids(content.structuredContent.running).sort(), ["a", "b"]);
   assert.ok(executed.includes("runner.next"));
   assert.deepEqual(
     store
       .list<SessionBinding>("session_bindings")
-      .map((b) => [b.taskId, b.source]),
-    [["a", "conductor"]],
+      .map((b) => [b.taskId, b.source])
+      .sort(),
+    [
+      ["a", "conductor"],
+      ["b", "conductor"],
+    ],
   );
 });
 

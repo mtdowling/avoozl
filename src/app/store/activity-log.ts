@@ -571,7 +571,30 @@ function operationRow(
   return null;
 }
 
-// One row for a successful operation from the page, the CLI or MCP.
+// Who made a call, as Activity names it: an agent through an MCP tool, a
+// command at the CLI, or the owner's own page session (command-dispatch
+// sets `person` only for that principal).
+export function principalOf(
+  context: OperationInput = {},
+): "agent tool" | "cli" | "owner session" | null {
+  if (context.caller || context.mcp) return "agent tool";
+  if (context.local) return "cli";
+  return context.person === true ? "owner session" : null;
+}
+
+// The name a record keeps for whoever acted: the agent's session (or
+// `mcp`), else `cli` at the command line, else the operator's name.
+export function callerName(context: OperationInput = {}, operator = "") {
+  if (context.caller || context.mcp)
+    return context.caller
+      ? `session:${context.caller.sessionKey || context.caller}`
+      : "mcp";
+  return context.local ? "cli" : operator || "dashboard";
+}
+
+// One row for a successful operation from the page, the CLI or MCP. An
+// audited operation (operation-policy.ts) always gets one, and its summary
+// names the principal that called it (none for a call inside Avoozl).
 export function recordOperation(
   store: Store,
   name: string,
@@ -580,13 +603,24 @@ export function recordOperation(
   {
     context = {},
     operator = "",
-  }: { context?: OperationInput; operator?: string } = {},
+    audit = false,
+  }: { context?: OperationInput; operator?: string; audit?: boolean } = {},
 ) {
-  const row = operationRow(name, input || {}, result);
+  const row =
+    operationRow(name, input || {}, result) ??
+    (audit
+      ? {
+          kind: "operation",
+          summary: `Ran ${name}`,
+          targetId: idOf(input || {}),
+        }
+      : null);
   if (!row) return null;
-  const agent = Boolean(context.caller || context.mcp);
+  const agent = Boolean(context.caller || context.mcp),
+    principal = audit ? principalOf(context) : null;
   return quietly(store, {
     ...row,
+    summary: principal ? `${row.summary} (by ${principal})` : row.summary,
     source: agent ? "mcp" : "local",
     actor: agent
       ? context.caller

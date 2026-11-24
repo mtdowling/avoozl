@@ -25,9 +25,9 @@ of three outcomes:
   sits as Blocked in Needs you, its dependents stay held, and Flow does not
   count it as finished.
 
-**Reopen** undoes any of the three, and the dependents wait again. Only a
-person marks a manual task or reopens it, in the page or from the command
-line. MCP refuses both.
+**Reopen** undoes any of the three, and the dependents wait again. Mark
+done and Reopen are in the page, at the command line, and in `plans_control`
+(actions `task_done` and `task_reopen`).
 
 ```sh
 avoozl task done TASK --skipped

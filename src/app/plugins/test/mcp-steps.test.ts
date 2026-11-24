@@ -124,7 +124,7 @@ test("pk-1.6: an MCP step validates, and a bad one is refused", () => {
   assert.equal(readPath({ a: 1 }, "$.a.b"), undefined);
 });
 
-test("pk-1.6: a mapping holds no credential and only a person sets it", (t) => {
+test("pk-1.6: a mapping holds no credential, and an agent tool may set it", (t) => {
   assert.throws(
     () => validateMapping({ command: ["srv"], token: "x" }),
     /looks like a credential/,
@@ -137,16 +137,20 @@ test("pk-1.6: a mapping holds no credential and only a person sets it", (t) => {
     command: ["srv"],
     env: [],
   });
-  assert.equal(OPERATIONS.get("plugin.map").policy.kind, "person");
+  assert.equal(OPERATIONS.get("plugin.map").policy.audit, true);
   const workspace = mcpWorkspace(t);
   return assert.rejects(
     workspace.ops.execute(
       "plugin.map",
-      { id: "acme-checks", alias: "review", command: ["x"] },
+      {
+        id: "acme-checks",
+        alias: "review",
+        command: ["x", "--key=ghp_" + "a".repeat(36)],
+      },
       undefined,
       { caller: { sessionKey: "dashboard:agent" } },
     ),
-    /Only a person/,
+    /looks like a credential/,
   );
 });
 

@@ -1,14 +1,16 @@
 // The grouped MCP tools (R56): every operation has an MCP route or a written
-// reason it has none, and no MCP call performs a person-only operation by any
-// tool name, old or new.
+// reason it has none. An agent tool reaches every approval, setting, setup
+// step and delete; a delete needs confirm: true, and Activity names the
+// caller.
 import assert from "node:assert/strict";
 import test from "node:test";
 import { handleMcp, NARROW_TOOLS } from "../mcp.ts";
 import { createAppMcp } from "../../executors/kirocrew/app-mcp.ts";
-import { NOT_ON_MCP, PERSON_ONLY } from "../mcp-policy.ts";
+import { NOT_ON_MCP } from "../mcp-policy.ts";
 import { GROUPED_TOOLS } from "../mcp-tools.ts";
 import { OPERATIONS, classifyOperation } from "../../api/operation-table.ts";
 import { Operations } from "../../api/operations.ts";
+import { listActivity } from "../../store/activity-log.ts";
 import { fixture } from "../../test/fixtures.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
 import { answerResult, at, toolResult } from "../../test/mcp-result.ts";
@@ -51,31 +53,56 @@ const call = (ops: Operations, name: string, args: unknown) =>
       jsonrpc: "2.0",
       id: 1,
       method: "tools/call",
-      params: { name, arguments: args },
+      params: {
+        name,
+        arguments: args,
+        _meta: {
+          "kirocrew.caller": { schemaVersion: 1, sessionKey: "dashboard:a" },
+        },
+      },
     },
     ops,
+    { attestedCaller: true },
   ).then(toolResult);
+
+// The tools that hold approvals, settings, setup and deletes.
+const ADMIN = new Set([
+  "plans_autopilot",
+  "plans_settings",
+  "plans_setup",
+  "plans_plugin_admin",
+  "plans_content_admin",
+  "plans_control",
+]);
+const audited = [...OPERATIONS.values()].filter((entry) => entry.policy.audit);
+const CONFIRM_REFUSAL = /Pass confirm: true \(MCP\) or --yes \(CLI\)/;
 
 test("every operation has an MCP route or a written reason it has none", () => {
   const operations = allOperations();
   assert.ok(operations.length > 150, "the scan found the operations");
   const missing = operations.filter(
-    (name) =>
-      !routes.has(name) && !PERSON_ONLY.has(name) && !NOT_ON_MCP.has(name),
+    (name) => !routes.has(name) && !NOT_ON_MCP.has(name),
   );
   assert.deepEqual(missing, [], "add an action, or a reason in mcp-policy.mjs");
-  for (const [name, rule] of PERSON_ONLY) {
-    assert.match(
-      rule.reason,
-      /^Only a person .+ Do it in the Avoozl app\.$/,
-      name,
+  // An audited operation has an action on an admin tool, and no older
+  // grouped tool gains it: stop_line drops `full` before it calls.
+  for (const { name } of audited) {
+    const actions = grouped.get(name) || [];
+    assert.ok(
+      actions.some((action) => ADMIN.has(action.split(".")[0])),
+      `${name} has an admin action`,
     );
-    // No grouped action reaches a person-only operation, except where the
-    // refusal depends on the input (a setup preview). Old names that do stay
-    // listed and are refused (the next tests).
-    if (grouped.has(name))
-      assert.ok(rule.when, `${name} is routed: ${grouped.get(name)}`);
+    for (const action of actions)
+      if (!ADMIN.has(action.split(".")[0]))
+        assert.equal(action, "plans_session.stop_line", name);
   }
+  assert.deepEqual(
+    GROUPED_TOOLS.plans_session.actions.stop_line[2]?.({
+      full: true,
+      scope: "all",
+    }),
+    { scope: "all" },
+  );
   for (const [name, reason] of NOT_ON_MCP) {
     assert.match(reason, /\S/, name);
     assert.equal(routes.has(name), false, `${name} has a reason and a route`);
@@ -118,9 +145,9 @@ test("each grouped tool lists its actions as an enum", async (t) => {
   );
   for (const name of ["plans_update_task", "plans_tick", "plans_relay"])
     assert.ok(!tools.some((tool) => tool.name === name), name);
-  assert.match(
+  assert.doesNotMatch(
     found(tools.find((tool) => tool.name === "plans_approve_plan")).description,
-    /^Person only: refused over MCP/,
+    /refused/,
   );
   // A tool an agent may hold as read-only stays read-only.
   assert.equal(
@@ -130,48 +157,117 @@ test("each grouped tool lists its actions as an enum", async (t) => {
   );
 });
 
-test("every person-only operation is refused for an MCP or session call", async (t) => {
-  const { store } = fixture(t),
-    ops = new Operations(store),
-    before = store.read().revision;
-  for (const [name, rule] of PERSON_ONLY) {
-    // The input shape each `when` rule refuses: a confirmed GitHub setup, a
-    // full stop.
-    const input = rule.when
-      ? { confirm: true, previewHash: "x", full: true }
-      : { id: "x" };
-    for (const context of [
-      { mcp: true },
-      { caller: { sessionKey: "dashboard:s" } },
-    ])
-      await assert.rejects(
-        ops.execute(name, input, undefined, context),
-        (error: Refusal) =>
-          error.status === 403 && /^Only a person/.test(error.message),
+test("an agent tool reaches every audited operation over MCP", async (t) => {
+  const { root, store } = fixture(t),
+    ops = new Operations(store, { workspaceRoot: root });
+  for (const { name, policy } of audited) {
+    const [tool, action] = found(
+      grouped.get(name)?.find((route) => ADMIN.has(route.split(".")[0])),
+    ).split(".");
+    // A delete is confirmed here; the next test leaves it out.
+    const result = await call(ops, tool, {
+      action,
+      input: policy.confirm ? { id: "x", confirm: true } : { id: "x" },
+    });
+    // Nothing refuses the caller: any error is about the input or the state.
+    if (result.isError)
+      assert.doesNotMatch(
+        textOf(result),
+        /Only a person|person's|refused over MCP|in the Avoozl (app|page)|Pass confirm/,
         name,
       );
   }
-  assert.equal(store.read().revision, before);
 });
 
-test("no MCP name reaches a person-only operation, and nearby inputs fail closed", async (t) => {
+test("a delete over MCP or the CLI is refused without confirm: true", async (t) => {
   const { store } = fixture(t),
     ops = new Operations(store),
     before = store.read().revision;
-  // Every old name whose operation is person-only.
-  const old = Object.entries(NARROW_TOOLS).filter(([, [operation]]) =>
-    PERSON_ONLY.has(operation),
-  );
-  assert.ok(old.some(([name]) => name === "plans_approve_plan"));
-  for (const [name, [operation]] of old) {
-    const input = PERSON_ONLY.get(operation)?.when
-      ? { confirm: true, previewHash: "x" }
-      : { id: "x" };
-    const result = await call(ops, name, { input });
-    assert.equal(result.isError, true, name);
-    assert.match(textOf(result), /^Only a person/, name);
+  const deletes = audited.filter((entry) => entry.policy.confirm);
+  assert.deepEqual(deletes.map((entry) => entry.name).sort(), [
+    "catalog.remove",
+    "claim.delete",
+    "github.job.confirm",
+    "intake.source.remove",
+    "plugin.remove",
+    "report.delete",
+    "repositories.remove",
+    "repository.remove",
+  ]);
+  for (const { name } of deletes) {
+    const [tool, action] = found(
+      grouped.get(name)?.find((route) => ADMIN.has(route.split(".")[0])),
+    ).split(".");
+    for (const input of [{ id: "x" }, { id: "x", confirm: "yes" }]) {
+      const result = await call(ops, tool, { action, input });
+      assert.equal(result.isError, true, name);
+      assert.match(textOf(result), CONFIRM_REFUSAL, name);
+    }
+    // The CLI's call, and one inside Avoozl, need it too.
+    for (const context of [{ local: true, person: true }, {}])
+      await assert.rejects(
+        ops.execute(name, { id: "x" }, undefined, context),
+        CONFIRM_REFUSAL,
+        name,
+      );
   }
-  // No grouped action is a person-only one, and asking for one by name fails.
+  assert.equal(store.read().revision, before, "nothing was written");
+  // The owner's page session confirms in the page.
+  await assert.rejects(
+    ops.execute("report.delete", { id: "x" }, undefined, { person: true }),
+    (error: Error) => !CONFIRM_REFUSAL.test(error.message),
+  );
+});
+
+test("an agent turns Autopilot on and off, and Activity names the agent", async (t) => {
+  const { root, store } = fixture(t),
+    configDirectory = temporaryDirectory("avoozl-machine-"),
+    ops = new Operations(store, { workspaceRoot: root, configDirectory });
+  const status = await call(ops, "plans_autopilot", { action: "status" });
+  assert.equal(status.isError, undefined, textOf(status));
+  assert.equal(status.structuredContent?.on, false);
+  const on = await call(ops, "plans_autopilot", {
+    action: "set",
+    input: { on: true },
+  });
+  assert.equal(on.isError, undefined, textOf(on));
+  assert.equal(on.structuredContent?.on, true);
+  assert.equal(on.structuredContent?.delivery, true);
+  assert.deepEqual(on.structuredContent?.loop, { run: ["specs"] });
+  const off = await call(ops, "plans_autopilot", {
+    action: "set",
+    input: { on: false },
+  });
+  assert.equal(off.structuredContent?.on, false);
+  // Off removes the loop and keeps the delivery block, as the page does.
+  assert.equal(off.structuredContent?.delivery, true);
+  assert.equal(off.structuredContent?.loop, null);
+  const rows = listActivity(store).items.filter((row) =>
+    row.summary.startsWith("Ran autopilot.set"),
+  );
+  assert.equal(rows.length, 2);
+  for (const row of rows) {
+    assert.equal(row.summary, "Ran autopilot.set (by agent tool)");
+    assert.equal(row.source, "mcp");
+    assert.equal(row.actor, "session:dashboard:a");
+  }
+  const bad = await call(ops, "plans_autopilot", {
+    action: "set",
+    input: { on: "yes" },
+  });
+  assert.equal(bad.isError, true);
+  assert.match(textOf(bad), /on: true or on: false/);
+});
+
+test("old names reach their operations, and unknown actions fail closed", async (t) => {
+  const { store } = fixture(t),
+    ops = new Operations(store),
+    before = store.read().revision;
+  for (const name of ["plans_approve_plan", "plans_take_task"]) {
+    const result = await call(ops, name, { input: { id: "x", taskId: "x" } });
+    assert.equal(result.isError, true, name);
+    assert.doesNotMatch(textOf(result), /Only a person/, name);
+  }
   for (const [tool, action] of [
     ["plans_plan", "approve"],
     ["plans_plan", "delete"],

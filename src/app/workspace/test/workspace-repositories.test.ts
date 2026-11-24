@@ -93,7 +93,10 @@ test("unified repositories preserve legacy execution and GitHub records", async 
     "compiler",
   );
 
-  await operations.execute("repositories.remove", { id: "compiler" });
+  await operations.execute("repositories.remove", {
+    id: "compiler",
+    confirm: true,
+  });
   // Removing the repository removes its GitHub source.
   assert.equal(
     JSON.parse(fs.readFileSync(path.join(root, ".avoozl.json"), "utf8")).intake,

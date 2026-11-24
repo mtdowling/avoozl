@@ -16,7 +16,8 @@ import {
 } from "../intake/intake.ts";
 import { fail } from "../store/store.ts";
 import { WORKSPACE_LOCK } from "../tick/tick.ts";
-import { person, routed } from "../api/operation-policy.ts";
+import { routed, audited, destructive } from "../api/operation-policy.ts";
+import { requireInput } from "../api/operation-support.ts";
 import type { OperationCall, Operations } from "../api/operations.ts";
 
 async function intakeDeliverHandler(
@@ -25,6 +26,7 @@ async function intakeDeliverHandler(
 ) {
   const store = this.store;
 
+  requireInput(input, ["source", "id"]);
   const action = name === "intake.deliver" ? "deliver" : "plan",
     policy = readGitHubPolicyOrNull(this.workspaceRoot);
   // A GitHub issue becomes a task by its labels (labeled-issues.mjs).
@@ -47,6 +49,7 @@ function intakeSourceAddHandler(
 ) {
   if (!this.pluginOptions.workspaceRoot)
     fail("Intake sources need a workspace root.", 409);
+  requireInput(input, ["id"]);
   return {
     sources: editSource(this.pluginOptions, {
       ...input,
@@ -149,7 +152,7 @@ export const entries = [
     name: "intake.confirm",
     class: "protect",
     github: "check-in",
-    policy: person("Only a person confirms an incoming item's changed text."),
+    policy: audited,
     handler(this: Operations, { input }: OperationCall) {
       const store = this.store;
       return withWorkLock(store, WORKSPACE_LOCK, async () =>
@@ -161,28 +164,28 @@ export const entries = [
     name: "intake.deliver",
     class: "protect",
     github: "check-in",
-    policy: person("Only a person presses Deliver this on an incoming item."),
+    policy: audited,
     handler: intakeDeliverHandler,
   },
   {
     name: "intake.plan",
     class: "protect",
     github: "check-in",
-    policy: person("Only a person presses Plan this on an incoming item."),
+    policy: audited,
     handler: intakeDeliverHandler,
   },
   {
     name: "intake.source.add",
     class: "protect",
     github: "check-in",
-    policy: person("Only a person changes intake sources."),
+    policy: audited,
     handler: intakeSourceAddHandler,
   },
   {
     name: "intake.source.remove",
     class: "protect",
     github: "check-in",
-    policy: person("Only a person changes intake sources."),
+    policy: destructive,
     handler: intakeSourceAddHandler,
   },
 ];

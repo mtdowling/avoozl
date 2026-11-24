@@ -202,14 +202,12 @@ test("a lane whose chat a person closed pauses, shows in Needs you, and opens ag
   // The task follows the vanished rule, but the paused lane takes nothing.
   assert.deepEqual(workers(await tick(ops, { "lane-w1": "closed" })), []);
   await assert.rejects(
-    ops.execute("lane.resume", { lane: "worker-1" }, undefined, { mcp: true }),
-    withStatus(403),
-  );
-  await assert.rejects(
     ops.execute("lane.resume", { lane: "reviewer-1" }),
     /not paused/,
   );
-  await ops.execute("lane.resume", { lane: "worker-1" });
+  await ops.execute("lane.resume", { lane: "worker-1" }, undefined, {
+    mcp: true,
+  });
   const reopened = workers(await tick(ops, { "lane-w1": "closed" }));
   assert.deepEqual(
     reopened.map((d) => [d.task, d.lane.id, d.lane.slot ?? null]),

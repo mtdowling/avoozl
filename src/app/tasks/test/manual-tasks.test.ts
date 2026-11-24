@@ -180,26 +180,13 @@ test("a manual leaf is never ready; once its blockers hold it waits in Needs you
   assert.deepEqual(ours(next.waiting), ["sdk.3"]);
 });
 
-test("only a person marks a manual leaf done or reopens it; either choice releases its dependents", async (t) => {
+test("a manual leaf is marked done or reopened, by an agent tool too; either choice releases its dependents", async (t) => {
   const { store, ops } = workspace(t);
   await approve(ops);
   store.mutate("finish 1", (data) => {
     found(data.tasks.find((task: Task) => task.id === "sdk.1")).status =
       "accepted";
   });
-  for (const context of [
-    { mcp: true },
-    { caller: { sessionKey: "dashboard:w" } },
-  ])
-    await assert.rejects(
-      ops.execute(
-        "task.manual.complete",
-        { taskId: "sdk.2", choice: "done" },
-        undefined,
-        context,
-      ),
-      withStatus(403),
-    );
   await assert.rejects(
     ops.execute("task.manual.complete", { taskId: "sdk.1", choice: "done" }),
     /not a manual task/,
@@ -240,13 +227,9 @@ test("only a person marks a manual leaf done or reopens it; either choice releas
     graph.tasks.find((task) => task.id === "sdk.2")?.manualDone?.choice,
     "skipped",
   );
-  await assert.rejects(
-    ops.execute("task.manual.reopen", { taskId: "sdk.2" }, undefined, {
-      mcp: true,
-    }),
-    withStatus(403),
-  );
-  await ops.execute("task.manual.reopen", { taskId: "sdk.2" });
+  await ops.execute("task.manual.reopen", { taskId: "sdk.2" }, undefined, {
+    mcp: true,
+  });
   assert.deepEqual(ready(), []);
   await ops.execute("task.manual.complete", {
     taskId: "sdk.2",
@@ -255,7 +238,7 @@ test("only a person marks a manual leaf done or reopens it; either choice releas
   assert.deepEqual(ready(), ["sdk.3"]);
 });
 
-test("a refused manual leaf holds its dependents until a person reopens it", async (t) => {
+test("a refused manual leaf holds its dependents until it is reopened", async (t) => {
   const { store, ops } = workspace(t);
   await approve(ops);
   store.mutate("finish 1", (data) => {
@@ -263,19 +246,12 @@ test("a refused manual leaf holds its dependents until a person reopens it", asy
       "accepted";
   });
   const ready = () => ours(readyCandidates(store));
-  await assert.rejects(
-    ops.execute(
-      "task.manual.complete",
-      { taskId: "sdk.2", choice: "refused" },
-      undefined,
-      { mcp: true },
-    ),
-    withStatus(403),
+  const refused = await ops.execute<Done>(
+    "task.manual.complete",
+    { taskId: "sdk.2", choice: "refused" },
+    undefined,
+    { mcp: true },
   );
-  const refused = await ops.execute<Done>("task.manual.complete", {
-    taskId: "sdk.2",
-    choice: "refused",
-  });
   assert.equal(refused.manualDone.choice, "refused");
   assert.deepEqual(ready(), []);
   const row = found(

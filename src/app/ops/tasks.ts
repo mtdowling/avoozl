@@ -8,6 +8,7 @@ import { requireDistinctTask, resolveTaskId } from "../../task-identity.ts";
 import { COMPLETIONS } from "../../work-model.ts";
 import { isPlanInventory, taskSignals } from "../../workbench-model.ts";
 import {
+  callerName,
   DEFAULT_RETENTION_DAYS,
   listActivity,
   withGithubRepositories,
@@ -74,7 +75,12 @@ import { fail } from "../store/store.ts";
 import { WORKSPACE_LOCK, readDeliveryPolicy } from "../tick/tick.ts";
 import { workspaceRepositories } from "../workspace/workspace-repositories.ts";
 import { randomUUID } from "node:crypto";
-import { person, notOnMcp, routed } from "../api/operation-policy.ts";
+import {
+  notOnMcp,
+  routed,
+  audited,
+  destructive,
+} from "../api/operation-policy.ts";
 import type { OperationCall, Operations, Plan } from "../api/operations.ts";
 import type { Store } from "../store/store.ts";
 import type { Task } from "../../types.ts";
@@ -88,13 +94,8 @@ function taskManualCompleteHandler(
 ) {
   const store = this.store;
 
-  if (context.caller || context.mcp)
-    fail(
-      "Only a person marks a manual task done or reopens it, in the Avoozl page or the CLI.",
-      403,
-    );
   const taskId = resolveTaskId(this.read(), String(input.taskId ?? "")),
-    by = context.local ? "cli" : this.operator || "person";
+    by = callerName(context, this.operator || "person");
   return name === "task.manual.complete"
     ? completeManual(store, { ...input, taskId }, { by })
     : reopenManual(store, { taskId }, { by });
@@ -246,10 +247,8 @@ export const entries = [
     name: "activity.settings.update",
     class: "protect",
     github: "check-in",
-    policy: person("Only a person changes how long activity is kept."),
+    policy: audited,
     handler(this: Operations, { input, context }: OperationCall) {
-      if (context.caller || context.mcp)
-        fail("Only a person changes how long activity is kept.", 403);
       const written = this.settingsFile().updateActivitySettings(input);
       this.configuration?.reload();
       return written;
@@ -398,14 +397,14 @@ export const entries = [
     name: "task.manual.complete",
     class: "protect",
     github: "check-in",
-    policy: person("Only a person marks a manual task done."),
+    policy: audited,
     handler: taskManualCompleteHandler,
   },
   {
     name: "task.manual.reopen",
     class: "protect",
     github: "check-in",
-    policy: person("Only a person reopens a manual task."),
+    policy: audited,
     handler: taskManualCompleteHandler,
   },
   {
@@ -477,7 +476,7 @@ export const entries = [
     name: "conversations.settings.update",
     class: "protect",
     github: "check-in",
-    policy: person("Only a person changes workspace settings."),
+    policy: audited,
     handler(this: Operations, { input }: OperationCall) {
       const store = this.store;
       return this.configuration
@@ -617,7 +616,7 @@ export const entries = [
     name: "report.delete",
     class: "draft",
     github: "check-in",
-    policy: person("Only a person deletes a report."),
+    policy: destructive,
     handler(this: Operations, { input, expectedRevision }: OperationCall) {
       const store = this.store;
       return store.mutate(
@@ -685,7 +684,7 @@ export const entries = [
     name: "agent.instructions.toggle",
     class: "protect",
     github: "check-in",
-    policy: person("Only a person changes workspace settings."),
+    policy: audited,
     handler(this: Operations, { input, expectedRevision }: OperationCall) {
       const store = this.store;
       return store.mutate(

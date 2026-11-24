@@ -3,7 +3,8 @@
 //   class    how much authority it needs (the app backend's action-level
 //            authorization): `observe` reads only; `draft`, `execute`,
 //            `protect` and `incident` change state.
-//   policy   its MCP rule (operation-policy.mjs): routed, person or notOnMcp.
+//   policy   its MCP rule (operation-policy.mjs): routed (maybe audited or
+//            needing confirm) or notOnMcp.
 //   handler  called with the Operations instance as `this` and
 //            {name, input, expectedRevision, context}.
 // The dispatcher, the class lookup and the MCP policy (mcp-policy.mjs) read

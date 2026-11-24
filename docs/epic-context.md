@@ -174,9 +174,7 @@ avoozl plugins map team-context research --env RESEARCH_TOKEN
 avoozl plugins approve team-context --hash HASH
 ```
 
-Setting the block, answering a plugin's questions, mapping a server and
-approving are a person's acts. The page's Save and `avoozl context set` are
-one operation, refused for the MCP tools, an agent session and a process
-child. Settings › Epic context also shows the last ten sessions that got
+The page's Save, `avoozl context set` and `plans_settings` action
+`epic_context` are one operation, and Activity names who called it. Settings › Epic context also shows the last ten sessions that got
 context with their tests. See [the Context part](plugins.md#context-part) for
 the manifest. The proof run is `docs/evidence/ec-p1.md`.

@@ -22,7 +22,7 @@ export const commands: Command[] = [
       help(
         "plan",
         "plan approve PLAN [--yes --expect HASH]",
-        "Preview approving a draft spec in a checkout here; --yes commits it to main as you (a person only). A spec on GitHub is approved by merging its pull request",
+        "Preview approving a draft spec in a checkout here; --yes commits it to main as you. A spec on GitHub is approved by merging its pull request",
       ),
     ],
     async run({ options, positionals, localOrRequest, need }) {
@@ -150,7 +150,7 @@ export const commands: Command[] = [
         options.plan || positionals[1],
         "spec publish SPEC [--repository OWNER/REPO]",
       );
-      // Make the GitHub issues (R102.2): a person's own act.
+      // Make the GitHub issues (R102.2).
       console.log(
         JSON.stringify(
           await localOrRequest("spec.publish", {
@@ -189,18 +189,18 @@ export const commands: Command[] = [
       help(
         "plan",
         "intake deliver|plan SOURCE ID",
-        "Deliver this or Plan this on an item (a person only)",
+        "Deliver this or Plan this on an item",
       ),
       help(
         "plan",
         "intake confirm SOURCE ID --hash H",
-        "Confirm an item's changed text, H from intake view (a person only)",
+        "Confirm an item's changed text, H from intake view",
       ),
     ],
     async run({ options, positionals, localOrRequest, need }) {
       // Incoming items (design §4.12). `submit` reads a JSON list of items for
-      // an mcp source; `deliver` and `plan` are a person's Deliver this and
-      // Plan this.
+      // an mcp source; `deliver` and `plan` are Deliver this and Plan
+      // this.
       const [action = "list", source, id] = positionals,
         calls: Record<string, () => [string, Record<string, unknown>]> = {
           list: () => [

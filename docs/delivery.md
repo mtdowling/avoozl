@@ -49,8 +49,8 @@ the workspace's `.avoozl.json`, and a `loop` in this machine's
 **Settings › Autopilot** sets both. Under **Who delivers** it picks **Off: you
 deliver** (you take and land tasks yourself) or **Autopilot: Avoozl
 delivers** (the tick starts and lands them), and asks once before either
-change. Only a person changes it; agents, MCP and the tick
-cannot. Picking Autopilot writes the `delivery` block when it is missing and
+change. `avoozl autopilot on|off|status` and the `plans_autopilot` MCP
+tool flip the same switch; the tick never does. Picking Autopilot writes the `delivery` block when it is missing and
 writes `loop` to this machine's config, `{"run": ["specs"]}` unless you set
 the page's **Run** and **Every** fields first. Picking Off removes `loop` from
 this machine's config and keeps the `delivery` block, so other machines keep
@@ -339,8 +339,9 @@ required checks and reviews pass on the exact head.
 
 In every mode a draft is never merged, never auto-merged and never batched
 while it is a draft. Pull request landing never makes a merge batch, and
-Avoozl never arms GitHub auto-merge. Only a person can press **Approve** or
-**Merge**.
+Avoozl never arms GitHub auto-merge. **Approve** and **Merge** are on the
+page, at the command line (`avoozl landing ready|merge`) and in
+`plans_control`.
 
 A pull request closed without merging leaves the landing queue. Its task
 stays claimed, and **Needs you** offers **Delete claim branch**, after the

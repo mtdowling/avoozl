@@ -253,7 +253,7 @@ test("the culprit is bisected among task commits, else unknown with its range", 
   ]);
 });
 
-test("Run anyway is a person's: confirmed, recorded, and refused to sessions", async (t) => {
+test("Run anyway is confirmed and recorded, and names the session that ran it", async (t) => {
   const s = setup(
     t,
     [leaf("a1"), leaf("d1")],
@@ -269,33 +269,17 @@ test("Run anyway is a person's: confirmed, recorded, and refused to sessions", a
     fixTaskId: "a1.fix-1",
   });
   await assert.rejects(
-    s.ops.execute(
-      "flow.runAnyway",
-      { stopId: "stop-1", confirm: true },
-      undefined,
-      { caller: { sessionKey: "dashboard:agent" } },
-    ),
-    withStatus(403),
-  );
-  await assert.rejects(
-    s.ops.execute(
-      "flow.runAnyway",
-      { stopId: "stop-1", confirm: true },
-      undefined,
-      { mcp: true },
-    ),
-    withStatus(403),
-  );
-  await assert.rejects(
     s.ops.execute("flow.runAnyway", { stopId: "stop-1" }),
     /Confirm Run anyway/,
   );
   assert.deepEqual([...linePausedTaskIds(s.store)], ["d1"]);
-  const { stop } = await s.ops.execute<{ stop: LineStop }>("flow.runAnyway", {
-    stopId: "stop-1",
-    confirm: true,
-  });
-  assert.equal(stop.runAnyway?.by, "dashboard");
+  const { stop } = await s.ops.execute<{ stop: LineStop }>(
+    "flow.runAnyway",
+    { stopId: "stop-1", confirm: true },
+    undefined,
+    { caller: { sessionKey: "dashboard:agent" }, mcp: true },
+  );
+  assert.equal(stop.runAnyway?.by, "session:dashboard:agent");
   assert.equal(linePausedTaskIds(s.store).size, 0);
   const view = await s.ops.execute<FlowView & { line: LineStop[] }>(
     "flow.view",
@@ -303,7 +287,7 @@ test("Run anyway is a person's: confirmed, recorded, and refused to sessions", a
   );
   assert.equal(
     view.line[0].runAnyway?.by,
-    "dashboard",
+    "session:dashboard:agent",
     "the banner stays and says so",
   );
 });

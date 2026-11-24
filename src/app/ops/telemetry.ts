@@ -1,7 +1,7 @@
 // The OTLP exporter's status and its machine setting (spec otel-export, OT5,
 // OT11, §D6, §D11).
 import path from "node:path";
-import { person, notOnMcp } from "../api/operation-policy.ts";
+import { notOnMcp, audited } from "../api/operation-policy.ts";
 import { globalAvoozlConfigPath } from "../settings/layered-config.ts";
 import { validateTelemetry } from "../settings/telemetry-config.ts";
 import { writeMachineFile } from "../tick/crews.ts";
@@ -31,7 +31,7 @@ export const entries = [
     name: "telemetry.configure",
     class: "protect",
     github: "check-in",
-    policy: person("Only a person changes telemetry export."),
+    policy: audited,
     // Writes the keys the input names and keeps the rest: `enabled`,
     // `endpoint` (null or "" removes it), `protocol` and `headers` (names
     // only). Header values are never taken.

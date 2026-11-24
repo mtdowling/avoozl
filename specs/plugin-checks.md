@@ -273,7 +273,7 @@ credentials or my network.
    excerpt repository checks keep (`outputTail`), and SHALL be treated as
    untrusted data in every brief and view (Requirement 34.6).
 8. The decide call SHALL run under the read-only, offline role rules every
-   unattended child has (`docs/person-only.md`). For a Kiro Crew chat
+   unattended child has (`docs/agent-access.md`). For a Kiro Crew chat
    executor this SHALL be documented as a speed bump, not a sandbox.
 
 #### Requirement PK8: Visible
@@ -722,7 +722,7 @@ task waits; nothing fails.
 
 ### D9. Security
 
-Read with `docs/checks.md` and `docs/person-only.md`.
+Read with `docs/checks.md` and `docs/agent-access.md`.
 
 | Threat | Guard |
 | --- | --- |

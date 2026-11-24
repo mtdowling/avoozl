@@ -213,8 +213,9 @@ same state. Any stdio MCP client can run the server:
 A client that doesn't find `avoozl` on its `PATH` takes the full path that
 `command -v avoozl` prints.
 
-Actions that belong to a person, such as approving a spec or changing
-settings, are refused over MCP. `avoozl help` lists the CLI commands.
+Agents reach every action over MCP, approvals and settings included; a
+delete needs `confirm: true`, and Activity names who called it. See
+[Agent access](docs/agent-access.md). `avoozl help` lists the CLI commands.
 
 ## Issue handoff
 

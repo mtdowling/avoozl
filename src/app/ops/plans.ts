@@ -22,7 +22,7 @@ import {
 } from "../specs/spec-plans.ts";
 import { fail } from "../store/store.ts";
 import { planPage } from "../api/views.ts";
-import { person, routed } from "../api/operation-policy.ts";
+import { routed, audited } from "../api/operation-policy.ts";
 import { taskFile } from "../specs/spec-tasks.ts";
 import type {
   Approval,
@@ -443,7 +443,7 @@ export const entries = [
     name: "plan.approve",
     class: "protect",
     github: "spec-branch",
-    policy: person("Only a person approves a plan."),
+    policy: audited,
     async handler(
       this: Operations,
       { input, expectedRevision }: OperationCall,

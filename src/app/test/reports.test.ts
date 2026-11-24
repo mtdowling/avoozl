@@ -46,7 +46,11 @@ test("saved reports retain named task filters without changing task state", asyn
   assert.equal(updated.id, report.id);
   assert.equal(store.read().savedSearches?.length, 1);
 
-  await ops.execute("report.delete", { id: report.id }, store.read().revision);
+  await ops.execute(
+    "report.delete",
+    { id: report.id, confirm: true },
+    store.read().revision,
+  );
   assert.deepEqual(store.read().savedSearches, []);
 });
 

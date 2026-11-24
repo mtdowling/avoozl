@@ -486,8 +486,6 @@ export function allowProtectedPaths(
     local?: boolean;
   } = {},
 ) {
-  if (mcp || caller?.sessionKey)
-    fail("Only a person lets a protected path land.", 403);
   const reason = typeof input.reason === "string" ? input.reason.trim() : "";
   if (!reason || reason.length > 300)
     fail("Say why in at most 300 characters.");

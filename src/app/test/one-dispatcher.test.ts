@@ -159,23 +159,15 @@ test("a crew-mode workspace starts nothing across three ticks and shows one Need
   assert.ok(items[0].hash);
 });
 
-test("Let the tick run it is a person's; it removes the key and the next tick starts work", async (t) => {
+test("Let the tick run it, from an agent tool too, removes the key and the next tick starts work", async (t) => {
   const w = workspace(t, { runner: "crew-mode", retries: 2 });
   const [item] = await w.needsYou();
-  for (const context of [
-    { mcp: true },
-    { caller: { sessionKey: "dashboard:chat" } },
-  ])
-    await assert.rejects(
-      w.ops.execute(
-        "delivery.runner.release",
-        { expectedHash: item.hash },
-        undefined,
-        context,
-      ),
-      (e: StatusError) => e.status === 403,
-    );
-  await w.ops.execute("delivery.runner.release", { expectedHash: item.hash });
+  await w.ops.execute(
+    "delivery.runner.release",
+    { expectedHash: item.hash },
+    undefined,
+    { caller: { sessionKey: "dashboard:chat" }, mcp: true },
+  );
   const file = JSON.parse(
     fs.readFileSync(path.join(w.root, ".avoozl.json"), "utf8"),
   );

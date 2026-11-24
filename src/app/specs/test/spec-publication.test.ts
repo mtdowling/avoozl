@@ -112,15 +112,12 @@ test("approval makes no GitHub write; Publish issue makes one labeled issue once
   assert.equal(storedRow(w.store, "plans", w.plan.id).state, "approved");
   assert.deepEqual(writes(w.github), before);
 
-  await assert.rejects(
-    w.ops.execute("spec.publish", { planId: w.plan.id }, undefined, {
-      mcp: true,
-    }),
-    /Only a person/,
+  const published = await w.ops.execute<Published>(
+    "spec.publish",
+    { planId: w.plan.id },
+    undefined,
+    { mcp: true },
   );
-  const published = await w.ops.execute<Published>("spec.publish", {
-    planId: w.plan.id,
-  });
   assert.equal(published.home, "github");
   assert.equal(published.existing, false);
   assert.equal(w.github.created.length, 1);

@@ -184,22 +184,15 @@ test("a take is refused with its reason for a task that is not ready, running, o
   );
 });
 
-test("a take over MCP, from an agent session, or from a supervisor child is refused", async (t) => {
+test("a take over MCP and from a supervisor child both run", async (t) => {
   const { root, take } = setup(t);
-  // A caller block with no session key, as a malformed one arrives.
-  const keyless: OperationContext = JSON.parse(
-    '{"caller":{"sessionKey":null}}',
+  const mine = await take<{ worktree: { path: string } }>(
+    { taskId: "a" },
+    as("chat"),
   );
-  for (const context of [{}, as("chat"), keyless])
-    await assert.rejects(
-      take({ taskId: "a" }, context),
-      withStatus(403, /person/),
-    );
-  const child = run(root, ["take", "a"], { AVOOZL_CHILD: "1" });
-  assert.notEqual(child.status, 0);
-  assert.match(child.stderr, /supervisor started/);
-  const person = run(root, ["take", "a"]);
-  assert.equal(person.status, 0, person.stderr);
+  assert.ok(fs.existsSync(mine.worktree.path));
+  const child = run(root, ["take", "b"], { AVOOZL_CHILD: "1" });
+  assert.equal(child.status, 0, child.stderr);
 });
 
 test("release gives the task back, refuses a dirty worktree without --discard", async (t) => {

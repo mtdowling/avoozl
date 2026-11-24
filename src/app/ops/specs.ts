@@ -3,7 +3,7 @@ import { planningIdentity } from "../github/github-marker.ts";
 import { publishSpec } from "../specs/spec-publication.ts";
 import { fail } from "../store/store.ts";
 import { publishPlanningPullRequest } from "../workspace/workspace-repository.ts";
-import { notOnMcp, person, routed } from "../api/operation-policy.ts";
+import { notOnMcp, routed, audited } from "../api/operation-policy.ts";
 import fs from "node:fs";
 import path from "node:path";
 import { withGraphBlock } from "../specs/graph.ts";
@@ -73,12 +73,10 @@ export const entries = [
     name: "spec.publish",
     class: "execute",
     github: "spec-issues",
-    policy: person("Only a person publishes a spec issue."),
+    policy: audited,
     async handler(this: Operations, { input, context }: OperationCall) {
       const store = this.store;
 
-      if (context.caller || context.mcp)
-        fail("Only a person publishes a spec issue.", 403);
       return publishSpec(store, {
         github: this.github,
         identity: planningIdentity(this.workspaceRoot),

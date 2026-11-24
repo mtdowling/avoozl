@@ -624,28 +624,12 @@ test("a writer whose model is unknown opens a decision instead of a review", asy
   );
 });
 
-test("only a person dismisses an open finding when retrying a stopped delivery", async (t) => {
-  // Nearby inputs: a dismissal from a session, a finding that is not open,
-  // a missing reason, and the next brief after a dismissal.
+test("a retry dismisses an open finding and records who did", async (t) => {
+  // Nearby inputs: a finding that is not open, a missing reason, a session's
+  // dismissal, and the next brief after a dismissal.
   const { env } = await firstRound(t, { reviewRounds: 1 });
   assert.equal(deliveryOf(env.store).state, "decision");
   const dismiss = [{ finding: "1:correctness:F1", reason: "Accepted risk." }];
-  await assert.rejects(
-    env.ops.execute(
-      "delivery.retry",
-      { taskId: "w1", dismiss },
-      undefined,
-      as("w-1"),
-    ),
-    (error: StatusError) => error.status === 403,
-  );
-  // A plain MCP call carries no session identity and is still not a person.
-  await assert.rejects(
-    env.ops.execute("delivery.retry", { taskId: "w1", dismiss }, undefined, {
-      mcp: true,
-    }),
-    (error: StatusError) => error.status === 403,
-  );
   await assert.rejects(
     env.ops.execute("delivery.retry", {
       taskId: "w1",
@@ -664,12 +648,12 @@ test("only a person dismisses an open finding when retrying a stopped delivery",
     "delivery.retry",
     { taskId: "w1", dismiss },
     undefined,
-    { local: true },
+    { mcp: true },
   );
   const delivery = deliveryOf(env.store);
   assert.deepEqual(
     delivery.dismissals.map((d) => [d.finding, d.reason, d.by]),
-    [["1:correctness:F1", "Accepted risk.", "cli"]],
+    [["1:correctness:F1", "Accepted risk.", "mcp"]],
   );
   assert.deepEqual(openFindings(delivery), []);
   const next = await env.tick();

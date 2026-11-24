@@ -24,7 +24,7 @@ import {
   recordCredentialEvents,
   redact,
 } from "../github-credentials.ts";
-import { mcpRefusal } from "../../mcp/mcp-policy.ts";
+import { OPERATIONS } from "../../api/operation-table.ts";
 import { confirmHighRisk } from "../../cli/confirm-high-risk.ts";
 import {
   credentialsMachine,
@@ -449,8 +449,8 @@ test("every low-risk job runs without a grant", async () => {
   assert.equal(credentials.asked.length, LOW.length);
 });
 
-test("github.job.confirm is refused over MCP and a grant serves one step once, for 10 minutes", async () => {
-  assert.ok(mcpRefusal("github.job.confirm", {}));
+test("github.job.confirm needs confirm and a grant serves one step once, for 10 minutes", async () => {
+  assert.equal(OPERATIONS.get("github.job.confirm")?.policy.confirm, true);
   const grants = new Grants(),
     step = confirmStep({ job: "claim-delete", target: "acme/api" }),
     [grant] = grants.allow([step]),
@@ -487,7 +487,7 @@ test("github.job.confirm is refused over MCP and a grant serves one step once, f
   );
 });
 
-test("the CLI asks Allow? on a terminal, takes --yes, and refuses without either or with --yes in an agent", async () => {
+test("the CLI asks Allow? on a terminal, takes --yes, and refuses without either", async () => {
   const steps = [confirmStep({ job: "claim-delete", target: "acme/api" })],
     calls: string[] = [],
     localOrRequest = async (name: string, input: Record<string, unknown>) => {
@@ -499,7 +499,6 @@ test("the CLI asks Allow? on a terminal, takes --yes, and refuses without either
   assert.deepEqual(
     await confirmHighRisk(steps, {
       yes: true,
-      env: {},
       localOrRequest,
       output,
     }),
@@ -511,25 +510,14 @@ test("the CLI asks Allow? on a terminal, takes --yes, and refuses without either
   );
   await assert.rejects(
     confirmHighRisk(steps, {
-      env: {},
       localOrRequest,
       output,
       input: Object.assign(new PassThrough(), { isTTY: false }),
     }),
     /run in a terminal, or add --yes/,
   );
-  await assert.rejects(
-    confirmHighRisk(steps, {
-      yes: true,
-      env: { KIRO_SESSION_ID: "s1" },
-      localOrRequest,
-      output,
-    }),
-    /refused inside an agent session/,
-  );
   const input = Object.assign(new PassThrough(), { isTTY: true });
   const asked = confirmHighRisk(steps, {
-    env: {},
     localOrRequest,
     output: new PassThrough(),
     input,

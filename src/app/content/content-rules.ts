@@ -1496,16 +1496,8 @@ export function settleUnavailable(store: Store) {
 export function allowOnce(
   store: Store,
   { id, reason, rule }: { id?: unknown; reason?: unknown; rule?: unknown } = {},
-  {
-    operator = "",
-    caller = null,
-  }: { operator?: string; caller?: unknown } = {},
+  { operator = "" }: { operator?: string } = {},
 ) {
-  if (caller)
-    fail(
-      "Only a person allows blocked content, from the Avoozl page or the CLI.",
-      403,
-    );
   if (typeof reason !== "string" || !reason.trim() || reason.length > 2000)
     fail("Give a reason of 1–2000 characters to allow this once.");
   const decision = store.get<Decision>("content_decisions", id);

@@ -91,9 +91,8 @@ serves that chat from the workspace database and starts nothing; its
 ### Claude Code
 
 `hosts/claude-code/` is a Claude Code plugin: the Avoozl skills (spec
-writing and review, task work, retros and `avoozl-drive` among them), an MCP
-entry that runs `avoozl mcp`, and a hook that refuses the agent's own shell
-call to a command only a person may run. Load it with:
+writing and review, task work, retros and `avoozl-drive` among them) and an
+MCP entry that runs `avoozl mcp`. Load it with:
 
 ```sh
 claude --plugin-dir /path/to/avoozl/hosts/claude-code
@@ -102,10 +101,8 @@ claude --plugin-dir /path/to/avoozl/hosts/claude-code
 Type `/avoozl:open` at the Claude Code prompt to get a one-time link to the
 page; it runs `avoozl link` for you. See
 [agent skills](agent-skills.md#where-they-come-from) for how the plugin's
-skills are made.
-
-Code running as you can still reach such a command another way. See
-[Person-only operations](person-only.md) for where Avoozl enforces it.
+skills are made, and [Agent access](agent-access.md) for what an agent can
+change and how deletes are confirmed.
 
 ## Run the tick on a timer
 
@@ -312,8 +309,8 @@ avoozl harness probe NAME
 
 `list` shows each harness as approved, not approved, or changed since approval.
 `approve` prints the name, path and hash it approved. **Settings › Models** has
-the same **Approve** button. Only a person can approve; MCP and `process`
-children are refused.
+the same **Approve** button, and `plans_setup` action `approve_harness`
+approves over MCP.
 
 ## Create a workspace
 

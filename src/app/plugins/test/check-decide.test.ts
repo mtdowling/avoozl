@@ -266,27 +266,18 @@ test("pk-1.4: bad output, a failed call, a timeout, no answer and a large input 
   );
 });
 
-test("pk-1.4: Run it and Skip it are a person's, and a new commit drops the flip", async (t) => {
+test("pk-1.4: Run it and Skip it are audited, an agent may flip, and a new commit drops the flip", async (t) => {
   const workspace = decideWorkspace(t),
     { store, ops } = workspace,
     check = found(workspace.check("parity"));
-  assert.equal(OPERATIONS.get("check.decide.flip").policy.kind, "person");
-  await assert.rejects(
-    ops.execute(
-      "check.decide.flip",
-      { taskId: "a", check: "parity", needed: false },
-      undefined,
-      as("agent"),
-    ),
-    /Only a person/,
-  );
+  assert.equal(OPERATIONS.get("check.decide.flip").policy.audit, true);
   const commit = await workerDone(ops, "a", "w-1", 1, api);
-  await ops.execute("check.decide.flip", {
-    taskId: "a",
-    check: "parity",
-    needed: false,
-    commit,
-  });
+  await ops.execute(
+    "check.decide.flip",
+    { taskId: "a", check: "parity", needed: false, commit },
+    undefined,
+    as("agent"),
+  );
   assert.equal(decideAnswer(store, "a", check, commit).state, "skip");
   assert.equal(decideAnswer(store, "a", check, "f".repeat(40)).state, "none");
   // The role reads only its snapshot, offline, with one small answer file.

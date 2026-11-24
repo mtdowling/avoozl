@@ -84,19 +84,17 @@ test("avoozl context set and show work from a terminal and keep the other keys",
   );
 });
 
-test("a supervisor child is refused at the command line", () => {
+test("a supervisor child sets the context at the command line", () => {
   const { run } = setup();
-  assert.throws(
-    () =>
-      run(["context", "set", "--json", JSON.stringify(block)], {
-        AVOOZL_CHILD: "1",
-        AVOOZL_CHILD_SESSION: "process-x",
-      }),
-    /agent the supervisor started/,
+  assert.doesNotThrow(() =>
+    run(["context", "set", "--json", JSON.stringify(block)], {
+      AVOOZL_CHILD: "1",
+      AVOOZL_CHILD_SESSION: "process-x",
+    }),
   );
 });
 
-test("plugins.list shows the context part, and answering is a person's act", async () => {
+test("plugins.list shows the context part, and an agent tool may answer", async () => {
   const machine = contextMachine({ answer: false, map: false }),
     store = new Store(
       workspaceConfig({
@@ -130,20 +128,11 @@ test("plugins.list shows the context part, and answering is a person's act", asy
       questions: ["notesRoot"],
       aliases: ["research"],
     });
-    await assert.rejects(
-      ops.execute(
-        "plugin.answer",
-        { id: "team-context", name: "notesRoot", value: machine.notes },
-        undefined,
-        { mcp: true },
-      ),
-      /person|MCP/i,
-    );
     await ops.execute(
       "plugin.answer",
       { id: "team-context", name: "notesRoot", value: machine.notes },
       undefined,
-      { local: true, person: true },
+      { mcp: true },
     );
     assert.equal(
       machine.settings().context?.["team-context"]?.answers?.notesRoot,

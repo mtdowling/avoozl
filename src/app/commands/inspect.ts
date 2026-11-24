@@ -176,7 +176,7 @@ export const commands: Command[] = [
       help(
         "deliver",
         "content allow DECISION_ID --reason TEXT",
-        "Allow one blocked write once (a person only)",
+        "Allow one blocked write once",
       ),
       help(
         "inspect",

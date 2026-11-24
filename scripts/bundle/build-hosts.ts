@@ -20,7 +20,7 @@ type Source = {
   prompt: (role: string) => string;
   host: (file: string) => string;
 };
-type Context = { personOnly: string[][]; version: string };
+type Context = { version: string };
 type Built = { host: string; files: Map<string, string> };
 
 function readSource(root: string): Source {
@@ -93,26 +93,6 @@ function kirocrew(root: string, source: Source): Built {
   return { host, files };
 }
 
-// The words of each `avoozl` command only a person may run: its help says so.
-async function personOnlyCommands(): Promise<string[][]> {
-  const { COMMANDS } = await import("../../src/app/cli/cli-commands.ts");
-  const prefixes = new Set<string>();
-  for (const entry of COMMANDS)
-    for (const line of entry.help ?? [])
-      if (/a person only/.test(line.about ?? "")) {
-        const words: string[] = [];
-        for (const word of line.usage.split(/\s+/)) {
-          if (!/^[a-z][a-z-]*(\|[a-z][a-z-]*)*$/.test(word)) break;
-          words.push(word);
-        }
-        // `intake deliver|plan` is two commands.
-        const last = words.pop();
-        for (const choice of (last ?? "").split("|"))
-          prefixes.add(JSON.stringify([...words, choice]));
-      }
-  return [...prefixes].sort().map((value) => JSON.parse(value));
-}
-
 // The skills in prompts/skills/ the Claude Code plugin leaves out, and why.
 // It copies every other one.
 export const CLAUDE_CODE_SKIPS: Record<string, string> = {
@@ -128,15 +108,11 @@ export const CLAUDE_CODE_OWN_SKILLS: Record<string, string> = {
 };
 
 // Claude Code: a plugin (.claude-plugin/plugin.json) with the front-end skill
-// and the portable skills, an MCP entry that runs `avoozl mcp`, and the
-// person-only guard as a PreToolUse hook on Bash. Claude Code runs Avoozl's
-// roles as process children, not as plugin agents, so it takes no agents.
+// and the portable skills, and an MCP entry that runs `avoozl mcp`. Claude
+// Code runs Avoozl's roles as process children, not as plugin agents, so it
+// takes no agents.
 // Format: https://code.claude.com/docs/en/plugins/components (2026-11).
-function claudeCode(
-  root: string,
-  source: Source,
-  { personOnly, version }: Context,
-): Built {
+function claudeCode(root: string, source: Source, { version }: Context): Built {
   const host = path.join(root, "hosts", "claude-code"),
     files = new Map<string, string>();
   const json = (value: unknown) => JSON.stringify(value, null, 2) + "\n";
@@ -153,27 +129,6 @@ function claudeCode(
     ".mcp.json",
     json({ mcpServers: { avoozl: { command: "avoozl", args: ["mcp"] } } }),
   );
-  files.set(
-    path.join("hooks", "hooks.json"),
-    json({
-      hooks: {
-        PreToolUse: [
-          {
-            matcher: "Bash",
-            hooks: [
-              {
-                type: "command",
-                command: "node",
-                args: ["${CLAUDE_PLUGIN_ROOT}/hooks/guard.ts"],
-              },
-            ],
-          },
-        ],
-      },
-    }),
-  );
-  // hooks/guard.ts is hand-written and kept: it reads person-only.json.
-  files.set(path.join("hooks", "person-only.json"), json(personOnly));
   for (const [name, file] of Object.entries(CLAUDE_CODE_OWN_SKILLS))
     files.set(path.join("skills", name, "SKILL.md"), source.host(file));
   for (const name of Object.keys(CLAUDE_CODE_SKIPS))
@@ -210,11 +165,6 @@ marketplace that lists it. It needs the \`avoozl\` command on \`PATH\`.
   machine's Avoozl page. Only you start it; Claude never runs it on its own.
 - \`.mcp.json\`: the \`avoozl\` MCP server, \`avoozl mcp\`, which serves this
   chat from the workspace database and never loops.
-- \`hooks/\`: a PreToolUse hook that refuses the agent's own shell call to an
-  \`avoozl\` command only a person may run (\`hooks/person-only.json\`). It is
-  a speed bump, not a wall: code running as you can reach the same command
-  another way. The commands themselves, and the MCP tools, are where Avoozl
-  enforces what only a person does.
 `,
   );
   return { host, files };
@@ -232,7 +182,6 @@ export async function buildHosts({
     written: string[] = [],
     drift: string[] = [];
   const context = {
-    personOnly: await personOnlyCommands(),
     version: JSON.parse(
       fs.readFileSync(path.join(root, "package.json"), "utf8"),
     ).version,

@@ -292,7 +292,10 @@ test("local actions record one row with the person, and MCP calls the session", 
   );
   // The stop names the person, as the row does; the row names the scope.
   assert.equal(stop.by.name, "owner");
-  assert.equal(items[0].summary, "Pulled the Andon cord for repository r1");
+  assert.equal(
+    items[0].summary,
+    "Pulled the Andon cord for repository r1 (by agent tool)",
+  );
   // A person's reason is free text: it is not copied into the log.
   assert.ok(!everything(store).includes("private text"));
   assert.equal(items[2].targetId, "a1");
@@ -325,26 +328,23 @@ test("a settings save and a Deferred stop are recorded", async (t) => {
   assert.equal(listActivity(store).items[0].summary, "Saved model settings");
 });
 
-test("retention is a person's setting, bounded, and the tick prunes by it", async (t) => {
+test("retention is a setting an agent may change, bounded, and the tick prunes by it", async (t) => {
   const { store, ops } = setup(t, { activity: { retentionDays: 1 } });
   assert.equal(classifyOperation("activity.list"), "observe");
   assert.equal(classifyOperation("activity.settings.update"), "protect");
   const { hash } = await ops.execute<Settings>("activity.settings.get", {});
-  await assert.rejects(
-    ops.execute(
-      "activity.settings.update",
-      { retentionDays: 5, expectedHash: hash },
-      undefined,
-      { mcp: true },
-    ),
-    (error: Refusal) => error.status === 403,
-  );
   await assert.rejects(
     ops.execute("activity.settings.update", {
       retentionDays: 0,
       expectedHash: hash,
     }),
     /1.365/,
+  );
+  await ops.execute(
+    "activity.settings.update",
+    { retentionDays: 1, expectedHash: hash },
+    undefined,
+    { mcp: true },
   );
   recordActivity(store, {
     source: "local",
@@ -354,6 +354,33 @@ test("retention is a person's setting, bounded, and the tick prunes by it", asyn
   });
   await ops.execute("workspace.tick", {});
   assert.ok(!listActivity(store).items.some((item) => item.summary === "old"));
+});
+
+test("an audited call names its caller: agent tool, cli or owner session", async (t) => {
+  const { store, ops } = setup(t);
+  const calls: [Record<string, unknown>, string][] = [
+    [{ caller: { sessionKey: "dashboard:c" }, mcp: true }, "agent tool"],
+    [{ local: true, person: true }, "cli"],
+    [{ person: true }, "owner session"],
+  ];
+  for (const [context] of calls) {
+    const { hash } = await ops.execute<Settings>("activity.settings.get", {});
+    await ops.execute(
+      "activity.settings.update",
+      { retentionDays: 9, expectedHash: hash },
+      undefined,
+      context,
+    );
+  }
+  const rows = listActivity(store).items.reverse();
+  assert.deepEqual(
+    rows.map((row) => row.summary),
+    calls.map(([, who]) => `Saved activity settings (by ${who})`),
+  );
+  assert.deepEqual(
+    rows.map((row) => row.actor),
+    ["session:dashboard:c", "owner", "owner"],
+  );
 });
 
 test("plans_view action activity reads the log; recent keeps the Dashboard timeline", async (t) => {

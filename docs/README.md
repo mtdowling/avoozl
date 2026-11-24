@@ -32,8 +32,8 @@ These pages show how to run an epic and how to start with one spec.
   skill.
 - [Telemetry](telemetry.md): task timing kept locally, and sent over
   OpenTelemetry when this machine's owner turns it on.
-- [Agents and the CLI](agents.md): roles and models, MCP tools and
-  person-only actions.
+- [Agents and the CLI](agents.md): roles and models, and the MCP tools
+  each role uses.
 
 ## Workflow v1
 
@@ -62,7 +62,8 @@ These pages describe GitHub-backed delivery and handoffs from other tools.
   writes.
 - [Repository checks and isolation](checks.md): check commands and the sandbox
   they run in.
-- [Person-only operations](person-only.md): what an agent session cannot do.
+- [Agent access](agent-access.md): what an agent can change, confirmed
+  deletes, and the sandbox around unattended sessions.
 
 ## Extending
 

@@ -410,7 +410,7 @@ names a server that does not exist.
 2. worker-paths WP1.1 SHALL say the tick runs only in `avoozl tick`, from
    whatever timer runs it. standalone-web SW3 and SW9 SHALL say each tick
    keeps the page up and `avoozl link` makes its owner link.
-3. `README.md`, `docs/getting-started.md`, `docs/person-only.md`,
+3. `README.md`, `docs/getting-started.md`, `docs/agent-access.md`,
    `docs/glossary.md`, `docs/workspaces.md` and `docs/scale-out.md` SHALL
    describe `avoozl tick`, the timer lines, `avoozl mcp`, the drive skill,
    `machine.env` and the host packages.

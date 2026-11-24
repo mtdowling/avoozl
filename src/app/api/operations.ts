@@ -2,7 +2,11 @@ import { frontMatter } from "../../front-matter.ts";
 import { digest } from "../../model.ts";
 import { resolveTaskId } from "../../task-identity.ts";
 import { taskAuthority, taskRepository } from "../../work-model.ts";
-import { recordActivity, recordOperation } from "../store/activity-log.ts";
+import {
+  principalOf,
+  recordActivity,
+  recordOperation,
+} from "../store/activity-log.ts";
 import { statusComplete } from "../../query.ts";
 import {
   bindContentRules,
@@ -59,7 +63,6 @@ import {
 import { sourceMap } from "../intake/intake.ts";
 import { loadLayeredConfig } from "../settings/layered-config.ts";
 import { telemetryHandle } from "../telemetry/index.ts";
-import { mcpRefusal } from "../mcp/mcp-policy.ts";
 import {
   type deliverNotifications,
   queueNotifications,
@@ -450,8 +453,6 @@ export class Operations {
         updateChecks: { enabled: updateChecksOn(options.settingsFile) },
       };
     }
-    if (context.caller)
-      fail("Only a person changes plugins, in Settings or the CLI.", 403);
     const strip = <P extends object>(plugin: P | null | undefined) => {
       if (!plugin) return plugin;
       const {
@@ -1801,6 +1802,7 @@ export class Operations {
       {
         context,
         operator: this.operator,
+        audit: OPERATIONS.get(name)?.policy.audit === true,
       },
     );
     if (this.plansRoot) flushOutbox(this.store, this.plansRoot);
@@ -1817,12 +1819,18 @@ export class Operations {
     context: OperationContext = {},
   ): Promise<unknown> {
     const store = this.store;
-    // A person-only operation is refused for any MCP call, under any tool
-    // name (mcp-policy.mjs, R56.2).
-    if (context.caller || context.mcp) {
-      const refusal = mcpRefusal(name, input);
-      if (refusal) fail(refusal, 403);
-    }
+    // A delete, or a step that allows one, runs only when the call says
+    // so: `confirm: true` over MCP, --yes at the command line. The owner's
+    // own page session asks in the page instead (R56.2).
+    if (
+      OPERATIONS.get(name)?.policy.confirm &&
+      input?.confirm !== true &&
+      principalOf(context) !== "owner session"
+    )
+      fail(
+        `${name} deletes or allows a high-risk change. Pass confirm: true (MCP) or --yes (CLI) to run it.`,
+        400,
+      );
     // Rules plugins' sets live in memory (§4.9); reload them when stale so a
     // boundary in this process never checks with sets it has not loaded.
     if (this.workspaceRoot && rulePluginsStale(store))
@@ -1849,38 +1857,14 @@ export class Operations {
     if (DIRECT_TASK_EDITS.has(name) && store.initialized())
       refuseGitHubAuthority(this.read(), name, input);
 
-    if (
-      ["flow.settings.update"].includes(name) &&
-      (context.caller || context.mcp)
-    )
-      fail("Only a person changes flow settings, in the Avoozl page.", 403);
-
-    // Plan this and Deliver this (R50.15), and source settings: a person's.
-    if (
-      [
-        "intake.deliver",
-        "intake.plan",
-        "intake.confirm",
-        "intake.source.add",
-        "intake.source.remove",
-      ].includes(name) &&
-      (context.caller || context.mcp)
-    )
-      fail(
-        name.startsWith("intake.source")
-          ? "Only a person changes intake sources, in Settings or the CLI."
-          : "Only a person starts work from an incoming item, in the Intake tab or the CLI.",
-        403,
-      );
     const operation = OPERATIONS.get(name);
     if (!operation) fail("Unknown operation " + name, 404);
     // Every GitHub call runs inside the entry's job (plugin-credentials §D6).
-    // A person's confirmed apply carries the grants its Allow made; the
-    // page sends their ids, and only a person reaches github.job.confirm.
-    const grants =
-      Array.isArray(input?.allow) && !context.caller && !context.mcp
-        ? this.grants.get(input.allow)
-        : [];
+    // A confirmed apply carries the grants its Allow (github.job.confirm)
+    // made, by id.
+    const grants = Array.isArray(input?.allow)
+      ? this.grants.get(input.allow)
+      : [];
     return withJob(
       operation.github ?? null,
       () =>

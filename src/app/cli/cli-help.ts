@@ -76,9 +76,8 @@ export const HELP_GROUPS = Object.freeze(
 
 const OPTIONS = `Use --workspace PATH or AVOOZL_WORKSPACE to choose data independently
 of the application checkout. --db, --documents, --port and --operator
-override workspace configuration. A person-only operation run inside an agent
-session runs and is recorded as run there. UI, CLI and MCP share application
-operations.`;
+override workspace configuration. --yes confirms a delete. UI, CLI and MCP
+share application operations, and Activity names who called each change.`;
 
 // The command words a usage line starts with: `plugins disable|enable ID`
 // names plugins. An OPERATION line names no command.

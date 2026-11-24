@@ -16,8 +16,3 @@ marketplace that lists it. It needs the `avoozl` command on `PATH`.
   machine's Avoozl page. Only you start it; Claude never runs it on its own.
 - `.mcp.json`: the `avoozl` MCP server, `avoozl mcp`, which serves this
   chat from the workspace database and never loops.
-- `hooks/`: a PreToolUse hook that refuses the agent's own shell call to an
-  `avoozl` command only a person may run (`hooks/person-only.json`). It is
-  a speed bump, not a wall: code running as you can reach the same command
-  another way. The commands themselves, and the MCP tools, are where Avoozl
-  enforces what only a person does.

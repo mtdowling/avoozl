@@ -135,7 +135,7 @@ test("a person writes the terms file owner-only; Settings never sees a term", as
   assert.match(fs.readFileSync(file, "utf8"), /cobalt/, "nothing was written");
 });
 
-test("sessions can neither read nor write terms or sets", async (t) => {
+test("sessions reach terms and sets, and the operations check the input", async (t) => {
   const { ops } = setup(t);
   const calls: [string, Record<string, unknown>][] = [
     ["content.terms.get", { id: "made-up" }],
@@ -143,16 +143,15 @@ test("sessions can neither read nor write terms or sets", async (t) => {
     ["content.sets.update", { sets: [], expectedHash: null }],
   ];
   for (const [name, input] of calls) {
-    await assert.rejects(
-      ops.execute(name, input, undefined, {
-        caller: { sessionKey: "session-1" },
-      }),
-      /Only a person/,
-    );
-    await assert.rejects(
-      ops.execute(name, input, undefined, { mcp: true }),
-      /Only a person/,
-    );
+    for (const context of [
+      { caller: { sessionKey: "session-1" } },
+      { mcp: true },
+    ])
+      await ops
+        .execute(name, input, undefined, context)
+        .catch((error: Error) =>
+          assert.doesNotMatch(error.message, /Only a person/, name),
+        );
   }
 });
 

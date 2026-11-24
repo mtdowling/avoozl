@@ -14,7 +14,7 @@ import {
   planReviewDispatches,
   reconcileDeliveries,
 } from "../../delivery/delivery.ts";
-import { mcpRefusal } from "../../mcp/mcp-policy.ts";
+import { groupedCall } from "../../mcp/mcp-tools.ts";
 import { Operations } from "../../api/operations.ts";
 import { Store } from "../../store/store.ts";
 import { snapshot } from "../../test/fixtures.ts";
@@ -121,22 +121,22 @@ function setup(t: TestContext, { refuse = new Set<string>() } = {}) {
   return { root, store, ops, stopped };
 }
 
-test("only a person stops all agents, and only where sessions can be stopped", async (t) => {
-  const { store, ops, stopped } = setup(t);
-  assert.match(
-    mcpRefusal("flow.stop", { full: true, reason: "x" }) ?? "",
-    /Only a person stops all agents/,
+test("stop_all stops every agent; stop_line never does; only where sessions can be stopped", async (t) => {
+  const { store, stopped } = setup(t);
+  assert.deepEqual(
+    groupedCall("plans_control", {
+      action: "stop_all",
+      input: { reason: "x" },
+    }),
+    { operation: "flow.stop", input: { reason: "x", full: true } },
   );
-  assert.equal(mcpRefusal("flow.stop", { scope: "all", reason: "x" }), null);
-  for (const context of [
-    { mcp: true },
-    { caller: { sessionKey: "chat-1" }, mcp: true },
-    { caller: { sessionKey: "chat-1" } },
-  ])
-    await assert.rejects(
-      ops.execute("flow.stop", { full: true, reason: "x" }, undefined, context),
-      withStatus(403, /Only a person/),
-    );
+  assert.deepEqual(
+    groupedCall("plans_session", {
+      action: "stop_line",
+      input: { scope: "all", reason: "x", full: true },
+    }),
+    { operation: "flow.stop", input: { scope: "all", reason: "x" } },
+  );
   // The CLI without the app backend has no session stopper.
   const local = new Operations(store, {});
   await assert.rejects(
@@ -151,6 +151,18 @@ test("only a person stops all agents, and only where sessions can be stopped", a
     storedRow<Bound>(store, "session_bindings", "s-a1").interrupted,
     undefined,
   );
+});
+
+test("an agent tool's full stop names the agent", async (t) => {
+  const { ops, stopped } = setup(t);
+  const { stop } = await ops.execute<Stopped>(
+    "flow.stop",
+    { full: true, reason: "x" },
+    undefined,
+    { caller: { sessionKey: "chat-1" }, mcp: true },
+  );
+  assert.deepEqual(stop.by, { kind: "agent", name: "session:chat-1" });
+  assert.deepEqual(stopped.sort(), ["s-a1", "s-a2-v", "s-b1"]);
 });
 
 test("a full stop stops each running chat Avoozl opened and marks it interrupted", async (t) => {
@@ -240,11 +252,9 @@ test("Resume starts each interrupted task again on the same branch and model", a
     full: true,
     reason: "pause",
   });
-  await assert.rejects(
-    ops.execute("flow.resume", { stopId: stop.id }, undefined, { mcp: true }),
-    withStatus(403),
-  );
-  await ops.execute("flow.resume", { stopId: stop.id });
+  await ops.execute("flow.resume", { stopId: stop.id }, undefined, {
+    mcp: true,
+  });
   assert.equal(
     storedRow<Delivery>(store, "task_deliveries", "a1").state,
     "failed",

@@ -517,7 +517,7 @@ test("with update checks off nothing is checked and no row shows", async (t) => 
   );
 });
 
-test("Check now and the switch are a person's, through Operations", async (t) => {
+test("Check now and the switch run through Operations, for an agent too", async (t) => {
   const { root, git, options, entry } = setup(t);
   const store = checkStore(t, root);
   const ops = new Operations(store, {
@@ -531,13 +531,9 @@ test("Check now and the switch are a person's, through Operations", async (t) =>
   assert.equal(listed.updateChecks.enabled, true);
   assert.equal(listed.plugins[0]?.update?.state, "newer");
   assert.equal(updateNeedsYou(store, options).length, 1);
-  await assert.rejects(
-    ops.execute("plugin.updates.configure", { enabled: false }, undefined, {
-      caller: { sessionKey: "dashboard:agent" },
-    }),
-    /Only a person/,
-  );
-  await ops.execute("plugin.updates.configure", { enabled: false });
+  await ops.execute("plugin.updates.configure", { enabled: false }, undefined, {
+    caller: { sessionKey: "dashboard:agent" },
+  });
   assert.equal(
     (await ops.execute<Listed>("plugins.list", {})).updateChecks.enabled,
     false,

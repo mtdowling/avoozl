@@ -121,7 +121,7 @@ test("a bad pull is refused by name and records nothing", async (t) => {
   assert.equal(openStops(store).length, 0);
 });
 
-test("an agent session may pull but only a person resumes", async (t) => {
+test("an agent session may pull and resume", async (t) => {
   const { store, ops } = setup(t);
   const mcp = { caller: { sessionKey: "chat-7" }, mcp: true };
   const { stop } = await ops.execute<FlowStopped>(
@@ -155,14 +155,6 @@ test("an agent session may pull but only a person resumes", async (t) => {
     1,
   );
   await assert.rejects(
-    ops.execute("flow.resume", { stopId: stop.id }, undefined, mcp),
-    withStatus(403),
-  );
-  await assert.rejects(
-    ops.execute("flow.resume", { stopId: stop.id }, undefined, { mcp: true }),
-    withStatus(403),
-  );
-  await assert.rejects(
     ops.execute("flow.runAnyway", { stopId: stop.id, confirm: true }),
     /Resume/,
   );
@@ -170,10 +162,10 @@ test("an agent session may pull but only a person resumes", async (t) => {
     "flow.resume",
     { stopId: stop.id },
     undefined,
-    { local: true },
+    mcp,
   );
   assert.ok(resumed.closedAt);
-  assert.equal(resumed.resumedBy?.by, "cli");
+  assert.equal(resumed.resumedBy?.by, "session:chat-7");
   assert.ok(Number(resumed.timeToFixMs) >= 0);
   assert.deepEqual(paused(store), []);
   await assert.rejects(

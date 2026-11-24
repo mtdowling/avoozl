@@ -373,8 +373,9 @@ asked for, the page shows one confirm naming the repository, the action and
 these exact permissions, with **Allow** and **Cancel**. **Allow** lets that
 one step ask once, within 10 minutes; **Cancel** writes nothing.
 `avoozl claim delete REPOSITORY BRANCH` shows the same lines and asks
-`Allow? [y/N]`, or takes `--yes`. The tick, agents and MCP cannot allow a
-high job, so there it fails as person-only.
+`Allow? [y/N]`, or takes `--yes`. An agent allows it with `plans_setup`
+action `allow_github_steps` and `confirm: true`, then passes the grant ids
+as `allow`. The tick holds no grant, so a high job fails there.
 
 ### Provider failures
 
@@ -645,7 +646,7 @@ names; push and GitHub credentials and the gateway's secrets never reach
 it. It may not open a network listener, and nor may anything it starts or
 its MCP server: one that does is stopped, failed, and its plugin is marked
 broken until approved again. Approving, mapping a server and **Run it** or
-**Skip it** are a person's acts. The decide call runs read-only and offline
+**Skip it** are `plans_plugin_admin` actions too. The decide call runs read-only and offline
 under a process harness; as a Kiro Crew chat its tool list is its only limit,
 which slows a misuse but does not sandbox it.
 

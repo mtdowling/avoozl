@@ -50,10 +50,12 @@ with two choices:
   or one task, with a one-line reason. Running sessions keep going. A person
   can pull it, and so can an agent through MCP.
 - **Stop all agents** stops new work everywhere and also stops every running
-  chat Avoozl opened. Only a person can pull it.
+  chat Avoozl opened. The page, `avoozl flow stop --full` and
+  `plans_control` action `stop_all` pull it.
 
-A stopped line shows a banner on every page, and only a person presses
-**Resume**. The command line does the same:
+A stopped line shows a banner on every page until someone presses
+**Resume**, or an agent calls `plans_control` action `resume_stop`. The
+command line does the same:
 
 ```sh
 avoozl flow stop --scope repo --repository code --reason "main is red"

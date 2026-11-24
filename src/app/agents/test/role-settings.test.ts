@@ -26,7 +26,7 @@ test("a role's auto model is no model", () => {
   assert.equal(chatModel({}, "checkDecide"), null);
 });
 
-test("models.settings saves to .avoozl.json and is a person's", async (t) => {
+test("models.settings saves to .avoozl.json, from MCP too", async (t) => {
   const root = temporaryDirectory("avoozl-models-"),
     store = new Store(path.join(root, "workspace.sqlite"));
   t.after(() => store.close());
@@ -37,19 +37,15 @@ test("models.settings saves to .avoozl.json and is a person's", async (t) => {
   const ops = new Operations(store, { workspaceRoot: root });
   const before = await ops.execute<ModelSettings>("models.settings.get", {});
   assert.deepEqual(before.roles, {});
-  await assert.rejects(
-    ops.execute(
-      "models.settings.update",
-      { roles: { checkDecide: { model: "m1" } }, expectedHash: before.hash },
-      undefined,
-      { mcp: true },
-    ),
-    (e: StatusError) => e.status === 403,
+  const saved = await ops.execute<ModelSettings>(
+    "models.settings.update",
+    {
+      roles: { checkDecide: { model: "m1" }, worker: { model: "auto" } },
+      expectedHash: before.hash,
+    },
+    undefined,
+    { mcp: true },
   );
-  const saved = await ops.execute<ModelSettings>("models.settings.update", {
-    roles: { checkDecide: { model: "m1" }, worker: { model: "auto" } },
-    expectedHash: before.hash,
-  });
   assert.deepEqual(saved.roles, {
     checkDecide: { model: "m1" },
     worker: { model: "auto" },

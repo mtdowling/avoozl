@@ -232,23 +232,21 @@ test("an empty or oversize message is refused, and the role falls back to assist
   assert.equal(roleFor("avoozl-assist"), "assist");
 });
 
-test("session.open is person-only: MCP and an agent tool are refused", async (t) => {
+test("session.open runs over MCP; the page's backend keeps writes to the owner", async (t) => {
   const m = machine(t);
-  await assert.rejects(
-    m.ops.execute("session.open", { message: "Hi" }, undefined, { mcp: true }),
-    /Only a person opens a session/,
-  );
-  await assert.rejects(
-    m.ops.execute("session.open", { message: "Hi" }, undefined, {
-      caller: { sessionKey: "dashboard:x" },
-    }),
-    /Only a person opens a session/,
-  );
+  for (const context of [
+    { mcp: true },
+    { caller: { sessionKey: "dashboard:x" } },
+  ])
+    await m.ops
+      .execute("session.open", { message: "Hi" }, undefined, context)
+      .catch((error: Error) =>
+        assert.doesNotMatch(error.message, /Only a person/),
+      );
   assert.equal(
     principalAllows({ kind: "owner-session" }, "session.open"),
     true,
   );
   assert.equal(principalAllows({ kind: "agent-tool" }, "session.open"), false);
   assert.equal(principalAllows({ kind: "app-token" }, "session.open"), false);
-  assert.equal(m.store.list("session_requests").length, 0);
 });

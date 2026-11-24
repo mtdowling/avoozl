@@ -99,8 +99,8 @@ granted that one operation and not a grouped tool's other actions:
   `plans_submit_decide`;
 - the skills read with `plans_graph` and `plans_lint`.
 
-`plans_take_task` and `plans_approve_plan` are always refused, because only a
-person takes a task by hand or approves a spec.
+`plans_take_task` takes a task by hand and `plans_approve_plan` approves a
+spec revision; no role agent is allowed either.
 
 `avoozl next --claim` and `avoozl land TASK` run the same operations as
 `plans_next` and `plans_land` at the command line. `plans_land` and
@@ -108,35 +108,13 @@ person takes a task by hand or approves a spec.
 a task the caller claimed: the session bound to it, or at the command line a
 task this machine claimed or took.
 
-### Person-only actions
+### Approvals, settings and deletes
 
-Some actions belong to a person, and MCP refuses them under any tool name. Do
-these in the Avoozl app:
-
-- approving a spec and publishing its issues
-- taking a task by hand, deleting a claim branch, and marking a manual task
-  done or reopening it
-- plugin changes and answers, epic context, content rule sets and terms,
-  reading a matched line, and **Allow once**
-- approving or probing a harness, choosing the harness a waiting role runs
-  on, and resuming a closed lane
-- GitHub setup and settings, including who counts, a high-risk GitHub step,
-  merging or releasing a pull request Avoozl opened, and landing an
-  integration branch
-- letting a held commit's protected paths land
-- adding, changing or removing repositories, the workspace repository, or
-  intake sources
-- workspace, flow, delivery, model, activity and telemetry settings
-- **Run anyway**, resuming a pulled stop, and stopping all agents
-- **Deliver this**, **Plan this** and confirming changed text on an incoming
-  item
-- opening a session, sending a message to a process session, deleting a
-  report, and rebuilding the workspace
-
-An agent may pull the Andon cord with `plans_session`, action `stop_line`, but
-not resume it. See
-[Person-only operations](person-only.md)
-for what person-only does and does not guard.
+Approvals, settings, setup and deletes are on six tools no role agent is
+allowed: `plans_autopilot`, `plans_settings`, `plans_setup`,
+`plans_plugin_admin`, `plans_content_admin` and `plans_control`. A
+delete needs `confirm: true`, and Activity names the caller of each one.
+See [Agent access](agent-access.md) for every action and its CLI command.
 
 ## CLI
 

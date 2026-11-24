@@ -13,7 +13,8 @@ A source is anything you script through MCP. `avoozl intake list` and the
 `plans_intake` tool, action `items`, list every item with its source.
 `avoozl intake view SOURCE ID` shows one item, its route and history.
 `avoozl intake deliver SOURCE ID` and `avoozl intake plan SOURCE ID` turn an
-item into work, and only a person runs them.
+item into work, as `plans_control` actions `deliver_item` and
+`plan_item` do.
 
 ## Script sources
 
