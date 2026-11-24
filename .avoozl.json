@@ -30,9 +30,20 @@
       "root": ".",
       "baseBranch": "main",
       "worktreeRoot": "../avoozl-worktrees",
-      "checks": [],
+      "checks": {
+        "format": ["npm", "run", "format:check"],
+        "test": ["npm", "run", "test:changed"],
+        "typecheck": ["npm", "run", "typecheck"],
+        "typecheck-ui": ["npm", "run", "typecheck:ui"],
+        "dup": ["npm", "run", "dup:changed"],
+        "nocheck": ["npm", "run", "nocheck"],
+        "diff": ["git", "diff", "--check"]
+      },
       "planning": false,
-      "editable": true
+      "editable": true,
+      "isolation": {
+        "prepare": ["npm", "ci", "--ignore-scripts"]
+      }
     }
   },
   "github": {
