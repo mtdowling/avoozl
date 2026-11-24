@@ -218,7 +218,8 @@ settings, are refused over MCP. `avoozl help` lists the CLI commands.
 
 ## Issue handoff
 
-Avoozl can also fix issues for you when labeled issue handoff is enabled.
+Avoozl can also fix issues for you when
+[labeled issue handoff](docs/github.md#labeled-issues) is enabled.
 
 ## Documentation
 
