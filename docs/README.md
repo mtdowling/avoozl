@@ -1,12 +1,21 @@
 # Avoozl documentation
 
-Approve a spec, and Avoozl runs it with coding agents, checks each commit
-itself, and lands it. These pages say how to set it up and how each part works.
+Avoozl lands epics from specs, including repeatable rollouts across
+repositories. Inspect an epic's task order and linked specs with its graph.
+
+```sh
+avoozl graph service-rollout --workspace ~/plans
+```
 
 ## Start
 
-- [Getting started](getting-started.md): install Avoozl and run a first spec.
-- [Overview](overview.md): where state lives and what each view shows.
+These pages show how to run an epic and how to start with one spec.
+
+- Follow the [epic rollout](overview.md#epic-rollout) to link specs, run
+  tasks in parallel, and require sign-off.
+- Use [Getting started](getting-started.md) to install Avoozl and run a first
+  spec.
+- See [Avoozl](overview.md) for shared state, work in progress, and decisions.
 - [Glossary](glossary.md): words that look alike, set apart.
 
 ## Working with Avoozl
@@ -24,17 +33,24 @@ itself, and lands it. These pages say how to set it up and how each part works.
 - [Agents and the CLI](agents.md): roles and models, MCP tools and
   person-only actions.
 
-## GitHub
+## Workflow v1
 
-- [GitHub](github.md): repository roles and GitHub modes.
-- [Workflow v1](github-workflow.md): the spec format and the rules for
-  approvals, assignment, task order, claims and landing.
-- [Workflow scenarios](github-workflow-scenarios.md): each kit case as Given,
-  When and Then, with the rules it checks.
-- [Agent skills](agent-skills.md): the answer, review and triage skills any
-  agent runner can use on issues and pull requests.
-- [Intake sources](intake.md): bringing in work from scripts.
-- [GitHub rate limit](rate-limit.md): the cache and write pacing.
+Workflow v1 defines the spec format and the rules runners follow.
+
+- Read [Workflow v1](github-workflow.md) for approvals, assignment, task
+  order, claims and landing.
+- See [workflow scenarios](github-workflow-scenarios.md) for the cases that
+  check those rules.
+
+## GitHub and intake
+
+These pages describe GitHub-backed delivery and handoffs from other tools.
+
+- Configure [GitHub modes and repository roles](github.md).
+- Hand a scoped issue to a runner through [a label and assignment](github-workflow.md#11-labeled-issues).
+- Bring in work from scripts through [intake sources](intake.md).
+- Give external agents [skills for issues and pull requests](agent-skills.md).
+- See [GitHub rate limits](rate-limit.md) for the cache and write pacing.
 
 ## Safety
 

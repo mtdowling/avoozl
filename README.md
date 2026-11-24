@@ -1,14 +1,26 @@
 # Avoozl
 
-Avoozl lands specs and epics task by task: coding agents write each task,
-Avoozl checks the exact commit itself, and it lands by the repository's
-setting. You choose where people sign off: every pull request, only the gates,
-or never.
+Avoozl lands epics from specs. It runs ready tasks in parallel across
+repositories and machines, checks the exact commits before they land, and
+shows what's done, what's blocked, and what needs your decision.
 
-```sh
-avoozl init ~/plans --name "My plans"
-avoozl status --workspace ~/plans
+For a program that spans many similar repositories, define the workflow once.
+Reuse its phases, acceptance criteria, and approval gates in each repository's
+plan, and track the rollout as one epic.
+
+A parent spec can run two linked specs in parallel and hold sign-off until
+both are done.
+
+```markdown
+- [ ] `rollout-services` Update the services (**PARALLEL**)
+  - [ ] `rollout-gateway` Update [Gateway](../gateway/tasks.md)
+  - [ ] `rollout-worker` Update [Worker](../worker/tasks.md)
+- [ ] `rollout-review` Sign off on the rollout (**MANUAL**)
+  - Both services pass the shared acceptance checks
 ```
+
+See [Epic rollout](docs/overview.md#epic-rollout) for how Avoozl runs this
+plan.
 
 ## Open workflow
 
@@ -33,21 +45,6 @@ through its CLI, MCP server, web page, Kiro Crew app and skills.
   and [Integration branches](docs/github-workflow.md#14-integration-branches)
   for epics.
 
-## Task list
-
-Each task in a spec is an ID, a title and the bullets that say what done means:
-
-```markdown
-- [ ] `cfg-1` Read the config file
-  - A file with every key loads
-- [ ] `cfg-2` Validate config
-  - An unknown key is reported with its path
-```
-
-See [Tasks](docs/github-workflow.md#2-tasks) for the format and
-[Landing](docs/github-workflow.md#16-landing) for the tick that marks a task
-done.
-
 ## Delivery flow
 
 1. You write a spec: requirements, a design, and a list of tasks. You can
@@ -66,11 +63,9 @@ done.
   <img alt="A spec page: its summary, details, task graph and manifest" src="https://github.com/mtdowling/avoozl/releases/download/docs-screenshots/spec-desktop-light.png" width="800">
 </picture>
 
-Specs can be any size. A light spec with one task becomes one pull request. A
-large one becomes ordered tasks across repositories, each checked on its exact
-commit before it lands. Every change starts from a spec you approved, so no
-agent's work lands without a plan a person agreed to. GitHub is optional: a
-Local only workspace needs only Git.
+A spec can cover one change or link several repositories' specs into an epic.
+Each repository sets how checked work lands. A local-only workspace needs
+only Git.
 
 Git holds the state that matters: specs, approvals, and what landed. The local
 SQLite database is a cache, and `avoozl rebuild` makes it again on a new
@@ -195,11 +190,20 @@ A client that does not find `avoozl` on its `PATH` takes the full path that
 Actions that belong to a person, such as approving a spec or changing
 settings, are refused over MCP. `avoozl help` lists the CLI commands.
 
+## Issue handoff
+
+Keep triage and routine maintenance in your existing tools. To hand a scoped
+fix to Avoozl, assign the issue to the runner and have a repository writer
+apply the configured label. Avoozl can take it as one task when the issue loop
+is enabled. See [Labeled issues](docs/github-workflow.md#11-labeled-issues)
+for the handoff.
+
 ## Documentation
 
 The [docs index](docs/README.md) lists every page. Start with these:
 
-- [Getting started](docs/getting-started.md) for setup in more detail
+- [Epic rollout](docs/overview.md#epic-rollout) for linked specs and gates
+- [Getting started](docs/getting-started.md) for setup and a first spec
 - [Overview](docs/overview.md) for where state lives and what each view shows
 - [Workflow v1](docs/github-workflow.md) for the task list format, order,
   approvals, claims and landing

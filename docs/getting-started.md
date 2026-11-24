@@ -1,8 +1,10 @@
 # Getting started
 
-Avoozl needs Node 22.18 or later (for type stripping and built-in SQLite)
-and Git, and runs inside Kiro Crew 0.12.2 or later or on its own. The GitHub features also need
-`gh` signed in, or a token.
+Start with a spec for one change and follow it from approval through checks
+and landing. The same workflow runs linked specs in an
+[epic rollout](overview.md#epic-rollout).
+
+Install Node 22.18 or later and Git, then clone and build Avoozl.
 
 ```sh
 git clone https://github.com/mtdowling/avoozl.git
@@ -11,6 +13,9 @@ npm ci
 npm run build
 npm test
 ```
+
+Avoozl runs on its own or inside Kiro Crew 0.12.2 or later. GitHub features
+need `gh` signed in or a token.
 
 `npm ci` also links a global `avoozl` command to the checkout, as `npm link`
 does. It skips the link under CI, a global install, or

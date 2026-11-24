@@ -1,36 +1,39 @@
 # Avoozl
 
-Avoozl runs an approved spec with coding agents, checks each commit itself, and
-lands it. A spec can be one task that becomes one pull request, or an epic
-across specs and repositories.
+Avoozl lands epics from specs by running ready tasks, checking their exact
+commits, and recording what lands. Open the graph to see the order of the work
+and which parts can run in parallel.
 
 ```sh
-avoozl plan approve NAME --workspace ~/plans
-avoozl status --workspace ~/plans
+avoozl graph service-rollout --workspace ~/plans
 ```
 
-Approving a spec turns it into a task graph. The tick starts each ready task in
-its own working branch with an executor (a Kiro Crew chat or a process
-harness), checks the exact commit, and lands it by the repository's `landing`
-setting. GitHub is optional. See [Getting started](getting-started.md) to
-install it.
+## Epic rollout
 
-## Boundaries
+A parent spec links the specs for a program that changes several
+repositories. For a repeatable rollout, use one template to write each
+repository's plan with the same phases, acceptance criteria, and gates.
+Each plan names its own repository and describes the changes that repository
+needs.
 
-Avoozl does these:
+1. Write a parent spec named `service-rollout` that links `gateway` and
+   `worker` under a parallel group. A person approves the parent spec and
+   each linked spec. See [Linked specs](github-workflow.md#6-linked-specs) for
+   how the links work.
+2. Avoozl starts ready tasks from both plans as workers become available.
+   Both plans keep their own task order. Runners on different machines share
+   progress through Git. See [People and machines](scale-out.md) for
+   assignment and claims.
+3. Avoozl runs the repository's checks on the exact commit in a clean
+   worktree. Each repository's [landing mode](github-workflow.md#17-landing-modes)
+   determines whether checked changes land directly, go through a pull
+   request, or wait for a person.
+4. Put a [manual task](manual-tasks.md) after the parallel group to require
+   sign-off on the rollout. It appears in **Needs you** after both linked
+   specs finish. Later tasks wait until a person releases the gate.
 
-- Plans specs of any size: spec, tasks and order.
-- Runs, checks and lands each task, and releases what waited on it.
-- Works with no GitHub, in Local only mode.
-
-Avoozl does not do these:
-
-- Treat a label as an order.
-- Change code on its own outside a spec or a labeled issue.
-- Triage issues or review other people's pull requests. Any agent runner can,
-  with the [agent skills](agent-skills.md) Avoozl ships.
-- Approve, request changes or close for a person.
-- Replace GitHub: it has no code diff viewer, milestones or Projects board.
+See [Getting started](getting-started.md) to install Avoozl and run a first
+spec. A local-only workspace needs only Git.
 
 ## State
 
@@ -51,25 +54,17 @@ drives it, and a labeled issue is its own one-task spec. See
 `avoozl rebuild`, and [People and machines](scale-out.md) for how several
 people's machines share this state.
 
-## Workflows
+## Issue handoff
 
-Work starts in one of three ways.
-
-- **Labeled issue.** A writer labels an issue, and it becomes one task with no
-  spec files. The label is the approval. See
-  [Labeled issues](github-workflow.md#11-labeled-issues).
-- **Light spec.** A spec with one task, written by hand or by a chat with the
-  `avoozl-spec` skill. A person approves it; see
-  [Approval](github-workflow.md#7-approval). With `landing: pr` Avoozl opens
-  the pull request, and the pull request mode (`draft` unless set) decides who
-  merges it.
-- **Epic.** The `avoozl-spec` skill writes requirements, design and tasks, and
-  a person approves them. The tick releases ready tasks by capacity, phase and
-  Stop the line, and Avoozl runs, checks and lands each one.
+Your existing tools can handle triage, review, and routine maintenance. To
+hand a scoped fix to Avoozl, assign the issue to the runner and have a
+repository writer apply the configured label. When the issue loop is enabled,
+Avoozl treats the issue as one task and applies the repository's landing mode.
+See [Labeled issues](github-workflow.md#11-labeled-issues) for the handoff.
 
 ## Labels
 
-No label is an order. The labels Avoozl reads are per-repository settings:
+Each repository sets the labels Avoozl reads.
 
 | Role | Setting | Who writes it |
 | --- | --- | --- |
