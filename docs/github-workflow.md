@@ -79,7 +79,8 @@ The words MUST, MUST NOT, SHOULD and MAY are used as in
 ## 1. Spec folders
 
 Put each spec in its own folder under `.kiro/specs`, the default specs folder.
-Here, `parser` has a separate task file and `config` keeps everything in one
+Set `specs.path` in the spec repository's `.avoozl.json` to use a different
+directory inside that repository. Here, `parser` has a separate task file and `config` keeps everything in one
 file.
 
 ```text
@@ -93,7 +94,8 @@ file.
 ```
 
 In a single-file spec, put tasks under `## Tasks` and phases under `###`
-headings (3.6).
+headings (3.6). Avoozl resolves requirement and design references within
+the same file under `## Requirements` and `## Design`.
 
 ```markdown
 ---
