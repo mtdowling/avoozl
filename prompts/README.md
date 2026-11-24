@@ -32,10 +32,12 @@ through the `avoozl` CLI and the `plans_*` MCP tools. See
 
 `npm run build:hosts` copies each skill to
 `hosts/kirocrew/skills/<name>/SKILL.md`, which the app installs like its other
-skills. It also copies `avoozl-answer`, `avoozl-drive`, `avoozl-review` and
-`avoozl-triage` to `hosts/claude-code/skills/`, beside that host's `avoozl`
-skill, whose text is `hosts/front-end.md`. `npm run check:hosts` fails when a
-copy differs or `app.json` does not list a skill. Do not edit the copies.
+skills. It also copies each one to `hosts/claude-code/skills/`, except those
+`CLAUDE_CODE_SKIPS` in `scripts/bundle/build-hosts.ts` names, beside that
+host's own `avoozl` and `open` skills, whose texts are `hosts/front-end.md`
+and `hosts/open.md`. `npm run check:hosts` fails when a copy differs,
+`app.json` does not list a skill, or the plugin holds a skill with no source.
+Do not edit the copies.
 
 ## Kiro Crew agents
 

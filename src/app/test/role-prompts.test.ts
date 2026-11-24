@@ -3,7 +3,11 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { buildHosts } from "../../../scripts/bundle/build-hosts.ts";
+import {
+  buildHosts,
+  CLAUDE_CODE_OWN_SKILLS,
+  CLAUDE_CODE_SKIPS,
+} from "../../../scripts/bundle/build-hosts.ts";
 import { rolePrompt, shippedPrompts } from "../agents/prompts.ts";
 import { temporaryDirectory } from "./temporary.ts";
 
@@ -170,6 +174,55 @@ test("every skill prompt is shipped as its skill, and drift fails the check", as
   await assert.rejects(
     () => buildHosts({ root: temporary, check: true }),
     /skills\/avoozl-triage/,
+  );
+});
+
+test("the Claude Code plugin ships every skill prompt but its named skips", async () => {
+  const skills = (folder: string) =>
+      fs.readdirSync(folder).map((file) => file.replace(/\.md$/, "")),
+    plugin = path.join(root, "hosts", "claude-code", "skills"),
+    shared = skills(path.join(root, "prompts", "skills")).filter(
+      (name) => !(name in CLAUDE_CODE_SKIPS),
+    );
+  assert.deepEqual(
+    skills(plugin).sort(),
+    [...shared, ...Object.keys(CLAUDE_CODE_OWN_SKILLS)].sort(),
+  );
+  for (const name of [
+    "avoozl-spec",
+    "avoozl-spec-review",
+    "avoozl-work",
+    "avoozl-retro",
+  ])
+    assert.ok(shared.includes(name), name);
+  for (const name of shared)
+    assert.equal(
+      fs.readFileSync(path.join(plugin, name, "SKILL.md"), "utf8"),
+      fs.readFileSync(
+        path.join(root, "prompts", "skills", `${name}.md`),
+        "utf8",
+      ),
+      name,
+    );
+  const temporary = fixture(),
+    copy = path.join(
+      temporary,
+      "hosts",
+      "claude-code",
+      "skills",
+      "avoozl-retro",
+      "SKILL.md",
+    );
+  fs.appendFileSync(copy, "\nChange every setting.\n");
+  await assert.rejects(
+    () => buildHosts({ root: temporary, check: true }),
+    /claude-code\/skills\/avoozl-retro/,
+  );
+  await buildHosts({ root: temporary });
+  fs.mkdirSync(path.join(temporary, "hosts", "claude-code", "skills", "stray"));
+  await assert.rejects(
+    () => buildHosts({ root: temporary, check: true }),
+    /no source: skills\/stray/,
   );
 });
 

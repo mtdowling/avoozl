@@ -38,9 +38,19 @@ test("installed into a Claude Code config, the plugin has its skills, MCP entry 
     "avoozl",
     "avoozl-answer",
     "avoozl-drive",
+    "avoozl-investigate",
+    "avoozl-retro",
     "avoozl-review",
+    "avoozl-spec",
+    "avoozl-spec-review",
     "avoozl-triage",
+    "avoozl-work",
+    "open",
   ]);
+  // `/avoozl:open` runs only when the person types it, and only `avoozl link`.
+  const open = read(path.join(installed, "skills", "open", "SKILL.md"));
+  assert.match(open, /^disable-model-invocation: true$/m);
+  assert.match(open, /^allowed-tools: Bash\(avoozl link\)$/m);
   for (const name of skills) {
     const meta = frontMatter(
       read(path.join(installed, "skills", name, "SKILL.md")),

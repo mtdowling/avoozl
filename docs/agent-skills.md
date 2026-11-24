@@ -38,10 +38,12 @@ designs, writes and tests a [plugin](plugins.md), and `avoozl-rules` plans a
 ## Where they come from
 
 Each skill's text is `prompts/skills/<name>.md`. `npm run build:hosts`
-copies every skill to `hosts/kirocrew/skills/<name>/SKILL.md`. It copies
-`avoozl-answer`, `avoozl-drive`, `avoozl-review` and `avoozl-triage` to
-`hosts/claude-code/skills/` too, beside that host's own `avoozl` skill.
-`npm run check:hosts` fails when a copy differs. See
+copies every skill to `hosts/kirocrew/skills/<name>/SKILL.md`. It copies them
+to `hosts/claude-code/skills/` too, except the ones `CLAUDE_CODE_SKIPS` in
+`scripts/bundle/build-hosts.ts` names with its reason: `avoozl`, whose place
+that host's own `avoozl` skill takes, and `avoozl-plugin` and `avoozl-rules`,
+which the Kiro Crew page's design chats load. `npm run check:hosts` fails when
+a copy differs or that folder holds a skill with no source. See
 [the prompts README](../prompts/README.md#skills-for-any-agent-runner).
 
 ## Kiro Crew and Issue Radar

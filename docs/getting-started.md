@@ -90,13 +90,19 @@ serves that chat from the workspace database and starts nothing; its
 
 ### Claude Code
 
-`hosts/claude-code/` is a Claude Code plugin: the Avoozl skills (including
-`avoozl-drive`), an MCP entry that runs `avoozl mcp`, and a hook that refuses
-the agent's own shell call to a command only a person may run. Load it with:
+`hosts/claude-code/` is a Claude Code plugin: the Avoozl skills (spec
+writing and review, task work, retros and `avoozl-drive` among them), an MCP
+entry that runs `avoozl mcp`, and a hook that refuses the agent's own shell
+call to a command only a person may run. Load it with:
 
 ```sh
 claude --plugin-dir /path/to/avoozl/hosts/claude-code
 ```
+
+Type `/avoozl:open` at the Claude Code prompt to get a one-time link to the
+page; it runs `avoozl link` for you. See
+[agent skills](agent-skills.md#where-they-come-from) for how the plugin's
+skills are made.
 
 Code running as you can still reach such a command another way. See
 [Person-only operations](person-only.md) for where Avoozl enforces it.
