@@ -1,4 +1,4 @@
-// Lint every spec folder at the configured path with the checks approval runs
+// Lint every spec at the configured path with the checks approval runs
 // (lintSpec). Exits 1 when any folder has an error. CI runs it on every
 // change, including docs-only ones that skip the full suite.
 import path from "node:path";
@@ -24,7 +24,7 @@ const root = process.argv[2]
 let failed = false;
 const names = listSpecFolders(root);
 if (!names.length) {
-  console.log(`No spec folders under ${specsDirectory(root)}.`);
+  console.log(`No specs under ${specsDirectory(root)}.`);
   process.exit(1);
 }
 // A `Status:` line repeats approval, which lives in Avoozl's workspace
@@ -76,7 +76,8 @@ const folders = new Map(
 const linked = linkedReader(
   [...folders].map(([name, spec]) => ({
     name,
-    text: specTasks(spec.files ?? {})?.text ?? "",
+    flat: spec.flat,
+    text: specTasks(spec.files ?? {}, spec.flat)?.text ?? "",
   })),
 );
 // Workflow v1 rules lintSpec does not check, read across every spec
@@ -97,7 +98,7 @@ const error = (file: string, line: number, message: string): LintError => ({
 });
 const itemsOf = new Map(
   [...folders].map(([name, spec]) => {
-    const tasks = specTasks(spec.files ?? {});
+    const tasks = specTasks(spec.files ?? {}, spec.flat);
     return [
       name,
       tasks ? { ...tasks, items: specItems(name, tasks.text) } : null,

@@ -70,10 +70,9 @@ export function draftGraph(
     }
     if (parsed.kind !== "plan" || !parsed.proposals.length) continue;
     const marks = new Map(
-        specItems(name, specTasks(spec.files)?.text ?? "").map((item) => [
-          item.line,
-          item.mark,
-        ]),
+        specItems(name, specTasks(spec.files, spec.flat)?.text ?? "").map(
+          (item) => [item.line, item.mark],
+        ),
       ),
       status = plan?.state ?? "not stored";
     let count = 0;

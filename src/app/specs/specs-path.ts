@@ -7,6 +7,7 @@ import path from "node:path";
 import { fail } from "../store/store.ts";
 
 export const DEFAULT_SPECS_PATH = ".kiro/specs";
+export const SPEC_NAME = /^[a-z0-9][a-z0-9-]{0,79}$/;
 const SEGMENT = /^[A-Za-z0-9._-]+$/;
 
 // Why `value` is not a specs path, or null. Checks the text only.
@@ -84,3 +85,15 @@ export const specsDirectory = (root: string) =>
 // `.kiro/specs/<name>/`.
 export const specFolderPath = (root: string | null | undefined, name: string) =>
   `${specsPath(root)}/${name}/`;
+
+export const flatSpecPath = (root: string | null | undefined, name: string) =>
+  `${specsPath(root)}/${name}.md`;
+
+// A file of a named spec can live directly under specs.path only when
+// its basename is the spec name.
+export function specFilePaths(root: string, name: string, file: string) {
+  const grouped = `${specFolderPath(root, name)}${file}`;
+  return file === `${name}.md`
+    ? [grouped, flatSpecPath(root, name)]
+    : [grouped];
+}

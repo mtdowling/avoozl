@@ -14,7 +14,7 @@ Git and GitHub own everything that matters; SQLite is a cache that
 `avoozl rebuild` makes again. Markdown owns design prose. An approval is a commit on the specs branch
 with the evidence defined in Workflow v1 §7. Author and commit as the repo owner's
 normal git identity, and never add `Co-authored-by` or any other
-attribution. Keep each spec in `specs/<name>/<name>.md`. Put spec edits on a
+attribution. Keep each spec in `specs/<name>.md`. Put spec edits on a
 `spec/<name>` branch for the owner to approve.
 
 Keep application source independent of workspace paths and data. Tests use

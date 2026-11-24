@@ -9,7 +9,6 @@ import path from "node:path";
 import { withGraphBlock } from "../specs/graph.ts";
 import { lintSpec } from "../specs/spec-plans.ts";
 import { specTasks } from "../specs/spec-tasks.ts";
-import { specsDirectory } from "../specs/specs-path.ts";
 import type { OperationCall, Operations } from "../api/operations.ts";
 
 export const entries = [
@@ -55,11 +54,16 @@ export const entries = [
       if (!input?.spec) fail("Name the spec: avoozl graph SPEC --write.");
       const spec = this.readSpec(input.spec);
       if (!spec.exists) fail(`No spec folder ${input.spec}.`, 404);
-      const found = specTasks(spec.files);
+      const found = specTasks(spec.files, spec.flat);
       if (!found) fail("The spec has no tasks to draw.", 409);
-      const file = path.join(specsDirectory(spec.root), spec.name, found.file),
+      const file = path.join(spec.root, spec.folder ?? "", found.file),
         before = spec.files[found.file],
-        after = withGraphBlock(spec.name, before, this.linkedSpecs(spec));
+        after = withGraphBlock(
+          spec.name,
+          before,
+          this.linkedSpecs(spec),
+          found.text,
+        );
       if (after !== before) fs.writeFileSync(file, after);
       return { spec: spec.name, file, changed: after !== before };
     },

@@ -7,7 +7,7 @@ import { catFiles } from "../git/git-approvals.ts";
 import { specItems } from "../specs/spec-plans.ts";
 import { ticksOf } from "../specs/spec-ticks.ts";
 import { taskFile, taskText } from "../specs/spec-tasks.ts";
-import { specsPath } from "../specs/specs-path.ts";
+import { flatSpecPath, specFilePaths } from "../specs/specs-path.ts";
 import { STAGES } from "../telemetry/stages.ts";
 import { fail } from "../store/store.ts";
 
@@ -169,8 +169,8 @@ export function telemetryNames(db: any) {
 }
 
 // Leaf tasks open and ticked in one version of a task list.
-function taskCounts(name: string, file: string, text: string) {
-  const list = taskText(file, text) ?? "",
+function taskCounts(name: string, file: string, text: string, flat: boolean) {
+  const list = taskText(file, text, flat) ?? "",
     items = specItems(name, list).filter((item: any) => item.key),
     parents = new Set(
       items.map((item: any) => item.parent?.key).filter(Boolean),
@@ -221,8 +221,8 @@ async function taskListChanges(
     const [line, ...names] = block.trim().split("\n"),
       [commit, time] = line.split("\x1f"),
       at = new Date(time).toISOString();
-    for (const file of names) {
-      const name = specOf.get(file.trim());
+    const touched = new Set(names.map((file) => specOf.get(file.trim())));
+    for (const name of touched) {
       if (!name) continue;
       if (!changes.has(name)) changes.set(name, []);
       changes.get(name)!.push({ commit, at });
@@ -235,6 +235,7 @@ async function taskListChanges(
 
 interface BurndownSpec {
   name: string;
+  flat?: boolean;
   root: string;
   files: Record<string, string>;
 }
@@ -261,17 +262,18 @@ export async function burndown(
   }
   for (const [root, list] of byRoot) {
     const tip = await branchTip(root, branchOf(root)),
-      folder = specsPath(root),
-      pathOf = new Map(
+      pathsOf = new Map(
         list.map((spec) => [
           spec.name,
-          `${folder}/${spec.name}/${taskFile(spec.files)}`,
+          specFilePaths(root, spec.name, taskFile(spec.files, spec.flat)),
         ]),
       );
     const changes = await taskListChanges(
       root,
       tip?.commit ?? "HEAD",
-      [...pathOf].map(([name, file]) => [file, name]),
+      [...pathsOf].flatMap(([name, files]) =>
+        files.map((file) => [file, name]),
+      ),
     );
     if (!changes) continue;
     // Each spec's versions in range, oldest first, after the one that stood
@@ -288,14 +290,14 @@ export async function burndown(
       ]);
     }
     const shown = list.filter((spec) => versions.has(spec.name));
-    const key = (commit: string, name: string) =>
-      `${commit}:${pathOf.get(name)}`;
+    const keys = (commit: string, name: string) =>
+      (pathsOf.get(name) ?? []).map((file) => `${commit}:${file}`);
     const missing = [
       ...new Set(
         shown.flatMap((spec) =>
           versions
             .get(spec.name)!
-            .map(({ commit }) => key(commit, spec.name))
+            .flatMap(({ commit }) => keys(commit, spec.name))
             .filter((object) => !counted.has(`${root}\0${object}`)),
         ),
       ),
@@ -305,20 +307,26 @@ export async function burndown(
       : new Map();
     if (counted.size > 5000) counted.clear();
     for (const spec of shown) {
-      const file = taskFile(spec.files),
+      const file = taskFile(spec.files, spec.flat),
         points: { at: string; open: number; done: number }[] = [];
       for (const { commit, at } of versions.get(spec.name)!) {
-        const object = key(commit, spec.name),
-          cacheKey = `${root}\0${object}`;
-        let counts = counted.get(cacheKey);
-        if (!counts) {
-          const text = texts.get(object);
-          counts =
-            text === undefined
-              ? { open: 0, done: 0 }
-              : taskCounts(spec.name, file, text);
+        let counts: { open: number; done: number } | undefined;
+        for (const object of keys(commit, spec.name)) {
+          const cacheKey = `${root}\0${object}`,
+            text = texts.get(object);
+          counts = counted.get(cacheKey);
+          if (counts) break;
+          if (text === undefined) continue;
+          counts = taskCounts(
+            spec.name,
+            file,
+            text,
+            object === `${commit}:${flatSpecPath(root, spec.name)}`,
+          );
           counted.set(cacheKey, counts);
+          break;
         }
+        counts ??= { open: 0, done: 0 };
         const last = points.at(-1);
         if (last && last.open === counts.open && last.done === counts.done)
           continue;

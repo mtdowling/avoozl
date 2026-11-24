@@ -23,7 +23,7 @@ the file and does the write a chat would ask for (`finishProcessSession`,
 credentials (`src/app/executors/sandbox.ts`), and its result file is at most
 8,192 bytes (`RESULT_BYTES`, `src/app/executors/supervisor.ts`).
 
-This spec keeps Requirements 93 to 97 of [avoozl](../avoozl/avoozl.md). Moving a
+This spec keeps Requirements 93 to 97 of [avoozl](avoozl.md). Moving a
 role to a child gives it no ability it has as a chat.
 
 #### Scope
@@ -168,7 +168,7 @@ something I asked for needs it, so that nothing waits forever in a queue.
 ## Design
 
 `NK` numbers are in [Requirements](#requirements); `R` numbers and `§`
-sections without a `D` are in [avoozl](../avoozl/avoozl.md).
+sections without a `D` are in [avoozl](avoozl.md).
 
 ### D1. The pattern
 
@@ -301,7 +301,7 @@ it.
 Tasks run in list order, and each phase waits for the one above it. Requirement
 numbers are in brackets (`NK1` to `NK8`, in [Requirements](#requirements)); `D` sections
 refer to [Design](#design), `R` numbers to
-[avoozl requirements](../avoozl/avoozl.md#requirements).
+[avoozl requirements](avoozl.md#requirements).
 
 Rules for every task: work in a task worktree; tests use isolated temporary
 workspaces and state folders, a fake GitHub, and fake executors of both

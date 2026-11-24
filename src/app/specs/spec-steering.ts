@@ -13,8 +13,8 @@ to set rules for your team. Avoozl preserves your edits.
 
 ## Files
 
-- Write each spec in its own folder under \`specs.path\`. In a single file,
-  put tasks under \`## Tasks\`. For a spec split across files, use
+- Write a single-file spec as a Markdown file directly under \`specs.path\`. Put its
+  tasks under \`## Tasks\`. For a split spec, use its own folder with
   \`requirements.md\` (or \`bugfix.md\` for a bug fix), \`design.md\` and
   \`tasks.md\`.
 - Never write \`avoozl/manifest.json\`. Avoozl refuses a folder that has one.

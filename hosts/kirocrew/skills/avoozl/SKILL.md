@@ -51,8 +51,8 @@ Use `avoozl help` to inspect the installed CLI surface before choosing commands.
 
 - Find the workspace with `plans_workspace`, and its spec folders with
   `plans_plan {action: "specs"}`. Spec folders live in
-  `<root>/.kiro/specs/<name>/`, or under the folder the root's `.avoozl.json`
-  names in `specs.path`.
+  `<name>.md` or `<name>/` inside the folder the root's `.avoozl.json` names
+  in `specs.path` (default `.kiro/specs`).
 - Ask only for what you cannot read: the outcome, and which repositories are in
   scope when more than one could be. Search for overlapping work with
   `plans_query`.

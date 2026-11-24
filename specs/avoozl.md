@@ -55,7 +55,7 @@ Each fact names the Kiro Crew source it was read from.
 
 - One Avoozl Kiro Crew app with a backend, page, skills, and MCP surface, and
   the same page served by Avoozl itself, kept up by each tick.
-- Kiro spec folders as the plan layout.
+- Single-file specs and Kiro spec folders as plan layouts.
 - Local planning and delivery with no GitHub dependency.
 - GitHub spec issues, epic issues, labeled issues, pull requests and landing.
 - Agents on any harness: Kiro Crew chats or process harnesses under the
@@ -136,7 +136,7 @@ graph of groups and leaves, so that work can proceed in safe pieces.
    leaf. Only leaves SHALL be claimed; a group's box SHALL follow its
    children.
 4. Waits SHALL follow list order, including the `(**PARALLEL**)` groups and
-   phases in [Workflow v1](../../docs/github-workflow.md#3-order).
+   phases in [Workflow v1](../docs/github-workflow.md#3-order).
 5. WHEN a leaf has no plain sub-bullet, an ID is used twice, a tag is written
    wrong, or a linked spec does not exist THEN `avoozl spec lint` SHALL
    report it, and the same inputs SHALL give the same result.
@@ -421,29 +421,29 @@ graph and public pull requests never reveal a private plan.
     repository is public, and when the two repositories belong to different
     organizations.
 
-#### Requirement 30: Every plan is a Kiro spec folder
+#### Requirement 30: Plans come from Markdown specs
 
-**User story:** As a developer, I want every Avoozl plan to use Kiro's spec
-layout, so that Kiro, Spec Builder, and Avoozl read the same files.
+**User story:** As a developer, I want a plan to fit in one file and a
+split Kiro spec to work in the same repository.
 
 ##### Acceptance criteria
 
-1. Every Avoozl plan SHALL be one Kiro spec folder, `<specs.path>/<name>/`
-   (default `.kiro/specs/<name>/`), holding `requirements.md` or
-   `bugfix.md` (at most one), `design.md`, and `tasks.md`. Only `tasks.md`
-   is required (Requirement FS1).
+1. Every spec SHALL be either `<specs.path>/<name>.md` or a subfolder at
+   `<specs.path>/<name>/`. Both layouts SHALL work in the same repository.
+   The filename stem or folder name is the spec name. Avoozl SHALL refuse
+   two layouts with the same spec name (Requirement FS1).
 2. Bugfix specs SHALL be supported the same way as feature specs.
-3. In plans-repo mode spec folders SHALL live in the planning repository; in
-   single-repo and local mode, in the code repository.
-4. Lint SHALL refuse a plan whose folder has no `tasks.md`.
-5. Every checklist item in `tasks.md` SHALL start with a backticked task ID.
+3. Specs SHALL live in the planning repository in plans-repo mode and in
+   the code repository in single-repo or local mode.
+4. Lint SHALL refuse a spec with no task list (Requirement FS1).
+5. Every task checklist item SHALL start with a backticked task ID.
    Lint SHALL refuse an item with no ID and any ID used twice.
-6. Avoozl SHALL map `tasks.md` items to tasks only by these IDs, and SHALL
+6. Avoozl SHALL map checklist items to tasks only by these IDs, and SHALL
    derive waits from the list's order (Requirement 4.4). A sub-bullet that
    starts with `$` SHALL be refused with its fix (`facts.removed-key`).
 7. The `avoozl-spec` skill SHALL write specs into this layout.
-9. A spec's category SHALL come only from a `category:` key in YAML
-   front-matter at the top of its `requirements.md` or `bugfix.md`. Avoozl
+9. A spec's category SHALL come only from a `category:` key in the front
+   matter of its single file, `requirements.md`, or `bugfix.md`. Avoozl
    SHALL read it, SHALL NOT write it, and SHALL NOT infer one from a title
    or path: a spec without one is shown as Uncategorized. Malformed
    front-matter SHALL produce a warning diagnostic with its file and line
@@ -1082,7 +1082,7 @@ grouping is made up from a file path.
    title whose target is `<specs.path>/<name>/tasks.md`. That task SHALL be
    a spec group whose children are the linked spec's phases, so the linked
    spec's tasks wait as the parent's list orders them. See
-   [linked specs](../../docs/github-workflow.md#6-linked-specs).
+   [linked specs](../docs/github-workflow.md#6-linked-specs).
 2. Lint SHALL refuse a spec group whose linked folder does not exist
    (unless an earlier open task in the same list stands for it), a spec
    linked as a spec group more than once in the repository, and a spec
@@ -1819,7 +1819,7 @@ the last tick did.
 3. Settings › Models SHALL set a harness and a model per role.
 4. A headless machine SHALL get the CLI (`avoozl status` and
    `avoozl runner status --json`), and the standalone page that each tick
-   keeps up when `serve.enabled` is set ([standalone-web](../standalone-web/standalone-web.md)).
+   keeps up when `serve.enabled` is set ([standalone-web](standalone-web.md)).
    Avoozl SHALL host no other UI and SHALL serve nothing beyond
    `127.0.0.1`.
 5. `.avoozl.json` SHALL hold one `roles` table with one row per role:
@@ -2155,14 +2155,12 @@ approval and a task opens the text it builds.
    reads, as all of `tasks.md` is.
 7. Every spec in this repository SHALL lint clean under the ref rules.
 
-#### Requirement FS1: A spec folder needs only its task list, at a path the repository names
+#### Requirement FS1: Spec layouts and discovery
 
 Design §FS1.
 
-**User story:** As the owner, I want a repository to say where its spec
-folders live and a spec to need only its task list, so that a spec can be one
-`tasks.md` or one file, carry any notes it needs, and still read Kiro's
-layout.
+**User story:** As the owner, I want to choose where the repository stores
+its specs and use a task list on its own when the work needs no other prose.
 
 ##### Acceptance criteria
 
@@ -2172,11 +2170,14 @@ layout.
    or `..` folder, or resolves through a symlink to a place outside the
    checkout. It SHALL compose with `specs.branch` (Requirement 117): the path
    names the folder, the branch names where it is read.
-2. Every reader and writer of spec folders SHALL use the resolved path:
-   listing, reading, creating, approving, ticking and reviewing.
-3. A task list SHALL be the only required part: a `tasks.md`, or, with no
-   `tasks.md`, the `## Tasks` section of one `.md` file in the folder. In
-   that file the task list SHALL be the list under `## Tasks` up to the next
+2. Listing, reading, creating, approving, ticking, and reviewing SHALL
+   use the resolved path. Rebuild SHALL read approvals and ticks in both
+   layouts. The spec name and task IDs SHALL identify the same work when
+   moving a single file between layouts.
+3. A task list SHALL be the only required part. A spec subfolder can hold
+   `tasks.md` or one Markdown file with a `## Tasks` section. A file directly
+   under `specs.path` SHALL use `## Tasks`. The task list in that section
+   SHALL run up to the next
    heading of level 2 or 1, its `###` headings SHALL be phases, and every
    other line SHALL be spec text. A folder with a `tasks.md` and a file with
    a `## Tasks` section, or two such files, SHALL be a lint error that names
@@ -2188,20 +2189,19 @@ layout.
    named to workers as context. Files in subfolders, files that are not
    Markdown, and symlinks SHALL NOT be. The 1 MB per-file limit SHALL hold,
    and a folder SHALL hold at most 50 spec files.
-5. A requirement ref SHALL be checked only when the spec has
-   `requirements.md` or `bugfix.md`, and a design ref only when it has
-   `design.md`. With no such file, lint SHALL refuse the ref and name the
-   missing file.
+5. A requirement reference SHALL resolve in `requirements.md`, `bugfix.md`,
+   or a single file's `## Requirements` section. A design reference SHALL
+   resolve in `design.md` or a single file's `## Design` section. Lint SHALL
+   refuse a reference when its source or target is missing.
 6. Kiro's `requirements.md` (or `bugfix.md`) + `design.md` + `tasks.md`
    layout SHALL read, hash and lint, including a bugfix spec's Unchanged
    Behavior acceptance and the front-matter category.
 7. The skills and `docs/github-workflow.md` SHALL describe the path
    setting, the one required file and other files as spec text.
-8. Tests SHALL show: a custom path; a `tasks.md`-only spec; a single-file
-   spec reading as the same `tasks.md` does; the both-present lint error; a
-   tick in a single file changing no spec text while its prose does; an extra
-   `.md` file changing the hash; refs with and without their files; Kiro's
-   layout; and path validation.
+8. Tests SHALL cover a custom path, both layouts in one repository, a
+   duplicate spec name, a flat spec's approval and tick, and rebuild from
+   Git. Tests SHALL also cover a folder with only `tasks.md`, refs with and
+   without a source, and path validation.
 9. Every reader of the task list (the parser, lint, the revision hash, ticks,
    landing, rebuild and the spec page) SHALL find it through one shared
    function (`src/app/specs/spec-tasks.ts`). A task that links a spec MAY
@@ -3822,7 +3822,7 @@ detached, so the child outlives the tick. A later pass finds it by pid and
 start time, reads its result once it ends, and resumes it on a queued
 message with the same session id; one it cannot find is `gone`. Whatever
 runs the tick runs the pass: the app's cron on a Kiro Crew machine, a
-launchd, systemd or cron timer, or a chat ([machine-server](../machine-server/machine-server.md)).
+launchd, systemd or cron timer, or a chat ([machine-server](machine-server.md)).
 
 **Finishing.** A sandboxed child cannot reach the database, so a `process`
 child ends by writing `.avoozl/result.json` in its folder (`state` `done`
@@ -4370,23 +4370,25 @@ The refs resolve in the spec's own files only, so a ref never breaks when
 another spec moves. Ranges check their ends, not every member, because a
 criterion list may skip numbers.
 
-#### FS1. Flexible spec folders
+#### FS1. Spec lookup and task lists
 
-Requirement FS1. A spec may be one task list, may live outside
-`.kiro/specs/`, and may hold notes beside its prose.
+Requirement FS1. Each name identifies one Markdown file or one subfolder
+under the repository's configured specs path.
 
 **Path.** `specs-path.ts` reads `specs.path` from the `.avoozl.json` at the
 root of the checkout that holds the specs, else `.kiro/specs`:
-`specsPath(root)` gives the checked path, `specsDirectory(root)` the folder
-on disk, and `specFolderPath(root, name)` a spec's repository path. The
+`specsPath(root)` gives the checked path and `specsDirectory(root)` gives
+the folder on disk. `flatSpecPath` and `specFolderPath` give the two possible
+locations for a name. The
 value is a relative path with no `.` or `..` folder, and the folder it
 names may not be a symlink out of the checkout. The setting belongs to the
 spec repository, not the workspace. `validateSpecs` in `layered-config.ts`
 checks it. With a `specs.branch` setting (§4.45), the branch says where the
 folder is read and the path says which folder.
 
-**Files.** `readSpecFolder` reads every regular `.md` file directly in the
-folder. `revisionFiles(files)` orders them: Kiro's in their usual order,
+**Files.** `readSpecFolder` checks both locations and rejects a duplicate.
+For a subfolder it reads each regular Markdown file directly in that folder.
+`revisionFiles(files)` orders those files with Kiro's files first,
 then the rest by name, and `specHash` reads that order. `parseSpec`
 refuses a folder with no task list, a folder with two (`spec.tasks-twice`,
 naming both files), and a folder with both prose kinds; a folder with no
@@ -4791,16 +4793,18 @@ repository names the planning repository. The built-in content rule set
 `builtin:planning-repository` (§4.9) checks each of them before it is
 written and refuses a match (Requirement 28.8).
 
-#### 6.8 Plan layout: Kiro spec folders
+#### 6.8 Plan layouts
 
-Requirement 30. Every plan is a Kiro spec folder.
+Requirement 30. Use one file for a short spec and a subfolder to keep a split
+spec together. Both can live under the same `specs.path`.
 
 ```text
-.kiro/specs/<name>/
-  requirements.md   (feature spec)   or   bugfix.md   (bugfix spec)
-  design.md
-  tasks.md
-  avoozl/critique.md   (optional)
+.kiro/specs/
+  config.md
+  parser/
+    requirements.md
+    design.md
+    tasks.md
 ```
 
 - **Where.** Plans-repo mode: the planning repository. Single-repo mode and

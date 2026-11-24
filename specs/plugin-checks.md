@@ -380,7 +380,7 @@ that I ship no script and no model picks what is called.
 ## Design
 
 `PK` numbers are in [Requirements](#requirements); `R` numbers and `§`
-sections without a `D` are in [avoozl](../avoozl/avoozl.md).
+sections without a `D` are in [avoozl](avoozl.md).
 
 ### D1. The part in a manifest
 
@@ -848,7 +848,7 @@ owner who expects long reviews picks the `phase` or `branch` stage.
 Tasks run in list order, and each phase waits for the one above it. Requirement
 numbers are in brackets (`PK1` to `PK10`, in [Requirements](#requirements)); `D` sections
 refer to [Design](#design), `R` numbers to
-[avoozl requirements](../avoozl/avoozl.md#requirements).
+[avoozl requirements](avoozl.md#requirements).
 
 Phase 1 makes `task` plugin checks run with every filter, as run steps
 and as MCP steps. Phase 2 adds the

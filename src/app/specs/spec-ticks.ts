@@ -15,18 +15,18 @@ import { type QueuedTask, taskIds } from "../landing/landing-queue.ts";
 import { commitSubject } from "../landing/landing-config.ts";
 import { recordActivity } from "../store/activity-log.ts";
 import { FINAL_STATUSES } from "../sessions/session-bindings.ts";
-import { checkedItems, type SpecItem, specItems } from "./spec-plans.ts";
+import {
+  checkedItems,
+  listSpecFolders,
+  readSpecFolder,
+  type SpecItem,
+  specItems,
+} from "./spec-plans.ts";
 import { linkDefinitions, specGroupOf } from "./order.ts";
 import { statusComplete } from "../../query.ts";
-import { specsPath } from "./specs-path.ts";
+import { flatSpecPath, specFilePaths } from "./specs-path.ts";
 import { specsBranch } from "./specs-branch.ts";
-import {
-  SPEC_TEXT,
-  TASKS_FILE,
-  specTasks,
-  taskFile,
-  taskText,
-} from "./spec-tasks.ts";
+import { TASKS_FILE, specTasks, taskFile, taskText } from "./spec-tasks.ts";
 import type { Repository } from "../git/git.ts";
 import type { SessionBinding } from "../sessions/session-bindings.ts";
 import type { Store } from "../store/store.ts";
@@ -58,13 +58,41 @@ interface TickAt {
 type Keyed = SpecItem & { key: string; id: string };
 const keyedOf = (items: SpecItem[]) =>
   items.filter((item): item is Keyed => Boolean(item.key && item.id));
-// The file that holds a spec's tasks, as a path in the checkout at `root`.
-// `files` is the spec's stored files, which name it (spec-tasks.mjs).
-const tasksPath = (
+// Resolve the task path from the Git tree being read, not the checkout.
+async function tasksPathAt(
   root: string,
+  ref: string,
   name: string,
-  files?: Record<string, string>,
-) => `${specsPath(root)}/${name}/${taskFile(files)}`;
+  file: string,
+) {
+  const candidates = specFilePaths(root, name, file),
+    tree = await git(root, ["ls-tree", "-r", ref, "--", ...candidates]),
+    present = tree
+      .split("\n")
+      .filter((entry) => entry.startsWith("100"))
+      .map((entry) => entry.split("\t")[1])
+      .filter((entry) => candidates.includes(entry));
+  return present.length === 1 ? present[0] : null;
+}
+
+function workingTasks(root: string, name: string) {
+  const spec = readSpecFolder(root, name),
+    tasks = specTasks(spec.files, spec.flat);
+  return (
+    tasks && {
+      ...tasks,
+      flat: spec.flat,
+      raw: spec.files[tasks.file],
+      relative: spec.folder + tasks.file,
+    }
+  );
+}
+
+async function writeTick(root: string, relative: string, text: string) {
+  fs.writeFileSync(path.join(root, relative), text);
+  await git(root, ["add", relative]);
+}
+
 const short = (commit: string | null | undefined) =>
   String(commit ?? "").slice(0, 12);
 
@@ -105,9 +133,9 @@ export function tickedText(
   text: string,
   ids: string[],
   file = TASKS_FILE,
-  { groups = false }: { groups?: boolean } = {},
+  { groups = false, flat = false }: { groups?: boolean; flat?: boolean } = {},
 ) {
-  const items = specItems(name, taskText(file, text)),
+  const items = specItems(name, taskText(file, text, flat)),
     lines = text.split("\n"),
     ticked: string[] = [],
     mark = (item: Keyed) => {
@@ -159,49 +187,27 @@ async function tickParents(
   spec: string,
   seen = new Set([spec]),
 ): Promise<string[]> {
-  const folder = path.join(dir, specsPath(dir)),
-    // A folder's task file, its whole text and its task text, or null.
-    read = (name: string) => {
-      const files: Record<string, string> = {};
-      try {
-        for (const file of fs.readdirSync(path.join(folder, name)))
-          if (SPEC_TEXT.test(file))
-            files[file] = fs.readFileSync(
-              path.join(folder, name, file),
-              "utf8",
-            );
-      } catch {
-        return null;
-      }
-      const found = specTasks(files);
-      return found && { ...found, raw: files[found.file] };
-    },
-    own = read(spec),
+  const own = workingTasks(dir, spec),
     items = own ? keyedOf(specItems(spec, own.text)) : [];
   if (!items.length || items.some((item) => item.mark !== "x")) return [];
   const ticked: string[] = [];
-  let names: string[] = [];
-  try {
-    names = fs.readdirSync(folder);
-  } catch {}
-  for (const name of names) {
-    const found = !seen.has(name) && read(name);
+  for (const name of listSpecFolders(dir)) {
+    const found = !seen.has(name) && workingTasks(dir, name);
     if (!found) continue;
-    const { file, text, raw } = found,
+    const { file, text, raw, relative, flat } = found,
       definitions = linkDefinitions(text),
       lines = text.split("\n"),
       groups = keyedOf(specItems(name, text))
         .filter(
           (item) =>
             item.mark !== "x" &&
-            specGroupOf(name, item, definitions, lines) === spec,
+            specGroupOf(name, item, definitions, lines, flat) === spec,
         )
         .map((item) => item.id);
     if (!groups.length) continue;
-    const tick = tickedText(name, raw, groups, file);
+    const tick = tickedText(name, raw, groups, file, { flat });
     if (!tick.ticked.length) continue;
-    fs.writeFileSync(path.join(folder, name, file), tick.text);
-    await git(dir, ["add", `${specsPath(dir)}/${name}/${file}`]);
+    await writeTick(dir, relative, tick.text);
     ticked.push(
       ...tick.ticked,
       ...(await tickParents(dir, name, new Set([...seen, name]))),
@@ -230,12 +236,8 @@ const inCandidate = (
   spec: string,
   files?: Record<string, string>,
 ) =>
-  git(repository.root, [
-    "cat-file",
-    "-e",
-    `${candidate}:${tasksPath(repository.root, spec, files)}`,
-  ]).then(
-    () => true,
+  tasksPathAt(repository.root, candidate, spec, taskFile(files)).then(
+    Boolean,
     () => false,
   );
 
@@ -250,18 +252,17 @@ export async function tickEntry(
   const plan = store.get("plans", entry.spec),
     spec = plan?.spec;
   if (!spec) return;
-  const relative = tasksPath(dir, spec, plan?.files),
-    file = path.join(dir, relative);
-  if (!fs.existsSync(file)) return;
+  const found = workingTasks(dir, spec);
+  if (!found || found.file !== taskFile(plan?.files)) return;
   const { text, ticked } = tickedText(
     spec,
-    fs.readFileSync(file, "utf8"),
+    found.raw,
     idsOf(plan, entry),
-    taskFile(plan?.files),
+    found.file,
+    { flat: found.flat },
   );
   if (!ticked.length) return;
-  fs.writeFileSync(file, text);
-  await git(dir, ["add", relative]);
+  await writeTick(dir, found.relative, text);
   await tickParents(dir, spec);
 }
 
@@ -440,20 +441,15 @@ export async function tickBranch(
       const ticked: string[] = [];
       let found = 0;
       for (const { spec, ids, file: name = TASKS_FILE, groups } of files) {
-        const relative = `${specsPath(dir)}/${spec}/${name}`,
-          file = path.join(dir, relative);
-        if (!fs.existsSync(file)) continue;
+        const current = workingTasks(dir, spec);
+        if (!current || current.file !== name) continue;
         found += 1;
-        const tick = tickedText(
-          spec,
-          fs.readFileSync(file, "utf8"),
-          ids,
-          name,
-          { groups },
-        );
+        const tick = tickedText(spec, current.raw, ids, name, {
+          groups,
+          flat: current.flat,
+        });
         if (!tick.ticked.length) continue;
-        fs.writeFileSync(file, tick.text);
-        await git(dir, ["add", relative]);
+        await writeTick(dir, current.relative, tick.text);
         ticked.push(...tick.ticked, ...(await tickParents(dir, spec)));
       }
       // `found`: a tasks file was there, so nothing left to tick is done.
@@ -523,14 +519,21 @@ export async function baseTasks(
   }: { fetched?: Set<string>; files?: Record<string, string> } = {},
 ) {
   try {
-    const { head, ref } = await baseHead(root, branch, { fetched });
+    const { head, ref } = await baseHead(root, branch, { fetched }),
+      file = taskFile(files),
+      relative = await tasksPathAt(root, head, name, file);
+    if (!relative) return null;
     // Not `git()`: its trim would shift the line numbers.
-    const { stdout } = await exec(
-      "git",
-      ["show", `${head}:${tasksPath(root, name, files)}`],
-      { cwd: root, maxBuffer: 8 * 1024 * 1024 },
-    );
-    return { head, ref, text: taskText(taskFile(files), stdout) };
+    const { stdout } = await exec("git", ["show", `${head}:${relative}`], {
+      cwd: root,
+      maxBuffer: 8 * 1024 * 1024,
+    });
+    return {
+      head,
+      ref,
+      file,
+      text: taskText(file, stdout, relative === flatSpecPath(root, name)),
+    };
   } catch {
     return null;
   }
@@ -547,16 +550,11 @@ export async function tickCommits(
   files?: Record<string, string>,
 ) {
   try {
+    const relative = await tasksPathAt(root, ref, name, taskFile(files));
+    if (!relative) return null;
     const { stdout } = await exec(
         "git",
-        [
-          "blame",
-          "--first-parent",
-          "--porcelain",
-          ref,
-          "--",
-          tasksPath(root, name, files),
-        ],
+        ["blame", "--first-parent", "--porcelain", ref, "--", relative],
         { cwd: root, maxBuffer: 32 * 1024 * 1024 },
       ),
       times = new Map<string, number>(),
@@ -595,16 +593,17 @@ function complete(
     key,
     line,
     branch,
+    file,
     found,
-  }: { key: string; line: number; branch: string; found: TickAt },
+  }: { key: string; line: number; branch: string; file: string; found: TickAt },
 ) {
   const at = found.at ?? new Date().toISOString(),
     commit = found.commit;
   task.status = "accepted";
   task.acceptanceEvidence = {
     at,
-    evidence: `tasks.md line ${line} marks ${key} [x] on ${branch}${commit ? ` at commit ${short(commit)}` : ""}`,
-    baseline: { file: "tasks.md", line, mark: "[x]", branch, commit },
+    evidence: `${file} line ${line} marks ${key} [x] on ${branch}${commit ? ` at commit ${short(commit)}` : ""}`,
+    baseline: { file, line, mark: "[x]", branch, commit },
     componentOnly: false,
   };
   task.integration = task.integration ?? {
@@ -630,12 +629,14 @@ export async function applyTicks(
     branch: string;
     text: string;
     head: string;
+    file?: string;
     land?: boolean;
     commits?: () => Promise<Map<number, TickAt> | null>;
   },
 ) {
   if (!plan.spec) return { done: [], released: [] };
-  const { ticked, present } = ticksOf(plan.spec, read.text),
+  const file = read.file ?? TASKS_FILE,
+    { ticked, present } = ticksOf(plan.spec, read.text),
     seenKey = `spec-ticks:${plan.id}`,
     before = store.getMeta<string[]>(seenKey),
     data = store.read(),
@@ -699,6 +700,7 @@ export async function applyTicks(
         key: tick.key,
         line: tick.line,
         branch: read.branch,
+        file,
         found: at,
       });
       now.push({ task, commit: at.commit });
@@ -722,7 +724,7 @@ export async function applyTicks(
     recordActivity(store, {
       source: "tick",
       kind: "task.ticked",
-      summary: `${task.id} is done: ticked in tasks.md on ${read.branch}${commit ? ` at ${short(commit)}` : ""}`,
+      summary: `${task.id} is done: ticked in ${file} on ${read.branch}${commit ? ` at ${short(commit)}` : ""}`,
       targetId: task.id,
       key: `ticked:${task.id}:${commit ?? read.head}`,
     });
