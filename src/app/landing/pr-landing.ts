@@ -223,7 +223,7 @@ export async function queuePullRequest(
       repository: target,
       branch: named ? `avoozl/${named}` : worktree.branch,
     },
-    // The tick goes on the branch before the checks (simplify SM4.1): the
+    // The tick goes on the branch before the checks: the
     // pull request carries the work commit and, on top, its tick.
     head = await tickedHead(
       store,

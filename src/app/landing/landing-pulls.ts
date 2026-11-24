@@ -492,7 +492,7 @@ export function pullSteps({
       if (pull.draft) return false; // never a draft (R119.2)
       const rights = await landingRights(github, ref, login);
       if (rights.land !== "merge") return false;
-      // Avoozl adds no trailer or attribution to the merge commit (SM4.4).
+      // Avoozl adds no trailer or attribution to the merge commit.
       return headGuardedMerge(github, target, pull.number, candidate, method, {
         title: `${pull.title ?? commitSubject(commitPrefix, `Land ${entry.key}`)} (#${pull.number})`,
         message: "",

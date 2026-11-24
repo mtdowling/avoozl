@@ -1,4 +1,4 @@
-// Lane sessions (simplify §D22, sim-7.1): the tick hands each worker and
+// Lane sessions: the tick hands each worker and
 // review start a free lane, a lane's chat moves on to its next task, and a
 // lane a person closed waits for Resume.
 import assert from "node:assert/strict";

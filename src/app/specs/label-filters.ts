@@ -1,4 +1,4 @@
-// Label filters (workflow v1 rule 9.1, simplify §D5): a repository's
+// Label filters (workflow v1 rule 9.1): a repository's
 // `labels.require` and `labels.exclude`. A spec runs on this runner only when
 // its spec issue carries every `require` label, each added by a writer, and
 // no `exclude` label. The stop label (rule 10, `labels.stop`, default

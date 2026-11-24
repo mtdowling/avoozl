@@ -29,7 +29,7 @@ const HARNESS_PLACEHOLDERS = Object.freeze([
   "repository_allow_commands",
   // The MCP config file of a session's epic context (epic-context EC7.1).
   "context_mcp",
-  // A lane session's fixed header (simplify §D22).
+  // A lane session's fixed header.
   "lane_header",
 ]);
 const PERMISSION_CLASSES = EXECUTOR_CONTRACT.permissionClasses;
@@ -65,7 +65,7 @@ const KEYS = new Set([
   // The role classes a live proof ran this definition in (NK6.2), for the
   // list in Settings › Models; nothing else reads it.
   "proved",
-  // Lane sessions (simplify §D22.2): the variable naming the harness's home,
+  // Lane sessions: the variable naming the harness's home,
   // which a lane sets to its own folder; the argv that names a session; and
   // the folder under that home that holds the session files.
   "home",

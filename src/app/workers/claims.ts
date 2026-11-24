@@ -1,4 +1,4 @@
-// Claim branches (simplify §D3): `avoozl/<spec>/<task>` on origin is the lock
+// Claim branches: `avoozl/<spec>/<task>` on origin is the lock
 // on a task. Creating it is the claim; GitHub's refs create call refuses a
 // second one with 422, so two runners never hold one task. The cache keeps
 // the branches each read saw, so a rebuilt cache finds every claim again.
@@ -238,7 +238,7 @@ async function deleteWithLeases(
 }
 
 // After a task lands, the claim branch this runner created goes from origin
-// with its leases (rule 16.1, simplify SM4.1). A claim another runner
+// with its leases (rule 16.1). A claim another runner
 // created stays: a person deletes that one. Returns whether it was deleted.
 export async function deleteOwnClaim(
   store: ClaimStore,
@@ -329,7 +329,7 @@ export function claimsDue(store: Store, now = Date.now()) {
 }
 
 // Cached claims whose head commit is older than their repository's
-// `claims.staleHours` (simplify §D3, default 24), with their age in hours.
+// `claims.staleHours` (default 24), with their age in hours.
 export function staleClaims(store: Store, now = Date.now()) {
   const all = cacheOf(store),
     seen = new Set<string>(),
@@ -358,7 +358,7 @@ export function staleClaims(store: Store, now = Date.now()) {
   return stale.sort((a, b) => a.staleAt.localeCompare(b.staleAt));
 }
 
-// In flight's claim rows (simplify §D13): every cached claim branch, with
+// In flight's claim rows: every cached claim branch, with
 // its task, who holds it, its head and age, and whether it is stale. Reads
 // the cache only.
 // shortcut: the holder is this runner or another one; name the login once

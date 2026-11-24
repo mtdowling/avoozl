@@ -193,7 +193,7 @@ test("approval is per id, version and content hash, on this machine only", () =>
   assert.equal(inspected.state, "unapproved");
   assert.ok("hash" in inspected && "kinds" in inspected);
   assert.equal(inspected.hash, contentHash(folder));
-  // Needs you lists it until it is approved (simplify §D13).
+  // Needs you lists it until it is approved.
   assert.deepEqual(
     pluginApprovalNeedsYou(options).map((item) => [item.id, item.reason]),
     [["plugin-approval:fake-probe", "plugin-approval"]],

@@ -483,7 +483,7 @@ export async function landNext(
     if (!queue.length) return { state: "empty" };
     const seen = await steps.observe?.(queue[0]);
     // A pull request closed unmerged leaves the queue; its claim branch
-    // stays until a person deletes it (simplify §D4).
+    // stays until a person deletes it.
     if (seen?.closed)
       return {
         state: "closed",

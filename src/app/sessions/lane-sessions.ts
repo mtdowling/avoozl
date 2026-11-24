@@ -1,4 +1,4 @@
-// Lane sessions (simplify §D22): each machine runs `lanes.local` worker
+// Lane sessions: each machine runs `lanes.local` worker
 // lanes and `lanes.reviewers` reviewer lanes per workspace, each one
 // long-lived session reused task after task. This module says which lanes
 // exist, which are free, and which a person closed; the executors open,
@@ -52,7 +52,7 @@ const laneRole = (role: string | undefined) =>
       ? "reviewer"
       : null;
 
-// The fixed header of a lane's session (SM20.2).
+// The fixed header of a lane's session.
 export function laneHeader(
   workspace: string,
   role: string,
@@ -247,7 +247,7 @@ const firstBound = (lane: LaneRow) =>
     .sort()[0] ?? null;
 const listBindingsOf = (lane: LaneRow) => lane.taskBindings ?? [lane.binding];
 
-// Pause each lane whose session a person closed (SM20.8), once. A close
+// Pause each lane whose session a person closed, once. A close
 // read before the lane's last Resume does not pause it again. A process
 // child closes its session itself when its run ends, so only a chat's close
 // pauses a lane. Returns the lanes paused now.
@@ -323,7 +323,7 @@ export function lanesNeedsYou(store: Store) {
     }));
 }
 
-// `avoozl lanes` and the page's lanes (simplify §D22.3): one row per lane
+// `avoozl lanes` and the page's lanes: one row per lane
 // with its role, harness, state, task, and how a person opens its session.
 // `attach(slot)` returns a process session's attach command, or null.
 export function lanesView(

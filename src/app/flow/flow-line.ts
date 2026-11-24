@@ -1122,7 +1122,7 @@ export function resumeStop(
   });
 }
 
-// One Needs you row per open stop (simplify §D13). Its actions are the
+// One Needs you row per open stop. Its actions are the
 // banner's: Resume, Run anyway, or the fix task.
 export function lineNeedsYou(store: Store, data: Snapshot = store.read()) {
   return lineBanner(store, data).map((stop) => ({

@@ -194,7 +194,7 @@ test("a fork head opens a pull request, passes checks and review, and merges gua
   assert.deepEqual(github.calls.created[0].input.head, "me:avoozl/s/work");
   assert.equal(github.calls.created[0].input.base, "main");
   assert.deepEqual(github.calls.merged, [{ number: 7, sha: COMMIT }]);
-  // The squash commit carries no trailer or attribution (SM4.4).
+  // The squash commit carries no trailer or attribution.
   const [squash] = github.calls.messages ?? [];
   assert.match(squash.title ?? "", /\(#7\)$/);
   assert.equal(squash.message, "");

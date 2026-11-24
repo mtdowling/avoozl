@@ -1,4 +1,4 @@
-// In flight's claim branches and lanes (simplify §D13, §D22.3), in a real
+// In flight's claim branches and lanes, in a real
 // Chrome (harness ?page=app&claims=1): each claim's holder, head and age,
 // a stale one marked, and each lane's role, state and Open or copy action.
 // Skipped when no Chrome is found.

@@ -1,4 +1,4 @@
-// One graph builder (simplify §D8): the specs as phases of items in list
+// One graph builder: the specs as phases of items in list
 // order, each leaf's state, and the waits §D19 derives. The page's Graph,
 // `avoozl graph` and `plans_graph` read it; two printers turn it into text
 // and Mermaid.
@@ -319,7 +319,7 @@ export function storeGraph(
   );
 }
 
-// The graph block (simplify §D9): the builder's Mermaid, with no state,
+// The graph block: the builder's Mermaid, with no state,
 // between two markers at the end of tasks.md. It is optional; when present
 // it must match.
 export const GRAPH_START = "<!-- avoozl:graph start -->";

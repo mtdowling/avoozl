@@ -1,5 +1,4 @@
-// The landing step one claimed task takes (workflow v1 rules 16 and 17,
-// simplify §D4), from what the runner read:
+// The landing step one claimed task takes (Workflow v1 rules 16 and 17).
 //
 //   mode      the repository's landing mode: direct, pr or off
 //   pr        landing.pr in `pr` mode: draft (the default), ready or auto

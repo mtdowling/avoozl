@@ -120,7 +120,7 @@ test("a check that passed on main and fails after a1 lands stops the line on a1"
   assert.equal(stop.culprit, "a1");
   assert.equal(stop.commit, red);
   assert.equal(stop.fixTaskId, "a1.fix-1");
-  // Needs you has one row for the stop (simplify §D13).
+  // Needs you has one row for the stop.
   assert.deepEqual(
     lineNeedsYou(s.store).map(
       (item: { reason: string; taskId: string | null; title: string }) => [

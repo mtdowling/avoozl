@@ -1,4 +1,4 @@
-// Integration branches by name (simplify §D21): a branch on origin named for
+// Integration branches by name: a branch on origin named for
 // a spec's folder is the base of that spec and of every spec it links, the
 // outermost such branch winning; with none the base is the default branch.
 // Avoozl creates and merges no integration branch. Before each claim on one,

@@ -2,7 +2,7 @@
 // (demo-fixture.mjs). Every name in them is made up. Test only.
 import { taskToken } from "../specs/spec-refs.ts";
 
-// A task item and its done bullets (simplify §D20); a person's task ends
+// A task item and its done bullets; a person's task ends
 // its title with the tag.
 // One task's manifest entry.
 interface Leaf {
@@ -138,7 +138,7 @@ export function sampleSpecs({ word = "demo" } = {}) {
   files["recipe-box"] = {
     "requirements.md": `# Recipe Box\n\nMade-up ${word} epic: a small app to import recipes, plan meals and shop.\n\n## What done means\n\nEvery member spec is done.\n`,
     "design.md": "# Design\n\nImport first, then the planner, then the list.\n",
-    // The parent links each member spec, in order (simplify §D19.2).
+    // The parent links each member spec, in order.
     "tasks.md": `# Plans\n\n${members
       .map(
         (m, i) =>

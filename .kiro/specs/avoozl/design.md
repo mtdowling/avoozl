@@ -78,13 +78,13 @@ work. Avoozl turns an approved spec into landed code between them:
 | State | Authority | Avoozl SQLite role |
 | --- | --- | --- |
 | Spec text | Git: the spec folder under `specs.path` on the specs branch (§4.45, FS1) | Cache |
-| Approval | Git: an approver's authored commit of that exact text on the specs branch (§4.42) | Cache; `avoozl rebuild` reads it again |
+| Approval | Git: a commit with approver evidence for the exact spec text on the specs branch (§4.42) | Cache; `avoozl rebuild` reads it again |
 | Repository policy | Git: `.avoozl.json` at an exact commit | Receipt of the commit applied |
 | Task order | Git: the order of the checklist in `tasks.md` | Cache |
 | Task done | Git: the `[x]` tick on the base branch, and its tick commit (§4.41) | Cache |
 | Task claim | Git: the claim branch `avoozl/<spec>/<task>` on origin | Cache of the branches each read saw |
 | Task running state | SQLite: attempts, worktrees, sessions, check runs | **Authoritative**; lost on rebuild except what git holds |
-| Spec driver | GitHub: the spec issue's single assignee (§4.44); with no spec issue, this workspace | Cache |
+| Spec driver | GitHub: the spec issue's single assignee (§4.44); the local workspace for local-only specs | Cache |
 | Spec issues and epic issues | GitHub, found by their issue marks (§3.4) | Cache |
 | Kiro Crew sessions and transcripts | Kiro Crew | Binding: task ID to slot key |
 | Process children | The supervisor (§4.28) | Binding: task ID to child record |
@@ -2127,10 +2127,12 @@ to this runner's own login and to no one else:
 | This login alone | Runs here |
 | None | Not run: "its spec issue has no assignee" |
 | Another login, or two or more | Not run: "its spec issue is assigned to LOGINS" |
-| No spec issue at all | Runs here: the spec is not shared |
+| GitHub-backed spec whose issue has not been published | Waits for publication |
+| Local-only spec | Runs here |
 
-A person sets the assignee on GitHub; Avoozl never writes it. Reassigning
-hands a spec off, and unassigning releases it.
+A person sets the assignee on GitHub. When publishing the issue, Avoozl
+initializes its assignees from the approving pull request when available.
+Reassigning hands a spec off, and unassigning holds new work.
 
 **Calls.** `readSpecAssignees` reads the spec issues once per pass and
 caches each spec's result; the ready rule reads the cache, and a spec
@@ -2141,7 +2143,7 @@ and every write goes through the write pacer (`github-pacer.ts`).
 workspace adopts or makes (`publishApproved`, `spec-publication.ts`), and
 `avoozl spec publish` (`spec.publish`) retries it. An issue the workspace
 already holds for the spec is reused, and publishing again writes nothing.
-Two machines that both hold an unpublished spec both run it.
+A GitHub-backed spec waits for publication on every runner.
 
 ### 4.45 The specs branch
 

@@ -299,7 +299,7 @@ export const entries = [
       } catch {
         // No spec roots in this mode.
       }
-      // The one graph builder's text and Mermaid (simplify §D8), which the
+      // The one graph builder's text and Mermaid, which the
       // CLI and plans_graph print. An older read-only database that lacks
       // session tables gets the view alone.
       let printed: { text?: string; mermaid?: string } = {};
@@ -344,7 +344,7 @@ export const entries = [
             'This workspace\'s .avoozl.json still says "runner": "crew-mode", from before the tick started every task. Avoozl starts nothing here until you let the tick run it.',
           hash: this.settingsFile().readFile().hash,
         });
-      // Ready tasks wait while this machine has no loop (SM6).
+      // Ready tasks wait while this machine has no loop.
       if (!machineLoop(loopFile(this.configDirectory)) && hasReady(store))
         view.items.push({
           kind: "needs-human",

@@ -74,7 +74,7 @@ export function pickHarness({
         "Settings › Models picks Kiro Crew chat for this role, which needs Kiro Crew. Pick a harness there, or copy the message into your own CLI.",
     };
   // No harness saved for this role: the worker's, so Run in a chat runs on
-  // the harness that works tasks (simplify §D13), read-only as this role.
+  // the harness that works tasks, read-only as this role.
   const worker = roleHarness(config, ROLE_TABLE.worker.setting);
   if (approved.some((definition) => definition.name === worker))
     return { harness: worker, reason: null };

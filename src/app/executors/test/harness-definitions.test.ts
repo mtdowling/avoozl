@@ -343,7 +343,7 @@ test("reads names the harness's own config under home, and nothing else", () => 
     );
 });
 
-test("a definition names its lane home variable, session label and session folder (simplify §D22.2)", () => {
+test("a definition names its lane home variable, session label and session folder", () => {
   const parsed = parseHarnessDefinition({
     ...example(),
     home: "CLAUDE_CONFIG_DIR",

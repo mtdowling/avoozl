@@ -305,13 +305,14 @@ socket, a test, or explained in the pull request.
 
 ## D11. Phases
 
-| Phase | Requirements | Tasks | Exit |
-| --- | --- | --- | --- |
-| 1: one pass on Claude Code | MS1 to MS6 | ms-1.1 to ms-1.6 | ms-p2 |
-| 2: Codex | MS7, MS8 | ms-2.1, ms-2.2 | ms-p3 |
-| 3: MCP and the drive skill | MS9, MS10 | ms-3.1, ms-3.2 | none |
-| 4: host packages | MS11 | ms-4.1, ms-4.2 | none |
-| 5: cron and docs | MS12, MS13 | ms-5.1, ms-5.2 | ms-p7 |
+| Phase | Requirements | Tasks |
+| --- | --- | --- |
+| 1. One pass on Claude Code | MS1 to MS6 | `ms-1.1` to `ms-1.6` |
+| 2. Codex | MS7, MS8 | `ms-2.1`, `ms-2.2` |
+| 3. MCP and the drive skill | MS9, MS10 | `ms-3.1`, `ms-3.2` |
+| 4. Host packages | MS11 | `ms-4.1`, `ms-4.2` |
+| 5. Cron and docs | MS12, MS13 | `ms-5.1`, `ms-5.2` |
+| 6. Live proofs | MS5 to MS8, MS12 | `ms-p2` then `ms-p3`, in parallel with `ms-p7` |
 
 ## D12. Rules
 

@@ -93,7 +93,7 @@ import {
 import { validateLanes } from "../tick/lanes.ts";
 import { laneRequest, laneView, pickLane } from "../sessions/lane-sessions.ts";
 
-// The lanes a planning pass hands out (simplify §D22), or null when the
+// The lanes a planning pass hands out, or null when the
 // caller names no workspace, as a test of the planner alone does.
 const planLanes = (
   store: Store,
@@ -1680,7 +1680,7 @@ export function dispatchOrder(
       task.labelRank ??
       1000,
     byId = new Map(data.tasks.map((task) => [task.id, task])),
-    // The three ranking keys (simplify §D3.1): downstream count, chain
+    // The three ranking keys: downstream count, chain
     // length, then file order.
     keys = rankKeys(
       data.edges.filter((e) => ["requires", "sequence"].includes(e.kind)),
@@ -2083,7 +2083,7 @@ export function readyCandidates(
   } = {},
 ): Task[] {
   const line = paused ? linePausedTaskIds(store, data) : new Set<string>(),
-    // Specs whose spec issue the label filters (simplify §D5) or the
+    // Specs whose spec issue the label filters or the
     // assignee rule (workflow v1 rule 8.3) hold.
     labels = new Map([...labelHolds(store), ...assigneeHolds(store)]);
   return queryTasks(data, {
@@ -2234,7 +2234,7 @@ export function planReadyDispatches(
     leaves = readyLeaves(store, policy, options),
     lanes = planLanes(store, policy, options);
   return leaves.flatMap((leaf) => {
-    // A worker starts only on a free worker lane (SM20.1).
+    // A worker starts only on a free worker lane.
     const lane =
       lanes &&
       pickLane(
@@ -2430,7 +2430,7 @@ const roleFailures = (
   ).length;
 
 // The binding of one recorded attempt. A lane's session moves on to other
-// tasks (simplify §D22.1), so the slot's current binding may be another's.
+// tasks, so the slot's current binding may be another's.
 function attemptBinding(
   store: Store,
   taskId: string,
@@ -3148,7 +3148,7 @@ export function planReviewDispatches(
         })
       )
         continue;
-      // A review starts only on a free reviewer lane (SM20.1).
+      // A review starts only on a free reviewer lane.
       const lane = lanes
         ? pickLane(lanes.lanes, { task: task.id, role: role.role }, lanes.taken)
         : null;

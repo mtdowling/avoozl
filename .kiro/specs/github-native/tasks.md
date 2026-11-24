@@ -14,7 +14,8 @@ repository's checks (AGENTS.md).
 ## Phase 1: Claim branches
 
 - [x] `gn-1.1` Share specs through claim branches only [GN1] (§D1)
-  - `runner report` from a manual take and from a local session records
+  - Runners coordinate through claim branches and leases.
+  - `runner report` records results from a manual take and a local session.
 
 ## Phase 2: No trailers
 
@@ -38,7 +39,16 @@ repository's checks (AGENTS.md).
 ## Phase 5: Proof
 
 - [ ] `gn-p1` Proof: a merged spec PR publishes its issue, and review output reaches GitHub [GN3, GN5] (§D3, §D4) (**MANUAL**)
-  - Setup: an isolated workspace and a scratch GitHub repository with one task on `landing: pr` and one on `landing: direct`, and a second login that is not an approver
-  - Action: (1) the second login opens a spec PR and assigns the approver's login, and the approver merges it; (2) run ticks until both tasks land, with one task made to fail its checks once
-  - Expected: (1) one spec issue appears with the approver's login assigned, made by the approver's runner only; (2) each review round and the failing check run are one comment, on the pull request for the `pr` task and on the spec issue for the `direct` task; (3) neither landing commit has a trailer
-  - Expected result observed; receipt under `docs/evidence/`
+  - Setup: use an isolated workspace, a scratch plans repository and two
+    scratch code repositories. Set one code repository to `landing: pr`
+    and the other to `landing: direct`. Use a second login that can write
+    to the plans repository and cannot approve specs.
+  - Action: run `scripts/proofs/gn-p1.ts`. The second login opens one PR
+    with a one-task spec for each code repository and assigns the
+    approver. The approver merges it. The tick runs both tasks and the
+    direct task fails its checks once.
+  - Expected: the approver's runner publishes one issue per spec and
+    copies the PR assignee. Review rounds appear once on the task PR or
+    spec issue. The failed check appears once on the direct task's spec
+    issue. Both tasks land and their commits carry no trailers.
+  - Record the observed result in a receipt under `docs/evidence/`.

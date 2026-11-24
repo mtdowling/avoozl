@@ -472,7 +472,7 @@ export function branchLine(row: IntegrationBranch): string {
   return `${row.tasksMerged} of ${row.tasksTotal} tasks merged · ${behind} · ${checks}${row.accepted ? ' · accepted' : ''}`
 }
 
-// One claim branch (claims.view, simplify §D3): its task, who holds it,
+// One claim branch (claims.view): its task, who holds it,
 // its head commit and age, and whether it is stale.
 export interface ClaimRow {
   repository: string
@@ -487,7 +487,7 @@ export interface ClaimRow {
   stale: boolean
 }
 
-// One lane on this machine (lanes.view, simplify §D22.3). `open` is the
+// One lane on this machine (lanes.view). `open` is the
 // command or chat that opens its session.
 export interface LaneRow {
   lane: string

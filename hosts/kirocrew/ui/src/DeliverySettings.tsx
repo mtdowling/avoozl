@@ -2,7 +2,7 @@
 // own, and who merges pull requests (the workspace's landing.pr, R119; a
 // repository's Landing tab may override it). Autopilot runs here only with
 // both switches: the workspace's `delivery` block in .avoozl.json and this
-// machine's `loop` (SM6). Picking Autopilot writes both; Off removes the
+// machine's `loop`. Picking Autopilot writes both; Off removes the
 // loop. Every setting shows whether Autopilot is on or off. The worker's
 // agent and model are in Settings › Models (R98.7). Saves go through
 // delivery.settings.update; only a person turns Autopilot on or off, after

@@ -150,7 +150,7 @@ test("a manual leaf is never ready; once its blockers hold it waits in Needs you
     [["sdk.2", "manual", "Waiting for a person: Review with team"]],
   );
   assert.equal(next.ready.length, 0);
-  // Needs you lists it with what to do (simplify §D13).
+  // Needs you lists it with what to do.
   const rows = (
     await ops.execute<{ items: Row[] }>("conflicts.view", {})
   ).items.filter((item) => item.reason === "manual-ready");

@@ -1,4 +1,4 @@
-// The Insights view, the page's home (simplify §D13): a read-only look at
+// The Insights view, the page's home: a read-only look at
 // what waits, how each spec burns down, and where task time goes, from what
 // Avoozl already keeps (insights.view), plus the saved retros (retro.list,
 // retro.read). The filters sit in the left nav under its open section.

@@ -1,4 +1,4 @@
-// Order from the list (simplify sim-2.1, §D19): waitsOf derives every wait
+// Order from the list: waitsOf derives every wait
 // from the list, and lint checks the list's groups and tags.
 import assert from "node:assert/strict";
 import test from "node:test";

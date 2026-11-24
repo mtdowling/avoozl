@@ -1,4 +1,4 @@
-// In flight's sessions (simplify §D13): one row per live worker or review
+// In flight's sessions: one row per live worker or review
 // session, with its task, model, machine, pull request and branch chips, and
 // for a `process` child its log tail, Send message and Attach.
 import { useCallback, useMemo, useRef, useState } from 'react'

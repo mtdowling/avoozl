@@ -139,8 +139,7 @@ export const JOBS: Readonly<Record<string, Job>> = Object.freeze({
     risk: "low",
     permissions: repo({ contents: w, pull_requests: w }),
   },
-  // Deleting a claim branch frees a task another runner holds (simplify
-  // §D3), so only a person does it, after the confirm.
+  // Deleting a claim branch frees a task another runner holds, so only a person does it, after the confirm.
   "claim-delete": {
     description: "Delete a stale claim branch",
     risk: "high",

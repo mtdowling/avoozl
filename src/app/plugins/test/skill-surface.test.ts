@@ -1,5 +1,4 @@
-// Every skill reaches Avoozl only through the CLI and MCP tools (simplify
-// SM10.4, §D10): each `avoozl ...` command a skill names is a usage line of
+// Every skill reaches Avoozl only through the CLI and MCP tools: each `avoozl ...` command a skill names is a usage line of
 // `avoozl help`, and each `plans_*` tool it names is a tool the MCP server
 // lists.
 import assert from "node:assert/strict";

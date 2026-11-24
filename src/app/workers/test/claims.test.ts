@@ -1,4 +1,4 @@
-// Claim branches (simplify sim-1.1, §D3): `runner.next` with `claim` makes
+// Claim branches: `runner.next` with `claim` makes
 // `avoozl/<spec>/<task>` on origin through the refs create call, and the
 // branches alone say which tasks are claimed.
 import assert from "node:assert/strict";
@@ -352,7 +352,7 @@ test("a rebuilt cache finds every claimed task from the claim branches alone", a
   );
 });
 
-// Integration branches by name (sim-2.6, §D21).
+// Integration branches by name.
 test("a branch named for the spec, or for the outermost spec that links it, is the base", async (t) => {
   const s = setup(t, { tasks: [leaf("a")] });
   s.github.branches.set("parser", "p".repeat(40));
@@ -412,7 +412,7 @@ test("a conflict holds every claim on the branch and gives one Needs you item", 
   assert.deepEqual(integrationNeedsYou(s.store), []);
 });
 
-// Label filters (simplify sim-1.6, §D5): the spec issue of spec `parser` is
+// Label filters: the spec issue of spec `parser` is
 // #7 in acme/app; `labels` are on it, each added by `by` (login -> role).
 function labeled(
   s: Setup,
@@ -620,7 +620,7 @@ test("an exclude label added after the claim does not unclaim the task", async (
   assert.ok(s.github.refs.has("avoozl/parser/a"), "its claim branch stays");
 });
 
-// Labeled issues (simplify sim-1.7, rule 11): acme/app's issues, each with
+// Labeled issues (Workflow v1 rule 11): acme/app's issues, each with
 // its labels, who labeled it, and who it is assigned to.
 function issues(
   s: Setup,

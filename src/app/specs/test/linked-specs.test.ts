@@ -1,4 +1,4 @@
-// Linked specs (simplify sim-2.5, §D19.2): a task title's link to another
+// Linked specs: a task title's link to another
 // spec's tasks.md makes a spec group whose children are that spec's tasks.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";

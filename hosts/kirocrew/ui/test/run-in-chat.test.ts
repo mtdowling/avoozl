@@ -1,4 +1,4 @@
-// Run in a chat (simplify sim-5.2, §D13): the seed names the skill that does
+// Run in a chat: the seed names the skill that does
 // the work and the item's IDs, for a spec, a task and a Needs you item. The
 // page sends it to the host's chat launcher: a Kiro Crew chat inside Kiro
 // Crew, the Start a session dialog (a process session) on the standalone page.

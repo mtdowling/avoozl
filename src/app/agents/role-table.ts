@@ -1,4 +1,4 @@
-// One row per role Avoozl starts (without-kirocrew D2, NK1, simplify §D10):
+// One row per role Avoozl starts (without-kirocrew D2, NK1):
 // the worker, the reviewer, the responder, a plugin check's decide call, and
 // the standalone page's assistant. The `process` executor's brief, its folder
 // rule and the way a finished child's result is recorded read these rows, so
@@ -108,7 +108,7 @@ export const ROLE_TABLE: Readonly<Record<string, RoleRow>> = Object.freeze({
     verdict: true,
     finish: verdictFinish,
   },
-  // The reviewer is adversarial and on by default (simplify §D10): a separate
+  // The reviewer is adversarial and on by default: a separate
   // session that never saw the worker's reasoning judges the exact head.
   // The responder reads the repository at its base branch and hands back
   // the reply; Avoozl posts it after the checks a chat's reply gets (NK2.2).

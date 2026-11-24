@@ -1007,7 +1007,7 @@ export class Operations {
     // checkouts and claims below read them.
     const restored = (await this.configuration?.restoreRepositories()) ?? null;
     const result = await this.readFromGit();
-    // Claims come back from the claim branches on origin (simplify §D3).
+    // Claims come back from the claim branches on origin.
     const claimErrors = await refreshClaims(this.store, this.github),
       issues = await readSpecIssues(this.store, this.github);
     return {

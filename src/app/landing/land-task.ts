@@ -1,4 +1,4 @@
-// `avoozl land TASK` and `plans_land` (simplify §D7, SM7.1): land one
+// `avoozl land TASK` and `plans_land`: land one
 // reported task now, by its repository's landing mode, instead of waiting
 // for the tick. Only the caller that claimed the task may: the session bound
 // to it, or at the command line this machine's own claim or take.

@@ -1,4 +1,4 @@
-// Landed work (workflow v1 rule 16.5, simplify SM4.1): once a task's work is
+// Landed work (workflow v1 rule 16.5): once a task's work is
 // on the base, its tick goes on the done branch if it is missing, in its own
 // commit (a plans repository's specs branch), and then the claim branch this
 // runner created goes with its leases. A tick that fails keeps the claim, so
