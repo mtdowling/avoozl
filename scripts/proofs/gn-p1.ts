@@ -57,9 +57,9 @@ export function specFiles(name: SpecName): Record<string, string> {
   const { repo, word } = SPECS[name];
   const dir = `.kiro/specs/${name}`;
   return {
-    [`${dir}/requirements.md`]: `---\nrepo: ${repo}\n---\n# Note ${word}\n\nThe repository holds the note ${word}.\n`,
+    [`${dir}/requirements.md`]: `# Note ${word}\n\nThe repository holds the note ${word}.\n`,
     [`${dir}/design.md`]: `# Design\n\nOne file, notes/${word}.txt.\n`,
-    [`${dir}/tasks.md`]: `# Tasks\n\n- [ ] \`${name}-1\` Write notes/${word}.txt\n  - notes/${word}.txt holds ${word} and a newline, and node check.mjs prints ok\n`,
+    [`${dir}/tasks.md`]: `---\nrepo: ${repo}\n---\n\n# Tasks\n\n- [ ] \`${name}-1\` Write notes/${word}.txt\n  - notes/${word}.txt holds ${word} and a newline, and node check.mjs prints ok\n`,
   };
 }
 
@@ -213,6 +213,15 @@ async function main() {
     say(`Usage: node ${SELF} [--root DIR] [--minutes 60] [--keep] [--dry-run]`);
     return;
   }
+  if (options["dry-run"]) {
+    const repos = gnRepositories("example-owner");
+    say(`Would make ${Object.values(repos).join(", ")}, private.`);
+    for (const name of Object.keys(SPECS) as SpecName[])
+      say(
+        `Spec ${name} (${SPECS[name].repo}): ${Object.keys(specFiles(name)).join(", ")}`,
+      );
+    return;
+  }
   const botConfig =
     process.env.GN_BOT_GH_CONFIG ||
     path.join(os.homedir(), ".config", "gh-avoozl-test");
@@ -223,13 +232,6 @@ async function main() {
   if (approver === botLogin)
     throw Error("The second login must not be the approver.");
   const repos = gnRepositories(approver);
-  if (options["dry-run"]) {
-    say(`Approver ${approver}; second login ${botLogin}.`);
-    say(`Would make ${Object.values(repos).join(", ")}, private.`);
-    for (const name of Object.keys(SPECS) as SpecName[])
-      say(`Spec ${name}: ${Object.keys(specFiles(name)).join(", ")}`);
-    return;
-  }
   // The owner's own claude-code definition (it carries his model sign-in),
   // read before the isolated home is set, else the repository's example.
   const { machineAvoozlPaths } = await import(
@@ -345,7 +347,8 @@ async function main() {
       ROLES.map((role) => [role, { harness: "claude-code" }]),
     );
     config.github = {
-      mode: "single-repo",
+      mode: "plans-repo",
+      planningRepository: repos.ws,
       repositories: Object.fromEntries(
         Object.values(repos).map((repo) => [
           repo,

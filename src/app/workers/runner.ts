@@ -10,6 +10,7 @@ import {
   readyLeaves,
 } from "../delivery/delivery.ts";
 import type { Delivery, DeliveryPolicy } from "../delivery/delivery.ts";
+import type { GitHubPolicy } from "../github/github-policy.ts";
 import {
   cacheClaim,
   claimBranch,
@@ -300,8 +301,7 @@ export function nextView(
 }
 
 // The base a claim starts from: a branch on origin named for the spec or a
-// spec that links it, caught up with the default branch first (simplify
-// §D21), else the default branch. Each branch is read and merged once per
+// spec that links it, caught up with the default branch first, else the default branch. Each branch is read and merged once per
 // call of the function this returns.
 type Linked = Parameters<typeof integrationBase>[1]["linked"];
 
@@ -341,7 +341,7 @@ function claimBase(store: Store, client: BranchClient, linked: Linked) {
   };
 }
 
-// The loop pass's claims (simplify §D6): a worker start on a repository with
+// The loop pass's claims: a worker start on a repository with
 // a GitHub name first creates its task's claim branch on origin, as
 // `avoozl next --claim` does, and the worktree is made on that branch. A
 // start whose claim another runner made first is dropped, so two machines
@@ -402,7 +402,7 @@ export async function claimDispatches<
   return { dispatches: kept, errors };
 }
 
-// `avoozl next --claim` / plans_next with claim (simplify §D3): read the claim
+// `avoozl next --claim` / plans_next with claim: read the claim
 // branches, then claim the best ready task by creating its branch on origin
 // at the base head, and make its worktree on that branch. A task whose
 // repository has no GitHub name is not claimable this way.
@@ -416,7 +416,7 @@ export async function claimNext(
     linked = null,
   }: {
     policy: Policy;
-    github?: unknown;
+    github?: GitHubPolicy | null;
     client: ClaimClient;
     workspaceRoot?: string | null;
     linked?: Linked;
@@ -424,7 +424,7 @@ export async function claimNext(
 ) {
   const errors = [
       ...(await refreshClaims(store, client)),
-      ...(await readLabelFilters(store, client)),
+      ...(await readLabelFilters(store, client, github)),
       ...(await readSpecAssignees(store, client)),
       ...(await readLabeledIssues(store, client)),
     ],

@@ -1,4 +1,4 @@
-// The Insights view (simplify §D13): its calls (insights.view, retro.list,
+// The Insights view: its calls (insights.view, retro.list,
 // retro.read), the top strip's items, the charts' shapes and the words each
 // empty chart shows. Kept free of JSX so node can test it directly.
 import type { AppApi } from '@kirocrew/app-sdk'

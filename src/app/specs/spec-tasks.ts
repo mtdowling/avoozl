@@ -41,7 +41,7 @@ export function tasksSection(text: unknown) {
 // Every file of `files` that holds a task list: tasks.md, then each other
 // spec file with a `## Tasks` section, by name. More than one is a lint
 // error (spec-plans.mjs parseSpec).
-export function taskFiles(files: Record<string, string> = {}) {
+export function taskFiles(files: Record<string, string | undefined> = {}) {
   return [
     ...(files[TASKS_FILE] === undefined ? [] : [TASKS_FILE]),
     ...Object.keys(files)
@@ -56,7 +56,7 @@ export function taskFiles(files: Record<string, string> = {}) {
 }
 
 // The file that holds the tasks: tasks.md when no file does.
-export const taskFile = (files: Record<string, string> = {}) =>
+export const taskFile = (files: Record<string, string | undefined> = {}) =>
   taskFiles(files)[0] ?? TASKS_FILE;
 
 // The task text of `file` (see the top of this file).

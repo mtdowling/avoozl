@@ -276,7 +276,7 @@ export function verifiedTask(
   return { commit, wt, branch };
 }
 
-// Claim branches in acme/app's cache (simplify §D3): `own` lists the tasks
+// Claim branches in acme/app's cache: `own` lists the tasks
 // this runner claimed, `other` the ones another runner holds.
 export async function seedClaims(
   store: Store,
@@ -324,7 +324,7 @@ export function seedSpan(
   });
 }
 
-// Turn on the server loop (simplify §D6) for this test process: a machine
+// Turn on the server loop for this test process: a machine
 // config of its own, in a fresh temporary XDG folder, whose `loop` runs
 // specs and issues, so the tick starts and lands work as it does with the
 // loop on.

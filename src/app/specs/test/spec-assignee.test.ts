@@ -39,6 +39,17 @@ test("a spec runs only when its own and its parent's spec issues name this login
   plan("child", "- [ ] `c-1` Do it\n  - Done\n");
   plan("mine", "- [ ] `m-1` Do it\n  - Done\n");
   plan("local", "- [ ] `l-1` Do it\n  - Done\n");
+  plan("solo", "- [ ] `s-1` Do it\n  - Done\n");
+  store.put("repositories", { id: "app", github: "o/app" });
+  store.put("repositories", { id: "scratch" });
+  const data = store.read(),
+    sample = data.tasks[0];
+  for (const [id, repository] of [
+    ["local", "app"],
+    ["solo", "scratch"],
+  ])
+    data.tasks.push({ ...sample, id: `${id}-1`, planId: id, repository });
+  store.write(data);
   const issues: Record<number, string[]> = {
     1: ["octo"],
     2: ["mona"],
@@ -69,8 +80,10 @@ test("a spec runs only when its own and its parent's spec issues name this login
     /parent spec parent: .*assigned to octo/,
   );
   assert.equal(holds.has("mine"), false);
-  // A spec with no spec issue is not shared, so it runs here.
-  assert.equal(holds.has("local"), false);
+  // A spec in a GitHub-backed repository with no spec issue waits for it.
+  assert.equal(holds.get("local"), "assignee: spec issue not published yet");
+  // A repository with no GitHub name is local-only, so its spec runs here.
+  assert.equal(holds.has("solo"), false);
   // A failed read keeps the last result and says so.
   github.issue = async () => {
     throw new Error("offline");

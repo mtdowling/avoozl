@@ -1,4 +1,4 @@
-// Claim branches (simplify sim-1.1, §D3): `runner.next` with `claim` makes
+// Claim branches: `runner.next` with `claim` makes
 // `avoozl/<spec>/<task>` on origin through the refs create call, and the
 // branches alone say which tasks are claimed.
 import assert from "node:assert/strict";
@@ -27,6 +27,7 @@ interface LabelReads {
   permission?: LabelReader["permission"];
   currentUser?: () => Promise<{ login: string }>;
   listIssues?: IssueGitHub["listIssues"];
+  graphql?: IssueGitHub["graphql"];
 }
 // runner.next's answer, with and without a claim.
 interface Claimed {
@@ -134,13 +135,14 @@ function issueReader(github: LabelReads): IssueGitHub {
   const refused = async () => {
     throw Error("The labeled-issues read makes no other call here.");
   };
-  const { permission, issueEvents, listIssues } = github;
+  const { permission, issueEvents, listIssues, graphql } = github;
   assert.ok(permission, "issues() gave the fake its permission read");
   return {
     issue: refused,
     permission,
     issueEvents,
     listIssues,
+    graphql,
     createIssueComment: refused,
     updateIssue: refused,
   };
@@ -352,7 +354,7 @@ test("a rebuilt cache finds every claimed task from the claim branches alone", a
   );
 });
 
-// Integration branches by name (sim-2.6, §D21).
+// Integration branches by name.
 test("a branch named for the spec, or for the outermost spec that links it, is the base", async (t) => {
   const s = setup(t, { tasks: [leaf("a")] });
   s.github.branches.set("parser", "p".repeat(40));
@@ -412,7 +414,7 @@ test("a conflict holds every claim on the branch and gives one Needs you item", 
   assert.deepEqual(integrationNeedsYou(s.store), []);
 });
 
-// Label filters (simplify sim-1.6, §D5): the spec issue of spec `parser` is
+// Label filters: the spec issue of spec `parser` is
 // #7 in acme/app; `labels` are on it, each added by `by` (login -> role).
 function labeled(
   s: Setup,
@@ -504,7 +506,7 @@ test("a spec runs only when its spec issue carries every require label, each a w
   );
 });
 
-test("a writer's stop label on the spec issue, or on a parent spec's, stops the spec until a writer removes it", async (t) => {
+test("a writer's stop label on the spec issue, or on a parent spec's, stops the spec until an approver removes it", async (t) => {
   const s = setup(t, { tasks: [leaf("a")] }),
     { readLabelFilters } = await import("../../specs/label-filters.ts");
   labeled(s, ["avoozl:stopped"]);
@@ -553,6 +555,50 @@ test("a writer's stop label on the spec issue, or on a parent spec's, stops the 
   });
   await readLabelFilters(s.store, reader(s.github));
   assert.deepEqual(await readyIds(s), []);
+});
+
+test("only an approver's removal clears a stop; a writer who is not one leaves it stopped", async (t) => {
+  // Nearby input: the same events with ana removing it clear the stop, so
+  // what holds is who removed it.
+  const s = setup(t, { tasks: [leaf("a")] }),
+    { readLabelFilters } = await import("../../specs/label-filters.ts"),
+    policy: {
+      repositories: Record<
+        string,
+        { allowedActors: string[]; minimumPermission: string | null }
+      >;
+    } = {
+      repositories: {
+        "acme/app": { allowedActors: ["ana"], minimumPermission: null },
+      },
+    },
+    roles = { mona: "write", ana: "write", tri: "triage" },
+    removedBy = async (login: string, given = policy) => {
+      // A pass while the stop is on, then one after `login` took it off.
+      labeled(s, ["avoozl:stopped"], roles);
+      await readLabelFilters(s.store, reader(s.github), given);
+      assert.deepEqual(await readyIds(s), []);
+      labeled(s, [], roles);
+      s.github.issueEvents = async () => [
+        {
+          event: "labeled",
+          label: { name: "avoozl:stopped" },
+          actor: { login: "mona" },
+        },
+        {
+          event: "unlabeled",
+          label: { name: "avoozl:stopped" },
+          actor: { login },
+        },
+      ];
+      await readLabelFilters(s.store, reader(s.github), given);
+      return readyIds(s);
+    };
+  assert.deepEqual(await removedBy("mona"), [], "a writer, not an approver");
+  assert.deepEqual(await removedBy("ana"), ["a"], "the named approver");
+  // With no policy entry, the approvers are the people with write access.
+  assert.deepEqual(await removedBy("tri", { repositories: {} }), []);
+  assert.deepEqual(await removedBy("mona", { repositories: {} }), ["a"]);
 });
 
 test("a stopped spec's verified task is neither pushed nor landed until the stop clears", async (t) => {
@@ -620,7 +666,7 @@ test("an exclude label added after the claim does not unclaim the task", async (
   assert.ok(s.github.refs.has("avoozl/parser/a"), "its claim branch stays");
 });
 
-// Labeled issues (simplify sim-1.7, rule 11): acme/app's issues, each with
+// Labeled issues (Workflow v1 rule 11): acme/app's issues, each with
 // its labels, who labeled it, and who it is assigned to.
 function issues(
   s: Setup,
@@ -638,11 +684,19 @@ function issues(
       })),
     issueEvents: async (_repository: string, number: number) => [
       {
+        id: 100 + number,
         event: "labeled",
+        created_at: "2026-11-20T00:00:00Z",
         label: { name: "agent-ok" },
         actor: { login: list.find((i) => i.number === number)?.by ?? "mona" },
       },
     ],
+    // No issue was edited after its label.
+    graphql: async () => ({
+      repository: Object.fromEntries(
+        list.map((i) => [`i${i.number}`, { lastEditedAt: null }]),
+      ),
+    }),
     permission: async (_repository: string, login: string | undefined) => ({
       permission: roles[login ?? ""] ?? "none",
     }),

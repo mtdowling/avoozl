@@ -15,6 +15,7 @@ import {
   specFiles,
   trailers,
 } from "../../../scripts/proofs/gn-p1.ts";
+import { lintSpec, parseSpec } from "../specs/spec-plans.ts";
 
 test("one run makes three private scratch repositories with one stamp", () => {
   const repos = gnRepositories("me", new Date("2026-11-21T10:40:00Z"));
@@ -27,15 +28,19 @@ test("one run makes three private scratch repositories with one stamp", () => {
 
 test("each spec changes one repository and has one task", () => {
   assert.deepEqual(Object.keys(SPECS), ["gnp-pr", "gnp-direct"]);
-  const files = specFiles("gnp-direct");
-  assert.match(
-    files[".kiro/specs/gnp-direct/requirements.md"],
-    /^---\nrepo: lib\n---\n/,
-  );
-  assert.equal(
-    files[".kiro/specs/gnp-direct/tasks.md"].match(/^- \[ \] /gm)?.length,
-    1,
-  );
+  for (const name of ["gnp-pr", "gnp-direct"] as const) {
+    const files = Object.fromEntries(
+      Object.entries(specFiles(name)).map(([file, text]) => [
+        path.basename(file),
+        text,
+      ]),
+    );
+    const spec = { name, exists: true, files };
+    assert.equal(lintSpec({ spec }).counts.error, 0);
+    const { proposals } = parseSpec(spec);
+    assert.equal(proposals.length, 1);
+    assert.equal(proposals[0].repository, SPECS[name].repo);
+  }
 });
 
 // Runs the check over one note and returns its exit code.

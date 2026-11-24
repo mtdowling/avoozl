@@ -1,4 +1,4 @@
-// One graph builder (simplify sim-2.3, §D8): graphOf and its text and
+// One graph builder: graphOf and its text and
 // Mermaid printers, and the same output from graph.view and plans_graph.
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -230,7 +230,7 @@ test("graph.view draws its nodes in graphOf's order: spec items in list order, t
   fs.rmSync(path.join(root, ".kiro"), { recursive: true, force: true });
 });
 
-// The graph block (sim-2.4, §D9).
+// The graph block.
 const graphCodes = (text: string) =>
   lintSpec({
     spec: { name: "parser", exists: true, files: { "tasks.md": text } },

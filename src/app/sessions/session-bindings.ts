@@ -168,7 +168,7 @@ function bindingsFor(store: Store, taskId: string) {
 
 // Record one slot for one task before the first brief is sent. Binding the same
 // slot again is a no-op that writes nothing. Only a lane's session moves
-// between tasks (simplify §D22.1): its ended binding moves to the key
+// between tasks: its ended binding moves to the key
 // `<slot>#<boundAt>`, every field kept, and the slot's key holds the new one.
 // `guard(taskId)` runs inside the write transaction, before a new binding, so
 // a claim is checked and recorded atomically across processes.

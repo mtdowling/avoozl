@@ -4,7 +4,7 @@ import { specItems, taskToken } from "../specs/spec-plans.ts";
 
 // Fixture shorthand: tests may describe a spec's tasks as one object under
 // this key, in the shape `specFacts` once returned. `withFacts` writes them
-// into tasks.md in the list form Avoozl reads (simplify §D20): a leaf's
+// into tasks.md in the list form Avoozl reads: a leaf's
 // `acceptance` as plain bullets, `manual` as the `(**MANUAL**)` tag, and the
 // leaves' one `repository` as front matter `repo`. Order comes from the list,
 // so `requires` is not written. A tasks.md written with `$` bullets is turned

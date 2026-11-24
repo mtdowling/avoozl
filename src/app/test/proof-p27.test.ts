@@ -113,7 +113,7 @@ const spec = {
   "tasks.md": [
     "# Tasks",
     "",
-    // Two chains side by side (simplify §D19).
+    // Two chains side by side.
     "- [ ] 5 Both chains (**PARALLEL**)",
     "  - [ ] 6 First chain",
     "    - [ ] 1 Write w1",

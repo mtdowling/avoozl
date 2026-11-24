@@ -219,7 +219,7 @@ test("Approve commits the spec on main as the person; a rebuilt database has the
   writeSpec(r.root, "intake", files);
   await first.ops.execute("plan.create", { spec: "intake" });
   await approve(first.ops, "intake");
-  // A task lands: its tick, with no trailer (SM4.4).
+  // A task lands: its tick, with no trailer.
   const tasks = path.join(r.root, ".kiro/specs/feature/tasks.md");
   fs.writeFileSync(
     tasks,

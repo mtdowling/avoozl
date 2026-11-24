@@ -11,8 +11,8 @@ class list and the MCP policy read `src/app/api/operation-table.ts`), and each C
 command is an entry `{command, help, run}` in `src/app/commands/`. Add an
 operation or command as one entry; never add it to a list elsewhere.
 Git and GitHub own everything that matters; SQLite is a cache that
-`avoozl rebuild` makes again. Markdown owns design prose. An approval is
-a person's authored commit on main. Author and commit as the repo owner's
+`avoozl rebuild` makes again. Markdown owns design prose. An approval is a commit on the specs branch
+with the evidence defined in Workflow v1 §7. Author and commit as the repo owner's
 normal git identity, and never add `Co-authored-by` or any other
 attribution. Never push `.kiro/specs/` edits to main; put them on a
 `spec/<name>` branch for the owner to approve.

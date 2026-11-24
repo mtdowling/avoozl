@@ -1,14 +1,15 @@
-// Label filters (workflow v1 rule 9.1, simplify §D5): a repository's
+// Label filters (workflow v1 rule 9.1): a repository's
 // `labels.require` and `labels.exclude`. A spec runs on this runner only when
 // its spec issue carries every `require` label, each added by a writer, and
 // no `exclude` label. The stop label (rule 10, `labels.stop`, default
 // `avoozl:stopped`) stops a spec while a writer's stop label is on its spec
-// issue or on a parent spec's. The spec issues are read once per pass and the
-// result is cached per spec; the ready rule reads the cache. A task already
-// claimed keeps running whatever its filter labels say later: the filters
-// only hold new claims. A stop also holds a claimed task's push and landing
-// (rule 10.2).
-import { PERMISSIONS } from "../github/github-policy.ts";
+// issue or on a parent spec's; only an approver's removal clears it. An
+// exclude label holds work whoever added it. The spec issues are read once
+// per pass and the result is cached per spec; the ready rule reads the
+// cache. A task already claimed keeps running whatever its filter labels
+// say later: the filters only hold new claims. A stop also holds a claimed
+// task's push and landing (rule 10.2).
+import { PERMISSIONS, actorAllowed } from "../github/github-policy.ts";
 import { linkedReader } from "./order.ts";
 import { specTasks } from "./spec-tasks.ts";
 import type { Store } from "../store/store.ts";
@@ -22,11 +23,17 @@ interface Filters {
 export type Label = string | { name?: string } | null;
 // One issue event GitHub lists, as far as the rules read it.
 export interface IssueEvent {
+  id?: number | string;
   event?: string;
+  created_at?: string;
   label?: { name?: string };
   actor?: { login?: string };
 }
-type Permission = (login: string | undefined) => Promise<unknown>;
+export type Permission = (login: string | undefined) => Promise<unknown>;
+// Who approves in a repository: its policy entry's allowedActors and
+// minimumPermission (github-policy.ts actorAllowed).
+type Approvers = Parameters<typeof actorAllowed>[0];
+type Policy = { repositories?: Record<string, Approvers> } | null | undefined;
 // One spec's cached result.
 type Result = { pass: boolean; reason?: string; stopped?: boolean };
 // The spec links a stop follows.
@@ -93,44 +100,61 @@ export async function issuePasses(
     ),
   );
   const excluded = filters.exclude.find((name) => names.has(lower(name)));
+  // An exclude label holds work whoever added it: holding is the safe side.
   if (excluded) return { pass: false, reason: `it carries ${excluded}` };
   for (const name of filters.require) {
     if (!names.has(lower(name)))
       return { pass: false, reason: `it lacks ${name}` };
-    // The newest time the label went on says who added it.
-    const added = [...(events ?? [])]
-      .reverse()
-      .find(
-        (event) =>
-          event?.event === "labeled" &&
-          lower(event.label?.name) === lower(name),
-      );
-    const login = added?.actor?.login;
+    const login = newestLabeled(events, name)?.actor?.login;
     if (!login || !WRITERS.has(await permission(login)))
       return { pass: false, reason: `${name} was not added by a writer` };
   }
   return { pass: true };
 }
 
+// The newest time `name` went on, which says who added it.
+export const newestLabeled = (
+  events: IssueEvent[] | null | undefined,
+  name: string,
+) =>
+  [...(events ?? [])]
+    .reverse()
+    .find(
+      (event) =>
+        event?.event === "labeled" && lower(event.label?.name) === lower(name),
+    );
+
 // Whether a spec issue stops its spec (rule 10.1): a writer added the stop
-// label, and no writer has removed it since. A removal by anyone else does
-// not clear the stop.
-// shortcut: a writer stands in for an approver; read the approvers when a
-// repository names approvers apart from writers.
+// label, and no approver has removed it since. A removal by anyone else
+// does not clear the stop.
 async function issueStopped(
   events: IssueEvent[] | null | undefined,
   stop: string,
   permission: Permission,
+  approvers: Approvers,
 ) {
   let stopped = false;
   for (const event of events ?? []) {
     if (lower(event?.label?.name) !== lower(stop)) continue;
-    const writer = WRITERS.has(await permission(event?.actor?.login));
-    if (event.event === "labeled" && writer) stopped = true;
-    else if (event.event === "unlabeled" && writer) stopped = false;
+    const login = event?.actor?.login,
+      held = await permission(login);
+    if (event.event === "labeled" && WRITERS.has(held)) stopped = true;
+    else if (
+      event.event === "unlabeled" &&
+      actorAllowed(approvers, login, typeof held === "string" ? held : null)
+        .allowed
+    )
+      stopped = false;
   }
   return stopped;
 }
+
+// A repository's approvers under `policy`: its entry, or people with write
+// access when the policy does not name it (R10.2).
+const approversOf = (policy: Policy, name: string): Approvers =>
+  Object.entries(policy?.repositories ?? {}).find(
+    ([id]) => lower(id) === lower(name),
+  )?.[1] ?? { allowedActors: [], minimumPermission: "write" };
 
 // The specs a set of stopped specs stops (rule 10.1): each one, and every
 // spec a stopped spec links, through any depth.
@@ -158,11 +182,13 @@ export function stoppedSpecs(
 // Read the spec issue of every approved spec with one, and cache whether its
 // filters pass and whether it carries a writer's stop label. One permission
 // read per actor per pass; the events are read only when a filter, the stop
-// label or a stop to clear needs them. Returns the read errors; a spec whose
-// read fails keeps its last result.
+// label or a stop to clear needs them. `policy` is the GitHub policy, whose
+// repository entries name who approves. Returns the read errors; a spec
+// whose read fails keeps its last result.
 export async function readLabelFilters(
   store: Store,
   github: LabelReader | null | undefined,
+  policy: Policy = null,
 ) {
   const issueEvents = github?.issueEvents?.bind(github);
   if (!github || !issueEvents) return [];
@@ -214,7 +240,12 @@ export async function readLabelFilters(
         ...(filtering(filters)
           ? await issuePasses(issue, events, filters, permission)
           : { pass: true }),
-        stopped: await issueStopped(events, filters.stop, permission),
+        stopped: await issueStopped(
+          events,
+          filters.stop,
+          permission,
+          approversOf(policy, github_),
+        ),
       };
     } catch (error) {
       errors.push({ repository: github_, error: (error as Error).message });

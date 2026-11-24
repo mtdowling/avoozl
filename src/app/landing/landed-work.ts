@@ -1,4 +1,4 @@
-// Landed work (workflow v1 rule 16.5, simplify SM4.1): once a task's work is
+// Landed work (workflow v1 rule 16.5): once a task's work is
 // on the base, its tick goes on the done branch if it is missing, in its own
 // commit (a plans repository's specs branch), and then the claim branch this
 // runner created goes with its leases. A tick that fails keeps the claim, so
@@ -19,7 +19,7 @@ import { type QueuedTask, taskIds } from "./landing-queue.ts";
 type Entry = { spec: unknown; tasks: QueuedTask[] };
 // Where the landing runs.
 type Where = { workspaceRoot?: string | null; env?: NodeJS.ProcessEnv };
-type GitHub = Parameters<typeof closeLanded>[0] & ClaimGitHub;
+type GitHub = Parameters<typeof closeLanded>[1] & ClaimGitHub;
 
 // One landed entry ({spec, tasks}) at `candidate`, the commit on the base.
 // Returns whether its tick is on the done branch.
@@ -40,13 +40,14 @@ export async function finishLanded(
       .filter((task) => task?.labeledIssue);
   // A labeled issue's landing record is the issue closing (rule 11.3): its
   // pull request's `Closes #<n>` closes it in `pr` mode, and in `direct`
-  // mode Avoozl closes it with a comment naming the commit.
+  // mode Avoozl checks the issue again and closes it with a comment naming
+  // the commit (rule 11.4).
   if (issues.length) {
     if (repository.landing === "direct")
       for (const task of issues)
         if (
           !(await (github
-            ? closeLanded(github, task, candidate)
+            ? closeLanded(store, github, task, candidate)
             : Promise.resolve(false)
           ).catch(() => false))
         )

@@ -1,4 +1,4 @@
-// Tasks hold no facts (simplify §D20). A task is its title and the plain
+// Tasks hold no facts. A task is its title and the plain
 // bullets under it; the list orders it (order.mjs), `(**MANUAL**)` in its
 // title marks a person's task, and the front matter's `repo` names the one
 // repository the spec changes. Every `$key:` bullet is the lint error
@@ -134,9 +134,9 @@ const REMOVED_FACTS: Record<string, string> = {
 const DEFAULTS: Record<string, KeySpec> = {
   repo: { as: "repository", type: "text" },
 };
-const SPEC_KEYS: string[] = [];
+const SPEC_KEYS = ["category"];
 const FRONT_KEYS = [...Object.keys(DEFAULTS), ...SPEC_KEYS];
-// Front-matter keys the list form removed (simplify §D20): the lint error
+// Front-matter keys the list form removed: the lint error
 // `frontmatter.removed-key`.
 const REMOVED_SPEC_FRONT: Record<string, string> = {
   kind: "A spec is a list of tasks; a parent links its member specs from task titles. Delete this line.",

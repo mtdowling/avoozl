@@ -44,7 +44,7 @@ export function cronIntents(
         taskId,
         role,
         // A lane chat's current binding names its lane and fixed header, so
-        // the cron keeps its trust and title (simplify §D22.1).
+        // the cron keeps its trust and title.
         ...(lane && id === slot ? { lane, header: title } : {}),
       })),
     dispatch: pending

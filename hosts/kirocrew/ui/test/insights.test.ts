@@ -1,4 +1,4 @@
-// The Insights home (simplify §D13): its strip, chart shapes and empty words,
+// The Insights home: its strip, chart shapes and empty words,
 // then the real view in Chrome (harness ?page=app): the page opens on it,
 // with data and empty, and a saved retro opens in the reader.
 import assert from 'node:assert/strict'

@@ -1,4 +1,4 @@
-// In flight's claim branches and lanes (simplify §D13, §D22.3). A claim row
+// In flight's claim branches and lanes. A claim row
 // shows its task, holder, head commit and age, with the pull request and
 // check chips from delivery.view; a lane row shows its role, state and task,
 // and opens its chat or copies its attach command.

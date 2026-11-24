@@ -209,7 +209,7 @@ function parsePolicy(text: string): Config {
   return value;
 }
 
-// The stable workspace name a lane's header and folder carry (simplify §D22).
+// The stable workspace name a lane's header and folder carry.
 // Registered workspaces often live in folders literally named `workspace`, so
 // the root basename cannot distinguish their Kiro Crew session folders.
 export const laneWorkspace = (
@@ -222,7 +222,7 @@ export const laneWorkspace = (
       ? path.basename(path.resolve(workspaceRoot))
       : null;
 
-// This machine's lanes (R6.3, simplify §D22): lanes.local or, with `key`,
+// This machine's lanes (R6.3): lanes.local or, with `key`,
 // lanes.reviewers in the machine file, or undefined when it sets none or
 // cannot be read (loading the config reports a bad file).
 export function machineLanes(
@@ -702,7 +702,7 @@ async function runTick(
       settleUnavailable(store);
       // Observe first: statuses the script read land before any planning.
       if (roster) recordRoster(store, roster);
-      // This machine's server loop (simplify §D6): with none, or between
+      // This machine's server loop: with none, or between
       // passes, the tick starts and lands nothing. `outOfLoop` holds the
       // tasks of every kind the loop does not run.
       const loop = machineLoop(),
@@ -737,7 +737,7 @@ async function runTick(
         messages: [],
         notify: [],
       };
-      // A lane whose session a person closed pauses until Resume (SM20.8).
+      // A lane whose session a person closed pauses until Resume.
       if (delivery && workspaceRoot && laneWorkspaceId)
         for (const lane of observeLanes(store, delivery, laneWorkspaceId))
           planned.notify.push({
@@ -896,7 +896,7 @@ async function runTick(
           });
         }
       // The claim branches and their head times, for stale claims in Needs
-      // you (simplify §D3). Reads only: Avoozl deletes no claim branch here.
+      // you. Reads only: Avoozl deletes no claim branch here.
       if (script && github && (looping || claimsDue(store)))
         for (const failed of await under(
           "tick",
@@ -908,7 +908,7 @@ async function runTick(
             title: `Avoozl could not read the claim branches of ${failed.repository}`,
             text: failed.error,
           });
-      // The label filters (simplify §D5) and assignees (workflow v1 rule
+      // The label filters and assignees (workflow v1 rule
       // 8.3) of the spec issues, once per pass.
       if (script && github)
         for (const failed of [
@@ -1018,7 +1018,7 @@ async function runTick(
                 workspace: laneWorkspaceId,
                 config: memory.value || {},
               });
-      // The loop pass claims each start on origin first (simplify §D6).
+      // The loop pass claims each start on origin first.
       const claimed =
           script && github && looping && plannedReady.length
             ? await under("tick", "worker-grants", claimDispatches)(

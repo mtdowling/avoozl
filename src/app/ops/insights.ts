@@ -1,4 +1,4 @@
-// Insights (simplify §D13): the page's home view and `avoozl insights`, and
+// Insights: the page's home view and `avoozl insights`, and
 // the saved retros the avoozl-retro skill writes. Every read here is local:
 // the store, the telemetry tables and git; no GitHub call.
 import { routed } from "../api/operation-policy.ts";

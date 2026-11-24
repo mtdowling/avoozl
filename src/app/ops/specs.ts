@@ -13,7 +13,7 @@ import { specsDirectory } from "../specs/specs-path.ts";
 import type { OperationCall, Operations } from "../api/operations.ts";
 
 export const entries = [
-  // Spec lint on the folders on disk (simplify §D9): one spec, or every
+  // Spec lint on the folders on disk: one spec, or every
   // spec. Reads only.
   {
     name: "spec.lint",

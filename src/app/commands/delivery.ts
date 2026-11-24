@@ -221,7 +221,7 @@ export const commands: Command[] = [
       const usage = "claim delete REPOSITORY BRANCH",
         repository = need(positionals[1], usage),
         branch = need(positionals[2], usage);
-      // The same high-risk confirm the page shows (simplify §D3).
+      // The same high-risk confirm the page shows.
       const allow = await confirmHighRisk(
         [
           confirmStep({

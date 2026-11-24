@@ -1,4 +1,4 @@
-// Tasks hold no facts (simplify sim-2.2, §D20): a task is its title and
+// Tasks hold no facts: a task is its title and
 // plain done bullets; `$` bullets and the removed front-matter keys are lint
 // errors with their fix, and nothing reads them.
 import assert from "node:assert/strict";

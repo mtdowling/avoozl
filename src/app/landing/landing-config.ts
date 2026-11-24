@@ -109,7 +109,7 @@ const isRecord = (v: unknown): v is Json =>
   Boolean(v) && typeof v === "object" && !Array.isArray(v);
 
 // The settings loader and the tick copy each repository's `claims` and
-// `labels` (simplify §D3, §D5) from `.avoozl.json` onto its repository row,
+// `labels` from `.avoozl.json` onto its repository row,
 // where the claim and label code reads them; a key the file drops goes.
 // Returns the repositories it changed.
 const RUNNER_KEYS = ["claims", "labels"];

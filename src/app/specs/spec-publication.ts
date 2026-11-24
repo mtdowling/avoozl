@@ -12,6 +12,7 @@ import { epicOfPlan } from "../epics/epics.ts";
 import { asJob } from "../github/github-jobs.ts";
 import { personOf } from "../github/github.ts";
 import { noreplyLogin } from "../git/git-approvals.ts";
+import { PERMISSIONS } from "../github/github-policy.ts";
 import type { Store } from "../store/store.ts";
 import type { PlanningIdentity } from "../github/github-marker.ts";
 
@@ -27,6 +28,7 @@ export interface Issue {
   author_association?: string;
   // The login that opened it, when the reader keeps it.
   author?: string;
+  user?: { login?: string } | null;
 }
 // A configured GitHub repository.
 type Config = { id: string; owner?: string; [key: string]: unknown };
@@ -54,6 +56,10 @@ interface PublishGitHub {
   issue(config: Config, number: number): Promise<Issue | null>;
   createIssue(config: Config, issue: Record<string, unknown>): Promise<Issue>;
   listIssues?(repository: string, options: { state: string }): Promise<Issue[]>;
+  permission?(
+    repository: string | Config,
+    login: string,
+  ): Promise<{ permission?: string } | null>;
   updateIssue?(
     repository: string,
     number: number,
@@ -138,21 +144,13 @@ const issueMark = (kind: string, id: string) =>
 const SPEC_MARK = /^<!-- avoozl-spec:([A-Za-z0-9._-]+) -->$/m;
 const EPIC_MARK = /<!-- avoozl:epic ([A-Za-z0-9][A-Za-z0-9._-]{0,159}) -->/;
 
-// The authors GitHub names as writers on an issue: the repository's owner,
-// a member of its organization, or a collaborator.
-// shortcut: the association stands in for a permission read; read
-// permissions when a team counts a role that has no association.
-const WRITER_ASSOCIATIONS = new Set(["OWNER", "MEMBER", "COLLABORATOR"]);
-const writerIssue = (issue: Issue) =>
-  WRITER_ASSOCIATIONS.has(String(issue.author_association ?? "").toUpperCase());
-
 // Rule 8.2 over a repository's issues: each spec's issue is the oldest open
 // issue by a writer whose body holds the spec's marker line; a newer open one
 // for the same spec is a duplicate. Returns {specs: Map name -> issue,
 // duplicates: [issue]}.
 export function specIssuesOf(
   issues: Issue[] | null | undefined,
-  isWriter: (issue: Issue) => boolean = writerIssue,
+  isWriter: (issue: Issue) => boolean,
 ) {
   const specs = new Map<string, Issue>(),
     duplicates: Issue[] = [];
@@ -167,6 +165,42 @@ export function specIssuesOf(
   return { specs, duplicates };
 }
 
+// Who counts as a writer (rule 8.2) is the author's real permission, read
+// through `permission` (login -> role), which the caller caches per login
+// for one pass. MEMBER and COLLABORATOR include read and triage, so they are
+// read. OWNER is the repository's owner, an admin. NONE, CONTRIBUTOR and the
+// first-time associations never have write, so those need no read.
+const WRITERS = new Set<unknown>(
+  PERMISSIONS.slice(PERMISSIONS.indexOf("write")),
+);
+const NOT_WRITERS = new Set([
+  "NONE",
+  "CONTRIBUTOR",
+  "FIRST_TIMER",
+  "FIRST_TIME_CONTRIBUTOR",
+  "MANNEQUIN",
+]);
+export async function writerSpecIssues(
+  issues: Issue[] | null | undefined,
+  permission: (login: string) => Promise<unknown>,
+) {
+  const writers = new Set<Issue>();
+  for (const issue of issues ?? []) {
+    if (issue.pull_request || (issue.state && issue.state !== "open")) continue;
+    if (!SPEC_MARK.test(issue.body ?? "")) continue;
+    const association = String(issue.author_association ?? "").toUpperCase(),
+      login = issue.user?.login ?? issue.author;
+    if (association === "OWNER") writers.add(issue);
+    else if (
+      !NOT_WRITERS.has(association) &&
+      login &&
+      WRITERS.has(await permission(login))
+    )
+      writers.add(issue);
+  }
+  return specIssuesOf(issues, (issue) => writers.has(issue));
+}
+
 const issueBody = (kind: string, id: string) =>
   [
     `This ${kind}'s one assignee drives it in Avoozl. Reassign it to hand the ${kind} to someone else.`,
@@ -177,8 +211,9 @@ const issueBody = (kind: string, id: string) =>
   ].join("\n");
 
 // Read every open spec and epic issue back from its hidden line, in each
-// repository with a GitHub name, and keep the oldest per spec. A newer open
-// issue for the same spec is a duplicate, and is closed (rule 8.2).
+// repository with a GitHub name, and keep the oldest per spec by an author
+// with write permission. A newer open issue for the same spec is a
+// duplicate, and is closed (rule 8.2).
 export async function readSpecIssues(
   store: Store,
   github: PublishGitHub | null | undefined,
@@ -197,23 +232,35 @@ export async function readSpecIssues(
   )) {
     const name = repository.github;
     if (!name) continue;
-    let issues: Issue[];
+    let issues: Issue[], specs: Map<string, Issue>, duplicates: Issue[];
     try {
       issues = await list(name, { state: "open" });
+      // One permission read per author per pass; none reads as no writer.
+      const roles = new Map<string, Promise<unknown>>();
+      ({ specs, duplicates } = await writerSpecIssues(issues, (login) => {
+        const key = lower(login);
+        if (!roles.has(key))
+          roles.set(
+            key,
+            Promise.resolve(github.permission?.(name, login)).then(
+              (read) => read?.permission ?? "none",
+            ),
+          );
+        return roles.get(key) as Promise<unknown>;
+      }));
     } catch (error) {
       errors.push({ repository: name, error: (error as Error).message });
       continue;
     }
-    const { specs, duplicates } = specIssuesOf(issues),
-      marked = [
-        ...[...specs].map(([id, issue]) => ({ level: "plan", id, issue })),
-        ...[...(issues ?? [])]
-          .sort((a, b) => a.number - b.number)
-          .flatMap((issue) => {
-            const id = EPIC_MARK.exec(issue.body ?? "")?.[1];
-            return id ? [{ level: "epic", id, issue }] : [];
-          }),
-      ];
+    const marked = [
+      ...[...specs].map(([id, issue]) => ({ level: "plan", id, issue })),
+      ...[...(issues ?? [])]
+        .sort((a, b) => a.number - b.number)
+        .flatMap((issue) => {
+          const id = EPIC_MARK.exec(issue.body ?? "")?.[1];
+          return id ? [{ level: "epic", id, issue }] : [];
+        }),
+    ];
     for (const issue of duplicates)
       if (github.updateIssue)
         try {

@@ -168,7 +168,7 @@ export async function stackMembers<E extends Member>(
     await git(root, ["worktree", "add", "--detach", "--quiet", dir, baseHead]);
     for (const entry of entries) {
       made.push(made.at(-1) ?? 0);
-      // No trailer or attribution (SM4.4): the subject alone.
+      // No trailer or attribution: the subject alone.
       const message = commitSubject(commitPrefix, `Land ${entry.key}`);
       let conflicted = false;
       try {

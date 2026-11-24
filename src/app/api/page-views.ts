@@ -452,7 +452,7 @@ export function graphView(
     input.plan || input.spec
       ? { plan: nonEmpty(input.plan), spec: nonEmpty(input.spec) }
       : null;
-  // The one graph model (simplify §D8): each stored spec's task list, the
+  // The one graph model: each stored spec's task list, the
   // draft spec folders, then every task no spec lists, such as a labeled
   // issue. The page draws its nodes in its order.
   const draft = draftGraph(data, folders, optionalList<Plan>(store, "plans")),

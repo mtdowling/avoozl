@@ -1,4 +1,4 @@
-// Stale claims in Needs you (simplify sim-1.3, SM2.4, §D3): a claim branch
+// Stale claims in Needs you: a claim branch
 // whose newest commit is older than `claims.staleHours` gives one Needs you
 // row for the spec issue's assignee; only a person deletes it, as the
 // high-risk claim-delete job behind the confirm and the CLI prompt.

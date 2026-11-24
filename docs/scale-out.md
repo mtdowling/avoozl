@@ -16,21 +16,20 @@ An epic is a parent spec whose task titles link one spec per part of the
 work, as [linked specs](github-workflow.md) describe. Each linked spec is
 approved and released on its own. Give each spec to the person who runs that
 part by assigning its spec issue to them alone: their runner starts its
-tasks, and every other runner leaves it alone. A parent spec's issue must name
-the same person. A spec with no spec issue is not shared, so every machine
-that holds it runs it. See
-[Spec issues and assignment](github-workflow.md#8-spec-issues-and-assignment)
-for the rule and [Labels](github-workflow.md#9-labels) for the label filters
-that also narrow it.
+tasks. Assign the parent spec's issue to the same person. A GitHub-backed
+spec waits for its issue. A local-only spec can run in its workspace. See
+[spec assignment](github-workflow.md#8-spec-issues-and-assignment) and
+[label filters](github-workflow.md#9-labels).
 
 A spec can wait on another when a parent spec links both and lists one first.
 See [Linked specs](github-workflow.md#6-linked-specs) for the rules.
 
 ### Handing off a spec
 
-Reassign the spec issue on GitHub. Each claim branch the old runner pushed
-stays, and the new runner resumes it. Nothing moves the spec because a machine
-went quiet.
+The current runner stops claiming tasks, pushes its claim branches and
+releases their leases. Then reassign the spec issue on GitHub. The new
+assignee's runner resumes the pushed work. See
+[the handoff order](github-workflow.md#8-spec-issues-and-assignment).
 
 ## Shared state in git
 
@@ -39,15 +38,15 @@ database is a cache that every machine builds from the same commits:
 
 | State | Where it lives |
 | --- | --- |
-| Spec text | `.kiro/specs/<name>/` on main |
-| Approval | A commit on main that changes the spec's files, authored by an approver |
-| Task done | The tick in `tasks.md` on the spec's base branch |
+| Spec text | `.kiro/specs/<name>/` on the specs branch |
+| Approval | A commit on the specs branch that changes the spec and carries approver evidence |
+| Task done | The tick in `tasks.md` on the [done branch](github-workflow.md#14-integration-branches) |
 | Who runs a spec | The spec issue's assignee on GitHub |
 | Who holds a task | Its claim branch on origin |
 
 A tick another person lands counts on your machine at your next tick, and so
-does one committed by hand. An approval counts on every machine that pulls
-main. For who counts as an approver, see
+does one committed by hand. An approval counts on every machine that reads
+the specs branch. For who counts as an approver, see
 [Approval](github-workflow.md#7-approval).
 
 A new machine, or a new coworker, clones the repository and runs
@@ -112,7 +111,6 @@ for the roles and their default harnesses.
 
 ## Limits
 
-- A spec with no spec issue is not shared: two machines that both hold it
-  both run it, and only the claim branches keep them off one task.
-- With `github.mode` set to `local` there is no spec issue, so this machine
-  runs every spec.
+- A GitHub-backed spec waits for its issue on every machine.
+- With `github.mode` set to `local`, the workspace runs its approved specs
+  without GitHub assignment.
