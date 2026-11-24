@@ -41,6 +41,7 @@
 import { commitSubject } from "./landing-config.ts";
 import { branchReviewRule } from "../github/github-branch-rules.ts";
 import { headGuardedMerge } from "./guarded-push.ts";
+import { mergedChecked } from "../workers/claim-rules.ts";
 import {
   landingRights,
   pushHead,
@@ -398,7 +399,15 @@ export function pullSteps({
       const pull = await findPull(github, target, entry, entry.base);
       if (pull?.state === "closed" && !pull.merged_at)
         return { closed: true, pr: pull.number };
-      if (!pull?.merged_at || pull.head?.sha !== entry.commit) return null;
+      // Rule 16.5: only a merge of the checked commit landed this portion.
+      if (
+        !pull ||
+        !mergedChecked(
+          { merged: Boolean(pull.merged_at), head: pull.head?.sha },
+          entry.commit,
+        )
+      )
+        return null;
       return {
         merged: true,
         candidate: entry.commit,
