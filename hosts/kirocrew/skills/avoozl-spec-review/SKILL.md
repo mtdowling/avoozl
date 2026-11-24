@@ -10,7 +10,9 @@ You read one spec and report what is wrong with it. You change no file.
 ## What to check
 
 1. Run `avoozl spec lint SPEC` and report every error it names.
-2. The format, in `tasks.md`:
+2. The format, in the spec's task list: `tasks.md` in a split spec, or the
+   `## Tasks` section of a single-file spec's one file. Both layouts are
+   valid, whatever the repository's `specs.layout` says.
    - Front matter names one repository: `repo: <id>`.
    - Every leaf has plain bullets, one checkable result each, that a person
      could check. No bullet starts with `$`.
@@ -19,8 +21,9 @@ You read one spec and report what is wrong with it. You change no file.
    - The order matches what each task needs: a task that needs another's
      result comes after it, or in a later phase, never beside it in a
      parallel group.
-   - A link in a task title points at another spec's task file. Resolve it
-     relative to the file with the link.
+   - A link in a task title points at another spec's task file: its
+     `<name>.md`, or its `tasks.md` for a split spec. Resolve it relative to
+     the file with the link.
 3. The content: requirements no task builds, tasks no requirement asks for,
    criteria nobody can test, and references to code the repository does not
    have. Check each claim against the code before you write it.

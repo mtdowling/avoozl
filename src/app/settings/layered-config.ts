@@ -12,7 +12,11 @@ import {
   type LandingConfig,
   validateLandingConfig,
 } from "../landing/landing-config.ts";
-import { specsPathProblem } from "../specs/specs-path.ts";
+import {
+  SPECS_LAYOUTS,
+  type SpecsLayout,
+  specsPathProblem,
+} from "../specs/specs-path.ts";
 import { branchNameProblem } from "../epics/integration-branch.ts";
 
 export const avoozlConfigSchemaPath = fileURLToPath(
@@ -50,7 +54,7 @@ export interface LayeredConfig extends LandingConfig {
   documents?: string;
   port?: number | string;
   host?: string;
-  specs?: { path?: string; branch?: string };
+  specs?: { path?: string; branch?: string; layout?: SpecsLayout };
   lanes?: Record<string, number>;
   [key: string]: unknown;
 }
@@ -392,9 +396,10 @@ export function globalAvoozlConfigPath({
 }
 
 // `specs`, where spec folders live: `path` (specs-path.mjs) and `branch`
-// (specs-branch.mjs). The symlink check needs the checkout, so specsPath
-// makes it when it reads.
-export const SPECS_KEYS = ["path", "branch"];
+// (specs-branch.mjs), and `layout`, the files the spec skills write for a new
+// spec. The symlink check needs the checkout, so specsPath makes it when it
+// reads.
+export const SPECS_KEYS = ["path", "branch", "layout"];
 function validateSpecs(value: unknown) {
   if (value === undefined) return;
   if (!isRecord(value)) throw Error("specs must be an object.");
@@ -410,6 +415,13 @@ function validateSpecs(value: unknown) {
   const problem =
     value.branch === undefined ? null : branchNameProblem(value.branch);
   if (problem) throw Error(`specs.branch: ${problem}`);
+  if (
+    value.layout !== undefined &&
+    !SPECS_LAYOUTS.includes(value.layout as SpecsLayout)
+  )
+    throw Error(
+      `specs.layout ${JSON.stringify(value.layout)} is not a layout; use ${SPECS_LAYOUTS.join(" or ")}.`,
+    );
 }
 export function loadLayeredConfig({
   workspaceRoot,

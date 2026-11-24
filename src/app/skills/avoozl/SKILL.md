@@ -91,7 +91,7 @@ Work you find mid-task has three dispositions. Normally the first applies:
 1. **In scope for the task you are doing.** Do it, and record the result as evidence on that task. Filing anything is the exception.
 2. **Related to the task's spec, but not this task.** Propose a task on that
    spec through `plan.propose` / `plans_plan {action: "propose"}` with
-   `{id, proposal}`. It adds a draft item to the spec's `tasks.md` and runs only
+   `{id, proposal}`. It adds a draft item to the spec's task list and runs only
    after a person approves the spec.
 
 3. **Needs a different design.** Draft a new plan and tell the user; a design decision is theirs.

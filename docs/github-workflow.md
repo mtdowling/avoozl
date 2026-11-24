@@ -141,6 +141,21 @@ Here, `c-1` is done, `c-2` is ready, and `## Notes` ends the task list.
 - **1.3** Files in subfolders, files that are not Markdown, and symlinks are
   not part of the spec.
 
+`specs.layout` in the spec repository's `.avoozl.json` picks the layout the
+spec skills write a new spec in: `single`, the default, or `kiro` for the
+split folder. A revised spec keeps the layout it has. The runner reads both
+layouts whatever the setting says, and any other value is refused when the
+settings load.
+
+```json
+{
+  "specs": {
+    "path": ".kiro/specs",
+    "layout": "single"
+  }
+}
+```
+
 ## 2. Tasks
 
 Start each task with `- [ ]` (open) or `- [x]` (done), followed by its ID and
