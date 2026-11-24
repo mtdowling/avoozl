@@ -42,6 +42,9 @@ import {
 import { fail, type Store } from "../store/store.ts";
 import { checksSetting } from "../workspace/repository-checks.ts";
 import { isolationSetting } from "../workspace/check-isolation.ts";
+import { type Repository, repositoryConfig } from "../git/git.ts";
+import { parseRepository } from "../github/github.ts";
+import { machineIdentity } from "../github/github-sync.ts";
 import { REPOSITORY_CONFIG_SCHEMA_URL } from "./config-schema.ts";
 
 const MAX_CONFIG_BYTES = 1024 * 1024;
@@ -921,6 +924,41 @@ export class RepositorySettings {
         });
       return this.metadata();
     }
+  }
+
+  // `avoozl rebuild` (design §4.42): the file's repositories and GitHub
+  // sources become rows again, as Add repository stores them. The file is
+  // only read. A checkout this machine lacks is skipped and named.
+  async restoreRepositories() {
+    const desired = desiredActions(
+        this.readFile().value,
+        this.realWorkspaceRoot,
+      ),
+      rows: (Repository & Obj)[] = [],
+      errors: string[] = [];
+    for (const [id, entry] of Object.entries(desired.repositories))
+      try {
+        rows.push({ ...entry, ...(await repositoryConfig({ id, ...entry })) });
+      } catch (error) {
+        errors.push(`Repository ${id}: ${messageOf(error)}`);
+      }
+    const sources = Object.entries(desired.github.issueIntake);
+    this.store.transaction(() => {
+      for (const row of rows) this.store.put("repositories", row);
+      for (const [id, settings] of sources)
+        this.store.put("github_repositories", {
+          ...parseRepository(id),
+          id,
+          ...settings,
+          activeMachine: machineIdentity(this.store).id,
+        });
+    });
+    this.reload();
+    return {
+      repositories: rows.map((row) => row.id),
+      github: sources.map(([id]) => id),
+      ...(errors.length ? { errors } : {}),
+    };
   }
 
   write(value: Obj, { expectedHash }: { expectedHash?: unknown } = {}) {

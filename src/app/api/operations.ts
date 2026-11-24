@@ -1003,12 +1003,16 @@ export class Operations {
         "Rebuild starts from an empty database. Move workspace.sqlite aside, then run it again.",
         409,
       );
+    // Repositories come back from .avoozl.json first: the approval
+    // checkouts and claims below read them.
+    const restored = (await this.configuration?.restoreRepositories()) ?? null;
     const result = await this.readFromGit();
     // Claims come back from the claim branches on origin (simplify §D3).
     const claimErrors = await refreshClaims(this.store, this.github),
       issues = await readSpecIssues(this.store, this.github);
     return {
       ...result,
+      ...(restored ? { repositories: restored } : {}),
       claims: [...claimedTaskIds(this.store)],
       specIssues: issues.found,
       ...(claimErrors.length || issues.errors.length

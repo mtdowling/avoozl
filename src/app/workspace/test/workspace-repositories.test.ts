@@ -4,7 +4,8 @@ import path from "node:path";
 import test from "node:test";
 import { Operations } from "../../api/operations.ts";
 import { RepositorySettings } from "../../settings/repository-settings.ts";
-import { fixture } from "../../test/fixtures.ts";
+import { Store } from "../../store/store.ts";
+import { fixture, snapshot } from "../../test/fixtures.ts";
 import { storedRow } from "../../test/view-shapes.ts";
 import { testRepository as repository } from "../../test/git-repository.ts";
 
@@ -100,6 +101,58 @@ test("unified repositories preserve legacy execution and GitHub records", async 
   );
   assert.equal(store.get("repositories", "compiler"), null);
   assert.equal(store.get("github_repositories", "example/compiler"), null);
+});
+
+test("a rebuilt database gets its repositories back from .avoozl.json", async (t) => {
+  const { root, store } = fixture(t),
+    checkout = path.join(root, "compiler"),
+    filename = path.join(root, ".avoozl.json");
+  repository(checkout);
+  await new Operations(store, {
+    configuration: new RepositorySettings(store, { workspaceRoot: root }),
+    github: new FakeGitHub(),
+  }).execute("repositories.configure", {
+    id: "compiler",
+    name: "Compiler",
+    localCheckout: checkout,
+    github: "example/compiler",
+    issueAuthorization: true,
+    assignee: "operator",
+    checks: [["npm", "test"]],
+  });
+  const before = {
+      repository: storedRow(store, "repositories", "compiler"),
+      github: storedRow(store, "github_repositories", "example/compiler"),
+    },
+    text = fs.readFileSync(filename, "utf8");
+
+  // Delete the database and rebuild it.
+  store.close();
+  for (const name of fs.readdirSync(root))
+    if (name.startsWith("workspace.sqlite")) fs.rmSync(path.join(root, name));
+  const rebuilt = new Store(path.join(root, "workspace.sqlite"));
+  t.after(() => rebuilt.close());
+  rebuilt.initialize(snapshot());
+  const result = await new Operations(rebuilt, {
+    configuration: new RepositorySettings(rebuilt, { workspaceRoot: root }),
+    github: new FakeGitHub(),
+  }).execute<{ repositories: unknown }>("workspace.rebuild", {});
+
+  assert.deepEqual(result.repositories, {
+    repositories: ["compiler"],
+    github: ["example/compiler"],
+  });
+  const restored = storedRow(rebuilt, "repositories", "compiler");
+  for (const key of ["root", "name", "checks", "github", "baseBranch"])
+    assert.deepEqual(restored[key], before.repository[key], key);
+  const github = storedRow(rebuilt, "github_repositories", "example/compiler");
+  for (const key of ["repositoryId", "assignee", "owner", "repo"])
+    assert.equal(github[key], before.github[key], key);
+  assert.equal(
+    fs.readFileSync(filename, "utf8"),
+    text,
+    "the file is unchanged",
+  );
 });
 
 test("a repository with a GitHub repository projects as one repository", (t) => {
