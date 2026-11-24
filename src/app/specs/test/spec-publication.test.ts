@@ -429,3 +429,73 @@ test("a local-only workspace publishes nothing on approval", async (t) => {
   );
   assert.equal(github.created.length, 0);
 });
+
+// A spec approved before its checkout had a GitHub name: never queued, no
+// github.configure row, no github.mode. The checkout's GitHub name is enough.
+async function approvedEarlier(t: TestContext, login = "maintainer") {
+  const w = await workspace(t);
+  await w.ops.execute("plan.approve", {
+    id: w.plan.id,
+    expectedHash: w.plan.hash,
+    expectedRevision: w.store.read().revision,
+  });
+  const plan = storedRow(w.store, "plans", w.plan.id),
+    approval = storedRow(w.store, "approvals", String(plan.approvalId));
+  w.store.db.prepare("UPDATE approvals SET body=? WHERE id=?").run(
+    JSON.stringify({
+      ...approval,
+      approvedBy: "maintainer@example.com",
+      approval: { kind: "commit", commit: "c1" },
+    }),
+    String(plan.approvalId),
+  );
+  w.store.put("repositories", {
+    ...storedRow(w.store, "repositories", "code"),
+    github: REPOSITORY,
+  });
+  const github = new PublishingGitHub();
+  github.login = login;
+  let commits = 0;
+  github.commit = async () => {
+    commits += 1;
+    return { author: { login: "maintainer" } };
+  };
+  const run = () =>
+    publishApproved(w.store, {
+      github,
+      identity: planningIdentity(w.root),
+      homeOf: async () => REPOSITORY,
+    });
+  return { ...w, github, run, commits: () => commits };
+}
+
+test("the tick publishes an approved spec with work left that was never queued", async (t) => {
+  const w = await approvedEarlier(t);
+  assert.equal(w.store.list("github_repositories").length, 0);
+  assert.deepEqual(await w.run(), []);
+  assert.equal(w.github.created.length, 1);
+  assert.match(
+    w.github.created[0]?.body ?? "",
+    /^<!-- avoozl-spec:config -->$/m,
+  );
+  assert.deepEqual(await w.run(), []);
+  assert.equal(w.github.created.length, 1, "published once");
+});
+
+test("the tick makes no issue for an approved spec whose work is all done", async (t) => {
+  const w = await approvedEarlier(t);
+  w.store.mutate("Finish the spec", (data) => {
+    for (const task of data.tasks)
+      if (task.planId === w.plan.id) task.status = "accepted";
+  });
+  assert.deepEqual(await w.run(), []);
+  assert.equal(w.github.created.length, 0);
+});
+
+test("a runner that did not approve an unqueued spec reads its commit once", async (t) => {
+  const w = await approvedEarlier(t, "someone-else");
+  await w.run();
+  await w.run();
+  assert.equal(w.github.created.length, 0);
+  assert.equal(w.commits(), 1);
+});
