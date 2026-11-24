@@ -84,15 +84,14 @@ function fake(given: Partial<State> = {}, { graphql = true } = {}) {
     }),
     ...(graphql
       ? {
-          graphql: async <T>() =>
-            ({
-              repository: {
-                i12:
-                  issue.edited === undefined
-                    ? {}
-                    : { lastEditedAt: issue.edited },
-              },
-            }) as T,
+          graphql: async () => ({
+            repository: {
+              i12:
+                issue.edited === undefined
+                  ? {}
+                  : { lastEditedAt: issue.edited },
+            },
+          }),
         }
       : {}),
     createIssueComment: async (...args: unknown[]) => {

@@ -363,23 +363,47 @@ test("avoozl land lands a claimed task now by its repository's mode, and refuses
   assert.equal((await land("t2", { local: true })).state, "done");
 });
 
-test("a labeled issue landed directly is closed with a comment naming the landed commit", async (t) => {
+test("a labeled issue landed directly is checked again and closed with a comment naming the landed commit", async (t) => {
   const w = await workspace(t);
   w.store.put("repositories", {
     ...storedRow(w.store, "repositories", "app"),
     github: "acme/app",
+    labels: { require: ["agent-ok"] },
   });
   w.store.mutate("Issue task", (data) => {
     data.tasks.push({
       ...leaf("issue-12"),
       planId: undefined,
-      labeledIssue: { repository: "acme/app", number: 12 },
+      labeledIssue: {
+        repository: "acme/app",
+        number: 12,
+        event: { id: "501", createdAt: "2026-11-20T10:00:00Z" },
+      },
+      approvedSource: { text: "x", hash: digest("Fix it\n\nx") },
     });
   });
   const calls: unknown[][] = [],
     github = partialFake<LandGitHub>({
       deleteBranch: async () => null,
-      issue: async () => ({ state: "open", labels: [] }),
+      personLogin: async () => "mona",
+      issue: async () => ({
+        state: "open",
+        title: "Fix it",
+        body: "x",
+        labels: [{ name: "agent-ok" }],
+        assignees: [{ login: "mona" }],
+      }),
+      issueEvents: async () => [
+        {
+          id: 501,
+          event: "labeled",
+          created_at: "2026-11-20T10:00:00Z",
+          label: { name: "agent-ok" },
+          actor: { login: "mona" },
+        },
+      ],
+      permission: async () => ({ permission: "write" }),
+      graphql: async () => ({ repository: { i12: { lastEditedAt: null } } }),
       createIssueComment: async (repo: string, number: number, body: string) =>
         calls.push(["comment", repo, number, body]),
       updateIssue: async (

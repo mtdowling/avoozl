@@ -38,11 +38,11 @@ interface Issue {
 // issues were last edited; without it every issue is refused (rule 11.4).
 export interface IssueReads extends LabelReader {
   issueEvents?(repository: string, number: number): Promise<IssueEvent[]>;
-  graphql?<T = unknown>(
+  graphql?(
     query: string,
     variables: Record<string, unknown>,
     what: string,
-  ): Promise<T | undefined>;
+  ): Promise<unknown>;
 }
 // The GitHub reads and writes labeled issues make.
 interface IssueGitHub extends IssueReads {
@@ -123,11 +123,11 @@ async function editTimes(
     fields = valid
       .map((n) => `i${n}: issue(number: ${n}) { lastEditedAt }`)
       .join(" "),
-    data = await github.graphql<EditReply>(
+    data = (await github.graphql(
       `query($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { ${fields} } }`,
       { owner, name },
       "read when labeled issues were edited",
-    );
+    )) as EditReply | null | undefined;
   for (const n of valid) {
     const node = data?.repository?.[`i${n}`];
     if (node && node.lastEditedAt !== undefined)
