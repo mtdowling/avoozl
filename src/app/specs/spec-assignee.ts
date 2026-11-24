@@ -2,7 +2,9 @@
 // its spec issue, and the spec issue of every parent spec that links it, is
 // assigned to this runner's own login and to no one else. Each pass reads the
 // spec issues once and caches each spec's result; the ready rule reads the
-// cache. A spec with no spec issue is not shared, so it runs here.
+// cache. A spec in a GitHub-backed repository with no spec issue waits for
+// it to be published; a spec in a repository with no GitHub name is
+// local-only and runs here.
 import { personOf } from "../github/github.ts";
 import { specChain } from "./integration-base.ts";
 import { storedLinks } from "./order.ts";
@@ -106,11 +108,12 @@ export async function readSpecAssignees(
 }
 
 // Plan ID -> why the assignee rule holds it, for each spec whose own spec
-// issue, or a parent spec's, is not assigned to this runner alone.
+// issue, or a parent spec's, is not assigned to this runner alone. A spec
+// with a task in a repository with a GitHub name waits until its spec issue
+// is published; a repository with no GitHub name is local-only and runs.
 export function assigneeHolds(store: Store) {
   const results = store.getMeta<Record<string, Assigned>>(META) ?? {},
     holds = new Map<string, string>();
-  if (!Object.keys(results).length) return holds;
   const links = storedLinks(store);
   for (const plan of store.list<Plan>("plans")) {
     if (!plan.spec || plan.deletedAt) continue;
@@ -123,6 +126,30 @@ export function assigneeHolds(store: Store) {
         plan.id,
         `assignee: ${failed === plan.spec ? "" : `parent spec ${failed}: `}${result.reason}`,
       );
+  }
+  const onGitHub = new Set(
+    store
+      .list<{ id: string; github?: string | null }>("repositories")
+      .filter((repository) => repository.github)
+      .map((repository) => repository.id),
+  );
+  if (!onGitHub.size) return holds;
+  const specs = new Set(
+    store
+      .list<Plan>("plans")
+      .filter((plan) => plan.spec && !plan.deletedAt)
+      .map((plan) => plan.id),
+  );
+  for (const task of store.read().tasks) {
+    const planId = task.planId,
+      repository = task.repository ?? task.repositoryId;
+    if (!planId || holds.has(planId) || !specs.has(planId)) continue;
+    if (
+      typeof repository === "string" &&
+      onGitHub.has(repository) &&
+      !store.get<Receipt>("receipts", `github-parent:plan:${planId}`)?.number
+    )
+      holds.set(planId, "assignee: spec issue not published yet");
   }
   return holds;
 }

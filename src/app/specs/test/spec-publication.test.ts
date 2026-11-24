@@ -7,6 +7,7 @@ import {
   publishApproved,
   publishSpec,
   queuePublish,
+  readSpecIssues,
 } from "../spec-publication.ts";
 import { planningIdentity } from "../../github/github-marker.ts";
 import { fixture } from "../../test/fixtures.ts";
@@ -356,6 +357,49 @@ test("an open issue with the spec's marker is used, not made again", async (t) =
     storedRow(w.store, "receipts", `github-parent:plan:${w.plan.id}`).number,
     5,
   );
+});
+
+test("an older marker issue by a read-only member loses to the writer's newer one", async (t) => {
+  const w = await queued(t, { proof: { mergedBy: "maintainer" } });
+  w.store.put("repositories", {
+    ...storedRow(w.store, "repositories", "code"),
+    github: REPOSITORY,
+  });
+  const issue = (number: number, login: string) => ({
+    id: number,
+    node_id: `issue-${number}`,
+    number,
+    repository: REPOSITORY,
+    state: "open",
+    labels: [],
+    title: "Spec config",
+    html_url: `https://example.test/issues/${number}`,
+    assignees: [],
+    author_association: "MEMBER",
+    user: { login },
+    body: "<!-- avoozl-spec:config -->",
+  });
+  w.github.listIssues = async () => [
+    issue(5, "reader"),
+    issue(6, "reader"),
+    issue(9, "maintainer"),
+  ];
+  w.github.permissions.set("reader", "read");
+  w.github.permissions.set("maintainer", "write");
+  const asked: string[] = [],
+    permission = w.github.permission.bind(w.github);
+  w.github.permission = (repository, login) => {
+    asked.push(login);
+    return permission(repository, login);
+  };
+  assert.deepEqual((await readSpecIssues(w.store, w.github)).errors, []);
+  assert.equal(
+    storedRow(w.store, "receipts", `github-parent:plan:${w.plan.id}`).number,
+    9,
+  );
+  // Nothing is closed, and each author's permission is read once.
+  assert.deepEqual(w.github.updated, []);
+  assert.deepEqual(asked, ["reader", "maintainer"]);
 });
 
 test("a failed publish stays queued for the next tick", async (t) => {
