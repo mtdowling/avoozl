@@ -209,17 +209,7 @@ settings, are refused over MCP. `avoozl help` lists the CLI commands.
 
 ## Issue handoff
 
-A customer reports that exporting a contact named `Doe, Jane` splits the
-name across two CSV columns. Your triage tool files a GitHub issue with
-steps to reproduce the bug and asks for the full name to stay in one column.
-
-With the issue loop on, assign the issue to Avoozl's runner and have someone
-with write access apply the configured label. Avoozl takes the fix as one
-task and runs the repository's checks. If you've configured draft pull
-requests, it opens one so you can review and merge the fix yourself.
-
-See [Labeled issues](docs/github-workflow.md#11-labeled-issues) for the
-handoff.
+Avoozl can also fix issues for you when labeled issue handoff is enabled.
 
 ## Documentation
 
