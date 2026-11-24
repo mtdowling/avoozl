@@ -297,51 +297,50 @@ inline or reference-style.
 
 ## 7. Approval
 
-To approve a spec, add it or edit its text in a commit on the specs branch.
-The commit must carry one of the forms of approval evidence in rule 7.2.
-It approves the full text of each spec it adds or edits, as it appears in
-that commit. Compare the commit with its first parent to see what changed.
+A teammate opens a pull request with a spec for a new parser. If you're one
+of the repository's approvers, review the spec and merge the pull request
+into the branch where your team keeps its specs. That merge approves the
+version of the spec that lands.
 
-A tick marks a task complete by checking its box. Approval comes from
-changes to the spec text, so the runner keeps the prior approval status
-when a commit only checks a box, whoever commits it.
+Suppose someone later adds a requirement to report line numbers. The runner
+needs approval for that revised spec before it can run any of its tasks.
+Checking off an existing task just records that the work is done.
 
-```diff
--- [ ] `p-1` Read the token table
-+- [x] `p-1` Read the token table
-```
+- **[7.1](github-workflow-scenarios.md#rule-71)** **Approving a change.** Anyone
+  MAY open a pull request to add or update a spec. An approver can merge it
+  into the specs branch or push the change directly to that branch. Approval
+  covers the full text of each spec the commit adds or changes. To identify
+  those specs, compare the commit with its first parent. The runner MUST
+  accept any commit message and committer identity, including GitHub's
+  identity on a squash merge.
+- **[7.2](github-workflow-scenarios.md#rule-72)** **Verifying the approver.** The
+  runner MUST verify approval in one of the following ways and say which one
+  it used.
+  - **Pull request.** GitHub's `merged_by` field names an approver as the
+    person who merged the pull request that produced this commit.
+  - **Signature.** GitHub verified the commit signature and identifies the
+    signer as an approver. A signature from GitHub itself identifies only
+    GitHub.
+  - **Protected branch.** The repository declares that its branch protection
+    allows only approvers to push or merge into the specs branch, and the
+    commit names an approver as its author.
 
-- **[7.1](github-workflow-scenarios.md#rule-71)** An approver approves by
-  merging a pull request that changes the spec, or by pushing a commit to the
-  specs branch. Anyone MAY open the pull request. A runner MUST NOT require
-  anything of the commit message or the committer, so a squash merge made by
-  GitHub counts.
-- **[7.2](github-workflow-scenarios.md#rule-72)** A commit approves only with
-  evidence that an approver stands behind it. The evidence MUST be one of
-  these:
-  - the commit is the merge commit of a pull request whose GitHub `merged_by`
-    is an approver;
-  - the commit has a GitHub-verified signature, and the account that signed it
-    is an approver (a signature by GitHub itself, as on a web merge, names no
-    approver);
-  - the repository declares that branch protection lets only approvers push to
-    and merge into the specs branch, and the commit's author is an approver.
-
-  Under the first two, the author's name and email prove nothing, because
-  anyone can write them. A commit with none of the three approves nothing. A
-  runner MUST say which of the three it uses.
-- **[7.3](github-workflow-scenarios.md#rule-73)** A spec is approved when its
-  current spec text equals the text the latest approval left. The current text
-  is read on the task's done branch. A runner MUST NOT run a task of a spec that
-  is not approved. A change that returns the text to the approved text approves
-  the spec again.
-- **[7.4](github-workflow-scenarios.md#rule-74)** A commit that changes only
-  task checkboxes is not an approval and does not end one.
-- **[7.5](github-workflow-scenarios.md#rule-75)** A runner's commit to a specs
-  branch MAY change only task checkboxes in spec files. This holds on another
-  repository's specs branch too, as for a tick under 6.3 or 16.2. Such a commit
-  needs no approval and approves nothing (7.4). A task that writes spec text
-  lands by a pull request that an approver merges (7.1).
+  Anyone can set a commit's author name and email. The runner can rely on
+  those fields only under the protected branch rule above. Without one of
+  these three checks, the commit cannot grant approval.
+- **[7.3](github-workflow-scenarios.md#rule-73)** **Running a task.** The runner
+  MUST run a task only if the spec text matches the latest approved version.
+  It reads the text from the branch that records the task's completion (the
+  done branch). Restoring the exact approved text restores approval.
+- **[7.4](github-workflow-scenarios.md#rule-74)** **Recording progress.** Ignore
+  task checkboxes when comparing spec text. If a commit changes only
+  checkboxes, an approved spec stays approved and a spec awaiting approval
+  still needs it. This applies even when an approver makes the commit.
+- **[7.5](github-workflow-scenarios.md#rule-75)** **Updating a spec from a task.**
+  In spec files on a specs branch, the runner MAY update only task checkboxes.
+  It can record completion this way in its own repository or another one
+  (6.3, 16.2). If the task changes the spec text, the runner submits the
+  change in a pull request for an approver to merge.
 
 ## 8. Spec issues and assignment
 
