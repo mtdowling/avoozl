@@ -44,10 +44,17 @@ export function reachable(graph: Graph, from: string, to: string) {
   return false;
 }
 
-// Rule 16.5: a claim holds landed work when its head differs from the start
-// commit its lease records and is in the base, or its pull request merged
-// with a head that differs from that start. A fresh claim's head is its
-// start, which is already in the base, so it holds none.
+// Rule 16.5: whether a pull request merged with the checked commit as its
+// head. A merge of any other head landed something else.
+export const mergedChecked = (
+  pull: { merged?: boolean; head?: string } | null | undefined,
+  checked: string,
+) => Boolean(pull?.merged) && pull?.head === checked;
+
+// Rule 16.5: a claim holds landed work when `head`, the checked work commit,
+// differs from the start commit its lease records and either the base holds
+// it or its pull request merged with it as the head. A fresh claim's head is
+// its start, which is already in the base, so it holds none.
 export function landedWork({
   graph,
   start,
@@ -61,8 +68,8 @@ export function landedWork({
   baseHead: string;
   pull?: { merged?: boolean; head?: string } | null;
 }) {
-  if (head !== start && reachable(graph, head, baseHead)) return true;
-  return Boolean(pull?.merged) && pull?.head !== start;
+  if (head === start) return false;
+  return reachable(graph, head, baseHead) || mergedChecked(pull, head);
 }
 
 // Rule 15.3: GitHub moves a branch only forward, so a push is accepted when
@@ -111,8 +118,15 @@ export function runnerLimit(action: Action, { login }: { login: string }) {
       return action.assignees?.length === 1 && action.assignees[0] === login
         ? null
         : "20.7";
+    // An approver's reply may answer a pending action the runner named;
+    // comment text never changes a task, runs a command or lands work.
+    // shortcut: `follow-text` is `answer-pending-action` until the kit case
+    // limit-20-8 moves to the split kinds.
     case "follow-text":
+    case "answer-pending-action":
       return action.approverReply ? null : "20.8";
+    case "follow-comment-text":
+      return "20.8";
     case "run-command":
       return action.repositoryCheck ? null : "20.9";
     case "write-public":
