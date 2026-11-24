@@ -202,6 +202,8 @@ export interface RepositoryForm {
   priority: string
   // conflicts.maxAttempts; blank is the default.
   maxAttempts: string
+  // conflicts.mode: fix or ask; blank is fix.
+  conflictMode: string
   // The landing block (design §4.25): landing.mode (direct, pr,
   // off), landing.pr and landing.method (squash or merge). Blank reads
   // the default.
@@ -262,6 +264,7 @@ export function emptyRepository(name = ''): RepositoryForm {
     requiredChecks: '',
     priority: '',
     maxAttempts: '',
+    conflictMode: '',
     landingMode: '',
     prMode: '',
     mergeMethod: '',
@@ -288,6 +291,7 @@ export function toForm(github: Policy): SettingsForm {
         requiredChecks: joined(entry.requiredChecks),
         priority: joined(entry.priorityLabels),
         maxAttempts: str(record(entry.conflicts).maxAttempts),
+        conflictMode: str(record(entry.conflicts).mode),
         landingMode: str(record(entry.landing).mode),
         prMode: str(record(entry.landing).pr),
         mergeMethod: str(record(entry.landing).method),
@@ -326,7 +330,7 @@ export function toPolicy(form: SettingsForm): Policy {
               requiredChecks: splitList(repository.requiredChecks),
               priorityLabels: splitList(repository.priority),
               conflicts: (() => {
-                const conflicts = compact({ ...record(repository.rest.conflicts), maxAttempts: count(repository.maxAttempts) })
+                const conflicts = compact({ ...record(repository.rest.conflicts), maxAttempts: count(repository.maxAttempts), mode: blank(repository.conflictMode) })
                 return Object.keys(conflicts).length ? conflicts : undefined
               })(),
               // One landing block.
@@ -646,6 +650,15 @@ export function settingsTabOnEnter<T extends string>(from: string, to: string, c
 
 // The default number of landing conflict tries.
 export const CONFLICT_DEFAULTS = { maxAttempts: '2' } as const
+// What a conflict with the base does (conflicts.mode).
+export const CONFLICT_MODES = ['fix', 'ask'] as const
+export const CONFLICT_MODE_TEXT = {
+  fix: {
+    title: 'Fix it in the same pull request',
+    line: "The task's worker merges the base into its branch. Avoozl pushes it only if every line the base added is kept or explained, then comments on the pull request.",
+  },
+  ask: { title: 'Ask me', line: 'Every conflict waits for you in Needs you.' },
+} as const
 
 // How a pull request lands.
 export const MERGE_METHODS = ['squash', 'merge'] as const

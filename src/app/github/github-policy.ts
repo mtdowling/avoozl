@@ -1,5 +1,9 @@
 import { kirocrewSessionSettings } from "../executors/kirocrew.ts";
-import { LANDING_MODES, PR_MODES } from "../landing/landing-config.ts";
+import {
+  CONFLICT_MODES,
+  LANDING_MODES,
+  PR_MODES,
+} from "../landing/landing-config.ts";
 // Repository policy in `.avoozl.json` (design §4.4): GitHub mode, task
 // authority, the Project, and per-repository settings. No label is an
 // order. Validation is deterministic; the one check that needs GitHub (base
@@ -22,7 +26,7 @@ export interface RepositoryPolicy {
   priorityLabels: string[];
   waitingLabels: string[];
   discussions: { categories: string[] } | null;
-  conflicts: { maxAttempts: number | null };
+  conflicts: { maxAttempts: number | null; mode: string | null };
   landing: {
     mode: string | null;
     pr: string | null;
@@ -84,7 +88,7 @@ export const GITHUB_BLOCK_KEYS = Object.freeze({
     "conflicts",
     "landing",
   ],
-  conflicts: ["maxAttempts"],
+  conflicts: ["maxAttempts", "mode"],
   landing: ["mode", "pr", "method", "mergeBatch", "commitPrefix"],
 });
 // Who counts when a repository names nobody.
@@ -239,7 +243,7 @@ function approvalTrustInput(value: unknown, label: string): string | null {
 
 const MAX_ATTEMPTS = 10;
 // How many times a landing conflict goes back to the worker (R87.6); unset
-// is 2.
+// is 2. `mode` is fix (unset) or ask.
 function conflictsInput(value: unknown, label: string) {
   const input = onlyKeys(value ?? {}, GITHUB_BLOCK_KEYS.conflicts, label);
   const count = input.maxAttempts ?? null;
@@ -253,7 +257,10 @@ function conflictsInput(value: unknown, label: string) {
     fail(
       `${label}.maxAttempts must be a whole number from 0 to ${MAX_ATTEMPTS}.`,
     );
-  return { maxAttempts: count as number | null };
+  const mode = input.mode ?? null;
+  if (mode !== null && !CONFLICT_MODES.includes(mode as string))
+    fail(`${label}.mode must be fix or ask.`);
+  return { maxAttempts: count as number | null, mode: mode as string | null };
 }
 
 // How a pull request lands: `squash` (one commit per pull request on the base) or `merge`.

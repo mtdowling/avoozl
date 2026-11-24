@@ -13,6 +13,12 @@
 //   (`sendConflictBack`), each for the repository's `conflicts.maxAttempts` rounds.
 // - A queued task whose base moved is withdrawn; integrateVerified then
 //   merges the base into it and it is verified again before it re-queues.
+// - A conflict is fixed in the same pull request (landing-conflicts.ts),
+//   unless a person opened it; the fix's notes go on it as one comment.
+// - In `auto` mode a pull request whose checks passed on a head that
+//   contains the base, and that waits only for a review, gets GitHub
+//   auto-merge armed for that head (workflow rule 17.7). A base merge makes
+//   a new head, which is armed again once its checks pass.
 //
 // shortcut: a landed task's worktree is kept and batches do not land by
 // pull request; upgrade with the worktree cleanup after landing (40.4).
@@ -40,10 +46,13 @@ import { landingSettings } from "./landing-config.ts";
 import { readGitHubPolicyOrNull } from "../github/github-policy.ts";
 import { localRequired } from "../plugins/check-stages.ts";
 import {
+  bothSides,
+  postConflictNotes,
   reopenAttempt,
   roundFinish,
   sendConflictBack,
 } from "./landing-conflicts.ts";
+import { asJob } from "../github/github-jobs.ts";
 import { listSessionBindings } from "../sessions/session-bindings.ts";
 import { publicTaskName } from "../specs/spec-scheduler.ts";
 import { landingSpecOf } from "../specs/labeled-issues.ts";
@@ -88,6 +97,30 @@ const fenced = (text: string) => {
   return `${ticks}\n${text}\n${ticks}`;
 };
 const ERRORS = "prLandingErrors";
+// The GitHub calls conflict notes and auto-merge add to pull request landing.
+export interface LandingGitHub {
+  createIssueComment(
+    repository: string,
+    number: number,
+    body: string,
+  ): Promise<unknown>;
+  compareCommits(
+    repository: string,
+    base: string,
+    head: string,
+  ): Promise<{ behind_by?: number } | null>;
+  enablePullRequestAutoMerge(
+    nodeId: string,
+    options: { head: string; method: string },
+  ): Promise<unknown>;
+}
+// A pull request read, in the fields these steps add to landing's own.
+type Opened = {
+  node_id?: string;
+  user?: { login?: string } | null;
+  auto_merge?: unknown;
+  head?: { sha?: string };
+} | null;
 export const isPullRequestLanding = (repository: { landing?: string } | null) =>
   repository?.landing === "pr";
 
@@ -392,6 +425,113 @@ export function markLanded(
   });
 }
 
+// The login of a person who opened the pull request, or null when Avoozl's
+// own login did. A person's pull request keeps its conflict for them.
+async function personOpened(
+  github: NonNullable<LandOptions["github"]>,
+  target: string,
+  pr: number | undefined,
+  login: string,
+) {
+  if (!pr || !login) return null;
+  const author = ((await github.pullRequest(target, pr)) as Opened)?.user
+    ?.login;
+  return author && author.toLowerCase() !== login.toLowerCase() ? author : null;
+}
+
+// GitHub said only that the pull request conflicts: the files both sides
+// changed, read after fetching the base, name what to resolve.
+async function conflictedFiles(
+  repository: Repository,
+  entry: QueueEntry & { baseHead?: string | null; files?: string[] },
+  env: NodeJS.ProcessEnv | undefined,
+) {
+  if (!entry.baseHead || entry.files?.some((f) => !/^\(.*\)$/.test(f)))
+    return entry;
+  await syncBase(repository, { env }).catch(() => null);
+  const files = await bothSides(
+    repository.root,
+    entry.commit,
+    entry.baseHead,
+  ).catch(() => []);
+  return files.length ? { ...entry, files } : entry;
+}
+
+// Arms GitHub auto-merge on a queued `auto` pull request whose checks passed
+// and which waits only for a review, once per head (rule 17.7). The head
+// must contain the base (GitHub's compare shows it behind by nothing). A
+// labeled issue's pull request is left to the tick's own merge, which checks
+// the issue again first (R12.4). Returns true when it armed.
+export async function armAutoMerge(
+  store: Store,
+  github: NonNullable<LandOptions["github"]>,
+  {
+    target,
+    base,
+    entry,
+    method,
+    now = Date.now(),
+  }: {
+    target: string;
+    base: string;
+    entry: QueueEntry;
+    method: string;
+    now?: number;
+  },
+) {
+  const head = entry.waiting?.candidate;
+  if (entry.state !== "queued" || entry.waiting?.reason !== "review")
+    return false;
+  if (
+    !entry.pr ||
+    !head ||
+    (entry.autoMerge as { commit?: string })?.commit === head
+  )
+    return false;
+  if (entry.tasks.some((t) => typeof t === "object" && t.closes)) return false;
+  const note = (fields: Record<string, unknown>) =>
+    store.transaction(() => {
+      const current = store.get<QueueEntry>("landing_queue", entry.id);
+      if (current?.state === "queued" && current.commit === entry.commit)
+        store.put("landing_queue", {
+          ...current,
+          autoMerge: {
+            commit: head,
+            at: new Date(now).toISOString(),
+            ...fields,
+          },
+        });
+    });
+  const compared = await github
+    .compareCommits(target, base, head)
+    .catch(() => null);
+  if (!compared) return false;
+  if (Number(compared.behind_by ?? 0) > 0) {
+    note({ armed: false, why: "behind the base" });
+    return false;
+  }
+  const pull = (await github.pullRequest(target, entry.pr)) as Opened;
+  if (pull?.head?.sha !== head || !pull.node_id) return false;
+  if (pull.auto_merge) {
+    note({ armed: true });
+    return false;
+  }
+  try {
+    await asJob("land", github).enablePullRequestAutoMerge(pull.node_id, {
+      head,
+      method,
+    });
+    note({ armed: true });
+    return true;
+  } catch (error) {
+    note({
+      armed: false,
+      why: String((error as Error).message).split("\n")[0],
+    });
+    return false;
+  }
+}
+
 // One step for each `pr` repository's queue. Returns {notify, messages}.
 export async function landPullRequests(
   store: Store,
@@ -473,10 +613,31 @@ export async function landPullRequests(
         const sent = sendFailureBack(store, result, { rounds: tries, now });
         messages.push(...sent.messages);
         notify.push(...sent.notify);
-      } else if (result.state === "conflict") {
-        const sent = sendConflictBack(store, result, { rounds: tries, now });
+      } else if (result.state === "conflict" && result.entry) {
+        const entry = await conflictedFiles(repository, result.entry, env),
+          sent = sendConflictBack(
+            store,
+            { state: "conflict", entry },
+            {
+              rounds: tries,
+              now,
+              mode: landing.conflictMode,
+              person: await personOpened(github, target, entry.pr, githubLogin),
+            },
+          );
         messages.push(...sent.messages);
         notify.push(...sent.notify);
+      }
+      if (result.entry?.pr && result.state !== "closed") {
+        await postConflictNotes(store, github, target, result.entry, now);
+        if (landing.pr === "auto" && result.state === "waiting")
+          await armAutoMerge(store, github, {
+            target,
+            base,
+            entry: result.entry,
+            method: landing.method,
+            now,
+          });
       }
     } catch (thrown) {
       const error = thrown as Error & { contention?: boolean };

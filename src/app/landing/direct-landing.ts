@@ -41,7 +41,7 @@ import { finishLanded } from "./landed-work.ts";
 import type { PullGitHub } from "./landing-pulls.ts";
 import { fail, type Store } from "../store/store.ts";
 import type { Notice } from "../tick/notifications.ts";
-import type { Message } from "./pr-landing.ts";
+import type { LandingGitHub, Message } from "./pr-landing.ts";
 import { landingSpecOf } from "../specs/labeled-issues.ts";
 import { repositoryChecks } from "../workspace/repository-checks.ts";
 import { pluginChecksOf } from "../plugins/plugin-checks.ts";
@@ -102,7 +102,9 @@ export function queueDirect(
 // `only`, one repository to land.
 export interface LandOptions {
   github?:
-    | (NonNullable<Parameters<typeof finishLanded>[1]> & PullGitHub)
+    | (NonNullable<Parameters<typeof finishLanded>[1]> &
+        PullGitHub &
+        LandingGitHub)
     | null;
   workspaceRoot?: string | null;
   rounds?: number | ((repository: Repository) => number);
@@ -219,10 +221,7 @@ export async function landDirect(
             ? sendConflictBack(
                 store,
                 { state: "conflict", entry: sent.entry },
-                {
-                  rounds: tries,
-                  now,
-                },
+                { rounds: tries, now, mode: setting.conflictMode },
               )
             : sendFailureBack(
                 store,
@@ -287,7 +286,11 @@ export async function landDirect(
         notify.push(...sent.notify);
         if (result.entry) await dropMember(repository.root, result.entry);
       } else if (result.state === "conflict") {
-        const sent = sendConflictBack(store, result, { rounds: tries, now });
+        const sent = sendConflictBack(store, result, {
+          rounds: tries,
+          now,
+          mode: setting.conflictMode,
+        });
         messages.push(...sent.messages);
         notify.push(...sent.notify);
         if (result.entry) await dropMember(repository.root, result.entry);

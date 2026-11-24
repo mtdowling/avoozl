@@ -30,6 +30,27 @@ export const leaf = (id: string, extra: Partial<Task> = {}): Task => ({
   ...extra,
 });
 
+// A clone of `origin` at `dir` that can commit.
+export function cloneOf(origin: string, dir: string) {
+  git(path.dirname(dir), "clone", "-q", origin, dir);
+  git(dir, "config", "user.name", "Test");
+  git(dir, "config", "user.email", "test@example.com");
+  return dir;
+}
+
+// A bare `origin.git` under `root` whose main has one commit (README.md),
+// and its clone `app`. Returns their paths, the checkout's real path.
+export function originCheckout(root: string) {
+  const origin = path.join(root, "origin.git");
+  git(root, "init", "--bare", "-b", "main", origin);
+  const checkout = cloneOf(origin, path.join(root, "app"));
+  fs.writeFileSync(path.join(checkout, "README.md"), "app\n");
+  git(checkout, "add", ".");
+  git(checkout, "commit", "-qm", "Start");
+  git(checkout, "push", "-q", "origin", "main");
+  return { origin, checkout: fs.realpathSync.native(checkout) };
+}
+
 // A git checkout at `dir` on main with one commit: README.md and any
 // `files` (path -> text). Returns its real path.
 export function gitCheckout(dir: string, files: Files = {}) {

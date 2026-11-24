@@ -1162,14 +1162,19 @@
         "conflicts": {
           "type": "object",
           "additionalProperties": false,
-          "description": "How many times a landing conflict goes back to the worker before it asks a person.",
+          "description": "What a conflict with the base does, and how many times work goes back to the worker before it asks a person.",
           "properties": {
             "maxAttempts": {
               "type": "integer",
               "minimum": 0,
               "maximum": 10,
               "default": 2,
-              "description": "Tries per conflict before a person is asked, for landing conflicts sent back to the worker chat and for crew pull requests."
+              "description": "Rounds a task goes back to its worker chat for landing conflicts and failed checks before a person is asked."
+            },
+            "mode": {
+              "enum": ["fix", "ask"],
+              "default": "fix",
+              "description": "fix: the worker merges the base into the same pull request and Avoozl checks no base line was lost. ask: a conflict goes to Needs you."
             }
           }
         },
