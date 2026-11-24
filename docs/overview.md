@@ -65,7 +65,7 @@ the repository's landing mode determines who merges its pull requests.
 
 Git holds what matters. SQLite is a cache, and `avoozl rebuild` makes it again.
 
-- **Specs** live in Git under `.kiro/specs/<name>/` by default. The
+- **Specs** live in Git under `.kiro/specs` by default as files or subfolders. The
   repository can set `specs.path` to another folder.
 - **Task order** comes from the list under `## Tasks` in a single-file
   spec or from `tasks.md` in a split spec. Plain bullets under each task

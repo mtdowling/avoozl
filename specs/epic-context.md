@@ -19,13 +19,13 @@ request or a repository file can turn it on.
 
 #### What this builds on
 
-- [avoozl](../avoozl/avoozl.md) Requirement 114 (git is the source of truth;
+- [avoozl](avoozl.md) Requirement 114 (git is the source of truth;
   approvals are commits read by `approvalCommits` and `approverCheck` in
   `src/app/git/git-approvals.ts`), Requirement 40 (content rules) and
   Requirement 34 (plugin approval by hash).
-- [plugin-credentials](../plugin-credentials/plugin-credentials.md) PC2: a plugin part that only this
+- [plugin-credentials](plugin-credentials.md) PC2: a plugin part that only this
   machine's `plugins.json` may declare.
-- [plugin-checks](../plugin-checks/plugin-checks.md) PK10: MCP servers named by alias, mapped on
+- [plugin-checks](plugin-checks.md) PK10: MCP servers named by alias, mapped on
   this machine with environment variable names and no credential values.
 
 #### Scope
@@ -341,9 +341,9 @@ gate holds and the context arrives.
 ## Design
 
 `EC` numbers are in [Requirements](#requirements); `R` numbers are in
-[avoozl requirements](../avoozl/avoozl.md#requirements), `PK` numbers in
-[plugin-checks](../plugin-checks/plugin-checks.md),
-and `PC` numbers in [plugin-credentials](../plugin-credentials/plugin-credentials.md).
+[avoozl requirements](avoozl.md#requirements), `PK` numbers in
+[plugin-checks](plugin-checks.md),
+and `PC` numbers in [plugin-credentials](plugin-credentials.md).
 
 ### D1. Shape
 
@@ -744,7 +744,7 @@ content rules and the landing rules of its repository.
 Tasks run in list order, and each phase waits for the one above it. Requirement
 numbers are in brackets (`EC1` to `EC11`, in [Requirements](#requirements)); `D` sections
 refer to [Design](#design), `R` numbers to
-[avoozl requirements](../avoozl/avoozl.md#requirements).
+[avoozl requirements](avoozl.md#requirements).
 
 Tests use isolated temporary workspaces and state folders, a fake GitHub,
 fake executors and fake MCP servers. Screen changes need phone and desktop,

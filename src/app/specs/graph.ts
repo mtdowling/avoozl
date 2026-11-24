@@ -377,8 +377,9 @@ export function withGraphBlock(
   name: string,
   text: string,
   linked: LinkedReader | null = null,
+  tasks = text,
 ) {
-  return `${withoutGraphBlock(text).replace(/\n*$/, "")}\n\n${graphBlock(name, text, linked)}\n`;
+  return `${withoutGraphBlock(text).replace(/\n*$/, "")}\n\n${graphBlock(name, tasks, linked)}\n`;
 }
 
 // graph.markers and graph.stale, as {code, line, message}.
@@ -386,6 +387,7 @@ export function graphBlockProblems(
   name: string,
   text: string,
   linked: LinkedReader | null = null,
+  tasks = text,
 ) {
   const found = findBlock(text);
   if (!found) return [];
@@ -402,7 +404,7 @@ export function graphBlockProblems(
     ];
   const rows = text.split("\n"),
     current = rows.slice(found.start, found.end + 1).join("\n");
-  return current === graphBlock(name, text, linked)
+  return current === graphBlock(name, tasks, linked)
     ? []
     : [
         {

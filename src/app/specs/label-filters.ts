@@ -59,6 +59,7 @@ type Repository = {
 };
 type Plan = {
   id: string;
+  flat?: boolean;
   spec?: string;
   state?: string;
   deletedAt?: string;
@@ -273,7 +274,8 @@ export function stoppedSpecIds(store: Store) {
     linked = linkedReader(
       plans.map((plan) => ({
         name: String(plan.spec),
-        text: specTasks(plan.files ?? {})?.text ?? "",
+        flat: plan.flat,
+        text: specTasks(plan.files ?? {}, plan.flat)?.text ?? "",
       })),
     ),
     ids = new Map(plans.map((plan) => [String(plan.spec), plan.id])),

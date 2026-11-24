@@ -1,11 +1,11 @@
 ---
 name: avoozl-spec-review
-description: Review an Avoozl spec folder for its task list format and for gaps, and post the findings as review output without editing any file. Use when asked to review an Avoozl spec, a spec branch or a spec pull request.
+description: Review an Avoozl spec for its task list format and for gaps, and post the findings as review output without editing any file. Use when asked to review an Avoozl spec, a spec branch or a spec pull request.
 ---
 
 # Review an Avoozl spec
 
-You read one spec folder and report what is wrong with it. You change no file.
+You read one spec and report what is wrong with it. You change no file.
 
 ## What to check
 
@@ -19,11 +19,12 @@ You read one spec folder and report what is wrong with it. You change no file.
    - The order matches what each task needs: a task that needs another's
      result comes after it, or in a later phase, never beside it in a
      parallel group.
-   - A link in a task title points at another spec folder's `tasks.md`.
+   - A link in a task title points at another spec's task file. Resolve it
+     relative to the file with the link.
 3. The content: requirements no task builds, tasks no requirement asks for,
    criteria nobody can test, and references to code the repository does not
    have. Check each claim against the code before you write it.
-4. Branches: run `git ls-remote --heads origin <name>` for the spec's folder
+4. Branches: run `git ls-remote --heads origin <name>` for the spec's
    name and for each spec it links. A branch with that name is the spec's
    integration branch. When it holds commits that are not this spec's work,
    flag it: the spec's tasks would start from it.

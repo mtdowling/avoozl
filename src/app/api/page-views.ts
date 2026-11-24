@@ -471,13 +471,13 @@ export function graphView(
           .filter((plan) => plan.spec && !plan.deletedAt && plan.files)
           .map((plan) => ({
             name: plan.spec ?? "",
-            text: specTasks(plan.files)?.text ?? "",
+            text: specTasks(plan.files, plan.flat)?.text ?? "",
           })),
         ...folders
           .filter((folder) => drafted.has(folder.name))
           .map((folder) => ({
             name: folder.name,
-            text: specTasks(folder.spec?.files)?.text ?? "",
+            text: specTasks(folder.spec?.files, folder.spec?.flat)?.text ?? "",
             draft: true,
           })),
       ],
@@ -1209,6 +1209,7 @@ interface SpecSummary {
   kind?: string | null;
   members?: unknown[];
   folder?: string;
+  flat?: boolean;
   type?: unknown;
   category?: unknown;
   categoryProblem?: unknown;
@@ -1853,7 +1854,7 @@ export function plansTableView(
       ...epicFields(spec.plan?.id ?? null),
       name: spec.title || spec.name,
       spec: spec.name,
-      folder: spec.folder,
+      folder: spec.flat ? `${spec.folder}${spec.name}.md` : spec.folder,
       planId: spec.plan?.id ?? null,
       type: spec.type,
       category: spec.category ?? null,

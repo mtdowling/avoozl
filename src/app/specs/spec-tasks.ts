@@ -41,7 +41,12 @@ export function tasksSection(text: unknown) {
 // Every file of `files` that holds a task list: tasks.md, then each other
 // spec file with a `## Tasks` section, by name. More than one is a lint
 // error (spec-plans.mjs parseSpec).
-export function taskFiles(files: Record<string, string | undefined> = {}) {
+export function taskFiles(
+  files: Record<string, string | undefined> = {},
+  flat = false,
+) {
+  if (flat)
+    return Object.keys(files).filter((file) => tasksSection(files[file]));
   return [
     ...(files[TASKS_FILE] === undefined ? [] : [TASKS_FILE]),
     ...Object.keys(files)
@@ -56,12 +61,14 @@ export function taskFiles(files: Record<string, string | undefined> = {}) {
 }
 
 // The file that holds the tasks: tasks.md when no file does.
-export const taskFile = (files: Record<string, string | undefined> = {}) =>
-  taskFiles(files)[0] ?? TASKS_FILE;
+export const taskFile = (
+  files: Record<string, string | undefined> = {},
+  flat = false,
+) => taskFiles(files, flat)[0] ?? TASKS_FILE;
 
 // The task text of `file` (see the top of this file).
-export function taskText(file: string, text: string) {
-  if (file === TASKS_FILE || typeof text !== "string") return text;
+export function taskText(file: string, text: string, flat = false) {
+  if ((!flat && file === TASKS_FILE) || typeof text !== "string") return text;
   const section = tasksSection(text);
   if (!section) return "";
   const lines = text.split("\n");
@@ -85,11 +92,11 @@ export function taskText(file: string, text: string) {
 }
 
 // {file, text} for the spec's task list, or null when it has none.
-export function specTasks(files: Record<string, string> = {}) {
-  const file = taskFiles(files)[0];
+export function specTasks(files: Record<string, string> = {}, flat = false) {
+  const file = taskFiles(files, flat)[0];
   return file === undefined
     ? null
-    : { file, text: taskText(file, files[file]) };
+    : { file, text: taskText(file, files[file], flat) };
 }
 
 // `text` with `lines` added as the task list's last lines: the end of
@@ -99,9 +106,10 @@ export function addTaskLines(
   text: string,
   lines: string[],
   eol = "\n",
+  flat = false,
 ) {
   const added = lines.map((line) => line + eol).join("");
-  if (file === TASKS_FILE)
+  if (!flat && file === TASKS_FILE)
     return text + (text && !text.endsWith("\n") ? eol : "") + added;
   const section = tasksSection(text),
     rows = text.split("\n");

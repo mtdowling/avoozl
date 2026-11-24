@@ -450,7 +450,7 @@ so that no delete happens on a token I did not see asked for.
 ## Design
 
 `PC` numbers are in [Requirements](#requirements); `R` numbers and `§`
-sections without a `D` are in [avoozl](../avoozl/avoozl.md).
+sections without a `D` are in [avoozl](avoozl.md).
 
 ### D1. The part in a manifest
 
@@ -924,7 +924,7 @@ against a provider that misuses its own tokens outside Avoozl.
 Tasks run in list order, and each phase waits for the one above it. Requirement
 numbers are in brackets (`PC1` to `PC13`, in [Requirements](#requirements)); `D` sections
 refer to [Design](#design), `R` numbers to
-[avoozl requirements](../avoozl/avoozl.md#requirements).
+[avoozl requirements](avoozl.md#requirements).
 
 Phase 1 adds the part, the built-in providers, the job table and the
 client that asks per job. Phase 2 adds the confirm for high-risk jobs.
