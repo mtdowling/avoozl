@@ -54,7 +54,7 @@ import { useDetailTitleRef } from './ListDetail.tsx'
 import { useTitleScrolledOut } from './use-title-scrolled-out.ts'
 import { Modal } from './ui/Modal.tsx'
 import { SpecGraph } from './SpecGraph.tsx'
-import { parseSpecTab, readSpecPlace, renderText, specTabLink, writeSpecPlace, type SpecPlace } from './tabs.ts'
+import { parseSpecTab, readSpecPlace, renderText, specPlaceForWorkspace, specTabLink, writeSpecPlace, type SpecPlace } from './tabs.ts'
 import { Tabs } from './ui/Tabs.tsx'
 import { urlBase } from './focus-tree.ts'
 import { pageStorage } from './columns.ts'
@@ -1812,45 +1812,64 @@ export default function PlansView(props: {
   // as the spec id plus tab=T. Back and Forward walk them.
   const [specAt, setSpecAt] = useState<SpecPlace>({ plan: '', tab: 'overview' })
   const addressRead = useRef<string | null>(null)
+  const goAddress = useCallback(
+    (link: string) => {
+      const base = urlBase(window.location.pathname)
+      if (!base) return
+      try {
+        navigate(base + link)
+      } catch {
+        // The address is a convenience; the view still changes.
+      }
+    },
+    [navigate],
+  )
   const readAddress = useCallback(
-    (restore: boolean) => {
-      const linked = parseSpecTab(window.location.search)
+    (restore: boolean, allowUnscoped = true) => {
+      const linked = workspace ? specPlaceForWorkspace(window.location.search, workspace, allowUnscoped) : null
       const at = linked ?? (restore && workspace ? readSpecPlace(pageStorage(), workspace) : null)
       setSpecAt(at ?? { plan: '', tab: 'overview' })
-      if (linked && workspace) writeSpecPlace(pageStorage(), workspace, linked)
-      return at?.plan ?? null
+      return { place: at, source: linked ? ('link' as const) : at ? ('saved' as const) : null }
     },
     [workspace],
   )
   const tableMatchesWorkspace = shownWorkspace.current === workspace
   useEffect(() => {
     if (!workspace || !table || !tableMatchesWorkspace || addressRead.current === workspace) return
+    const linkedWorkspace = parseSpecTab(window.location.search)?.workspace
+    // App changes to a deep link's workspace after its catalog arrives. Do not
+    // replace that address with the initially selected workspace in between.
+    if (addressRead.current === null && linkedWorkspace && linkedWorkspace !== workspace) return
+    const switched = addressRead.current !== null
     addressRead.current = workspace
-    const plan = readAddress(true),
-      found = plan && table.items.find((item) => item.planId === plan)
-    if (found) setSelected(found.key)
-    else if (plan && !parseSpecTab(window.location.search)) writeSpecPlace(pageStorage(), workspace, null)
+    const { place, source } = readAddress(true, !switched),
+      found = place && table.items.find((item) => item.planId === place.plan)
+    if (found && place) {
+      setSelected(found.key)
+      if (source === 'link') writeSpecPlace(pageStorage(), workspace, place)
+      if (source === 'saved' || !parseSpecTab(window.location.search)?.workspace) goAddress(specTabLink(place.plan, place.tab, workspace))
+    } else if (source === 'saved') {
+      writeSpecPlace(pageStorage(), workspace, null)
+      setSpecAt({ plan: '', tab: 'overview' })
+      if (switched) goAddress('')
+    } else if (!source && switched) {
+      goAddress('')
+    } else if (source === 'link') setSpecAt({ plan: '', tab: 'overview' })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [table, tableMatchesWorkspace, workspace])
   useEffect(() => {
     const onPop = () => {
-      const plan = readAddress(false)
-      const found = plan && table?.items.find((item) => item.planId === plan)
-      if (found) setSelected(found.key)
+      const { place, source } = readAddress(false)
+      const found = place && table?.items.find((item) => item.planId === place.plan)
+      if (found && place) {
+        setSelected(found.key)
+        if (source === 'link' && workspace) writeSpecPlace(pageStorage(), workspace, place)
+      } else if (source === 'link') setSpecAt({ plan: '', tab: 'overview' })
     }
     window.addEventListener('popstate', onPop)
     return () => window.removeEventListener('popstate', onPop)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [table, readAddress])
-  const goAddress = (link: string) => {
-    const base = urlBase(window.location.pathname)
-    if (!base) return
-    try {
-      navigate(base + link)
-    } catch {
-      // The address is a convenience; the view still changes.
-    }
-  }
   const specTab = specAt.plan === row?.planId ? specAt.tab : 'overview'
   const pickTab = (next: string) => {
     const id = row?.planId
@@ -1858,7 +1877,7 @@ export default function PlansView(props: {
     const place = { plan: id, tab: next }
     setSpecAt(place)
     writeSpecPlace(pageStorage(), workspace, place)
-    goAddress(specTabLink(id, next))
+    goAddress(specTabLink(id, next, workspace))
   }
   // A ref chip (Requirement 115.5): its file's tab, then its line once the
   // file is drawn.
@@ -1936,7 +1955,7 @@ export default function PlansView(props: {
     const place = { plan: next.planId, tab: 'overview' }
     setSpecAt(place)
     writeSpecPlace(pageStorage(), workspace, place)
-    goAddress(specTabLink(next.planId, place.tab))
+    goAddress(specTabLink(next.planId, place.tab, workspace))
   }
   const scope = (target: PlanTarget, next: PlanRow) => props.onScope?.(target, { plan: rowPlanKey(next) })
   // Edit plan: a planner chat drafts the change to the spec files; adding a
