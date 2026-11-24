@@ -171,7 +171,7 @@ test("spec proposals are rejected by the task rules with no partial write", asyn
     assert.deepEqual(files(), before);
     assert.equal(stored().revision, plan.revision);
   };
-  await rejects(proposal({ id: "cache" }), /ID with a separator/);
+  await rejects(proposal({ id: "-cache" }), /ID of letters, digits/);
   await rejects(proposal({ title: "" }), /title of 1–240 characters/);
   await rejects(proposal({ title: "two\nlines" }), /on one line/);
   await rejects(proposal({ acceptance: [] }), /observable acceptance criteria/);

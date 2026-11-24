@@ -150,15 +150,6 @@ function workflowErrors(name: string, spec: SpecFolder) {
   const lines = tasks.text.split("\n");
   for (const item of tasks.items) {
     if (!item.key) continue;
-    // 2.1: the ID is a code span.
-    if (item.bareId)
-      errors.push(
-        error(
-          tasks.file,
-          item.line,
-          `Write task ID "${item.key}" as a code span: \`${item.key}\`.`,
-        ),
-      );
     // 2.2: an ID is unique across the repository's specs.
     const first = firstSpecOf.get(item.key);
     if (first !== name)

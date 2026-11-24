@@ -25,7 +25,7 @@ const leaf = {
 function plan(root: string, name: string, summary = "Do it.") {
   writeSpec(root, name, {
     "requirements.md": `---\nepic: launch\n---\n# Plan ${name}\n\nThe goal.\n`,
-    "tasks.md": "# Tasks\n\n- [ ] 1 Build it\n",
+    "tasks.md": "# Tasks\n\n- [ ] `1` Build it\n",
     "avoozl/manifest.json": JSON.stringify({
       tasks: { 1: { ...leaf, summary } },
     }),

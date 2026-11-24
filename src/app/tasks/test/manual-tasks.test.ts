@@ -44,9 +44,9 @@ const manifest = (tasks: Record<string, unknown>) =>
 const TASKS = [
   "# Tasks",
   "",
-  "- [ ] 1 Build the client",
-  "- [ ] 2 Review with team (§D1)",
-  "- [ ] 3 Cut over",
+  "- [ ] `1` Build the client",
+  "- [ ] `2` Review with team (§D1)",
+  "- [ ] `3` Cut over",
   "",
 ].join("\n");
 const DESIGN = [

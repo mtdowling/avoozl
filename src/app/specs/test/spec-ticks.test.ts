@@ -46,7 +46,7 @@ async function setup(t: TestContext) {
   const tick = (...keys: string[]) => {
     let text = fs.readFileSync(tasksFile, "utf8");
     for (const key of keys)
-      text = text.replace(`- [ ] ${key} `, `- [x] ${key} `);
+      text = text.replace(`- [ ] \`${key}\` `, `- [x] \`${key}\` `);
     fs.writeFileSync(tasksFile, text);
   };
   const commit = (message: string) => {
@@ -124,7 +124,7 @@ test("a tick off the base branch, or not committed, does nothing", async (t) => 
   await ops.applyBaseTicks();
   assert.equal(task("config.1.1").status, "planned", "a worker branch");
   git("checkout", "-q", "main");
-  assert.ok(!fs.readFileSync(tasksFile, "utf8").includes("[x] 1.1"));
+  assert.ok(!fs.readFileSync(tasksFile, "utf8").includes("[x] `1.1`"));
   git("merge", "-q", "--no-edit", "work");
   await ops.applyBaseTicks();
   assert.equal(task("config.1.1").status, "accepted", "once it is on main");
@@ -137,8 +137,8 @@ test("[~] and [-] marks do not complete a task", async (t) => {
     tasksFile,
     fs
       .readFileSync(tasksFile, "utf8")
-      .replace("- [ ] 1.1 ", "- [~] 1.1 ")
-      .replace("- [ ] 1.2 ", "- [-] 1.2 "),
+      .replace("- [ ] `1.1` ", "- [~] `1.1` ")
+      .replace("- [ ] `1.2` ", "- [-] `1.2` "),
   );
   commit("Queue and run");
   await ops.applyBaseTicks();
@@ -179,8 +179,8 @@ test("an untick of a done task waits in Needs you; Keep done and Reopen settle i
     tasksFile,
     fs
       .readFileSync(tasksFile, "utf8")
-      .replace("- [x] 1.1 ", "- [ ] 1.1 ")
-      .replace("- [x] 1.2 ", "- [ ] 1.2 "),
+      .replace("- [x] `1.1` ", "- [ ] `1.1` ")
+      .replace("- [x] `1.2` ", "- [ ] `1.2` "),
   );
   commit("Untick both");
   await ops.applyBaseTicks();
@@ -237,11 +237,11 @@ test("ticksOf reads [x] only, with sub-items of a ticked parent", () => {
   const { ticked, present } = ticksOf(
     "s",
     [
-      "- [x] 1 P",
-      "  - [ ] 1.1 A",
-      "- [~] 2 Q",
-      "  - [x] 2.1 B",
-      "- [-] 3 R",
+      "- [x] `1` P",
+      "  - [ ] `1.1` A",
+      "- [~] `2` Q",
+      "  - [x] `2.1` B",
+      "- [-] `3` R",
     ].join("\n"),
   );
   assert.deepEqual([...ticked.keys()].sort(), ["s.1", "s.1.1", "s.2.1"]);
