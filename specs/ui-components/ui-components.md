@@ -15,10 +15,10 @@ styles and CSS variables are written only in `hosts/kirocrew/ui/src/ui/`.
 
 #### What this builds on
 
-- `.kiro/specs/standalone-web/` builds the same page on Kiro Crew's own
+- [standalone-web](../standalone-web/standalone-web.md) builds the same page on Kiro Crew's own
   parts at a pin. One folder of styled components keeps its class check and
   its content security policy small.
-- Requirement 92.12 of `.kiro/specs/avoozl/`: a screen change needs phone
+- Requirement 92.12 of [avoozl](../avoozl/avoozl.md): a screen change needs phone
   and desktop, light and dark screenshots for the owner's approval before
   it merges. Screenshots are never committed (AGENTS.md).
 
@@ -125,8 +125,8 @@ missing quietly inside Kiro Crew.
 ## Design
 
 `UC` numbers are in [Requirements](#requirements); `R` numbers are in
-`.kiro/specs/avoozl/avoozl.md#requirements`; `SW` numbers in
-`.kiro/specs/standalone-web/standalone-web.md#requirements`.
+[avoozl requirements](../avoozl/avoozl.md#requirements); `SW` numbers in
+[standalone-web requirements](../standalone-web/standalone-web.md#requirements).
 
 ### D1. Three layers
 
@@ -213,7 +213,7 @@ With D1's layers, such a rule is in one file.
 Tasks run in list order, and each phase waits for the one above it. Requirement
 numbers are in brackets (`UC1` to `UC4`, in [Requirements](#requirements)); `D` sections
 refer to [Design](#design), `R` numbers to
-`.kiro/specs/avoozl/avoozl.md#requirements`.
+[avoozl requirements](../avoozl/avoozl.md#requirements).
 
 A task that changes a screen gives the owner screenshots of each view it
 touched at 390 and 1280 px, light and dark, before and after (R92.12);

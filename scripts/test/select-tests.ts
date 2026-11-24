@@ -184,6 +184,7 @@ export function select(
       out.reasons.push(`${f}: example read by tests`);
     } else if (
       /^docs\//.test(f) ||
+      f.startsWith("specs/") ||
       /^\.kiro\/(specs|skills)\//.test(f) ||
       /^[A-Za-z_-]+\.md$/.test(f) ||
       /^hosts\/kirocrew\/.*\.md$/.test(f)

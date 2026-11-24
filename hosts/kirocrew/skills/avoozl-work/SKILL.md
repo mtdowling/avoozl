@@ -24,7 +24,7 @@ is one result that must hold when you are done.
 - Commit with the repository's own git identity, as both author and committer.
   Never set `--author`, and never add `Co-authored-by` or any other
   attribution.
-- Never push spec edits (`.kiro/specs/`) to main; they go on a spec branch for
+- Never push spec edits to main; they go on a spec branch for
   a person to approve.
 - Run the repository's checks in the worktree before you report.
 

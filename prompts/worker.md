@@ -20,7 +20,7 @@ Report done only when every acceptance line holds and the checks pass on your la
 
 ## Commits
 
-Commit with the repository's own git identity, as both author and committer. Never set `--author`, and never add `Co-authored-by` or any other attribution. Never push spec edits (`.kiro/specs/`) to main; they go on a spec branch for a person to approve.
+Commit with the repository's own git identity, as both author and committer. Never set `--author`, and never add `Co-authored-by` or any other attribution. Never push spec edits to main; they go on a spec branch for a person to approve.
 
 ## Person only
 

@@ -3,6 +3,9 @@
   "version": 1,
   "workspaceId": "avoozl",
   "name": "Avoozl",
+  "specs": {
+    "path": "specs"
+  },
   "agentInstructions": {
     "rules": [
       {
