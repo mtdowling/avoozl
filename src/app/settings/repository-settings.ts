@@ -45,7 +45,11 @@ import { isolationSetting } from "../workspace/check-isolation.ts";
 import { type Repository, repositoryConfig } from "../git/git.ts";
 import { parseRepository } from "../github/github.ts";
 import { machineIdentity } from "../github/github-sync.ts";
-import { REPOSITORY_CONFIG_SCHEMA_URL } from "./config-schema.ts";
+import {
+  REPOSITORY_CONFIG_SCHEMA_URL,
+  savedSchemaUrl,
+} from "./config-schema.ts";
+import { formatJson } from "./json-format.ts";
 
 const MAX_CONFIG_BYTES = 1024 * 1024;
 const APPLY_KEYS = Object.freeze([
@@ -988,7 +992,7 @@ export class RepositorySettings {
     } catch (error) {
       fail(messageOf(error));
     }
-    const text = JSON.stringify(value, null, 2) + "\n";
+    const text = formatJson(value);
     if (Buffer.byteLength(text) > MAX_CONFIG_BYTES)
       fail("Workspace Avoozl configuration is too large.");
     const pending = path.join(
@@ -1518,7 +1522,7 @@ export class RepositorySettings {
   updateValue(before: ReadFile): Obj {
     const value = structuredClone(before.value);
     value.version = 1;
-    value.$schema = REPOSITORY_CONFIG_SCHEMA_URL;
+    value.$schema = savedSchemaUrl(value.$schema, REPOSITORY_CONFIG_SCHEMA_URL);
     if (before.exists) return value;
     const applied = appliedActions(this.store);
     if (Object.keys(applied.repositories).length)
