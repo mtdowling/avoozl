@@ -9,7 +9,8 @@ import path from "node:path";
 import type { TestContext } from "node:test";
 import { git } from "../../git/git.ts";
 import { guardedFastForward, headGuardedMerge } from "../guarded-push.ts";
-import { scratchUpstream } from "./scratch-upstream.ts";
+import { pushLease, scratchUpstream } from "./scratch-upstream.ts";
+import { runnerId } from "../../workers/claims.ts";
 
 async function repos(t: TestContext) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-guard-"));
@@ -78,4 +79,85 @@ test("a head-guarded merge lands only the head that was checked", async () => {
     true,
   );
   assert.equal(calls.length, 2);
+});
+
+// Workflow rules 15.3 and 15.9: the leases are read right before the push to
+// the base, and a newer lease this runner did not take, or a released one,
+// stops the landing.
+test("a guarded land reads the claim's leases first and lands only while this runner holds the newest", async (t) => {
+  const r = await repos(t),
+    base = await r.head(),
+    candidate = await r.commit("b.txt", "b\n"),
+    ours = String(await runnerId(r.driver)),
+    claims = ["avoozl/parser/p-2"],
+    lease = (generation: number, runner: string, released = false) =>
+      pushLease(r.driver, r.upstream, { generation, base, runner, released }),
+    land = () =>
+      guardedFastForward(r.driver, {
+        url: r.upstream,
+        branch: "main",
+        base,
+        candidate,
+        claims,
+      }),
+    merges: unknown[] = [],
+    // GitHub's lease reads, answered from the upstream's own refs.
+    github = {
+      branchesUnder: async (_repository: string, prefix: string) =>
+        (
+          await git(r.driver, [
+            "ls-remote",
+            r.upstream,
+            `refs/heads/${prefix}*`,
+          ])
+        )
+          .split("\n")
+          .filter(Boolean)
+          .map((line) => {
+            const [sha, ref] = line.split(/\s+/);
+            return { ref, object: { sha } };
+          }),
+      commit: async (_repository: string, sha: string) => {
+        await git(r.driver, [
+          "fetch",
+          "-q",
+          r.upstream,
+          "+refs/heads/*:refs/remotes/up/*",
+        ]);
+        return {
+          commit: {
+            message: await git(r.driver, ["log", "-1", "--format=%B", sha]),
+          },
+        };
+      },
+      mergePullRequest: async () => {
+        merges.push(1);
+        return { merged: true };
+      },
+    },
+    merge = () =>
+      headGuardedMerge(
+        github,
+        "acme/app",
+        3,
+        candidate,
+        "squash",
+        {},
+        {
+          root: r.driver,
+          branch: claims[0],
+        },
+      );
+  await lease(1, ours);
+  await lease(2, "runner-other");
+  await assert.rejects(land(), /stops work on p-2 and pushes nothing/);
+  await assert.rejects(merge(), /stops work on p-2/);
+  await lease(3, ours, true);
+  await assert.rejects(land(), /released/);
+  assert.equal(await r.head(), base, "nothing reached the base");
+  assert.deepEqual(merges, [], "no merge was asked for");
+  await lease(4, ours);
+  assert.equal(await merge(), true);
+  assert.equal(await land(), true);
+  assert.equal(await r.head(), candidate);
 });

@@ -2458,6 +2458,12 @@ const GITHUB_WRITES: Record<string, (args: unknown[]) => WriteShape> = {
     extra: [fieldOf(args[0], "name")],
     target: `ref:linked:${sha256(fieldOf(args[0], "name")).slice(0, 12)}`,
   }),
+  // A lease, release or takeover commit (workflow rule 15): its message.
+  createCommit: (args: unknown[]) => ({
+    text: [],
+    extra: [fieldOf(args[1], "message")],
+    target: `commit:${repositoryOf(args[0])}:${sha256(fieldOf(args[1], "message")).slice(0, 12)}`,
+  }),
   mergeBranch: (args: unknown[]) => ({
     text: [],
     extra: [

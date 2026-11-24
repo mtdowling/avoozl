@@ -219,6 +219,36 @@ export class World {
         if (!world.has(name)) throw refused("Reference does not exist", 422);
         world.git(["update-ref", "-d", `refs/heads/${name}`]);
       },
+      // A commit from a tree and parents, as GitHub's git data API makes it.
+      async createCommit(
+        _repository: string,
+        {
+          message,
+          tree,
+          parents,
+        }: { message: string; tree: string; parents: string[] },
+      ) {
+        return {
+          sha: world.git([
+            "commit-tree",
+            tree,
+            ...parents.flatMap((parent) => ["-p", parent]),
+            "-m",
+            message,
+          ]),
+        };
+      },
+      // A ref update GitHub makes only as a fast-forward (force: false).
+      async moveBranch(_repository: string, name: string, sha: string) {
+        const head = world.head(name);
+        try {
+          world.git(["merge-base", "--is-ancestor", head, sha]);
+        } catch {
+          throw refused("Update is not a fast forward", 422);
+        }
+        world.git(["update-ref", `refs/heads/${name}`, sha, head]);
+        return { object: { sha } };
+      },
       branchesUnder: async (_repository: string, prefix: string) =>
         world.refs(prefix),
       // `ahead_by` counts the commits `head` has that `base` lacks.
@@ -240,12 +270,17 @@ export class World {
       // signature.
       async commit(_repository: string, sha: string) {
         const date = world.git(["show", "-s", "--format=%cI", sha]),
+          [tree, ...message] = world
+            .git(["show", "-s", "--format=%T%n%B", sha])
+            .split("\n"),
           signer = world.signed.get(sha) ?? null;
         return {
           sha,
           committer: { login: signer ?? login },
           commit: {
             committer: { date },
+            message: message.join("\n").trim(),
+            tree: { sha: tree },
             verification: { verified: Boolean(signer) },
           },
         };

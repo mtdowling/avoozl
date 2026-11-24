@@ -227,6 +227,43 @@ Then
 - `parser/p-2` has the lease generations `1`.
 - Origin holds the claim branches `avoozl/parser/p-2`.
 
+### A runner that restarts with an empty cache keeps its own claim
+
+Rules: [15.1](github-workflow.md#15-claims), [15.3](github-workflow.md#15-claims), [15.7](github-workflow.md#15-claims). Case: `scenario-resume-after-rebuild`.
+
+Given
+
+- Runner `A` acts as `acme-alice`.
+- Runner `B` acts as `acme-alice`.
+- The default branch is `main`.
+- A claim or lease is stale after 24 hours.
+- Origin holds the branches `main`.
+- The landing mode is `direct`.
+- The issue of spec `parser` is assigned to `acme-alice`.
+
+The tasks of `parser`:
+
+```markdown
+- [x] `p-1` Read the token table
+- [ ] `p-2` Report unknown tokens
+- [ ] `p-3` Recover after an unknown token
+```
+
+When
+
+1. `A` reads the ready tasks.
+2. `A` claims the first ready task, and expects claimed `avoozl/parser/p-2`.
+3. `A` restarts with an empty cache and reads its claims back, and expects claims `["parser/p-2"]`.
+4. `B` takes over `parser/p-2` after 2 hours, and expects holder `false`.
+5. `A` pushes work to the claim branch of `parser/p-2`, and expects push `accepted`.
+6. `A` lands `parser/p-2`, and expects action `fast-forward-base`, landed `true`.
+
+Then
+
+- GitHub rejects no push.
+- Origin holds no claim branch.
+- The done branches tick `parser/p-1`, `parser/p-2`.
+
 ### A stale holder's push is rejected after a takeover
 
 Rules: [15.3](github-workflow.md#15-claims), [15.5](github-workflow.md#15-claims), [15.7](github-workflow.md#15-claims), [15.8](github-workflow.md#15-claims), [15.9](github-workflow.md#15-claims). Case: `scenario-stale-holder-push`.
@@ -2940,6 +2977,7 @@ Then
 - [Landing on an integration branch is interrupted before the tick](#landing-on-an-integration-branch-is-interrupted-before-the-tick)
 - [Two runners race for one claim](#two-runners-race-for-one-claim)
 - [Two runners race for one claim: the second runner is not the assignee](#two-runners-race-for-one-claim-the-second-runner-is-not-the-assignee)
+- [A runner that restarts with an empty cache keeps its own claim](#a-runner-that-restarts-with-an-empty-cache-keeps-its-own-claim)
 - [A claim branch takes the task, and the next waits](#a-claim-branch-takes-the-task-and-the-next-waits)
 - [A task waits for the one above it](#a-task-waits-for-the-one-above-it)
 
@@ -2953,6 +2991,7 @@ Then
 - [Without a takeover commit the old holder's push to its own claim branch is accepted](#without-a-takeover-commit-the-old-holders-push-to-its-own-claim-branch-is-accepted)
 - [The old holder's push is rejected once the new holder pushed a takeover commit](#the-old-holders-push-is-rejected-once-the-new-holder-pushed-a-takeover-commit)
 - [Two runners resume one handed-off claim, and the first lease create wins](#two-runners-resume-one-handed-off-claim-and-the-first-lease-create-wins)
+- [A runner that restarts with an empty cache keeps its own claim](#a-runner-that-restarts-with-an-empty-cache-keeps-its-own-claim)
 - [A stale holder's push is rejected after a takeover](#a-stale-holders-push-is-rejected-after-a-takeover)
 
 ### Rule 15.5
@@ -2979,6 +3018,7 @@ Then
 - [Two runners resume one handed-off claim, and the first lease create wins](#two-runners-resume-one-handed-off-claim-and-the-first-lease-create-wins)
 - [A live lease is not taken](#a-live-lease-is-not-taken)
 - [A stale lease is replaced by the next generation](#a-stale-lease-is-replaced-by-the-next-generation)
+- [A runner that restarts with an empty cache keeps its own claim](#a-runner-that-restarts-with-an-empty-cache-keeps-its-own-claim)
 - [A stale holder's push is rejected after a takeover](#a-stale-holders-push-is-rejected-after-a-takeover)
 
 ### Rule 15.8

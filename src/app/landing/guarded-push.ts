@@ -1,8 +1,14 @@
 // Guarded pushes and merges (§4.32.5): a fast-forward that refuses when
 // the remote moved, and a pull request merge that GitHub refuses when its
-// head moved. Never forced.
+// head moved. Never forced. Each reads the leases of the claims it lands
+// first, and refuses unless this runner holds them (workflow rule 15.9).
 import { git, landingJob, remoteGit } from "../git/git.ts";
 import { fail } from "../store/store.ts";
+import {
+  type ClaimGitHub,
+  holdLease,
+  holdLeaseOnGitHub,
+} from "../workers/claims.ts";
 
 async function isAncestor(root: string, older: string, newer: string) {
   try {
@@ -17,6 +23,8 @@ async function isAncestor(root: string, older: string, newer: string) {
 // `base` to `candidate`. Refuses unless the remote is at `base` and the
 // candidate descends from it; the push itself is fast-forward only, so a
 // base that moved between the read and the push refuses. Never forced.
+// `claims` are the claim branches whose work lands: a lease this runner no
+// longer holds refuses with 409 before the push.
 export async function guardedFastForward(
   root: string,
   {
@@ -25,12 +33,14 @@ export async function guardedFastForward(
     base,
     candidate,
     env,
+    claims = [],
   }: {
     url: string;
     branch: string;
     base: string;
     candidate: string;
     env?: NodeJS.ProcessEnv;
+    claims?: string[];
   },
 ) {
   if (!(await isAncestor(root, base, candidate)))
@@ -44,6 +54,8 @@ export async function guardedFastForward(
       )
     ).split(/\s+/)[0];
   if (remote !== base) return false;
+  for (const claim of claims)
+    await holdLease(root, url, claim, { env: environment });
   try {
     await remoteGit(
       root,
@@ -58,9 +70,11 @@ export async function guardedFastForward(
 }
 
 // A merge guarded by the pull request's head: GitHub refuses when the head
-// is no longer `sha`.
+// is no longer `sha`. With `lease`, the claim branch's leases are read
+// through the same client just before the merge, and a lease this runner
+// (by its checkout `root`) no longer holds refuses (409).
 export async function headGuardedMerge(
-  github: {
+  github: ClaimGitHub & {
     mergePullRequest(
       repository: string,
       number: number,
@@ -72,7 +86,10 @@ export async function headGuardedMerge(
   sha: string,
   method: string,
   commit: Record<string, unknown> = {},
+  lease?: { root: string; branch: string },
 ) {
+  if (lease)
+    await holdLeaseOnGitHub(github, repository, lease.root, lease.branch);
   try {
     const result = await github.mergePullRequest(repository, number, {
       sha,

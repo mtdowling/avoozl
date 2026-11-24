@@ -76,7 +76,7 @@ import {
 import { planningIdentity } from "../github/github-marker.ts";
 import { respondStep } from "../github/github-respond.ts";
 import { refreshOpenItems } from "../github/github-open-read.ts";
-import { claimsDue, refreshClaims } from "../workers/claims.ts";
+import { claimsDue, refreshClaims, renewLeases } from "../workers/claims.ts";
 import { claimDispatches } from "../workers/runner.ts";
 import { readLabelFilters } from "../specs/label-filters.ts";
 import { readSpecAssignees } from "../specs/spec-assignee.ts";
@@ -895,9 +895,11 @@ async function runTick(
             text: messageOf(error),
           });
         }
-      // The claim branches and their head times, for stale claims in Needs
-      // you. Reads only: Avoozl deletes no claim branch here.
-      if (script && github && (looping || claimsDue(store)))
+      // The claim branches, their head times and newest leases, for stale
+      // claims in Needs you and the claims this runner holds. Then this
+      // runner renews its own leases at half the stale hours (rule 15.6).
+      // Avoozl deletes no claim branch here.
+      if (script && github && (looping || claimsDue(store))) {
         for (const failed of await under(
           "tick",
           "check-in",
@@ -908,6 +910,17 @@ async function runTick(
             title: `Avoozl could not read the claim branches of ${failed.repository}`,
             text: failed.error,
           });
+        for (const failed of await under(
+          "tick",
+          "worker-grants",
+          renewLeases,
+        )(store, github))
+          planned.notify.push({
+            channel: "failure",
+            title: `Avoozl could not renew its leases in ${failed.repository}`,
+            text: failed.error,
+          });
+      }
       // The label filters and assignees (workflow v1 rule
       // 8.3) of the spec issues, once per pass.
       if (script && github)

@@ -11,6 +11,8 @@ import path from "node:path";
 import { git, withoutPushCredentials } from "../../git/git.ts";
 import { bindContentRules } from "../../content/content-rules.ts";
 import { fixture } from "../../test/fixtures.ts";
+import { runnerId } from "../../workers/claims.ts";
+import { pushLease } from "./scratch-upstream.ts";
 
 import {
   landingRights,
@@ -336,4 +338,46 @@ test("a push names no private plan term from the workspace's content rules", asy
     ).pushed,
     true,
   );
+});
+
+// Workflow rule 15.3: a claim branch is pushed only while this runner holds
+// its newest lease, read just before the push.
+test("a claim branch push reads its leases first and pushes only for the newest holder", async (t) => {
+  const s = await scratch(t),
+    upstream = s.at("upstream.git"),
+    branch = "avoozl/parser/p-2",
+    ours = String(await runnerId(s.driver));
+  await git(s.driver, ["checkout", "-q", "-b", branch, s.base]);
+  const work = await s.commit(s.driver, "work.txt", "work\n"),
+    push = () =>
+      pushHead(
+        s.driver,
+        { repository: "acme/app", branch, commit: work },
+        s.registry,
+        {
+          since: s.base,
+          scan: () => [],
+        },
+      );
+  await pushLease(s.driver, upstream, {
+    generation: 1,
+    base: s.base,
+    runner: ours,
+  });
+  await pushLease(s.driver, upstream, {
+    generation: 2,
+    base: s.base,
+    runner: "runner-other",
+  });
+  await assert.rejects(push(), /stops work on p-2 and pushes nothing/);
+  assert.equal(
+    await git(s.root, ["ls-remote", "--heads", upstream, branch]),
+    "",
+  );
+  await pushLease(s.driver, upstream, {
+    generation: 3,
+    base: s.base,
+    runner: ours,
+  });
+  assert.equal((await push()).pushed, true);
 });

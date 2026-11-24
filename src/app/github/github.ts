@@ -2384,6 +2384,36 @@ export class GitHubClient {
     });
   }
 
+  // A commit made on GitHub from a tree and parents, with no ref moved.
+  // `author` names the person, as their git config does.
+  createCommit<T = GitHubData>(
+    value: RepoRef,
+    body: {
+      message: string;
+      tree: string;
+      parents: string[];
+      author?: { name: string; email: string };
+    },
+  ) {
+    const { owner, repo } =
+      typeof value === "string" ? parseRepository(value) : value;
+    return this.request<T>("POST", `/repos/${owner}/${repo}/git/commits`, {
+      body: body.author ? { ...body, committer: body.author } : body,
+    });
+  }
+
+  // Moves a branch to `sha` as a fast-forward only: GitHub answers 422 when
+  // `sha` does not descend from the branch's head. Never forced.
+  moveBranch<T = GitHubData>(value: RepoRef, name: string, sha: string) {
+    const { owner, repo } =
+      typeof value === "string" ? parseRepository(value) : value;
+    return this.request<T>(
+      "PATCH",
+      `/repos/${owner}/${repo}/git/refs/heads/${name.split("/").map(encodeURIComponent).join("/")}`,
+      { body: { sha, force: false } },
+    );
+  }
+
   // Deletes a branch on origin. A 404 or 422 is already gone.
   deleteBranch<T = GitHubData>(value: RepoRef, name: string) {
     const { owner, repo } =

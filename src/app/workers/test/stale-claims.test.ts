@@ -1,19 +1,32 @@
 // Stale claims in Needs you: a claim branch
-// whose newest commit is older than `claims.staleHours` gives one Needs you
-// row for the spec issue's assignee; only a person deletes it, as the
-// high-risk claim-delete job behind the confirm and the CLI prompt.
+// whose newest commit and lease are older than `claims.staleHours` gives one
+// Needs you row for the spec issue's assignee; only a person deletes it, as
+// the high-risk claim-delete job behind the confirm and the CLI prompt. And
+// the leases (workflow rule 15): the lease commit, renewal, the claims a
+// rebuilt cache knows as this runner's, and resuming a claim.
 import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
 import { Store } from "../../store/store.ts";
 import { Operations } from "../../api/operations.ts";
 import { commands } from "../../commands/delivery.ts";
 import { JOBS } from "../../github/github-jobs.ts";
+import { claimDispatches } from "../runner.ts";
 import {
+  claimFirst,
+  claimOf,
+  heldTaskIds,
   claimsNeedsYou,
   claimsView,
+  leaseSigner,
   refreshClaims,
+  renewLeases,
+  resumable,
+  resumeClaim,
+  runnerId,
   staleClaims,
 } from "../claims.ts";
+import { git } from "../../git/git.ts";
+import fs from "node:fs";
 import { snapshot } from "../../test/fixtures.ts";
 import { mcpRefusal } from "../../mcp/mcp-policy.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
@@ -268,4 +281,325 @@ test("avoozl claim delete asks Allow? first, and deletes nothing without a yes",
     branch: "avoozl/search/s-1",
     allow: ["g1"],
   });
+});
+
+// ---- Leases (workflow rule 15) ----
+
+// A commit the lease fake holds.
+type FakeCommit = {
+  tree: string;
+  parents: string[];
+  message: string;
+  date: string;
+};
+
+// GitHub with commits and refs: claim branches at a base 30 hours old, and
+// lease commits on them. New commits are dated `NOW`; a ref moves only as a
+// fast-forward.
+function leaseGitHub() {
+  const commits = new Map<string, FakeCommit>(),
+    refs = new Map<string, string>(),
+    moves: string[] = [];
+  let made = 0;
+  const make = (body: Omit<FakeCommit, "date">, date = hoursAgo(0)) => {
+    const sha = `c${++made}`.padEnd(40, "0");
+    commits.set(sha, { ...body, date });
+    return sha;
+  };
+  const base = make(
+    { tree: "t0", parents: [], message: "Start" },
+    hoursAgo(30),
+  );
+  refs.set("main", base);
+  return {
+    base,
+    commits,
+    refs,
+    moves,
+    // A claim on `task` of the parser spec at the base, with lease 1 of the
+    // given age naming `runner`.
+    claim(
+      task: string,
+      {
+        runner,
+        hours,
+        released = false,
+      }: {
+        runner: string;
+        hours: number;
+        released?: boolean;
+      },
+    ) {
+      refs.set(`avoozl/parser/${task}`, base);
+      refs.set(
+        `avoozl-lease/parser/${task}/1`,
+        make(
+          {
+            tree: "t0",
+            parents: [base],
+            message: `${released ? "Release" : "Lease"} parser/${task} generation 1\n\nStart: ${base}\nTask: ${task}\nRunner: ${runner}`,
+          },
+          hoursAgo(hours),
+        ),
+      );
+    },
+    async branch(_repository: string, name: string) {
+      const sha = refs.get(name);
+      if (!sha) throw Object.assign(Error("Branch not found"), { status: 404 });
+      return { commit: { sha } };
+    },
+    async branchesUnder(_repository: string, prefix: string) {
+      return [...refs]
+        .filter(([name]) => name.startsWith(prefix))
+        .map(([name, sha]) => ({ ref: `refs/heads/${name}`, object: { sha } }));
+    },
+    async commit(_repository: string, sha: string) {
+      const commit = commits.get(sha);
+      return commit
+        ? {
+            commit: {
+              committer: { date: commit.date },
+              message: commit.message,
+              tree: { sha: commit.tree },
+            },
+          }
+        : null;
+    },
+    async createCommit(_repository: string, body: Omit<FakeCommit, "date">) {
+      return { sha: make(body) };
+    },
+    async createBranch(_repository: string, name: string, sha: string) {
+      if (refs.has(name))
+        throw Object.assign(Error("Reference already exists"), {
+          status: 422,
+        });
+      refs.set(name, sha);
+    },
+    // The loop pass catches no integration branch up here.
+    async compareCommits() {
+      return { ahead_by: 0 };
+    },
+    async mergeBranch() {
+      throw Error("No integration branch merges here.");
+    },
+    async moveBranch(_repository: string, name: string, sha: string) {
+      if (!commits.get(sha)?.parents.includes(refs.get(name) ?? ""))
+        throw Object.assign(Error("Update is not a fast forward"), {
+          status: 422,
+        });
+      refs.set(name, sha);
+      moves.push(name);
+    },
+  };
+}
+
+// A parser task in the repository `app`.
+const leaf = (id: string) => ({
+  id,
+  title: `Task ${id}`,
+  kind: "leaf",
+  scope: "catalog",
+  status: "planned",
+  track: "catalog",
+  tags: [],
+  acceptance: ["Works."],
+  checks: ["npm test"],
+  repository: "app",
+  planId: "parser",
+});
+
+// A workspace whose one repository has a checkout, so it has a runner ID.
+async function leaseWorkspace(t: TestContext, tasks: string[] = []) {
+  const root = temporaryDirectory("avoozl-lease-"),
+    checkout = path.join(root, "app"),
+    store = new Store(path.join(root, "workspace.sqlite"));
+  t.after(() => store.close());
+  fs.mkdirSync(checkout);
+  await git(checkout, ["init", "-q"]);
+  store.initialize({ ...snapshot(), tasks: tasks.map(leaf), edges: [] });
+  store.put("repositories", {
+    id: "app",
+    root: checkout,
+    github: "o/app",
+    claims: { staleHours: 6 },
+  });
+  return { store, checkout, runner: String(await runnerId(checkout)) };
+}
+
+test("a claim's lease commit sits on the claim head and records the start, the task text, the runner and the label event", async (t) => {
+  const { checkout, runner } = await leaseWorkspace(t),
+    github = leaseGitHub(),
+    claimed = await claimFirst(
+      github,
+      [
+        {
+          task: {
+            id: "p-2",
+            planId: "parser",
+            title: "Report unknown tokens",
+            acceptance: ["An unknown token is reported\n  with its line"],
+            labeledIssue: {
+              number: 12,
+              event: { id: "98765", createdAt: hoursAgo(1) },
+            },
+          },
+          repository: { github: "o/app", root: checkout },
+        },
+      ],
+      { baseOf: () => "main" },
+    );
+  assert.equal(claimed?.lease, "avoozl-lease/parser/p-2/1");
+  assert.equal(github.refs.get("avoozl/parser/p-2"), github.base);
+  const lease = found(
+    github.commits.get(found(github.refs.get("avoozl-lease/parser/p-2/1"))),
+  );
+  assert.deepEqual([lease.parents, lease.tree], [[github.base], "t0"]);
+  assert.equal(
+    lease.message,
+    [
+      "Lease parser/p-2 generation 1",
+      "",
+      `Start: ${github.base}`,
+      "Task: Report unknown tokens",
+      "Done: An unknown token is reported with its line",
+      `Runner: ${runner}`,
+      "Issue #12 label event 98765",
+    ].join("\n"),
+  );
+});
+
+test("a rebuilt cache knows this runner's claims by their leases, and a fresh lease on a quiet base is not stale", async (t) => {
+  const { store, runner } = await leaseWorkspace(t),
+    github = leaseGitHub();
+  github.claim("p-2", { runner, hours: 1 });
+  github.claim("p-3", { runner: "runner-other", hours: 1 });
+  github.claim("p-4", { runner: "runner-other", hours: 1, released: true });
+  github.claim("p-5", { runner: "runner-other", hours: 10 });
+  // An empty cache, as after avoozl rebuild.
+  assert.deepEqual(await refreshClaims(store, github), []);
+  const claim = (task: string) => found(claimOf(store, "o/app", task));
+  assert.deepEqual(
+    ["p-2", "p-3", "p-4", "p-5"].map((task) => Boolean(claim(task).own)),
+    [true, false, false, false],
+  );
+  // Every head is 30 hours old; only p-5's lease is older than 6 hours.
+  assert.deepEqual(
+    staleClaims(store, NOW).map((c) => c.task),
+    ["p-5"],
+  );
+  assert.deepEqual(
+    ["p-2", "p-3", "p-4", "p-5"].map((task) => resumable(claim(task), 6, NOW)),
+    [false, false, true, true],
+  );
+});
+
+test("this runner renews its own leases once half the stale hours pass, with the same message", async (t) => {
+  const { store, runner } = await leaseWorkspace(t),
+    github = leaseGitHub();
+  github.claim("p-2", { runner, hours: 4 });
+  github.claim("p-3", { runner, hours: 2 });
+  github.claim("p-4", { runner: "runner-other", hours: 4 });
+  await refreshClaims(store, github);
+  const old = found(github.refs.get("avoozl-lease/parser/p-2/1"));
+  assert.deepEqual(await renewLeases(store, github, NOW), []);
+  assert.deepEqual(github.moves, ["avoozl-lease/parser/p-2/1"]);
+  const renewed = found(
+    github.commits.get(found(github.refs.get("avoozl-lease/parser/p-2/1"))),
+  );
+  assert.deepEqual(renewed.parents, [old]);
+  assert.equal(renewed.message, found(github.commits.get(old)).message);
+  // The cache keeps the renewed lease, so the next pass renews nothing.
+  await renewLeases(store, github, NOW);
+  assert.equal(github.moves.length, 1);
+});
+
+test("resuming a released claim takes the next lease with the same start, then moves the claim past a takeover commit", async (t) => {
+  const { store, checkout, runner } = await leaseWorkspace(t),
+    github = leaseGitHub();
+  github.claim("p-4", { runner: "runner-other", hours: 1, released: true });
+  await refreshClaims(store, github);
+  const claim = found(claimOf(store, "o/app", "p-4")),
+    task = { id: "p-4", planId: "parser" },
+    resumed = await resumeClaim(github, {
+      repository: "o/app",
+      claim,
+      task,
+      signer: await leaseSigner(checkout),
+    });
+  assert.equal(resumed?.lease.ref, "avoozl-lease/parser/p-4/2");
+  const lease = found(
+    github.commits.get(found(github.refs.get("avoozl-lease/parser/p-4/2"))),
+  );
+  assert.match(lease.message, new RegExp(`^Start: ${github.base}$`, "m"));
+  assert.match(lease.message, new RegExp(`^Runner: ${runner}$`, "m"));
+  const takeover = found(
+    github.commits.get(found(github.refs.get("avoozl/parser/p-4"))),
+  );
+  assert.equal(resumed?.head, github.refs.get("avoozl/parser/p-4"));
+  assert.deepEqual(
+    [takeover.parents, takeover.tree, takeover.message],
+    [[github.base], "t0", "Take over avoozl/parser/p-4"],
+  );
+  // A second runner that read the same claim finds the lease moved.
+  assert.equal(
+    await resumeClaim(github, {
+      repository: "o/app",
+      claim,
+      task,
+      signer: { runner: "runner-other" },
+    }),
+    null,
+  );
+  assert.equal(github.refs.has("avoozl-lease/parser/p-4/3"), false);
+});
+
+test("the loop pass works this runner's claims after a rebuild, resumes a released one, and leaves a live one held", async (t) => {
+  const { store, checkout } = await leaseWorkspace(t, ["p-2", "p-3", "p-4"]),
+    runner = String(await runnerId(checkout)),
+    github = leaseGitHub(),
+    origin = path.join(path.dirname(checkout), "origin.git");
+  github.claim("p-2", { runner, hours: 1 });
+  github.claim("p-3", { runner: "runner-other", hours: 1 });
+  github.claim("p-4", { runner: "runner-other", hours: 1, released: true });
+  // Origin's git holds the claim branch the takeover brings down.
+  await git(checkout, ["config", "user.name", "Test"]);
+  await git(checkout, ["config", "user.email", "test@example.com"]);
+  await git(checkout, ["commit", "-q", "--allow-empty", "-m", "Start"]);
+  await git(checkout, ["clone", "-q", "--bare", checkout, origin]);
+  await git(checkout, ["remote", "add", "origin", origin]);
+  await git(checkout, [
+    "push",
+    "-q",
+    "origin",
+    "HEAD:refs/heads/avoozl/parser/p-4",
+  ]);
+  await refreshClaims(store, github);
+  assert.deepEqual([...heldTaskIds(store, NOW)], ["p-3"]);
+  const out = await claimDispatches(
+    store,
+    github,
+    [
+      { task: "p-2", role: "worker" },
+      { task: "p-3", role: "worker" },
+      { task: "p-4", role: "worker" },
+    ],
+    { now: NOW },
+  );
+  assert.deepEqual(out.errors, []);
+  assert.deepEqual(
+    out.dispatches.map((d) => d.task),
+    ["p-2", "p-4"],
+  );
+  assert.equal(claimOf(store, "o/app", "p-4")?.own, true);
+  assert.equal(github.refs.has("avoozl-lease/parser/p-4/2"), true);
+  assert.equal(github.refs.has("avoozl-lease/parser/p-2/2"), false);
+  assert.equal(
+    await git(checkout, [
+      "rev-parse",
+      "--verify",
+      "refs/heads/avoozl/parser/p-4",
+    ]),
+    await git(checkout, ["rev-parse", "origin/avoozl/parser/p-4"]),
+    "the local claim branch is made at origin's head",
+  );
 });

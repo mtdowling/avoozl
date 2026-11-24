@@ -9,12 +9,18 @@ import path from "node:path";
 import { parseSpec } from "../specs/spec-plans.ts";
 import {
   cacheClaim,
+  cachedOwnClaims,
   claimBranch,
+  claimOf,
   deleteClaim,
   deleteOwnClaim,
-  pushTakeover,
+  leaseSigner,
+  parseLease,
+  refreshClaims,
+  resumable,
   resumeClaim,
 } from "../workers/claims.ts";
+import { pushHead, sourceRegistry } from "../landing/push-head.ts";
 import { landedWork, taskRevision } from "../workers/claim-rules.ts";
 import { doneBranch, integrationBase } from "../specs/integration-base.ts";
 import { landingAction } from "../landing/landing-action.ts";
@@ -47,15 +53,26 @@ export const STEPS = [
   "recover",
   "mergePr",
   "deleteBranch",
+  "restart",
 ];
 
 const taskParts = (task: string) => task.split("/");
 const generationOf = (ref: string) => Number(ref.split("/").pop());
+const HOUR = 3600 * 1000;
 
-// A runner's cache: the claim rows Avoozl keeps, and the one repository.
+// A runner's cache: the claim rows Avoozl keeps, and the one repository,
+// checked out at the runner's checkout.
 class RunnerStore extends MetaStore {
-  list(kind: string) {
-    return kind === "repositories" ? [{ github: REPOSITORY }] : [];
+  root: string;
+  constructor(root: string) {
+    super();
+    this.root = root;
+  }
+  // The store's generic list; a runner's only table is its repository.
+  list<T>(kind: string): T[] {
+    return (
+      kind === "repositories" ? [{ github: REPOSITORY, root: this.root }] : []
+    ) as T[];
   }
 }
 type Runner = ReturnType<typeof runnerState>;
@@ -82,10 +99,11 @@ function runnerState(
   login: string,
   defaultBranch: string,
 ) {
+  const root = world.clone(name);
   return {
     name,
     login,
-    root: world.clone(name),
+    root,
     github: world.github(name, login),
     ready: [] as string[],
     leases: {} as Record<string, number[]>,
@@ -93,7 +111,7 @@ function runnerState(
     claimed: undefined as string | null | undefined,
     paused: false,
     pushes: [] as string[],
-    store: new RunnerStore(),
+    store: new RunnerStore(root),
     defaultBranch,
   };
 }
@@ -162,7 +180,8 @@ export async function scenario(read: Case) {
           linked: linkedOf(specsOf(files)),
         }).proposals.find((item) => item.id === id);
       },
-      env = GIT_ENV;
+      env = GIT_ENV,
+      registry = sourceRegistry({ [REPOSITORY]: { url: world.origin } });
 
     // The branch a task's work lands on, and the one that gets its tick.
     const placeOf = async (task: string) => {
@@ -228,6 +247,7 @@ export async function scenario(read: Case) {
             runner.github,
             {
               raw: true,
+              root: runner.root,
             },
           );
         } catch (error) {
@@ -274,38 +294,52 @@ export async function scenario(read: Case) {
         return { generations };
       },
 
+      // Avoozl's own claims read, then its resume, with the clock
+      // `afterHours` on: the next lease and the takeover commit, which
+      // fences the old holder out (15.7, 15.8).
       takeOver: async (runner, args) => {
         const task = taskOfArgs(args),
           [spec, id] = taskParts(task),
-          hours = args.afterHours ?? 0,
-          refs = await runner.github.branchesUnder(
-            REPOSITORY,
-            `avoozl-lease/${spec}/${id}/`,
-          ),
-          branch = claimBranch({ id, planId: spec }),
-          taken = await resumeClaim(runner.github, {
-            repository: REPOSITORY,
-            task: { id, planId: spec },
-            leases: refs.map((item) => ({
-              generation: generationOf(item.ref),
-              ageHours: hours,
-            })),
-            claimAgeHours: hours,
-            staleHours: testCase.runner.staleHours ?? 24,
-            runners: [runner.name],
-            sha: world.head(branch),
-          });
-        if (taken.holder) {
+          now = Date.now() + (args.afterHours ?? 0) * HOUR;
+        await refreshClaims(runner.store, runner.github);
+        const claimed = claimOf(runner.store, REPOSITORY, id),
+          taken =
+            claimed && resumable(claimed, testCase.runner.staleHours ?? 24, now)
+              ? await resumeClaim(runner.github, {
+                  repository: REPOSITORY,
+                  claim: claimed,
+                  task: { id, planId: spec },
+                  signer: await leaseSigner(runner.root),
+                })
+              : null;
+        if (claimed && taken) {
           const item = found(taskOf(treeOf(), task), task);
           runner.claimed = task;
           runner.recorded[task] = {
             title: item.title,
             acceptance: item.acceptance,
           };
-          // Rule 15.8: the takeover commit fences the old holder out.
-          await pushTakeover(runner.root, branch, { env: GIT_ENV });
+          cacheClaim(runner.store, REPOSITORY, {
+            ...claimed,
+            sha: taken.head,
+            own: true,
+            lease: taken.lease,
+          });
         }
-        return { holder: Boolean(taken.holder), lease: taken.lease };
+        return { holder: Boolean(taken), lease: taken?.lease.ref ?? null };
+      },
+
+      // A restart from an empty cache: the runner reads its claims back
+      // from origin, and knows its own by their leases (15.7). The task
+      // text its lease recorded stays, as the lease commit keeps it.
+      restart: async (runner) => {
+        runner.store = new RunnerStore(runner.root);
+        await refreshClaims(runner.store, runner.github);
+        return {
+          claims: cachedOwnClaims(runner.store).map(
+            (claim) => `${claim.spec}/${claim.task}`,
+          ),
+        };
       },
 
       push: async (runner, args) => {
@@ -325,14 +359,20 @@ export async function scenario(read: Case) {
         }
         gitSync(runner.root, ["add", "-A"]);
         gitSync(runner.root, ["commit", "-q", "-m", `Work by ${runner.name}`]);
+        // Avoozl's own push: it reads the claim's leases first (15.3), and
+        // git refuses what is not a fast-forward.
         let push = "accepted";
         try {
-          gitSync(runner.root, [
-            "push",
-            "-q",
-            "origin",
-            `HEAD:refs/heads/${branch}`,
-          ]);
+          await pushHead(
+            runner.root,
+            {
+              repository: REPOSITORY,
+              branch,
+              commit: gitSync(runner.root, ["rev-parse", "HEAD"]),
+            },
+            registry,
+            { scan: () => [], since: world.head(defaultBranch), env },
+          );
         } catch {
           push = "rejected";
         }
@@ -395,6 +435,7 @@ export async function scenario(read: Case) {
             base: world.head(base),
             candidate,
             env,
+            claims: [branch],
           });
         } else if (plan.action === "push-claim-branch") {
           return result;
@@ -412,6 +453,8 @@ export async function scenario(read: Case) {
               number,
               candidate,
               "merge",
+              {},
+              { root: runner.root, branch },
             );
         }
         if (result.landed && !interrupted) {
@@ -435,12 +478,19 @@ export async function scenario(read: Case) {
             (item) => item.head === branch && item.merged,
           ),
           head = world.has(branch) ? world.head(branch) : pull?.headSha,
+          // The start commit the first lease recorded (15.1).
+          start =
+            first &&
+            (parseLease(
+              world.git(["log", "-1", "--format=%B", first.object.sha]),
+            ).start ??
+              first.object.sha),
           landed =
-            first !== undefined &&
+            start !== undefined &&
             head !== undefined &&
             landedWork({
               graph: world.graph(),
-              start: first.object.sha,
+              start,
               head,
               baseHead: world.head(base),
               pull: pull ? { merged: true, head: pull.headSha } : null,

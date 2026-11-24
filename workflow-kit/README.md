@@ -211,6 +211,7 @@ shows as a failed probe.
 | `recover` | `task` | Reads whether the claim holds landed work, then ticks it on its done branch and deletes the claim branch and leases (16.5) | `action` and `landed` |
 | `mergePr` | `task` | Merges the task's open pull request at its head, as the step's runner (a person, in the scenarios) | `merged` |
 | `deleteBranch` | `task` or `branch` | Deletes a claim branch with its leases, as a person does (15.4) | `deleted` |
+| `restart` | | Starts again with an empty cache, reads the claim branches and leases back from GitHub, and knows its own claims by their leases (15.7) | `claims`, the tasks it holds |
 
 A `push` with `branch` and `files` writes each file, so a scenario changes
 an approved task text this way. A `land` step first compares the task text its
@@ -227,8 +228,11 @@ the repository says so, and signs the commits it makes. A rejected push is
 git's own answer. Nothing uses a network or a real GitHub, so the scenarios run
 in CI as they do on a laptop.
 
-The `takeOver` step takes the lease and pushes the takeover commit.
-The stale holder scenario checks that the old holder's push is rejected.
+The `takeOver` step reads the claims, resumes the claim when its lease is
+stale or released, and pushes the takeover commit, as Avoozl's tick does.
+The `push` and `land` steps go through Avoozl's push and merge helpers,
+which read the claim's leases first. The stale holder scenario checks that
+the old holder's push is rejected.
 
 ## Running it
 
