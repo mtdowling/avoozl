@@ -31,7 +31,7 @@ yourself. See [Autopilot](docs/delivery.md#turning-autopilot-on).
 - **Pull the andon cord.** Pause new work for a task, spec, repository, or the
   whole workspace. You decide when to resume. See
   [Stop the line](docs/flow.md#stop-the-line).
-- **Steer work in flight.** Open the worker's session to see what it has done
+- **Steer work in flight.** Open the worker's session to see what it's done
   and send guidance on the current task. See
   [Steering a running task](docs/delivery.md#steering-a-running-task).
 - **Run a retro.** Use delivery timings to find the slowest part of the loop
@@ -94,7 +94,7 @@ machine.
 
 Agents write the code, and people keep the decisions.
 
-- An agent cannot approve a spec or change a repository's checks.
+- An agent can't approve a spec or change a repository's checks.
 - Avoozl never force pushes, merges with `--admin`, or skips a required check
   or review.
 - Checks run in a sandbox with the network off by default, and never see a
@@ -143,7 +143,7 @@ avoozl init ~/plans --name "My plans"
 ```
 
 It holds `.avoozl.json` for settings you can commit, `.kiro/specs/` for specs,
-and a local database that is not committed. A new workspace is empty.
+and a local database that isn't committed. A new workspace is empty.
 
 ## Deliver a spec
 
@@ -201,7 +201,7 @@ same state. Any stdio MCP client can run the server:
 }
 ```
 
-A client that does not find `avoozl` on its `PATH` takes the full path that
+A client that doesn't find `avoozl` on its `PATH` takes the full path that
 `command -v avoozl` prints.
 
 Actions that belong to a person, such as approving a spec or changing
@@ -209,11 +209,17 @@ settings, are refused over MCP. `avoozl help` lists the CLI commands.
 
 ## Issue handoff
 
-Keep triage and routine maintenance in your existing tools. To hand a scoped
-fix to Avoozl, assign the issue to the runner and have a repository writer
-apply the configured label. Avoozl can take it as one task when the issue loop
-is enabled. See [Labeled issues](docs/github-workflow.md#11-labeled-issues)
-for the handoff.
+A customer reports that exporting a contact named `Doe, Jane` splits the
+name across two CSV columns. Your triage tool files a GitHub issue with
+steps to reproduce the bug and asks for the full name to stay in one column.
+
+With the issue loop on, assign the issue to Avoozl's runner and have someone
+with write access apply the configured label. Avoozl takes the fix as one
+task and runs the repository's checks. If you've configured draft pull
+requests, it opens one so you can review and merge the fix yourself.
+
+See [Labeled issues](docs/github-workflow.md#11-labeled-issues) for the
+handoff.
 
 ## Documentation
 
