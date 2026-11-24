@@ -44,7 +44,7 @@ interface FakePull {
 interface Extras {
   calls: {
     created: number;
-    merged: { number: number; sha: string }[];
+    merged: { number: number; sha: string; method?: string }[];
     statuses: Record<string, unknown>[];
     deleted: string[];
   };
@@ -214,7 +214,7 @@ function fakeGithub(w: World) {
     mergePullRequest: async (
       _repo: string,
       n: number,
-      { sha }: { sha: string },
+      { sha, method }: { sha: string; method?: string },
     ) => {
       const pull = pullOf(n);
       if (pull.head.sha !== sha) return { merged: false };
@@ -225,7 +225,7 @@ function fakeGithub(w: World) {
         merged_by: { login: "bot" },
         merge_commit_sha: sha,
       });
-      calls.merged.push({ number: n, sha });
+      calls.merged.push({ number: n, sha, method });
       return { merged: true };
     },
   });
@@ -269,7 +269,10 @@ test("a verified task is pushed as a draft, waits for its release and check on t
   assert.deepEqual(github.calls.merged, []);
   approveMerge(w.store, at, { commit, by: "dashboard" });
   await step(w, github);
-  assert.deepEqual(github.calls.merged, [{ number: 1, sha: commit }]);
+  // Unset, landing.method squashes.
+  assert.deepEqual(github.calls.merged, [
+    { number: 1, sha: commit, method: "squash" },
+  ]);
   assert.deepEqual(github.calls.statuses, [], "no commit status is posted");
   const delivery = storedRow<Delivery>(w.store, "task_deliveries", "t1");
   assert.equal(delivery.state, "integrated");

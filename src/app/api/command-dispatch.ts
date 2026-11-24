@@ -8,6 +8,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { Store } from "../store/store.ts";
 import { Operations } from "./operations.ts";
+import { RepositorySettings } from "../settings/repository-settings.ts";
 import { CLIENT_OPERATIONS } from "./client.ts";
 import { classifyOperation } from "./operation-table.ts";
 import {
@@ -366,6 +367,10 @@ export function commandContext({
           workspaceRoot: target.workspaceRoot,
           plansRoot: target.plansRoot,
           configDirectory: machineAvoozlPaths().configDirectory,
+          // Settings and repository changes are written to .avoozl.json.
+          configuration: new RepositorySettings(store, {
+            workspaceRoot: target.workspaceRoot,
+          }),
           notifier: readers.notifier ?? null,
           sessionStopper: readers.sessionStopper ?? null,
           kirocrewAbsent: host === "standalone",

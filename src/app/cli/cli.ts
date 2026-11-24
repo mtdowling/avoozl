@@ -13,6 +13,7 @@ import {
   cliRefusal,
 } from "../mcp/mcp-policy.ts";
 import { Operations } from "../api/operations.ts";
+import { RepositorySettings } from "../settings/repository-settings.ts";
 import { Store } from "../store/store.ts";
 import { initializeFirst } from "../workspace/workspace.ts";
 import fs from "node:fs";
@@ -164,6 +165,11 @@ try {
       workspaceRoot: config.workspaceRoot,
       plansRoot: config.plansRoot,
       configDirectory: machineAvoozlPaths().configDirectory,
+      // Settings and repository changes are written to .avoozl.json, which
+      // owns them; the database only caches them.
+      configuration: new RepositorySettings(store, {
+        workspaceRoot: config.workspaceRoot,
+      }),
     });
   // Without a server, every CLI write goes through Operations in process.
   // `local` marks the caller as the person at this machine's command line.
