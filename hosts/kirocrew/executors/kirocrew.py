@@ -167,7 +167,7 @@ def _mode(request):
     if request.get("mode") in MODES:
         return request["mode"]
     if request.get("lane"):
-        # A lane chat, worker or reviewer (simplify D22.1): the reviewer runs
+        # A lane chat, worker or reviewer: the reviewer runs
         # git and the checks, and trust_reads allows no shell.
         return WORKER_MODE
     if (request.get("role") or "worker") == "worker" and not request.get("remote"):
@@ -176,7 +176,7 @@ def _mode(request):
 
 
 def reset_conversation(ctx, slot):
-    """Clear a lane chat's conversation for its next task (simplify D22.1).
+    """Clear a lane chat's conversation for its next task.
 
     Kiro Crew lets a cron reset a chat it opened, with
     POST /api/chat/slots/<slot>/reset-conversation; replay false keeps the
@@ -197,9 +197,10 @@ def reset_conversation(ctx, slot):
 
 
 def keep_title(ctx, slot, header):
-    """Set a lane chat's title back to its header when it reads another
-    (simplify D22.1). Best effort: a gateway that refuses either call keeps
-    the title it has, and the next run tries again.
+    """Restore a lane chat's header when its current title differs.
+
+    A gateway that refuses either call keeps the current title. The next
+    run tries again.
     shortcut: ScriptContext wraps neither the slot read nor the rename, so
     this builds both on its own credential, as _post does.
     """

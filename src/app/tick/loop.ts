@@ -1,4 +1,4 @@
-// The server loop (simplify §D6, SM6): `loop` in this machine's config, never
+// The server loop: `loop` in this machine's config, never
 // in `.avoozl.json`. With no `loop`, the tick reads and caches but starts and
 // lands nothing; `avoozl next`, `avoozl land` and every read still answer.
 // With it, each pass starts ready work and lands reported work of the kinds

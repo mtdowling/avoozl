@@ -1,4 +1,4 @@
-// Order from the list (simplify §D19): the one function that derives which
+// Order from the list: the one function that derives which
 // task waits for which. Siblings run top to bottom; a task with children is a
 // group; a group whose title ends with `(**PARALLEL**)` runs its children
 // side by side; `##` phases run in order. The ready rule, ranking and lint

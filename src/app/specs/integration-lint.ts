@@ -1,4 +1,4 @@
-// integration.foreign (simplify §D21.1): a branch on origin named for a spec
+// integration.foreign: a branch on origin named for a spec
 // is that spec's integration branch, so its own commits must be the spec's
 // work. Each first-parent commit past the default branch must be a merge of
 // the default branch or a landing that ticks one of the spec's tasks, or a

@@ -1,4 +1,4 @@
-// `avoozl insights` and `avoozl retro list|read|save` (simplify §D13): the
+// `avoozl insights` and `avoozl retro list|read|save`: the
 // Insights view's numbers as text, and the saved retros.
 import fs from "node:fs";
 import { type Command, help } from "../cli/command-help.ts";

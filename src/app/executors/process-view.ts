@@ -143,7 +143,7 @@ export function attachCommand(
   if (definition?.attach) {
     try {
       const argv = fillHarnessArgv(definition.attach, placeholderValues(row)),
-        // A lane session lives in the lane's home (simplify §D22.2).
+        // A lane session lives in the lane's home.
         home = definition.home && JSON.parse(row.settings || "{}").lane?.home,
         env = home
           ? platform === "win32"

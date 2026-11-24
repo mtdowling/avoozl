@@ -303,7 +303,7 @@ export function requestChild(db: DatabaseSync, given: unknown) {
 }
 
 // The harness's own session UUID for a child: the session a review round
-// resumes, else the child's own (simplify §D22.2).
+// resumes, else the child's own.
 export function harnessSession(row: {
   settings?: string | null;
   session_id: string;
@@ -313,7 +313,7 @@ export function harnessSession(row: {
   return lane?.resume ?? row.session_id.slice("process-".length);
 }
 
-// A lane session's settings (simplify §D22.2): {home, header, resume?}. The
+// A lane session's settings: {home, header, resume?}. The
 // home is the lane's own folder; `resume` names the harness session a
 // review round continues.
 export function laneSettings(value: unknown): Lane {
@@ -340,7 +340,7 @@ export function laneSettings(value: unknown): Lane {
 }
 
 // When a lane's next task starts, delete the lane's session files older
-// than its last task's start (simplify §D22.2). Only files under the lane's
+// than its last task's start. Only files under the lane's
 // own home and the harness's session folder there, never another home.
 export function pruneLaneSessions(
   home: string,
@@ -997,7 +997,7 @@ export function openSupervisor({
         lane = settings.lane ?? null;
       const briefFile = path.join(folder, "brief.md");
       // A harness that names no session gets the lane's header as the
-      // prompt's first line (simplify §D22).
+      // prompt's first line.
       fs.writeFileSync(
         briefFile,
         lane && !definition.label
@@ -1121,7 +1121,7 @@ export function openSupervisor({
       const confined = confineChild(argv, {
         definition,
         configDirectory,
-        // A lane's home holds its harness's sessions (simplify §D22.2);
+        // A lane's home holds its harness's sessions;
         // an unconfined harness has no write roots.
         writeRoots: access.writeRoots && [
           ...access.writeRoots,

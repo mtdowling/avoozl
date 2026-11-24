@@ -74,7 +74,7 @@ Each fact names the Kiro Crew source it was read from.
 
 ## Requirements
 
-### Requirement 1: Kiro Crew is the only agent and session experience
+### Requirement 1: Kiro Crew and supervised process sessions
 
 **User story:** As a developer, I want every implementation and review
 session to be a Kiro Crew session or a supervised process, so that I use one
@@ -133,13 +133,13 @@ graph of groups and leaves, so that work can proceed in safe pieces.
 3. A task with children SHALL be a group, and a task without children a
    leaf. Only leaves SHALL be claimed; a group's box SHALL follow its
    children.
-4. Waits SHALL come only from the list's order and the `(**PARALLEL**)` tag
-   (design of the simplify spec, §D19).
+4. Waits SHALL follow list order, including the `(**PARALLEL**)` groups and
+   phases in [Workflow v1](../../../docs/github-workflow.md#3-order).
 5. WHEN a leaf has no plain sub-bullet, an ID is used twice, a tag is written
    wrong, or a linked spec does not exist THEN `avoozl spec lint` SHALL
    report it, and the same inputs SHALL give the same result.
-6. No task SHALL be claimed until its spec is approved, and an approval
-   SHALL be a person's authored commit on the default branch.
+6. No task SHALL be claimed until a commit on the specs branch approves
+   its current text under Requirement 114.
 
 ### Requirement 6: Readiness and bounded automatic local delivery
 
@@ -545,7 +545,7 @@ unreviewed change reaches the base branch or a dependent task.
 
 1. Review sessions SHALL run on this machine's reviewer lanes and check runs
    on none, so neither SHALL count against its worker lanes (Requirement
-   6.3, and the lane sessions of the simplify spec, SM20). Avoozl SHALL add
+   6.3). Avoozl SHALL add
    no separate writer limit: every task writes in its own worktree and
    landing merges one head at a time. `lanes.local: 1` gives one writer on
    the machine.
@@ -1079,8 +1079,8 @@ grouping is made up from a file path.
 1. A parent spec SHALL link each member spec with a Markdown link in a task
    title whose target is `<specs.path>/<name>/tasks.md`. That task SHALL be
    a spec group whose children are the linked spec's phases, so the linked
-   spec's tasks wait as the parent's list orders them (design of the
-   simplify spec, §D19.2).
+   spec's tasks wait as the parent's list orders them. See
+   [linked specs](../../../docs/github-workflow.md#6-linked-specs).
 2. Lint SHALL refuse a spec group whose linked folder does not exist
    (unless an earlier open task in the same list stands for it), a spec
    linked as a spec group more than once in the repository, and a spec
@@ -1576,7 +1576,7 @@ instead of a stuck chat.
 4. WHEN Kiro Crew reports a worker chat gone THEN Avoozl SHALL start the
    task once more on a free worker lane, in the same worktree with the same
    brief and the last report quoted as data, and the closed lane SHALL wait
-   for a person's Resume (simplify SM20.8). A second vanish of the same task
+   for a person's Resume. A second vanish of the same task
    SHALL go to Needs you. Avoozl SHALL NOT replace a chat because it went
    quiet or its activity lease expired.
 5. `lanes.local`, default 3, SHALL be a setting in the machine file

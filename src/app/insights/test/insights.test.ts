@@ -1,4 +1,4 @@
-// The Insights operations (simplify §D13): telemetry numbers from a fixture
+// The Insights operations: telemetry numbers from a fixture
 // store, burndown from a fixture git repository, saved retros, and the
 // `avoozl insights` text.
 import assert from "node:assert/strict";

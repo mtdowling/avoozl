@@ -1,6 +1,6 @@
 // Runs the workflow kit (`workflow-kit/`) against Avoozl. Each case lists the
 // probes a runner answers (`violations`, `ready`, `claim`, `landing`). A probe
-// Avoozl does not pass yet carries `expectFail` with the simplify task that
+// Avoozl does not pass yet carries `expectFail` with the spec task that
 // makes it pass; the case fails when that task is ticked or the probe passes,
 // so the mark is removed when the task lands.
 import assert from "node:assert/strict";
@@ -11,19 +11,24 @@ import { judge, probesOf, readCases } from "../../../workflow-kit/load.ts";
 import { avoozl } from "./workflow-kit-adapter.ts";
 import { STEPS, scenario } from "./workflow-kit-scenario.ts";
 import { currentPage } from "../../../scripts/kit/scenarios-doc.ts";
+import {
+  listSpecFolders,
+  readSpecFolder,
+  specItems,
+} from "../specs/spec-plans.ts";
+import { specTasks } from "../specs/spec-tasks.ts";
 
 const root = fileURLToPath(new URL("../../../", import.meta.url));
 const read = (file: string) => fs.readFileSync(root + file, "utf8");
 
-const simplify = read(".kiro/specs/simplify/tasks.md");
-const tickedTask = (id: string) =>
-  new RegExp(`^\\s*- \\[x\\] \`${id.replace(/\./g, "\\.")}\``, "m").test(
-    simplify,
-  );
-const openTask = (id: string) =>
-  new RegExp(`^\\s*- \\[ \\] \`${id.replace(/\./g, "\\.")}\``, "m").test(
-    simplify,
-  );
+const openTasks = new Set(
+  listSpecFolders(root).flatMap((name) => {
+    const taskFile = specTasks(readSpecFolder(root, name).files);
+    return specItems(name, taskFile?.text ?? "")
+      .filter((item) => item.mark === " ")
+      .map((item) => item.key);
+  }),
+);
 
 const rules = new Set<string>();
 const doc = read("docs/github-workflow.md");
@@ -39,10 +44,9 @@ for (const testCase of readCases()) {
         `${probe} is not an expected probe`,
       );
       assert.ok(
-        !tickedTask(task),
-        `${task} is ticked: remove expectFail.${probe} from ${testCase.name}`,
+        openTasks.has(task),
+        `${task} is not an open spec task. Remove expectFail.${probe} from ${testCase.name}.`,
       );
-      assert.ok(openTask(task), `${task} is not a simplify task`);
     }
     if (rules.size)
       for (const rule of testCase.rules ?? [])

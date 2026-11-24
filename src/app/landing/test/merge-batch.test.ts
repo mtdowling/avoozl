@@ -174,7 +174,7 @@ test("a merge batch across specs lands in one guarded push, up to the limit", as
     landingQueue(x.store, Q).map((e) => e.key),
     ["spec-a.t5"],
   );
-  // Each merge commit is its subject alone: no trailer (SM4.4).
+  // Each merge commit is its subject alone: no trailer.
   const log = await git(x.landing, [
     "log",
     "--format=%B",

@@ -443,7 +443,7 @@ test("the tick dispatches ready local leaves by rank, then graph order, within l
       attempt: 1,
       title: "avoozl:urgent Task urgent",
       // Its worker lane, whose chat sits in the workspace's lane folder
-      // (simplify §D22.1).
+      //.
       lane: {
         id: "worker-1",
         header: "Avoozl · registered-workspace · worker 1",

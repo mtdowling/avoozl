@@ -1,4 +1,4 @@
-// Ranking ready tasks (simplify §D3.1): one pure function over the waits the
+// Ranking ready tasks: one pure function over the waits the
 // list derives (order.mjs). Keys, in order: more open tasks waiting on it,
 // then a longer open chain of waits below it, then its place in the file.
 

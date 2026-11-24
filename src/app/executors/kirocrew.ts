@@ -53,8 +53,7 @@ export function kirocrewDetachedSession(repository: string | null = null) {
   return { ...kirocrewSession(repository), project: false };
 }
 
-// Every lane chat of a workspace sits in one sidebar folder (simplify
-// §D22.1), with no project directory: each brief names its worktree.
+// Every lane chat of a workspace sits in one sidebar folder, with no project directory: each brief names its worktree.
 export const kirocrewLaneSession = (workspace: string | null | undefined) => ({
   folder: sidebarPath(workspace),
   project: false,

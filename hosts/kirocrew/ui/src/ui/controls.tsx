@@ -398,7 +398,7 @@ export function useAskChat(workspaceId: string | null) {
   return { ask, error }
 }
 
-// Run in a chat (simplify §D13): a Kiro Crew chat seeded with the skill and
+// Run in a chat: a Kiro Crew chat seeded with the skill and
 // the item's IDs, or on the standalone page the Start a session dialog.
 export function useRunInChat() {
   const { openChat } = useChatLauncher()

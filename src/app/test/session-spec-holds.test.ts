@@ -66,7 +66,7 @@ async function pending(t: TestContext) {
     "consumer-step": leaf("Build dependent feature"),
   });
   // A parent spec links source, then consumer, so consumer's task waits for
-  // source's (simplify §D19.2).
+  // source's.
   writeSpec(w.root, "pair", {
     "tasks.md":
       "---\nrepo: app\n---\n- [ ] `pair-1` Build [source](../source/tasks.md)\n- [ ] `pair-2` Build [consumer](../consumer/tasks.md)\n- [ ] `pair-3` Build [last](../last/tasks.md)\n",

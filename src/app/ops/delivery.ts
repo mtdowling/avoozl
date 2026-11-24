@@ -45,7 +45,7 @@ function machineLoopSettings(operations: Operations) {
 
 export const entries = [
   // With `claim`, it creates the best ready task's claim branch on origin
-  // (simplify §D3), so it may write.
+  //, so it may write.
   {
     name: "runner.next",
     class: "execute",
@@ -91,7 +91,7 @@ export const entries = [
       );
     },
   },
-  // Land one reported task now by its repository's mode (simplify §D7): the
+  // Land one reported task now by its repository's mode: the
   // caller that claimed it only, from `avoozl land` or plans_land.
   {
     name: "runner.land",
@@ -112,7 +112,7 @@ export const entries = [
       });
     },
   },
-  // Delete branch on a stale claim (simplify §D3): a person's, from Needs you
+  // Delete branch on a stale claim: a person's, from Needs you
   // or `avoozl claim delete`, as the high-risk claim-delete job that only
   // the confirm's grant lets through.
   {
@@ -243,7 +243,7 @@ export const entries = [
       };
     },
   },
-  // The claim branches in flight (simplify §D13), from the cache.
+  // The claim branches in flight, from the cache.
   {
     name: "claims.view",
     class: "observe",
@@ -253,7 +253,7 @@ export const entries = [
       return { claims: claimsView(this.store) };
     },
   },
-  // This machine's lanes (simplify §D22.3): each lane's role, harness,
+  // This machine's lanes: each lane's role, harness,
   // state, task and how to open its session.
   {
     name: "lanes.view",
@@ -287,7 +287,7 @@ export const entries = [
       };
     },
   },
-  // Resume on a lane a person closed (simplify §D22.4).
+  // Resume on a lane a person closed.
   {
     name: "lane.resume",
     class: "execute",

@@ -1090,7 +1090,7 @@ export function parseSpec({
       );
     }
   }
-  // Order from the list (simplify §D19): waitsOf gives every wait. A
+  // Order from the list: waitsOf gives every wait. A
   // repeated ID is refused above, and would only wait on itself here.
   if (!diagnostics.some((d) => d.code === "task.duplicate-id")) {
     const waits = new Map<string, string[]>();
@@ -1609,7 +1609,7 @@ export function proposeSpecWork(
         String(plan.spec),
       ),
       eol = tasks.includes("\r\n") ? "\r\n" : "\n";
-    // A leaf's results are its plain bullets (simplify §D20); a summary has
+    // A leaf's results are its plain bullets; a summary has
     // no place in the list form.
     const facts = ((entry.acceptance as string[] | undefined) ?? []).map(
       (result) => `  - ${result}`,

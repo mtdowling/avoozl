@@ -46,10 +46,6 @@ workflow-kit/cases/serial-list-next/
       "base": "main",
       "mergeBase": false
     }
-  },
-  "expectFail": {
-    "ready": "sim-2.1",
-    "claim": "sim-1.1"
   }
 }
 ```
@@ -225,15 +221,14 @@ with `revision: "redo-or-stop"` when they differ.
 
 Avoozl's adapter is `src/app/test/workflow-kit-scenario.ts`. It calls Avoozl's
 own claim, lease, landing and tick code, and runs it against a bare local git
-repository with a fake GitHub API over it (`workflow-kit-world.mjs`). The fake
+repository with a fake GitHub API over it (`workflow-kit-world.ts`). The fake
 API keeps pull requests, merges with `merged_by`, deletes a head branch when
 the repository says so, and signs the commits it makes. A rejected push is
 git's own answer. Nothing uses a network or a real GitHub, so the scenarios run
 in CI as they do on a laptop.
 
-Avoozl has no takeover push, so `takeOver` takes the lease and pushes
-nothing, and the stale holder scenario marks `rejectedPushes` with
-`expectFail`.
+The `takeOver` step takes the lease and pushes the takeover commit.
+The stale holder scenario checks that the old holder's push is rejected.
 
 ## Running it
 
@@ -243,6 +238,6 @@ nothing, and the stale holder scenario marks `rejectedPushes` with
 
 Avoozl runs the kit in `src/app/test/workflow-kit.test.ts` as part of its
 tests, and the same test fails when the scenarios page is out of date. Run
-`npm run kit:docs` to write it again. A probe with `expectFail` passes while Avoozl gets it wrong. The test
-fails once Avoozl gets it right, or once the named task is ticked in
-`.kiro/specs/simplify/tasks.md`, and the mark is then removed.
+`npm run kit:docs` to write it again. An `expectFail` entry names an open
+task in the repository's specs. The test fails when the probe passes or
+the named task is closed. Remove the entry once the task lands.

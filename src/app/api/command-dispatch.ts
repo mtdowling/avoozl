@@ -70,10 +70,10 @@ export const APP_OPERATIONS = new Set([
   "chat.context",
   "graph.view",
   "delivery.view",
-  // In flight's claim branches and this machine's lanes (simplify §D13).
+  // In flight's claim branches and this machine's lanes.
   "claims.view",
   "lanes.view",
-  // Insights and its saved retros (simplify §D13).
+  // Insights and its saved retros.
   "insights.view",
   "retro.list",
   "retro.read",
@@ -115,9 +115,9 @@ export const APP_OPERATIONS = new Set([
   // high-risk steps, and the Needs you actions that run under one.
   "plugin.credentials.pick",
   "github.job.confirm",
-  // Delete branch on a stale claim, under the same Allow (simplify §D3).
+  // Delete branch on a stale claim, under the same Allow.
   "claim.delete",
-  // Resume on a closed lane, from Needs you (simplify §D22.4).
+  // Resume on a closed lane, from Needs you.
   "lane.resume",
   "plugin.update",
   // Epic context (epic-context EC4, EC9): Settings reads it, and a person

@@ -1,4 +1,4 @@
-// Lanes (design §4.26, R6.3, R88.5, simplify §D22): the long-lived sessions
+// Lanes (design §4.26, R6.3, R88.5): the long-lived sessions
 // this machine runs at once. `lanes.local` worker lanes default to 3 and
 // `lanes.reviewers` reviewer lanes to 1, in the machine file
 // (~/.config/avoozl/config.json); `lanes` in .avoozl.json is still read as

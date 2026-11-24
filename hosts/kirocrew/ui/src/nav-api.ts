@@ -1,4 +1,4 @@
-// The page's top-level views (simplify §D13). Kept free of JSX so node can
+// The page's top-level views. Kept free of JSX so node can
 // test it directly.
 
 // The nav row: Insights, Specs, Graph, In flight, Needs you, Activity,

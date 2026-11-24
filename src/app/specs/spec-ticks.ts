@@ -149,7 +149,7 @@ export function tickedText(
   return { text: lines.join("\n"), ticked };
 }
 
-// Linked specs (simplify §D19.2): once every task of `spec` is ticked in the
+// Linked specs: once every task of `spec` is ticked in the
 // checkout at `dir`, tick each spec group that links it, in the same commit,
 // and so on up. Returns the IDs it ticked.
 // shortcut: only a parent on the same specs branch is ticked; a parent
@@ -349,7 +349,7 @@ async function inDetached<T>(
   }
 }
 
-// The head a `pr` landing pushes (simplify SM4.1): `commit` with the entry's
+// The head a `pr` landing pushes: `commit` with the entry's
 // tasks ticked in a commit of its own on top, so the pull request's checks
 // run on the tick. `commit` itself when its tasks.md is not in this
 // repository or the boxes are already ticked.

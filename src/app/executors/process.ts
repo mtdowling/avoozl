@@ -75,7 +75,7 @@ interface ProcessRepository {
   };
   isolation?: { readable?: string[] };
 }
-// A request's lane (simplify §D22.2): where its harness keeps sessions.
+// A request's lane: where its harness keeps sessions.
 interface RequestLane {
   id: string;
   workspace?: string;
@@ -229,7 +229,7 @@ export function processExecutor({
   });
 }
 
-// A lane's folder (simplify §D22.2): ~/.avoozl/lanes/<workspace>/<lane>/,
+// A lane's folder: ~/.avoozl/lanes/<workspace>/<lane>/,
 // the home its harness keeps sessions in.
 export function laneHome(
   workspace: unknown,

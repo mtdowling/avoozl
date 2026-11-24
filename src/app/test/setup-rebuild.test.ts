@@ -1,4 +1,4 @@
-// Setup is two commands (simplify sim-4.5, §D12): `avoozl repository
+// Setup is two commands: `avoozl repository
 // configure ID --root PATH` adds a checkout, and `avoozl rebuild` fills the
 // cache from git and GitHub: the specs, their ticks, the claim branches and
 // the spec issues. A fake GitHub answers reads and records every write; it

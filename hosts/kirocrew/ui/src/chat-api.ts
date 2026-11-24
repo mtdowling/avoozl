@@ -40,7 +40,7 @@ export function itemRef(item: ConflictItem): ItemRef {
   return ref
 }
 
-// Run in a chat (simplify §D13): a chat seeded with the skill that does the
+// Run in a chat: a chat seeded with the skill that does the
 // work and the item's IDs; the skill reads the rest itself. A spec is
 // revised with avoozl-spec or reviewed with avoozl-spec-review, a task is
 // worked with avoozl-work, and a Needs you item is explained with avoozl.

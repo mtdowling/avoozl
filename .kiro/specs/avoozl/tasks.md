@@ -3,9 +3,8 @@ repo: avoozl
 ---
 # Tasks: Avoozl
 
-Grouped by phase. Tasks run in list order, and each phase waits for the one
-above it. Each phase ends with its named proofs. Every proof lists setup,
-action, expected result, failure meaning, and the next design decision.
+Tasks run in list order, and each phase waits for the one above it.
+Manual proofs describe their setup, actions and expected results.
 Requirement numbers are in brackets; section numbers refer to `design.md`.
 
 Rules for every task: work in a task worktree; tests use isolated temporary
@@ -159,7 +158,7 @@ Each task's plain sub-bullets say what done means.
   - Leak screen
   - Each tick searches candidate pull request titles, bodies, and commit messages for the planning repository's `owner/name`, URL, and `owner/name#`; a hit opens a decision, blocks completion, and asks the worker to edit.
 
-## Phase 7: Open-source release
+## Phase 7: Release preparation
 
 - [x] `7.1` Rewrite README and docs around installing the Kiro Crew app; no host-era instructions. [R24.1] (§13)
   - Rewrite README and docs around installing the Kiro Crew app; no host-era instructions.
@@ -170,9 +169,6 @@ Each task's plain sub-bullets say what done means.
   - Keep specs and research with machine-local paths out of the release or rewrite them; regenerate receipts instead of editing them.
 - [x] `7.5` Verify compatibility surfaces: `plans_*`, `AVOOZL_*`, `AICOMMANDER_*`, `NUPP_WORKSPACE_*`, and the `aicommander` command. [R24.5]
   - Verify compatibility surfaces: `plans_*`, `AVOOZL_*`, `AICOMMANDER_*`, `NUPP_WORKSPACE_*`, and the `aicommander` command.
-- [ ] `7.6` Publish the npm package, the app package, and a signed GitHub release. (§13) (**MANUAL**)
-  - Publish the npm package, the app package, and a signed GitHub release.
-  - The report names what was done and where the result is.
 - [x] `avoozl-p15` P15 Proof: open-source installation on a clean machine [R24] (**MANUAL**)
   - Expected: local delivery completes with no GitHub; GitHub features report unavailable until `gh` or a token exists, then work; no step needs private context.
   - A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict.
@@ -181,7 +177,7 @@ Each task's plain sub-bullets say what done means.
   - Failure means: the release depends on this machine's setup.
   - Next decision: fix the docs or packaging before publishing.
 
-## Phase 8: Later, only after P1–P25 pass
+## Phase 8: Plugins
 
 - [x] `8.6` Plugin loading [R34.1–R34.9, R34.11] (§4.4, §4.7, §4.8)
   - Plugin loading, after 8.1
@@ -350,10 +346,11 @@ Requirement 61, design §4.16.
 
 Requirement 62, design §8.7.
 
-- [x] `23.1` Say spec on the page, in docs and in skills, after 19.1 [R62] (§8.7)
-  - Say spec on the page, in docs and in skills, after 19.1
-  - Every user-facing plan word reads spec; the compatibility names are unchanged; a page-source test fails on any plan word outside its allowlist.
-  - Every user-facing plan word becomes spec; Plan a change becomes Change spec; `plans_*`, `plan.*`, CLI, `.avoozl.json` keys, SQLite, the Plans repo mode and `avoozl-planner` are unchanged; a page-source test fails on any `plan` or `plans` word outside its allowlist.
+- [x] `23.1` Say spec on the page, in docs and in skills [R62] (§8.7)
+  - Say spec on the page, in docs and in skills
+  - The page, docs and skills use spec for an approved work definition.
+  - The page-source test checks user-facing uses of `plan` and `plans`
+    against its allowlist.
 
 ## Phase 24: Pull the Andon cord
 
@@ -381,15 +378,16 @@ Requirement 71, design §4.19.
   - An activity_log table and one recordActivity helper validate, trim and screen each row with the built-in secret and path screens and the activity content boundary; a matched or unchecked row is saved redacted; a test fails if a secret-shaped value is saved.
   - `activity_log` with a unique `key` for derived rows; `recordActivity` in `src/app/store/activity-log.ts` validates source and kind, trims the summary to 200 characters, keeps only plain target IDs and `https:` links, screens with the built-in secret and path screens and the `activity` content boundary, and saves a matched or unchecked row redacted; a test fails if a secret-shaped value is saved.
 - [x] `29.2` Local actions and tick events, after 29.1 [R71.2, R71.3] (§4.19)
-  - Local actions and tick events, after 29.1, 14.10
-  - The listed local actions record one row each with source local or mcp; the tick records GitHub and plugin closes, board orders, label orders, incoming items, conflicts and reverts once each; recording never fails an action.
-  - `execute` records the listed operations with source `local` or `mcp` and the actor; the tick diffs a snapshot of verdicts, Project item orders, label events, incoming items and conflicts and records each change once by key; the Wave write-back is recorded where it is written; recording never fails the action.
+  - `execute` records each listed operation once with its actor and source
+    (`local` or `mcp`). The tick records changes to verdicts, label events,
+    incoming items and conflicts once per event key. The operation can
+    finish if recording fails.
 - [x] `29.3` Retention, `activity.list` and MCP, after 29.2 [R71.6, R71.9] (§4.19)
   - Retention, activity.list and MCP, after 29.2
   - activity.retentionDays defaults to 30 and is saved by a person only; each tick prunes older rows; activity.list filters and pages 100 rows; plans_view action activity reads it and recent keeps the recent-events timeline.
   - `activity.retentionDays` (default 30, 1–365) with `activity.settings.get` and person-only `activity.settings.update`; `pruneActivity` on every `workspace.tick`; `activity.list` with filters, 100-row pages and its facets; `plans_view` action `activity` reads it and `recent` keeps the recent-events timeline.
-- [x] `29.4` Activity tab and the retention setting, after 29.3, 12.11 [R71.7] (§4.19)
-  - Activity tab and the retention setting, after 29.3, 12.11
+- [x] `29.4` Activity tab and the retention setting [R71.7] (§4.19)
+  - Activity tab and the retention setting
   - The Activity tab uses the shared heading, filter panel and 100-row pages; task rows open the drawer and GitHub links open in a new tab with noopener noreferrer; the tab's Keep activity field sets the retention.
   - The Activity tab with the `History` icon, `ViewHeading`, the shared filter panel (Source, Kind, Actor), 100 rows per page with Show more, task targets that open the drawer and GitHub links with `target="_blank" rel="noopener noreferrer"`; the Keep activity (days) field on the tab, saved by a person.
 - [x] `avoozl-p43` P43 Proof: activity log [R71] (§4.19)
@@ -671,7 +669,7 @@ Requirement 102, design §4.32.
 - [x] `42.1` PR portions from target repositories or forks, after 41.3 [R87.3, R87.4, R102.6] (§4.32)
   - PR portions from target repositories or forks
   - Open/reuse the PR from an exact verified source head without an upstream copy. Update only the queue head and writable source. Enforce that PR head's required checks and standing reviews; record actual approvers and merger. Without target merge permission, observe an authorized maintainer's merge. No protected-review trains.
-- [x] `42.6` The tick lands `pr` portions through the landing queue, after 42.1, 42.3, 41.4 [R87.3, R87.4, R87.5, R87.6] (§4.26)
+- [x] `42.6` The tick lands `pr` portions through the landing queue [R87.3, R87.4, R87.5, R87.6] (§4.26)
   - The tick lands `pr` portions through the landing queue
   - A verified task in a repository with landing `pr` is pushed to its task branch (`pushHead`, never forced) and queued as one portion. Each tick runs `landNext` with `pullSteps` per base. Landed marks the task integrated at the merge commit; failed checks send the task back to its chat; a conflict uses `sendConflictBack`. `direct` and `off` keep today's path. Fake GitHub and git test; no live write.
 - [x] `41.9` The tick lands `direct` portions through the landing queue, after 41.3, 42.6 [R87.1, R87.2, R88.6] (§4.26)
@@ -685,14 +683,14 @@ Requirement 102, design §4.32.
   - Action: (1) start the chain and leave it; (2) restart the gateway while task 2 works; (3) let the tick push the base.
   - Failure means: the loop still needs a person, or the push policy blocks the tick.
   - Next decision: if the policy blocks the tick, land with `pr` only until Kiro Crew allows it.
-- [x] `avoozl-p52` P52 Proof: ten tasks land through pull requests on a repository with a required check, after 42.1, 42.2, 42.3, 42.6, 42.7 [R87] (§4.26)
+- [x] `avoozl-p52` P52 Proof: ten tasks land through pull requests on a repository with a required check [R87] (§4.26)
   - Proof: ten tasks land through pull requests on a repository with a required check
   - Expected: ten pull requests merge one at a time after the check passes on each head; the moved base is merged in and checked again; the failed task goes back to its chat; no force push; setup run again changes nothing.
   - Setup: a scratch GitHub repository set up by `avoozl setup` with one required check.
   - Action: release ten tasks; move the base during one; make one check fail.
   - Failure means: a merge on an unchecked head, a second ruleset rule, or a force push.
   - Next decision: keep `pr` as the default for repositories with required checks.
-- [x] `42.4` Review Avoozl repository settings against owner policy, after 42.3 (§4.26) (**MANUAL**)
+- [x] `42.4` Review Avoozl repository settings against owner policy (§4.26) (**MANUAL**)
   - Review Avoozl repository settings against owner policy
   - Owner-only: preview and report the current landing/check policy. Preserve the owner's disabled required-CI gate; do not restore three required checks automatically. Apply a real settings change only if explicitly authorized.
 - [x] `56.11` Privacy enforcement for checkpoints and public metadata, after 56.2 [R87.9, R102.7, R102.16, R102.17, R102.18] (§4.32)
@@ -724,12 +722,19 @@ Requirement 102, design §4.32.
   - Also record: screenshots, exact source and target SHAs, call counts and owner screenshot approval. Live receipt under docs/evidence/; wait for owner approval before ticking.
   - Failure means: a wrong or stale link shown as current, a leaked private reference, an extra GitHub call or an unusable mobile layout.
   - Next decision: owner approves the screenshots, or names the link detail to change.
-- [x] `avoozl-p67` P67 Proof: fork source and upstream permissions, after 42.1, 42.2 [R102.5, R102.6, R102.7] (§4.32) (**MANUAL**)
+- [x] `avoozl-p67` P67 Proof: fork source and upstream permissions [R102.5, R102.6, R102.7] (§4.32) (**MANUAL**)
   - P67 Proof: fork source and upstream permissions
   - Setup: isolated scratch upstream and authorized fork, a contributor login without upstream push/merge rights and an authorized maintainer login, plus public and private scratch spec homes. Owner supplies needed accounts; use no real repository settings.
-  - Action: register a pre-PR fork head, checkpoint there, then discover a fork PR head. Land from both while keeping the source branch out of upstream. Move the base and require a refreshed check/review; let the maintainer merge. Try an unregistered source and a private-plan reference on every public surface. Export twice; exercise a divergent mirror import.
-  - Expected: fork branches work without upstream copies, source push rights never permit target merge, the exact checked/approved head is accepted from the maintainer merge, public/private homes remain separate, untrusted fetches and leaks are refused. Retry export creates nothing new; import is not forwarded upstream.
-  - Also record: source and target repository/ref/SHA identities, both logins' permission results, PR head and merge SHA, standing review/check evidence, sanitized discovery records, export issue/link counts and import/forward ancestry. No credentials or private planning data in the receipt.
+  - Action: register a pre-PR fork head, checkpoint there, then discover
+    a fork PR head. Land from both. Move the base and require fresh checks
+    and review before the maintainer merges. Try an unregistered source
+    and a private-plan reference on every public surface.
+  - Expected: fork work stays on its source branch. The maintainer merges
+    the exact checked and approved head. Avoozl refuses an unregistered
+    source and holds any write that exposes private planning information.
+  - Record the source and target refs and commits, both logins' permissions,
+    the PR head and merge SHA, the checks and reviews, and sanitized
+    discovery records.
   - Write a live docs/evidence/ receipt; do not tick from tests or unavailable second-account behavior. Failure means a permission bypass, assumed upstream source branch, stale head or private disclosure.
   - Next decision: enable fork heads by default, or fix source resolution and permissions first.
 
@@ -737,14 +742,14 @@ Requirement 102, design §4.32.
 
 Design §4.34.
 
-- [x] `58.1` A role per repository in Repository setup, after 20.2 [R28.1] (§4.34)
+- [x] `58.1` A role per repository in Repository setup [R28.1] (§4.34)
   - Repository setup shows each repository's role (local, code, planning, both), derived from `github.mode` and `github.planningRepository` in `hosts/kirocrew/ui/src/settings-api.ts`; choosing `planning` for one repository turns the old planning repository into `code`.
 
 ## Phase 59: Task Timeline
 
 Requirement 106, design §4.35.
 
-- [x] `59.1` Task details get a Timeline of Avoozl's task steps, after 55.4 [R106.1, R106.2] (§4.35)
+- [x] `59.1` Task details get a Timeline of Avoozl's task steps [R106.1, R106.2] (§4.35)
   - The task drawer's Timeline tab lists the task row's last change, each session's start and status, evidence, delivery states and the integration commit, each with its time; `taskTimeline` in `src/app/api/page-views.ts` builds it from stored records and makes no GitHub call.
 
 ## Phase 63: One intake list
@@ -754,22 +759,11 @@ Requirement 110, design §4.39.
 - [x] `63.1` GitHub sources in `intake.sources`, after 14.2 [R110.1, R110.2, R110.3, R110.6, R50.6] (§4.39)
   - `github-sources.ts` reads and writes `via: github` entries; `validateSource` takes the GitHub kind and refuses the wrong keys per kind; `sourceMap` leaves it out; `github configure` and Repository setup write a source; `github.queue` is ignored. Intake sources lists each GitHub source in the shared box with a link to Repository setup. Tests cover each case.
 
-## Phase 64: Task facts move into tasks.md
-
-Requirement 111, design §4.40.
-
-- [x] `64.1` Facts bullets in `tasks.md` [R111.1, R111.2, R111.3, R111.4, R111.5, R111.6, R111.7, R111.9] (§4.40)
-  - `spec-facts.ts` reads facts bullets and front-matter into the parse, with lint codes and lines for each bad shape; a leftover `avoozl/manifest.json` is an error; `specHash` hashes prose plus canonical parsed facts; tests cover each rule.
-- [x] `64.2` Convert the Nupp plans to Facts bullets, after 64.1 (§4.40)
-  - Convert the Nupp plans to Facts bullets, after 64.1
-  - The Nupp plans branch `avoozl-plans` is converted in one pull request, tested on a copy first, merged after its checks, with no Nupp code repository touched.
-  - In the Nupp plans repository, branch `avoozl-plans`, run the converter on a copy, check the parse and the hashes, convert in one pull request and merge it after its checks. Touch no Nupp code repository. Report a question if those specs fall under person-only approval.
-
 ## Phase 65: A tick on the base branch completes the task
 
 Requirement 113, design §4.41.
 
-- [x] `65.1` A tick on the base branch marks the task done, no re-approval, after 64.1 [R113.1, R113.2, R113.3, R113.4, R113.5, R113.6, R113.8] (§4.41)
+- [x] `65.1` A tick on the base branch marks the task done, no re-approval [R113.1, R113.2, R113.3, R113.4, R113.5, R113.6, R113.8] (§4.41)
   - A tick on the base branch marks the task done, no re-approval
   - Each workspace tick reads tasks.md from the base branch; a `[x]` item completes its task with the tick's commit, releases its worker session, and keeps the hash; an untick waits in Needs you with Reopen and Keep done; a ticked item with no ID is a lint error; tests cover each.
   - `spec-ticks.ts` and `applyBaseTicks` in `operations.ts`; `conflicts.settle` takes `reopen` and `keep`; the Conflicts page shows the `untick` item.
@@ -784,22 +778,25 @@ Requirement 113, design §4.41.
 
 Requirement 114, design §4.42.
 
-- [x] `66.1` Approvals are approvers' authored commits on main, after 65.2 [R114.1, R114.2, R114.3, R114.4, R114.5] (§4.42)
-  - A commit on main whose author email is an approver approves the spec as its tree holds it, whatever its committer; Avoozl's and its agents' commits use the checkout's git identity with no Co-authored-by, and spec drafts reach main only through Approve; Approve writes and pushes the person's commit; no Status line, marker or decision record is written.
+- [x] `66.1` Verify approval evidence on the specs branch, after 65.2 [R114.1, R114.2, R114.3, R114.4, R114.5] (§4.42)
+  - A commit on the specs branch approves the exact spec text when the
+    repository's trust mode accepts its approver evidence.
+  - **Approve** writes and pushes the person's commit using the checkout's
+    git identity. The commit supplies the approval record.
   - `git-approvals.ts`, `approveInGit` in `operations.ts`, `spec-approval.ts`.
 - [x] `66.2` Recoverable intake and `avoozl rebuild`, after 66.1 [R114.7, R114.8] (§4.42)
   - Intake tasks name their item with `source:`; dismissed items carry `avoozl:dismissed`; MCP pushes become GitHub issues; a deleted database rebuilds to the same plans, approvals and tasks.
   - `submitItems` in `intake.ts`, `workspace.rebuild`, `src/app/git/test/git-approvals.test.ts`.
-- [x] `66.4` The tick adopts approvals that reach main with no click, after 66.2 [R114.12] (§4.42)
-  - An approver-authored spec commit on main, such as a GitHub squash merge, approves the spec on the next tick as rebuild would; a non-approver's commit approves nothing; a later non-approver edit needs approval again; a click adds no second Activity row.
+- [x] `66.4` Adopt approvals from the specs branch on each tick, after 66.2 [R114.12] (§4.42)
+  - A qualifying spec commit on the specs branch is adopted on the next tick as rebuild would; a later edit needs its own approval; a click adds no second Activity row.
   - `applyMainApprovals` and `adoptApprovals` in `operations.ts`, `src/app/git/test/git-approvals.test.ts`.
 
 ## Phase 67: Task IDs and refs in tasks.md
 
 Requirement 115, design §4.43.
 
-- [x] `67.1` Checked, linked requirement and design refs, and optional backticked task IDs [R115] (§4.43)
-  - A ref the spec does not define is a lint error naming the ref, file and line; a task ID reads the same bare or backticked; refs are left out of the title and shown as chips that open their section; every spec under `.kiro/specs/` lints clean.
+- [x] `67.1` Check task IDs and link requirement and design references [R115] (§4.43)
+  - A ref the spec does not define is a lint error naming the ref, file and line; a task ID must be in a code span; refs are left out of the title and shown as chips that open their section; every spec under `.kiro/specs/` lints clean.
   - `spec-refs.ts`, `specItems` and `parseSpec` in `spec-plans.ts`, `PhaseTasks` in `PlansView.tsx`.
 
 ## Phase FS: Flexible spec folders
@@ -818,7 +815,7 @@ Requirement FS1, design §FS1.
 Requirement 116, design §4.44.
 
 - [x] `68.1` The spec issue's assignee drives, after 66.4 [R116.1, R116.2, R116.5, R116.6] (§4.44)
-  - A spec runs on this runner only when its spec issue, and the spec issue of every parent spec, is assigned to this runner's login alone; otherwise its tasks are held with the reason; a spec with no spec issue runs here; results are cached per pass and the tick adds no read.
+  - A spec runs on this runner only when its spec issue, and the spec issue of every parent spec, is assigned to this runner's login alone; otherwise its tasks are held with the reason; a GitHub-backed spec waits for its issue, and a local-only spec can run here. Results are cached per pass.
   - `assignedTo`, `readSpecAssignees` and `assigneeHolds` in `spec-assignee.ts`, `src/app/specs/test/spec-assignee.test.ts`.
 
 ## Phase 69: The specs branch
@@ -833,13 +830,11 @@ Requirement 117, design §4.45.
 
 Requirement 118, design §4.46.
 
-- [x] `70.1` One approval path, an approver's commit read on the tick, after 66.4 [R118.1, R118.2] (§4.46)
-  - One approval path, an approver's commit read on the tick, after 66.4
+- [x] `70.1` Read qualifying approvals on each tick [R118.1, R118.2] (§4.46)
   - One commit approves every spec it changes; Approve and chat approval are the person's own commit; tests cover an epic commit approving three specs and the epic.
   - `adoptCommitted` and `applyMainApprovals` in `operations.ts`, `src/app/git/test/git-approvals.test.ts`.
-- [x] `70.2` Spec pull requests are pull requests, after 70.1 [R118.3] (§4.46)
-  - Spec pull requests are pull requests, after 70.1
-  - Merging a spec pull request authored by an approver approves it.
+- [x] `70.2` Adopt qualifying spec pull request merges [R118.3] (§4.46)
+  - A qualifying merge by an approver approves the spec text on the specs branch.
   - `git-approvals.ts`.
 - [x] `70.3` The driver is the spec issue's assignee, after 70.1 [R118.4] (§4.46)
   - The assignee rule reads the spec issue's assignee and never writes it.
@@ -853,3 +848,8 @@ Requirement 118, design §4.46.
 - [x] `70.6` Make the GitHub issues after approval, after 70.1 (§4.46)
   - The tick publishes an approved spec's issue and its epic's issue; `avoozl spec publish` is a person's retry, and publishing again writes nothing.
   - `src/app/specs/spec-publication.ts`, `spec.publish` in `src/app/api/command-dispatch.ts`.
+
+## Release publication
+
+- [ ] `7.6` Publish the npm package, the app package and a signed GitHub release (§13) (**MANUAL**)
+  - The report links to both published packages and the signed release.

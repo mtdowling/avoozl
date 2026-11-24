@@ -142,7 +142,7 @@ const PLUGIN_MANIFEST = "avoozl-plugin.json";
 const RESERVED_IDS = new Set(["local", "github"]);
 export const KINDS = ["rules"];
 const CAPABILITIES: Record<string, string[]> = { rules: [] };
-// The parts one plugin may bundle (simplify SM11), and the code kind each
+// The parts one plugin may bundle and the code kind each
 // runs as. `credentials` hands Avoozl GitHub tokens (plugin-credentials §D1)
 // from its own entry, in a child apart from the plugin's other code.
 // `checks` are check definitions and their files (plugin-checks D1): they
@@ -903,7 +903,7 @@ export function inspectPlugins(options: PluginOptions): InspectedPlugin[] {
 }
 
 // One Needs you row per declared plugin waiting for this machine's
-// approval (simplify §D13); a person approves it in Settings › Plugins.
+// approval; a person approves it in Settings › Plugins.
 export function pluginApprovalNeedsYou(
   options: PluginOptions | null | undefined,
 ) {

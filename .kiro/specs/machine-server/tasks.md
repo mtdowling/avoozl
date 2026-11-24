@@ -36,14 +36,6 @@ specs.
 - [x] `ms-1.6` The role proof script for any harness, after ms-1.2 [MS6.3] (§D6)
   - `scripts/proofs/proof-ms-roles-live.ts --harness NAME` runs the D6 rows on a scratch repository with `avoozl tick` run every 10 seconds as its own process, and prints one line per row; a test fails when a `ROLE_TABLE` row with `process: true` is not in its list, or a row drives a role `ROLE_TABLE` does not have; a dry run with `--harness fake-cli --offline` passes every row it can drive offline; `scripts/proofs/run-ms-owner-proofs.ts` runs ms-p2 and ms-p3 and drafts their receipts.
 
-- [ ] `ms-p2` Proof: every role on Claude Code with no front end, after ms-1.6 [MS5, MS6] (§D6) (**MANUAL**)
-  - Expected: (1) the worker, reviewer, responder and assist rows reach their result kinds, the check decide row is named as not driven, and every session has executor `process`; (2) no watch session request exists and the line stops on the red head; (3) the sink file holds one line per decision; (4) the receipt lists each row with its harness version.
-  - Expected result observed; receipt under `docs/evidence/`.
-  - Setup: an isolated Avoozl home and workspace, a private scratch GitHub repository, an approved Claude Code definition, model access from `machine.env` or a model proxy, every role's harness set to `claude-code`, the machine's `loop` on, and a `command` sink to a file. Only `avoozl tick` run as its own process drives the run: no interactive Claude Code or Codex session is open, and the run's isolated home has no Kiro Crew in it. A Kiro Crew running for other work may stay open. The owner runs it from his own terminal, because Kiro Crew's sandbox refuses a nested `sandbox-exec`.
-  - Action: (1) `node scripts/proofs/run-ms-owner-proofs.ts --only ms-p2`, which makes a private scratch repository, pushes the failing commit, reads the sink file, and deletes the repository at the end; (2) correct and commit the receipt it drafts.
-  - Failure means: some role still needs a front end open.
-  - Next decision: whether `claude-code` becomes the default harness for new workspaces.
-
 ## Phase 2: Codex
 
 - [x] `ms-2.1` Codex's read class inside Avoozl's sandbox, after ms-1.3 [MS7.1, MS7.2, MS7.5] (§D7)
@@ -52,14 +44,6 @@ specs.
 - [x] `ms-2.2` The containment probes and their CI test, after ms-1.3, ms-1.6 [MS8.1, MS8.2, MS8.3, MS8.4] (§D7)
   - `src/app/sandbox-probes.ts` holds every MS8.1 probe as an argv list; the test runs them under `confineChild` with `danger-full-access` and a stand-in harness on the macOS and Linux legs and every probe is refused; the Linux leg fails rather than skips without a usable `bwrap`; a probe planted to succeed fails the test naming it; `scripts/proofs/proof-ms-roles-live.ts --probes` runs the same set in a live child.
   - Fix any probe that gets through in `src/app/executors/sandbox.ts`, never by changing the probe.
-
-- [ ] `ms-p3` Proof: every role on Codex, and the sandbox contains it, after ms-2.1, ms-2.2, ms-p2 [MS7, MS8] (§D7) (**MANUAL**)
-  - Expected: (1) every row reaches its result kind or the receipt names why it cannot; (2) every probe is refused on both systems, each with its error text; (3) `codex.json`'s `proved` matches the receipt.
-  - Expected result observed; receipt under `docs/evidence/`.
-  - Setup: as ms-p2 with every role on `codex`, its own `CODEX_HOME`, and the model reached through the repository's model proxy. On macOS and on Linux. The owner runs it from his own terminal.
-  - Action: (1) `node scripts/proofs/run-ms-owner-proofs.ts --only ms-p3`; (2) read Codex's transcript and the probe log; (3) update `proved` in `codex.json` in the receipt's commit.
-  - Failure means: Codex cannot run unattended here; it stays off the failing roles.
-  - Next decision: none.
 
 ## Phase 3: MCP and the drive skill
 
@@ -83,10 +67,29 @@ specs.
   - `hosts/kirocrew/crons/tick.py` opens, sends and re-trusts and nothing else; the Python test with a fake context covers each and a refused send; the Node test that the cron's call runs the pass passes; `app.json`'s permissions are unchanged.
 - [x] `ms-5.2` Docs and the product spec, after ms-1.2, ms-3.2 [MS4, MS13] (§D2)
   - The product spec, worker-paths WP1.1 and standalone-web SW3 and SW9 say what MS13 lists; `README.md`, `docs/getting-started.md`, `docs/person-only.md`, `docs/glossary.md`, `docs/workspaces.md` and `docs/scale-out.md` describe `avoozl tick`, the launchd, systemd and crontab lines, `avoozl mcp`, the drive skill, `machine.env` and the host packages.
-- [ ] `ms-p7` Proof: the cron on a throwaway Kiro Crew, after ms-5.1 [MS12] (§D5) (**MANUAL**)
-  - Expected: (1) the chat opens, gets the message and keeps trust mode; (2) the cron history shows only open, send and trust calls besides the pass; (3) the task lands.
-  - Expected result observed; receipt under `docs/evidence/`.
-  - Setup: the throwaway test Kiro Crew with its own home and this machine's `loop` on, an isolated workspace with one `kirocrew` task, its worker and reviewer lanes, and a private scratch repository; the cron is the only thing that runs the tick; `scripts/proofs/proof-ms-p7-live.ts` sets it up and acts as the person. The chat drives the test crew's clicks itself.
-  - Action: (1) approve the task; (2) restart the test crew's gateway while the worker's chat has a turn running, so the pass nudges the quiet chat, which sends a message to it; (3) read the cron's run history.
-  - Failure means: the cron does work the pass should own, or a Kiro Crew machine needs another timer.
-  - Next decision: none.
+
+## Phase 6: Live proofs
+
+- [ ] `ms-live-proofs` Validate the harnesses and the Kiro Crew cron (**PARALLEL**)
+  - [ ] `ms-harness-proofs` Validate the process harnesses
+    - [ ] `ms-p2` Proof: every role on Claude Code with no front end, after ms-1.6 [MS5, MS6] (§D6) (**MANUAL**)
+      - Expected: (1) the worker, reviewer, responder and assist rows reach their result kinds, the check decide row is named as not driven, and every session has executor `process`; (2) no watch session request exists and the line stops on the red head; (3) the sink file holds one line per decision; (4) the receipt lists each row with its harness version.
+      - Record the observed result in a receipt under `docs/evidence/`.
+      - Setup: an isolated Avoozl home and workspace, a private scratch GitHub repository, an approved Claude Code definition, model access from `machine.env` or a model proxy, every role's harness set to `claude-code`, the machine's `loop` on, and a `command` sink to a file. Only `avoozl tick` run as its own process drives the run: no interactive Claude Code or Codex session is open, and the run's isolated home has no Kiro Crew in it. A Kiro Crew running for other work may stay open. The owner runs it from his own terminal, because Kiro Crew's sandbox refuses a nested `sandbox-exec`.
+      - Action: (1) `node scripts/proofs/run-ms-owner-proofs.ts --only ms-p2`, which makes a private scratch repository, pushes the failing commit, reads the sink file, and deletes the repository at the end; (2) correct and commit the receipt it drafts.
+      - Failure means: some role still needs a front end open.
+      - Next decision: whether `claude-code` becomes the default harness for new workspaces.
+
+    - [ ] `ms-p3` Proof: every role on Codex, and the sandbox contains it, after ms-2.1, ms-2.2, ms-p2 [MS7, MS8] (§D7) (**MANUAL**)
+      - Expected: (1) every row reaches its result kind or the receipt names why it cannot; (2) every probe is refused on both systems, each with its error text; (3) `codex.json`'s `proved` matches the receipt.
+      - Record the observed result in a receipt under `docs/evidence/`.
+      - Setup: as ms-p2 with every role on `codex`, its own `CODEX_HOME`, and the model reached through the repository's model proxy. On macOS and on Linux. The owner runs it from his own terminal.
+      - Action: (1) `node scripts/proofs/run-ms-owner-proofs.ts --only ms-p3`; (2) read Codex's transcript and the probe log; (3) update `proved` in `codex.json` in the receipt's commit.
+      - Failure means: Codex cannot run unattended here; it stays off the failing roles.
+
+  - [ ] `ms-p7` Proof: the cron on a throwaway Kiro Crew, after ms-5.1 [MS12] (§D5) (**MANUAL**)
+    - Expected: (1) the chat opens, gets the message and keeps trust mode; (2) the cron history shows only open, send and trust calls besides the pass; (3) the task lands.
+    - Record the observed result from the current cron in a receipt under `docs/evidence/`.
+    - Setup: the throwaway test Kiro Crew with its own home and this machine's `loop` on, an isolated workspace with one `kirocrew` task, its worker and reviewer lanes, and a private scratch repository; the cron is the only thing that runs the tick; `scripts/proofs/proof-ms-p7-live.ts` sets it up and acts as the person. The chat drives the test crew's clicks itself.
+    - Action: (1) approve the task; (2) restart the test crew's gateway while the worker's chat has a turn running, so the pass nudges the quiet chat, which sends a message to it; (3) read the cron's run history.
+    - Failure means: the cron does work the pass should own, or a Kiro Crew machine needs another timer.

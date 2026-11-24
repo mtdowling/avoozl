@@ -549,7 +549,7 @@ async function runSeen({
   return JSON.parse(fs.readFileSync(path.join(worktree, "seen.json"), "utf8"));
 }
 
-test("a lane child runs in its lane's home, named by its header, and a new task prunes older sessions (simplify §D22.2)", async (t) => {
+test("a lane child runs in its lane's home, named by its header, and a new task prunes older sessions", async (t) => {
   // Nearby inputs: a session file older than the lane's last task (deleted),
   // a newer one (kept), a file outside the session folder (kept), and a
   // definition with no label (the header leads the prompt instead).

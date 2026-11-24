@@ -165,7 +165,7 @@ function helperHash(value: unknown, id: string) {
   return value;
 }
 
-// `claims.staleHours` (simplify §D3): hours without a commit before a claim
+// `claims.staleHours`: hours without a commit before a claim
 // branch shows as stale.
 export const CLAIMS_KEYS = Object.freeze(["staleHours"]);
 export function claimsOf(value: unknown, id: string) {
@@ -183,7 +183,7 @@ export function claimsOf(value: unknown, id: string) {
   return hours === undefined ? {} : { staleHours: hours };
 }
 
-// `labels.require` and `labels.exclude` (simplify §D5): label names on a
+// `labels.require` and `labels.exclude`: label names on a
 // spec issue, read by label-filters.mjs.
 // `labels.stop` (rule 10) names the stop label, default `avoozl:stopped`.
 export const LABELS_KEYS = Object.freeze(["require", "exclude", "stop"]);

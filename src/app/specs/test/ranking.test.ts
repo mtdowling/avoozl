@@ -20,7 +20,7 @@ test("unblock count counts every open task downstream, once", () => {
   assert.equal(unblockCounts([{ from: "a", to: "b" }], open).get("a"), 1);
 });
 
-// rankReady (simplify sim-1.2, §D3.1): each key breaks the tie the one
+// rankReady: each key breaks the tie the one
 // before it leaves, over the waits the list derives.
 const ranked = (text: string, ready: string[]) =>
   rankReady(

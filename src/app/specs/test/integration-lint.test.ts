@@ -1,4 +1,4 @@
-// integration.foreign (simplify sim-2.6, §D21.1): a branch named for a spec
+// integration.foreign: a branch named for a spec
 // may hold merges of the default branch and landings of the spec's tasks,
 // and nothing else. Real git with a bare origin.
 import assert from "node:assert/strict";
