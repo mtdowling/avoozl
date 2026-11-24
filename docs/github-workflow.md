@@ -297,14 +297,14 @@ inline or reference-style.
 
 ## 7. Approval
 
-An approval is a commit on the specs branch that adds a spec or changes its
-spec text, and that carries evidence an approver stands behind it (7.2). It
-approves the spec text exactly as the commit leaves it. One commit that
-changes several specs approves each of them. A commit's changes are its diff
-against its first parent.
+To approve a spec, add it or edit its text in a commit on the specs branch.
+The commit must carry one of the forms of approval evidence in rule 7.2.
+It approves the full text of each spec it adds or edits, as it appears in
+that commit. Compare the commit with its first parent to see what changed.
 
-A tick changes one checkbox, so it changes no spec text. It keeps the approval
-whoever authors it, and it approves nothing, even when an approver authors it.
+A tick marks a task complete by checking its box. Approval comes from
+changes to the spec text, so the runner keeps the prior approval status
+when a commit only checks a box, whoever commits it.
 
 ```diff
 -- [ ] `p-1` Read the token table
