@@ -95,7 +95,13 @@ export interface Task {
   childrenComplete?: { at: string; children: string[] };
   createdAt?: string;
   updatedAt?: string;
-  labeledIssue?: { repository?: string; number?: number } | null;
+  // A labeled issue's task: its issue, and the label event that authorized
+  // it (workflow v1 rule 11.2).
+  labeledIssue?: {
+    repository?: string;
+    number?: number;
+    event?: { id: string; createdAt: string };
+  } | null;
   labelRank?: number;
   // The intake item a task came from (src/app/intake/intake.ts).
   intake?: {

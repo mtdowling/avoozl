@@ -29,7 +29,9 @@
 //   draft and ready: once the checks and reviews pass on the exact head it
 //   waits (reason "merge") for a person, who merges on GitHub (seen by
 //   `observe`) or presses Merge in Avoozl (`approveMerge`) for that head.
-//   auto: it opens ready and Avoozl merges it guarded by the head.
+//   auto: it opens ready and Avoozl merges it guarded by the head. A
+//   labeled issue it closes is checked again first (rule 11.4); a failed
+//   check holds the task in Needs you and leaves the merge to a person.
 //   shortcut: auto merges from the tick and never arms GitHub auto-merge;
 //   add that when a repository needs merges between ticks.
 //
@@ -39,6 +41,7 @@
 import { commitSubject } from "./landing-config.ts";
 import { branchReviewRule } from "../github/github-branch-rules.ts";
 import { headGuardedMerge } from "./guarded-push.ts";
+import { mergedChecked } from "../workers/claim-rules.ts";
 import {
   landingRights,
   pushHead,
@@ -55,8 +58,18 @@ import {
   type QueueEntry,
 } from "./landing-queue.ts";
 import type { Store } from "../store/store.ts";
+import {
+  holdLabeledIssue,
+  type IssueReads,
+  labeledIssueRefusal,
+} from "../specs/labeled-issues.ts";
 
 const lower = (value: unknown) => String(value).toLowerCase();
+// Whether a client has the reads a labeled issue's check makes.
+const readsIssues = <T extends Partial<IssueReads>>(
+  github: T,
+): github is T & IssueReads =>
+  typeof github.issue === "function" && typeof github.permission === "function";
 const PASS = new Set(["success", "neutral", "skipped"]);
 
 // A pull request as the REST API returns it, in the fields read here.
@@ -140,7 +153,8 @@ export type PullGitHub = {
 } & Parameters<typeof verifyRelationship>[0] &
   Parameters<typeof landingRights>[0] &
   Parameters<typeof branchReviewRule>[0] &
-  Parameters<typeof headGuardedMerge>[0];
+  Parameters<typeof headGuardedMerge>[0] &
+  Partial<IssueReads>;
 // The plugin checks this machine provides for required names (D8).
 interface LocalChecks {
   names: string[];
@@ -276,6 +290,44 @@ export function pullSteps({
   } | null = null;
   const settled = () =>
     current ?? fail("No pull request was prepared for this step.", 500);
+  // The labeled-issue tasks a portion's pull request closes, and how many
+  // it names.
+  const closing = (entry: QueueEntry) => {
+    const ids = new Set(
+      entry.tasks.flatMap((t) =>
+        typeof t === "object" && t.closes ? [t.task] : [],
+      ),
+    );
+    return {
+      named: ids.size,
+      tasks:
+        ids.size && store
+          ? store.read().tasks.filter((task) => ids.has(task.id))
+          : [],
+    };
+  };
+  // Whether a labeled issue the portion closes is held (its decision).
+  const heldIssues = (entry: QueueEntry) =>
+    closing(entry).tasks.some((task) => task.decision);
+  // Checks each labeled issue the portion closes again; the first refusal
+  // holds its task with one Needs you row. A task it cannot find refuses.
+  // Returns whether one refused.
+  const issueRefused = async (entry: QueueEntry) => {
+    const { named, tasks } = closing(entry);
+    if (!named) return false;
+    if (!store || tasks.length !== named || !readsIssues(github)) return true;
+    for (const task of tasks) {
+      const reason = await labeledIssueRefusal(store, github, task, login);
+      if (!reason) continue;
+      holdLabeledIssue(
+        store,
+        task.id,
+        `Avoozl did not merge pull request #${settled().pull.number}, so issue #${task.labeledIssue?.number} stays open: ${reason}. Merge it yourself if the work is what you want.`,
+      );
+      return true;
+    }
+    return false;
+  };
   // Every required check at `candidate`: its result, whether it is still
   // pending, and whether it failed.
   const headChecks = async (candidate: string, branch: string) => {
@@ -347,7 +399,15 @@ export function pullSteps({
       const pull = await findPull(github, target, entry, entry.base);
       if (pull?.state === "closed" && !pull.merged_at)
         return { closed: true, pr: pull.number };
-      if (!pull?.merged_at || pull.head?.sha !== entry.commit) return null;
+      // Rule 16.5: only a merge of the checked commit landed this portion.
+      if (
+        !pull ||
+        !mergedChecked(
+          { merged: Boolean(pull.merged_at), head: pull.head?.sha },
+          entry.commit,
+        )
+      )
+        return null;
       return {
         merged: true,
         candidate: entry.commit,
@@ -476,8 +536,12 @@ export function pullSteps({
       }
       // Unless landing.pr is auto, a person merges (R119.4): Merge in
       // Avoozl for this exact head, else it waits, and a merge on GitHub is
-      // recorded by observe().
-      if (pr !== "auto" && entry.mergeApproved?.commit !== candidate)
+      // recorded by observe(). A labeled issue whose check failed before an
+      // auto merge waits for a person the same way (rule 11.4).
+      if (
+        (pr !== "auto" || heldIssues(entry)) &&
+        entry.mergeApproved?.commit !== candidate
+      )
         return { wait: true, reason: "merge", checks: shown };
       return {
         ok: true,
@@ -492,6 +556,15 @@ export function pullSteps({
       if (pull.draft) return false; // never a draft (R119.2)
       const rights = await landingRights(github, ref, login);
       if (rights.land !== "merge") return false;
+      // An auto merge closes a labeled issue with no person's say, so the
+      // issue is checked again first (rule 11.4). A person's Merge in
+      // Avoozl is that person's own authorization.
+      if (
+        pr === "auto" &&
+        entry.mergeApproved?.commit !== candidate &&
+        (await issueRefused(entry))
+      )
+        return false;
       // Avoozl adds no trailer or attribution to the merge commit.
       return headGuardedMerge(github, target, pull.number, candidate, method, {
         title: `${pull.title ?? commitSubject(commitPrefix, `Land ${entry.key}`)} (#${pull.number})`,

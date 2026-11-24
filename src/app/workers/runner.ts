@@ -10,6 +10,7 @@ import {
   readyLeaves,
 } from "../delivery/delivery.ts";
 import type { Delivery, DeliveryPolicy } from "../delivery/delivery.ts";
+import type { GitHubPolicy } from "../github/github-policy.ts";
 import {
   cacheClaim,
   claimBranch,
@@ -415,7 +416,7 @@ export async function claimNext(
     linked = null,
   }: {
     policy: Policy;
-    github?: unknown;
+    github?: GitHubPolicy | null;
     client: ClaimClient;
     workspaceRoot?: string | null;
     linked?: Linked;
@@ -423,7 +424,7 @@ export async function claimNext(
 ) {
   const errors = [
       ...(await refreshClaims(store, client)),
-      ...(await readLabelFilters(store, client)),
+      ...(await readLabelFilters(store, client, github)),
       ...(await readSpecAssignees(store, client)),
       ...(await readLabeledIssues(store, client)),
     ],

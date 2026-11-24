@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { Operations } from "../../api/operations.ts";
-import { parseSpec, specHash, specItems } from "../spec-plans.ts";
+import { parseSpec, specCategory, specHash, specItems } from "../spec-plans.ts";
 import {
   designIds,
   requirementIds,
@@ -239,6 +239,55 @@ test("a ref is checked only when its file exists, and names a missing file", () 
     ),
     [],
   );
+});
+
+test("single-file refs target their own section and keep original line numbers", () => {
+  const lines = [
+    "---",
+    "repo: app",
+    "category: Runtime",
+    "---",
+    "# Config",
+    "",
+    "## Requirements",
+    "### Requirement 1: Read",
+    "",
+    "1. The loader reads the file.",
+    "| F13 | Requirement fact |",
+    "",
+    "## Design",
+    "### D1. Loader",
+    "| F13 | Design fact |",
+    "",
+    "## Tasks",
+    "- [ ] `read-1` Read [R1.1, F13] (§D1, F13)",
+    "  - The loader reads the file.",
+    "",
+    "## Notes",
+    "### Requirement 2: A note",
+    "### D2. A note",
+  ];
+  for (const file of ["config.md", "requirements.md", "design.md"]) {
+    const text = lines.join("\n");
+    const files = { [file]: text };
+    const config = { name: "config", exists: true, files };
+    const parsed = parseSpec(config);
+    assert.deepEqual(problems(parsed), []);
+    assert.equal(specCategory(files), "Runtime");
+    assert.deepEqual(parsed.proposals[0].refs, [
+      { kind: "requirement", ref: "R1.1", file, line: 10 },
+      { kind: "requirement", ref: "F13", file, line: 11 },
+      { kind: "design", ref: "§D1", file, line: 14 },
+      { kind: "design", ref: "F13", file, line: 15 },
+    ]);
+    const invalid = text.replace("[R1.1, F13] (§D1, F13)", "[R2] (§D2)");
+    assert.deepEqual(
+      parseSpec({ ...config, files: { [file]: invalid } }).diagnostics.map(
+        ({ code }) => code,
+      ),
+      ["task.ref-unknown", "task.ref-unknown"],
+    );
+  }
 });
 
 test("refs and the ID's form are part of the revision hash", () => {

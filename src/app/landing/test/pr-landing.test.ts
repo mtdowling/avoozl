@@ -545,3 +545,81 @@ test("a labeled issue's pull request says Closes #<n>", async (t) => {
   await step(w, github);
   assert.match(String(bodies[0]), /^Closes #12$/m);
 });
+
+test("an auto merge checks the labeled issue again: one edited after its label is not merged, stays open and waits for a person", async (t) => {
+  // Nearby input: the same issue unedited merges, so what holds the merge
+  // is the edit.
+  const run = async (edited: string | null) => {
+    const w = await workspace(t),
+      github = fakeGithub(w);
+    w.store.put("repositories", {
+      ...storedRow<{ id: string }>(w.store, "repositories", "app"),
+      labels: { require: ["agent-ok"] },
+    });
+    Object.assign(github, {
+      issue: async () => ({
+        number: 12,
+        state: "open",
+        title: "Fix the crash",
+        body: "x",
+        labels: [{ name: "agent-ok" }],
+        assignees: [{ login: "bot" }],
+      }),
+      issueEvents: async () => [
+        {
+          id: 501,
+          event: "labeled",
+          created_at: "2026-11-20T10:00:00Z",
+          label: { name: "agent-ok" },
+          actor: { login: "bot" },
+        },
+      ],
+      graphql: async () => ({ repository: { i12: { lastEditedAt: edited } } }),
+    });
+    w.store.mutate("Issue task", (data) => {
+      data.tasks.push({
+        ...leaf("issue-12"),
+        title: "Fix the crash",
+        acceptance: ["x"],
+        planId: undefined,
+        labeledIssue: {
+          repository: "acme/app",
+          number: 12,
+          event: { id: "501", createdAt: "2026-11-20T10:00:00Z" },
+        },
+        approvedSource: { text: "x", hash: digest("Fix the crash\n\nx") },
+      });
+    });
+    verified(w, "issue-12");
+    await integrateVerified(w.store);
+    github.setChecks("success");
+    const auto = (config: object) =>
+      landPullRequests(w.store, {
+        github,
+        workspaceRoot: w.root,
+        rounds: 2,
+        config,
+      });
+    await auto({ landing: { pr: "auto" } });
+    await auto({ landing: { pr: "auto" } });
+    return {
+      merged: github.calls.merged.length,
+      decision: w.store.read().tasks.find((x: Task) => x.id === "issue-12")
+        ?.decision,
+      waiting: landingQueue(w.store, { repositoryId: "app", base: "main" })[0]
+        ?.waiting?.reason,
+    };
+  };
+  assert.deepEqual(await run(null), {
+    merged: 1,
+    decision: undefined,
+    waiting: undefined,
+  });
+  const held = await run("2026-11-20T11:00:00Z");
+  assert.equal(held.merged, 0);
+  assert.equal(held.waiting, "merge");
+  assert.match(
+    String(held.decision),
+    /did not merge pull request #1, so issue #12 stays open: its text changed after the label/,
+  );
+});
