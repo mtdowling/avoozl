@@ -323,7 +323,7 @@ avoozl init ~/plans --name "My plans"
 my-plans/
   .avoozl.json                     portable, reviewable policy
   .avoozl/local/workspace.sqlite   execution state (not committed)
-  .kiro/specs/<name>/              specs
+  .kiro/specs/<name>.md            a single-file spec
 ```
 
 A new workspace has no tasks and no repositories. Add one with
@@ -332,8 +332,7 @@ A new workspace has no tasks and no repositories. Add one with
 
 ## Write and approve a spec
 
-Put each spec in its own folder. For a single-file spec, write a Markdown
-file such as `.kiro/specs/config/config.md` and put the checklist under
+Write a file such as `.kiro/specs/config.md` and put the checklist under
 `## Tasks`.
 
 ```markdown
@@ -352,10 +351,9 @@ repo: app
 ```
 
 To keep specs in a different folder, set `specs.path` in the spec
-repository's `.avoozl.json`, for example to `docs/specs`. Avoozl also reads
-the split Kiro layout with `requirements.md` or `bugfix.md`, `design.md`,
-and `tasks.md`. Set `specs.layout` to `kiro` to have the spec skills write new
-specs that way; `single`, the default, writes one file:
+repository's `.avoozl.json`, for example to `docs/specs`. Keep split Kiro
+specs in their own subfolders alongside the single files. Set `specs.layout` to `kiro` to have the spec skills write new
+specs that way. The default `single` writes one file directly in the specs folder.
 
 ```json
 {
@@ -369,7 +367,7 @@ See [spec folders](github-workflow.md#1-spec-folders).
 
 Write it by hand, or ask a chat to with the `avoozl-spec` skill, which lints
 it, writes its graph block and leaves it on a spec branch. `avoozl spec lint`
-checks a folder. For the task format and the commit that approves a spec, see
+checks the spec. For the task format and the commit that approves a spec, see
 [Tasks](github-workflow.md#2-tasks) and
 [Approval](github-workflow.md#7-approval).
 

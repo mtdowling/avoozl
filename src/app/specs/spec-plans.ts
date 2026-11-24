@@ -20,7 +20,12 @@ import { digest } from "../../model.ts";
 import { fail } from "../store/store.ts";
 import { TASK_KINDS } from "../../work-model.ts";
 import { lintPlan } from "./plan-quality.ts";
-import { specFolderPath, specsDirectory } from "./specs-path.ts";
+import {
+  flatSpecPath,
+  SPEC_NAME,
+  specFolderPath,
+  specsDirectory,
+} from "./specs-path.ts";
 import {
   factName,
   factsText,
@@ -66,6 +71,7 @@ import type { LinkedReader } from "./order.ts";
 export interface SpecFolder {
   name: string;
   folder?: string;
+  flat?: boolean;
   exists: boolean;
   files: Record<string, string>;
   hash?: string | null;
@@ -127,6 +133,8 @@ export interface PlanRow {
   id: string;
   kind?: string;
   spec?: string;
+  specFolder?: string;
+  flat?: boolean;
   title?: string;
   prompt?: string;
   text: string;
@@ -144,7 +152,13 @@ export interface PlanRow {
   [key: string]: unknown;
 }
 // What a revision reads from its folder.
-type Revision = { hash: string; files: Record<string, string>; title: string };
+type Revision = {
+  hash: string;
+  files: Record<string, string>;
+  title: string;
+  folder?: string;
+  flat?: boolean;
+};
 
 // The field rules every proposed task meets, whichever file it came from.
 // Normalizes `requires` conditions in place.
@@ -242,7 +256,11 @@ function writeRevision(
   plan.revision++;
   plan.text = text;
   plan.hash = spec ? spec.hash : digest(text);
-  if (spec) plan.files = spec.files;
+  if (spec) {
+    plan.files = spec.files;
+    plan.specFolder = spec.folder;
+    plan.flat = spec.flat;
+  }
   plan.title = spec?.title || text.match(/^# (.+)$/m)?.[1] || plan.title;
   plan.state = "draft";
   plan.updatedAt = new Date().toISOString();
@@ -299,7 +317,6 @@ export function revisionFiles(files: Record<string, unknown> = {}) {
     .sort();
   return [...KIRO_FILES.filter((file) => files[file] !== undefined), ...others];
 }
-const NAME = /^[a-z0-9][a-z0-9-]{0,79}$/;
 const MAX_FILE_BYTES = 1000000;
 const CHECKBOX = /^\s*[-*+] \[([ xX~-])\]\*?[ \t]+(.*)$/;
 // A "Built:" note under a checked item names the work that already landed.
@@ -310,9 +327,9 @@ const EPIC_STEPS = ["design", "review", "implement"];
 const FENCE = /^\s*(```|~~~)/;
 
 export function specName(value: unknown): string {
-  if (typeof value !== "string" || !NAME.test(value))
+  if (typeof value !== "string" || !SPEC_NAME.test(value))
     return fail(
-      "Name one spec folder: lowercase letters, digits, and hyphens, up to 80 characters.",
+      "Name one spec folder or file without its extension. Use lowercase letters, digits, and hyphens, up to 80 characters.",
     );
   return value;
 }
@@ -355,14 +372,14 @@ function withoutStatus(text: string) {
 // checkbox marks, Facts bullets and front-matter, and the parsed facts as
 // `factsText` writes them. Layout is outside it, content is inside it
 // (Requirement 111.6).
-export function specHash(files: Record<string, string>) {
-  const tasks = specTasks(files);
+export function specHash(files: Record<string, string>, flat = false) {
+  const tasks = specTasks(files, flat);
   return digest(
     [
       ...revisionFiles(files).map((file) => {
         const raw = files[file],
           text = withoutStatus(
-            file === TASKS_FILE
+            !flat && file === TASKS_FILE
               ? withoutMarks(withoutFacts(raw, specItems("x", raw)))
               : file === tasks?.file
                 ? sectionHashText(raw, tasks.text)
@@ -454,73 +471,88 @@ function inside(root: string, target: string) {
   );
 }
 
-// Read one folder from disk. Only regular files inside the planning root are
-// read: a symlink out of it reads as a missing file.
+// Read a named spec in either layout. `folder` is the base for its
+// documents, including relative links in a single file.
 export function readSpecFolder(root: string, name: string): SpecFolder {
   specName(name);
-  const directory = path.join(specsDirectory(root), name),
-    folder = specFolderPath(root, name);
-  let real: string;
+  const nested = specFolderPath(root, name),
+    flatFile = flatSpecPath(root, name),
+    nestedPath = path.join(root, nested);
+  let directory: string | undefined;
   try {
-    real = fs.realpathSync.native(directory);
-  } catch {
-    return { name, folder, exists: false, files: {}, hash: null };
-  }
-  if (
-    !inside(fs.realpathSync.native(root), real) ||
-    !fs.statSync(real).isDirectory()
-  )
-    return { name, folder, exists: false, files: {}, hash: null };
-  const read = (file: string) => {
-    const target = path.join(real, file);
+    const real = fs.realpathSync.native(nestedPath);
+    if (
+      inside(fs.realpathSync.native(root), real) &&
+      fs.statSync(real).isDirectory()
+    )
+      directory = real;
+  } catch {}
+  const read = (target: string) => {
     let stat: fs.Stats;
     try {
-      stat = fs.lstatSync(target);
+      stat = fs.lstatSync(path.join(root, target));
     } catch {
       return undefined;
     }
     if (!stat.isFile()) return undefined;
-    if (stat.size > MAX_FILE_BYTES) fail(`${folder}${file} is too large.`, 413);
-    return fs.readFileSync(target, "utf8");
+    if (stat.size > MAX_FILE_BYTES) fail(`${target} is too large.`, 413);
+    return fs.readFileSync(path.join(root, target), "utf8");
   };
+  const standalone = read(flatFile);
+  if (directory && standalone !== undefined)
+    fail(
+      `Spec ${name} exists at both ${flatFile} and ${nested}. Keep one layout.`,
+      409,
+    );
+  if (standalone !== undefined) {
+    const files = { [`${name}.md`]: standalone };
+    return {
+      name,
+      exists: true,
+      flat: true,
+      folder: flatFile.slice(0, flatFile.lastIndexOf("/") + 1),
+      files,
+      hash: specHash(files, true),
+      ...(hasFactsBlocks(specTasks(files, true)?.text)
+        ? { factsBlocks: true }
+        : {}),
+    };
+  }
+  if (!directory)
+    return { name, folder: nested, exists: false, files: {}, hash: null };
   const files: Record<string, string> = {},
-    names = fs.readdirSync(real).filter(isSpecFile).sort();
+    names = fs.readdirSync(directory).filter(isSpecFile).sort();
   if (names.length > MAX_SPEC_FILES)
     fail(
-      `${folder} holds ${names.length} Markdown files; a spec holds at most ${MAX_SPEC_FILES}.`,
+      `${nested} holds ${names.length} Markdown files; a spec holds at most ${MAX_SPEC_FILES}.`,
       413,
     );
   for (const file of names) {
-    const text = read(file);
+    const text = read(nested + file);
     if (text !== undefined) files[file] = text;
   }
   return {
     name,
-    folder,
+    folder: nested,
     exists: true,
     files,
-    // Not read and not hashed: lint says to delete it.
-    ...(read(MANIFEST) !== undefined ? { leftover: true } : {}),
+    ...(read(nested + MANIFEST) !== undefined ? { leftover: true } : {}),
     ...(hasFactsBlocks(specTasks(files)?.text) ? { factsBlocks: true } : {}),
     hash: specHash(files),
-    critique: read(CRITIQUE) ?? null,
+    critique: read(nested + CRITIQUE) ?? null,
   };
 }
 
-// When a folder's revision files last changed on disk, as an ISO time, or
-// null when none can be read.
-export function specModifiedAt(root: string, name: string, files: string[]) {
+export function specModifiedAt(root: string, spec: SpecFolder) {
   let latest = 0;
-  for (const file of files)
+  for (const file of Object.keys(spec.files)) {
     try {
       latest = Math.max(
         latest,
-        fs.statSync(path.join(specsDirectory(root), specName(name), file))
-          .mtimeMs,
+        fs.statSync(path.join(root, spec.folder ?? "", file)).mtimeMs,
       );
-    } catch {
-      // A file removed since the read has no time.
-    }
+    } catch {}
+  }
   return latest ? new Date(latest).toISOString() : null;
 }
 
@@ -528,16 +560,22 @@ export function listSpecFolders(root: string) {
   const directory = specsDirectory(root);
   let entries: fs.Dirent[];
   try {
-    entries = fs.readdirSync(directory, {
-      withFileTypes: true,
-    });
+    entries = fs.readdirSync(directory, { withFileTypes: true });
   } catch {
     return [];
   }
-  return entries
-    .filter((entry) => entry.isDirectory() && NAME.test(entry.name))
-    .map((entry) => entry.name)
-    .sort();
+  return [
+    ...new Set(
+      entries.flatMap((entry) => {
+        const name = entry.isDirectory()
+          ? entry.name
+          : entry.isFile() && entry.name.endsWith(".md")
+            ? entry.name.slice(0, -3)
+            : "";
+        return SPEC_NAME.test(name) ? [name] : [];
+      }),
+    ),
+  ].sort();
 }
 
 function diagnostic(
@@ -704,6 +742,7 @@ function unchangedClauses(text: string) {
 export function parseSpec({
   name,
   folder = specFolderPath(null, name),
+  flat = false,
   exists,
   files,
   leftover = false,
@@ -725,8 +764,8 @@ export function parseSpec({
     );
     return { type: null, items: [], diagnostics, proposals };
   }
-  const feature = files["requirements.md"] !== undefined,
-    bugfix = files["bugfix.md"] !== undefined;
+  const feature = !flat && files["requirements.md"] !== undefined,
+    bugfix = !flat && files["bugfix.md"] !== undefined;
   if (feature && bugfix)
     diagnostics.push(
       diagnostic(
@@ -737,13 +776,13 @@ export function parseSpec({
       ),
     );
   // Category front matter lives in the requirements or the single spec file.
-  const holders = taskFiles(files),
-    tasksFile = taskFile(files),
-    tasksText = specTasks(files)?.text ?? "";
+  const holders = taskFiles(files, flat),
+    tasksFile = taskFile(files, flat),
+    tasksText = specTasks(files, flat)?.text ?? "";
   const proseFiles = new Set([
     "requirements.md",
     "bugfix.md",
-    ...(tasksFile === TASKS_FILE ? [] : [tasksFile]),
+    ...(!flat && tasksFile === TASKS_FILE ? [] : [tasksFile]),
   ]);
   for (const file of proseFiles) {
     const problem = frontMatter(files[file]).problem;
@@ -762,7 +801,9 @@ export function parseSpec({
         "spec.missing-file",
         TASKS_FILE,
         1,
-        `Add ${folder}tasks.md, or a ## Tasks section to the spec's one file.`,
+        flat
+          ? `Add a ## Tasks section to ${folder}${name}.md.`
+          : `Add ${folder}tasks.md, or a ## Tasks section to the spec's one file.`,
       ),
     );
   if (holders.length > 1)
@@ -797,7 +838,7 @@ export function parseSpec({
     );
 
   const items = specItems(name, tasksText),
-    sources = refSources(files, tasksFile),
+    sources = refSources(files, tasksFile, flat),
     byKey = new Map<string, SpecItem>();
   for (const item of items) {
     if (!item.key) {
@@ -860,7 +901,8 @@ export function parseSpec({
   const definitions = linkDefinitions(tasksText),
     taskLines = tasksText.split("\n");
   for (const item of items)
-    if (item.key) item.spec = specGroupOf(name, item, definitions, taskLines);
+    if (item.key)
+      item.spec = specGroupOf(name, item, definitions, taskLines, flat);
   const facts = readFacts(tasksText, items),
     bullets = itemBullets(tasksText, items),
     manifest = facts.manifest,
@@ -930,7 +972,7 @@ export function parseSpec({
             { entry: item.key },
           ),
         );
-      if (typeof entry.plan !== "string" || !NAME.test(entry.plan)) {
+      if (typeof entry.plan !== "string" || !SPEC_NAME.test(entry.plan)) {
         diagnostics.push(
           diagnostic(
             "facts.schema",
@@ -1120,7 +1162,7 @@ export function parseSpec({
       // A parent's block holds its linked specs, so it is checked only
       // when the other specs can be read.
       ...(linked || !items.some((item) => item.spec)
-        ? graphBlockProblems(name, tasksText, linked)
+        ? graphBlockProblems(name, files[tasksFile] ?? "", linked, tasksText)
         : []),
     ].map(
       (found: {
@@ -1165,7 +1207,7 @@ export function lintSpec({
     repositories?: { id: string; [key: string]: unknown }[];
     [key: string]: unknown;
   };
-  approved?: { files?: Record<string, string> } | null;
+  approved?: { files?: Record<string, string>; flat?: boolean } | null;
   retitled?: string[];
   namespace?: ((name: string) => SpecFolder | null) | null;
   declaredTasks?: { id?: string; requires?: string[] }[];
@@ -1176,7 +1218,7 @@ export function lintSpec({
       [key: string]: unknown;
     },
     parsed = parseSpec(spec),
-    tasksFile = taskFile(spec.files),
+    tasksFile = taskFile(spec.files, spec.flat),
     graph =
       parsed.kind === "epic"
         ? { diagnostics: [] }
@@ -1227,7 +1269,8 @@ export function lintSpec({
         ),
       );
   }
-  const approvedTasks = approved?.files && specTasks(approved.files)?.text;
+  const approvedTasks =
+    approved?.files && specTasks(approved.files, approved.flat)?.text;
   if (approvedTasks !== undefined) {
     const before = new Map(
         specItems(spec.name, approvedTasks)
@@ -1339,7 +1382,7 @@ function epicDiagnostics(
       }
     },
     out: SpecDiagnostic[] = [],
-    tasksFile = taskFile(spec.files);
+    tasksFile = taskFile(spec.files, spec.flat);
   if (parsed.kind === "epic") {
     for (const member of parsed.members ?? []) {
       const folder = member.plan === spec.name ? spec : read(member.plan);
@@ -1463,11 +1506,12 @@ export function specCategory(files: Record<string, string | undefined> = {}) {
 export function specTitle(spec: {
   name: string;
   files: Record<string, string>;
+  flat?: boolean;
 }) {
   const prose =
     spec.files["requirements.md"] ??
     spec.files["bugfix.md"] ??
-    spec.files[taskFile(spec.files)] ??
+    spec.files[taskFile(spec.files, spec.flat)] ??
     "";
   return (
     withoutFrontMatter(prose)
@@ -1510,10 +1554,12 @@ export function createSpecPlan(
         id: String(id),
         kind: "plan",
         spec: spec.name,
+        specFolder: spec.folder,
+        flat: spec.flat,
         title: specTitle(spec),
         prompt:
           (typeof prompt === "string" && prompt.trim()) || `Spec ${spec.name}`,
-        text: specTasks(spec.files)?.text ?? "",
+        text: specTasks(spec.files, spec.flat)?.text ?? "",
         files: spec.files,
         hash: String(spec.hash),
         revision: 1,
@@ -1542,15 +1588,24 @@ export function saveSpecPlan(
     if (!plan || plan.deletedAt) return fail("Plan not found.", 404);
     if (plan.hash !== expectedHash)
       fail("This draft changed. Reload before saving.", 409);
-    if (spec.hash === plan.hash) return plan;
+    if (spec.hash === plan.hash) {
+      if (plan.specFolder === spec.folder && plan.flat === spec.flat)
+        return plan;
+      plan.specFolder = spec.folder;
+      plan.flat = spec.flat;
+      store.put("plans", plan);
+      return plan;
+    }
     return writeRevision(
       store,
       plan,
-      specTasks(spec.files)?.text ?? "",
+      specTasks(spec.files, spec.flat)?.text ?? "",
       "Review amended spec: ",
       {
         hash: String(spec.hash),
         files: spec.files,
+        folder: spec.folder,
+        flat: spec.flat,
         title: specTitle(spec),
       },
     );
@@ -1605,7 +1660,7 @@ export function proposeSpecWork(
         "The spec folder changed on disk. Reload it before proposing work.",
         409,
       );
-    const found = specTasks(spec.files);
+    const found = specTasks(spec.files, spec.flat);
     if (!found)
       return fail(
         "Add tasks.md or a ## Tasks section before proposing work.",
@@ -1617,10 +1672,7 @@ export function proposeSpecWork(
       specItems(String(plan.spec), found.text).some((item) => item.key === key)
     )
       fail("Repeated local task ID " + key);
-    const directory = path.join(
-        specsDirectory(String(spec.root)),
-        String(plan.spec),
-      ),
+    const directory = path.join(String(spec.root), spec.folder ?? ""),
       eol = tasks.includes("\r\n") ? "\r\n" : "\n";
     // A leaf's results are its plain bullets; a summary has
     // no place in the list form.
@@ -1638,17 +1690,20 @@ export function proposeSpecWork(
           ...facts,
         ],
         eol,
+        spec.flat,
       ),
     );
     const next = read(String(plan.spec)),
       written = writeRevision(
         store,
         plan,
-        specTasks(next.files)?.text ?? "",
+        specTasks(next.files, next.flat)?.text ?? "",
         "Review proposed work: ",
         {
           hash: String(next.hash),
           files: next.files,
+          folder: next.folder,
+          flat: next.flat,
           title: specTitle(next),
         },
       );
@@ -1657,7 +1712,7 @@ export function proposeSpecWork(
       proposalId: key,
       proposalCount: specItems(
         String(plan.spec),
-        specTasks(next.files)?.text ?? "",
+        specTasks(next.files, next.flat)?.text ?? "",
       ).length,
       approved: false,
       policy:

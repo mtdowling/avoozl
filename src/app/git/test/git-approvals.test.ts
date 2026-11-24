@@ -88,6 +88,33 @@ test("approvals read and write every spec file under specs.path", async () => {
   assert.deepEqual(first.files, { "notes.md": "Notes\n", "tasks.md": tasks });
 });
 
+test("an earlier approval still matches a single file moved out of its folder", async () => {
+  const r = repo(),
+    nested = ".kiro/specs/example/example.md",
+    flat = ".kiro/specs/example.md",
+    text =
+      "# Example\n\n## Tasks\n\n- [ ] `example-task` Record the result\n  - The result is saved\n";
+  fs.mkdirSync(path.join(r.root, path.dirname(nested)), { recursive: true });
+  fs.writeFileSync(path.join(r.root, nested), text);
+  r.run(["add", nested]);
+  r.run(["commit", "-qm", "Approve nested example"]);
+  const approved = r.run(["rev-parse", "HEAD"]),
+    allowed = async (email: string) => email === OWNER;
+  r.run(["mv", nested, flat]);
+  r.run(["commit", "-qm", "Move example"], { GIT_AUTHOR_EMAIL: OTHER });
+  const earlier = await approvalCommits(r.root, {
+    allowed,
+    specs: ["example"],
+  });
+  assert.deepEqual(
+    earlier.map(({ commit, files }) => [commit, files]),
+    [[approved, { "example.md": text }]],
+  );
+  const all = await approvalCommits(r.root, { allowed: async () => true });
+  assert.equal(all.length, 2);
+  assert.equal(all[0].hash, all[1].hash);
+});
+
 test("a merged pull request's merge commit is the approval of the spec it brought", async () => {
   // Nearby input: the branch's own commit, by someone else, is not walked.
   const r = repo(),
@@ -198,7 +225,11 @@ test("Approve commits the spec on main as the person; a rebuilt database has the
     } catch {}
   });
   // A spec drafted on disk (a spec branch's text), approved by the person.
-  writeSpec(r.root, "feature", specFiles());
+  const tasks = path.join(r.root, ".kiro/specs/feature.md"),
+    prose =
+      "# Feature\n\n## Tasks\n\n- [ ] `1.1` Read settings\n  - The selected settings load\n";
+  fs.mkdirSync(path.dirname(tasks), { recursive: true });
+  fs.writeFileSync(tasks, prose);
   await first.ops.execute("plan.create", { spec: "feature" });
   const approved = await approve(first.ops, "feature");
   assert.equal(approved.approvedBy, OWNER);
@@ -209,6 +240,7 @@ test("Approve commits the spec on main as the person; a rebuilt database has the
     "Approve spec feature",
   );
   assert.match(approved.evidence, new RegExp(head));
+  assert.equal(r.run(["show", "main:.kiro/specs/feature.md"]), prose.trim());
   // A second approved spec, with a fact of its own.
   const files = specFiles();
   // A one-argument replace puts "undefined" where the line was.
@@ -220,7 +252,6 @@ test("Approve commits the spec on main as the person; a rebuilt database has the
   await first.ops.execute("plan.create", { spec: "intake" });
   await approve(first.ops, "intake");
   // A task lands: its tick, with no trailer.
-  const tasks = path.join(r.root, ".kiro/specs/feature/tasks.md");
   fs.writeFileSync(
     tasks,
     fs.readFileSync(tasks, "utf8").replace("- [ ] `1.1` ", "- [x] `1.1` "),

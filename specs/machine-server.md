@@ -44,7 +44,7 @@ reaps or resumes it.
 
 #### What this builds on
 
-`.kiro/specs/avoozl/` stays the product spec. This spec keeps Requirement 93
+[avoozl](avoozl.md) stays the product spec. This spec keeps Requirement 93
 (the executor seam), 94 (harness definitions), 95.2, 95.4 to 95.7 (the
 supervisor pass's children and the sandbox) and 96 (one way to finish). It
 sets Requirement 95.1, 95.3 and 98 (MS13), worker-paths WP1.1 and
@@ -419,7 +419,7 @@ names a server that does not exist.
 ## Design
 
 `MS` numbers are in [Requirements](#requirements); `R` numbers and `§`
-sections without a `D` are in `.kiro/specs/avoozl/`.
+sections without a `D` are in [avoozl](avoozl.md).
 
 ### D1. Shape
 
@@ -776,7 +776,7 @@ socket, a test, or explained in the pull request.
 Tasks run in list order, and each phase waits for the one above it. Requirement
 numbers are in brackets (`MS1` to `MS13`, in [Requirements](#requirements)); `D` sections
 refer to [Design](#design), `R` numbers to
-`.kiro/specs/avoozl/avoozl.md#requirements`. Phases are the phases of D11.
+[avoozl requirements](avoozl.md#requirements). Phases are the phases of D11.
 
 Rules for every task: work in a task worktree; tests use isolated temporary
 workspaces and state folders, a fake GitHub, and fake executors; Avoozl runs

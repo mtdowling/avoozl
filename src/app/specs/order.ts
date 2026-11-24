@@ -6,6 +6,7 @@
 import path from "node:path";
 import { headingPhases, specItems } from "./spec-plans.ts";
 import { LINK_DEFINITION, SPEC_TEXT, specTasks } from "./spec-tasks.ts";
+import { SPEC_NAME } from "./specs-path.ts";
 import type { Store } from "../store/store.ts";
 
 // A checklist item, as specItems reads it and the lint marks it.
@@ -22,6 +23,7 @@ export interface OrderItem {
 // Every spec's links, read once (linkedReader).
 export interface LinkedReader {
   read(name: string): string | null;
+  flat?(name: string): boolean;
   exists(name: string): boolean;
   linkers(name: string): string[];
   parents(name: string): { name: string; text: string }[];
@@ -81,16 +83,22 @@ export function linkDefinitions(text: unknown) {
 // shortcut: any Markdown file but Kiro's prose files counts as the single
 // file, since the linked folder is not read here; read it if a spec links
 // another spec's notes.
-function specOfTarget(name: string, target: string) {
+function specOfTarget(name: string, target: string, flat: boolean) {
   const file = target.split("#")[0];
-  if (!file || /^[a-z][a-z0-9+.-]*:/i.test(file)) return null;
-  const at = path.posix.normalize(path.posix.join("S", name, file)),
-    match = /^S\/([^/]+)\/([^/]+\.md)$/.exec(at);
-  return match &&
-    match[1] !== name &&
-    SPEC_TEXT.test(match[2]) &&
-    !PROSE.has(match[2])
-    ? match[1]
+  if (!file || file.startsWith("/") || /^[a-z][a-z0-9+.-]*:/i.test(file))
+    return null;
+  const at = path.posix.normalize(
+    path.posix.join(flat ? "S" : `S/${name}`, file),
+  );
+  const match = /^S\/(?:([^/]+)\/)?([^/]+)\.md$/.exec(at);
+  if (!match) return null;
+  const [, directory, basename] = match,
+    spec = directory ?? basename;
+  return spec !== name &&
+    SPEC_NAME.test(spec) &&
+    (!directory ||
+      (SPEC_TEXT.test(`${basename}.md`) && !PROSE.has(`${basename}.md`)))
+    ? spec
     : null;
 }
 const PROSE = new Set(["requirements.md", "bugfix.md", "design.md"]);
@@ -100,15 +108,16 @@ export function linkedSpecOf(
   name: string,
   title: unknown,
   definitions: Map<string, string>,
+  flat = false,
 ) {
   const text = String(title ?? "");
   for (const match of text.matchAll(INLINE)) {
-    const spec = specOfTarget(name, match[1]);
+    const spec = specOfTarget(name, match[1], flat);
     if (spec) return spec;
   }
   for (const match of text.matchAll(REFERENCE)) {
     const target = definitions.get(match[1].toLowerCase()),
-      spec = target && specOfTarget(name, target);
+      spec = target && specOfTarget(name, target, flat);
     if (spec) return spec;
   }
   return null;
@@ -139,28 +148,34 @@ export function specGroupOf(
   item: { title?: unknown; line: number },
   definitions: Map<string, string>,
   lines: string[],
+  flat = false,
 ) {
-  const spec = linkedSpecOf(name, item.title, definitions);
+  const spec = linkedSpecOf(name, item.title, definitions, flat);
   return spec && !hasBullets(lines, item.line) ? spec : null;
 }
 
 // Every spec each spec links, and the specs that link each one, over
 // [{name, text}]: what a parse needs to reach into a linked spec and back.
 export function linkedReader(
-  specs: { name: string; text: string }[],
+  specs: { name: string; text: string; flat?: boolean }[],
 ): LinkedReader {
   const texts = new Map(specs.map((spec) => [spec.name, spec.text])),
     groups = new Map<string, string[]>();
-  for (const { name, text } of specs) {
+  const flatNames = new Set(
+    specs.filter((spec) => spec.flat).map((spec) => spec.name),
+  );
+  for (const { name, text, flat } of specs) {
     const definitions = linkDefinitions(text),
       lines = text.split("\n");
     for (const item of specItems(name, text)) {
-      const linked = item.key && specGroupOf(name, item, definitions, lines);
+      const linked =
+        item.key && specGroupOf(name, item, definitions, lines, flat);
       if (linked) groups.set(linked, [...(groups.get(linked) ?? []), name]);
     }
   }
   return {
     read: (name) => texts.get(name) ?? null,
+    flat: (name) => flatNames.has(name),
     exists: (name) => texts.has(name),
     // Each parent once per link, so a spec linked twice shows twice.
     linkers: (name) => groups.get(name) ?? [],
@@ -195,7 +210,7 @@ export function taskTree(
       item,
       id: item.id,
       children: [],
-      spec: specGroupOf(name, item, definitions, lines),
+      spec: specGroupOf(name, item, definitions, lines, linked?.flat?.(name)),
     });
   for (const item of items) {
     const node = nodes.get(item.line) as TreeNode,
@@ -250,7 +265,9 @@ export function waitsOf(
 ): Wait[] {
   const own = treeWaits(name, text, linked);
   if (!linked) return own;
-  const ids = new Set(taskTree(name, text).nodes.map((node) => node.id)),
+  const ids = new Set(
+      taskTree(name, text, linked).nodes.map((node) => node.id),
+    ),
     keys = new Set(own.map(({ from, to }) => `${from}\0${to}`));
   for (const parent of linked.parents(name))
     for (const edge of treeWaits(parent.name, parent.text, linked))
@@ -411,19 +428,32 @@ export function linkProblems(
 // read as given, so a spec group reaches into the spec it links (§D19.2).
 export function storedLinks(
   store: Store,
-  current: { name?: string; files?: Record<string, string> } | null = null,
+  current: {
+    name?: string;
+    files?: Record<string, string>;
+    flat?: boolean;
+  } | null = null,
 ) {
-  const texts = new Map<string, string>();
+  const texts = new Map<
+    string,
+    { name: string; text: string; flat?: boolean }
+  >();
   for (const plan of store.list<{
     id: string;
     spec?: string;
     deletedAt?: string;
+    flat?: boolean;
     files?: Record<string, string>;
   }>("plans")) {
-    const text = specTasks(plan.files ?? {})?.text;
-    if (plan.spec && !plan.deletedAt && text) texts.set(plan.spec, text);
+    const text = specTasks(plan.files ?? {}, plan.flat)?.text;
+    if (plan.spec && !plan.deletedAt && text)
+      texts.set(plan.spec, { name: plan.spec, text, flat: plan.flat });
   }
   if (current?.name)
-    texts.set(current.name, specTasks(current.files ?? {})?.text ?? "");
-  return linkedReader([...texts].map(([name, text]) => ({ name, text })));
+    texts.set(current.name, {
+      name: current.name,
+      text: specTasks(current.files ?? {}, current.flat)?.text ?? "",
+      flat: current.flat,
+    });
+  return linkedReader([...texts.values()]);
 }

@@ -111,6 +111,15 @@ export function completionReached(
   );
 }
 
+// Done as `next` counts it: a complete status, or the task's own
+// completion reached (a leaf merged into its base, a manual step marked done).
+export function taskDone(
+  task: Task | null | undefined,
+  complete: (status: string | undefined) => boolean,
+) {
+  return complete(task?.status) || completionReached(task, undefined, complete);
+}
+
 // Errors for explicitly stored work-model values. Absent values are defaults.
 export function workModelErrors(task: Task) {
   const errors: string[] = [];

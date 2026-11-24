@@ -18,11 +18,12 @@ import { git, remoteGit } from "./git.ts";
 import { actorAllowed } from "../github/github-policy.ts";
 import {
   isSpecFile,
+  readSpecFolder,
   revisionFiles,
   specHash,
   specName,
 } from "../specs/spec-plans.ts";
-import { specsPath } from "../specs/specs-path.ts";
+import { flatSpecPath, SPEC_NAME, specsPath } from "../specs/specs-path.ts";
 import { fail } from "../store/store.ts";
 
 const lower = (value: unknown) => String(value ?? "").toLowerCase();
@@ -442,13 +443,27 @@ export async function commitApproval(
 ) {
   const specs = Object.keys(files),
     author = await gitAuthor(root);
-  const paths: Record<string, string> = {};
-  for (const spec of specs)
+  const paths: Record<string, string | null> = {};
+  for (const spec of specs) {
+    const layout = readSpecFolder(root, spec),
+      flat = flatSpecPath(root, spec);
+    if (layout.flat) {
+      const text = files[spec][`${spec}.md`];
+      if (typeof text !== "string" || revisionFiles(files[spec]).length !== 1)
+        fail(
+          `Spec ${spec} changed layout since it was reviewed. Reload before approving.`,
+          409,
+        );
+      paths[flat] = text;
+      continue;
+    }
+    paths[flat] = null;
     for (const file of revisionFiles(files[spec])) {
       const text = files[spec][file];
       if (typeof text === "string")
         paths[`${specPath(root, spec)}/${file}`] = text;
     }
+  }
   const made = await commitOnMain(root, paths, {
     replace: specs.map((spec) => specPath(root, spec)),
     branch,
@@ -585,7 +600,10 @@ export async function approvalCommits(
       ref,
       "--",
       ...(specs
-        ? specs.map((spec) => specPath(root, spec))
+        ? specs.flatMap((spec) => [
+            specPath(root, spec),
+            flatSpecPath(root, spec),
+          ])
         : [specsPath(root)]),
     ]);
   } catch {
@@ -603,8 +621,13 @@ export async function approvalCommits(
       touched = new Set<string>();
     for (const file of files) {
       if (!file.startsWith(prefix)) continue;
-      const [spec, ...rest] = file.slice(prefix.length).split("/");
-      if (!/^[a-z0-9][a-z0-9-]{0,79}$/.test(spec)) continue;
+      const [first, ...rest] = file.slice(prefix.length).split("/");
+      const spec = rest.length
+        ? first
+        : first.endsWith(".md")
+          ? first.slice(0, -3)
+          : "";
+      if (!SPEC_NAME.test(spec)) continue;
       if (specs && !specs.includes(spec)) continue;
       touched.add(spec);
       if (rest.length === 1 && isSpecFile(rest[0])) {
@@ -618,10 +641,13 @@ export async function approvalCommits(
       found.push({ spec, commit, email, name, at, evidence });
   }
   const object = (commit: string, spec: string, file: string) =>
-      `${commit}:${specPath(root, spec)}/${file}`,
-    objects = found.flatMap(({ spec, commit }) =>
-      [...(names.get(spec) ?? [])].map((file) => object(commit, spec, file)),
-    ),
+      `${commit}:${prefix}${spec}/${file}`,
+    flatObject = (commit: string, spec: string) =>
+      `${commit}:${prefix}${spec}.md`,
+    objects = found.flatMap(({ spec, commit }) => [
+      flatObject(commit, spec),
+      ...[...(names.get(spec) ?? [])].map((file) => object(commit, spec, file)),
+    ]),
     texts = objects.length ? await catFiles(root, objects) : new Map();
   return found
     .map((entry) => {
@@ -630,8 +656,13 @@ export async function approvalCommits(
         const text = texts.get(object(entry.commit, entry.spec, file));
         if (text !== undefined) files[file] = text;
       }
+      const flat = texts.get(flatObject(entry.commit, entry.spec));
+      if (flat !== undefined) {
+        if (Object.keys(files).length) return null;
+        files[`${entry.spec}.md`] = flat;
+      }
       return Object.keys(files).length
-        ? { ...entry, files, hash: specHash(files) }
+        ? { ...entry, files, hash: specHash(files, flat !== undefined) }
         : null;
     })
     .filter((entry): entry is ApprovalCommit => entry !== null);

@@ -24,11 +24,10 @@ task.
 
 #### Related specs
 
-`.kiro/specs/avoozl/` is the product spec. This spec builds on its
+[avoozl](avoozl.md) is the product spec. This spec builds on its
 Requirement 88.4 (one resume of a vanished chat), Requirement 96 (one way to
-finish) and Requirement 114 (git owns state, SQLite is a cache), on the lanes
-of `.kiro/specs/simplify/` Requirement SM20, and on
-[Workflow v1](../../../docs/github-workflow.md#15-claims) section 15 (claims
+finish) and Requirement 114 (git owns state, SQLite is a cache), and on
+[Workflow v1](../docs/github-workflow.md#15-claims) section 15 (claims
 and leases).
 
 #### Dependency
@@ -277,8 +276,8 @@ once live, so that a regression shows before I meet it.
 ## Design
 
 `SW` numbers are in [Requirements](#requirements). `R` numbers and `§`
-sections without a `D` are in `.kiro/specs/avoozl/`. Rule numbers such as
-15.6 are [Workflow v1](../../../docs/github-workflow.md) rules.
+sections without a `D` are in [avoozl](avoozl.md). Rule numbers such as
+15.6 are [Workflow v1](../docs/github-workflow.md) rules.
 
 ### D1. The shape
 

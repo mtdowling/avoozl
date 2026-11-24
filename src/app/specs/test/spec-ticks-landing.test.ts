@@ -10,7 +10,7 @@ import { Store } from "../../store/store.ts";
 import { integrateVerified } from "../../delivery/delivery.ts";
 import { landDirect } from "../../landing/direct-landing.ts";
 import { Operations } from "../../api/operations.ts";
-import { tickedText } from "../spec-ticks.ts";
+import { baseTasks, tickBranch, tickedText } from "../spec-ticks.ts";
 import { checkedItems, specHash } from "../spec-plans.ts";
 import { snapshot } from "../../test/fixtures.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
@@ -140,6 +140,36 @@ async function workspace(t: TestContext, { specInCode = true } = {}) {
   });
   return { root, store, ...app };
 }
+
+test("a flat child and folder-based parent tick together on the specs branch", async () => {
+  const root = temporaryDirectory("avoozl-mixed-ticks-"),
+    parent = "specs/epic/tasks.md",
+    child = "specs/tasks.md",
+    parentText = "- [ ] `child-group` Run [child](../tasks.md)\n",
+    childText =
+      "# Child\n\n- [ ] Prose checkbox\n\n## Tasks\n\n- [ ] `child-task` Run the child\n  - The result is saved\n";
+  const { checkout } = repo(root, "mixed", {
+    ".avoozl.json": JSON.stringify({ version: 1, specs: { path: "specs" } }),
+    [parent]: parentText,
+    [child]: childText,
+  });
+  const result = await tickBranch(checkout, {
+    branch: "main",
+    files: [{ spec: "tasks", ids: ["child-task"], file: "tasks.md" }],
+  });
+  assert.deepEqual(result?.ticked, ["child-task", "child-group"]);
+  assert.equal(
+    git(checkout, "show", `origin/main:${child}`),
+    childText.trim().replace("- [ ] `child-task`", "- [x] `child-task`"),
+  );
+  assert.equal(
+    git(checkout, "show", `origin/main:${parent}`),
+    parentText.trim().replace("- [ ]", "- [x]"),
+  );
+  const read = await baseTasks(checkout, "main", "tasks");
+  assert.match(read?.text ?? "", /\[x\] `child-task`/);
+  assert.doesNotMatch(read?.text ?? "", /Prose checkbox/);
+});
 
 // A workspace from workspace().
 type Workspace = Awaited<ReturnType<typeof workspace>>;

@@ -15,7 +15,7 @@ Every session runs on the machine that drives its spec.
 
 #### What this builds on
 
-`.kiro/specs/avoozl/` is the product spec. This spec builds on its
+[avoozl](avoozl.md) is the product spec. This spec builds on its
 Requirement 93 (one executor seam) and Requirement 96 (one way to finish).
 
 #### Scope
@@ -24,8 +24,8 @@ Requirement 93 (one executor seam) and Requirement 96 (one way to finish).
 
 #### Out of scope
 
-- The roles that are not the worker (`.kiro/specs/without-kirocrew/`).
-- The page without Kiro Crew (`.kiro/specs/standalone-web/`).
+- The roles that are not the worker ([without-kirocrew](without-kirocrew.md)).
+- The page without Kiro Crew ([standalone-web](standalone-web.md)).
 - How many tasks run at once (avoozl Requirement 6.3).
 
 #### Words
@@ -168,7 +168,7 @@ which one a sentence means.
 ## Design
 
 `WP` numbers are in [Requirements](#requirements); `R` numbers and `§`
-sections without a `D` are in `.kiro/specs/avoozl/`.
+sections without a `D` are in [avoozl](avoozl.md).
 
 ### D1. The shape
 
@@ -250,7 +250,7 @@ table resolve through `roleRun` (`src/app/agents/role-table.ts`).
 Tasks run in list order, and each phase waits for the one above it. Requirement
 numbers are in brackets (`WP1` to `WP8`, in [Requirements](#requirements)); `D` sections
 refer to [Design](#design), `R` numbers to
-`.kiro/specs/avoozl/avoozl.md#requirements`.
+[avoozl requirements](avoozl.md#requirements).
 
 Rules for every task: work in a task worktree; tests use isolated temporary
 workspaces and state folders, real git with a bare remote, and fake

@@ -100,7 +100,8 @@ Do not use capture as a discovery channel. `task.capture` / `plans_intake {actio
 
 ## Draft and approve specs
 
-A spec is a folder under `.kiro/specs/<name>/`. Store it as a draft with
+A spec is `<specs.path>/<name>.md` or a folder at `<specs.path>/<name>/`.
+The default `specs.path` is `.kiro/specs`. Store a spec as a draft with
 `plan.create` / `plans_create_plan` and `{spec}`, reload it after an edit with
 `plan.save` / `plans_save_plan`, and check it with `plan.lint`. `plan.preview`
 shows the tasks approval would create.

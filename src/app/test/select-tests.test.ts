@@ -4,16 +4,19 @@ import test from "node:test";
 import { select } from "../../../scripts/test/select-tests.ts";
 
 test("a docs or spec change runs only the tests that read repository docs", () => {
-  const s = select([
+  for (const file of [
     "docs/overview.md",
     ".kiro/specs/x/tasks.md",
     ".kiro/skills/x/SKILL.md",
-  ]);
-  assert.equal(s.full, false);
-  assert.equal(s.specLint, true);
-  assert.ok(s.node.includes("src/app/test/no-sage.test.ts"));
-  assert.ok(s.node.length < 10);
-  assert.equal(s.ui, false);
+    "specs/x/x.md",
+  ]) {
+    const s = select([file]);
+    assert.equal(s.full, false, file);
+    assert.equal(s.specLint, true, file);
+    assert.ok(s.node.includes("src/app/test/no-sage.test.ts"), file);
+    assert.ok(s.node.length < 10, file);
+    assert.equal(s.ui, false, file);
+  }
 });
 
 test("anything unclassified, a package or CI file, a helper, or the selector runs everything", () => {

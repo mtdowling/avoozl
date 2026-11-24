@@ -162,10 +162,15 @@ function sectionText(text: string, title: string) {
   return "\n".repeat(start) + text.split("\n").slice(start, end).join("\n");
 }
 
-export function refSources(files: Record<string, string>, tasksFile: string) {
+export function refSources(
+  files: Record<string, string>,
+  tasksFile: string,
+  flat = false,
+) {
   const requirements =
     files["requirements.md"] !== undefined ? "requirements.md" : "bugfix.md";
-  const combined = tasksFile === TASKS_FILE ? undefined : files[tasksFile];
+  const combined =
+    !flat && tasksFile === TASKS_FILE ? undefined : files[tasksFile];
   const requirementsSection =
     combined === undefined ? undefined : sectionText(combined, "Requirements");
   const designSection =

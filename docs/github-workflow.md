@@ -78,10 +78,9 @@ The words MUST, MUST NOT, SHOULD and MAY are used as in
 
 ## 1. Spec folders
 
-Put each spec in its own folder under `.kiro/specs`, the default specs folder.
-Set `specs.path` in the spec repository's `.avoozl.json` to use a different
-directory inside that repository. Here, `parser` has a separate task file and `config` keeps everything in one
-file.
+Keep specs under `.kiro/specs` by default. Set `specs.path` in the spec
+repository's `.avoozl.json` to choose a different folder. Mix single files and
+subfolders in the same repository. Use each spec name once.
 
 ```text
 .kiro/specs/
@@ -89,13 +88,16 @@ file.
     tasks.md          the tasks
     requirements.md   optional
     design.md         optional
-  config/
-    config.md         the whole spec, tasks under ## Tasks
+  config.md           one file directly in the specs folder
+  logging/
+    logging.md        one file inside its own folder
 ```
 
 In a single-file spec, put tasks under `## Tasks` and phases under `###`
 headings (3.6). Avoozl resolves requirement and design references within
-the same file under `## Requirements` and `## Design`.
+the same file under `## Requirements` and `## Design`. The name of a flat
+spec is its filename without `.md`. The name of a folder-based spec is its
+folder name. A runner MUST refuse a name used by both forms.
 
 ```markdown
 ---
@@ -122,14 +124,15 @@ The file is read once at start.
 
 Here, `c-1` is done, `c-2` is ready, and `## Notes` ends the task list.
 
-- **1.1** A spec MUST be a subfolder of the specs folder, and its name MUST be
-  the folder name.
+- **1.1** A spec MUST be one file named `<name>.md` directly in the specs
+  folder or a subfolder named `<name>`. The same specs folder MAY contain
+  both layouts. A runner MUST refuse a name that uses both layouts.
 - **[1.2](github-workflow-scenarios.md#rule-12)** A spec MUST have exactly one
-  task file. The runner reads tasks from one of two places.
+  task file. The runner reads tasks from one of these places.
 
-  - In `tasks.md`, the whole file is the task list.
-  - If the folder has no `tasks.md`, use a `.md` file directly in the
-    folder with a `## Tasks` heading outside code fences. Read from that heading
+  - In a spec subfolder with `tasks.md`, the whole file is the task list.
+  - For a file directly in the specs folder, or a file in a spec subfolder
+    without `tasks.md`, use its `## Tasks` heading outside code fences. Read
     up to the next level 1 or level 2 heading, or the end of the file.
 
   Treat the remaining Markdown in the spec as prose for approvers and agents.
@@ -293,19 +296,19 @@ The parser example uses `repo: widget`.
 
 Link to another spec's task file in a parent task title. Use an inline or
 reference-style Markdown link. Here, the first task writes the reports spec
-and the second runs it.
+and the second runs it. The parent is a single file in the specs folder.
 
 ```markdown
 - [ ] `report-spec` Write the report spec
   - The report spec defines both output formats
 - [ ] `report-build` Implement [reports]
 
-[reports]: ../reports/tasks.md
+[reports]: reports/tasks.md
 ```
 
 - **[6.1](github-workflow-scenarios.md#rule-61)** A task whose title links a
-  spec's task file, its `<specs folder>/<name>/tasks.md` or the one file of a
-  single-file spec, is a spec group. Its children are the linked spec's tasks.
+  spec's task file is a spec group. Resolve the link relative to the parent
+  task file. Both flat and folder-based specs can link to either layout. Its children are the linked spec's tasks.
   In the example, `report-spec` is a leaf and `report-build` is a spec group. A
   link to an ordinary document leaves the task as it is.
 - **[6.2](github-workflow-scenarios.md#rule-62)** A linked spec's tasks MUST
@@ -325,7 +328,7 @@ and the second runs it.
 
   - The group has sub-items of its own.
   - The same repository links the spec as a group more than once.
-  - The link points to a missing spec folder. Allow this last case if an
+  - The link points to a missing spec. Allow this last case if an
     earlier task in the same list is still open. That task can create the spec.
 - **[6.5](github-workflow-scenarios.md#rule-65)** A task MUST NOT name a task of
   another spec. Order across specs is the order of spec groups in a parent.
@@ -543,12 +546,12 @@ runner with priority labels ranks those tasks first (13.3).
 ## 14. Integration branches
 
 To collect work before it reaches the default branch, create a branch on
-origin named after the spec folder. Rule 14.1 determines where work lands when
+origin named after the spec. Rule 14.1 determines where work lands when
 both a parent and a linked spec have integration branches.
 
 - **[14.1](github-workflow-scenarios.md#rule-141)** Look on origin for
-  branches named exactly after the task's spec folder or any of its parent
-  spec folders. If several match, use the branch for the outermost matching
+  branches named exactly after the task's spec or any of its parent
+  specs. If several match, use the branch for the outermost matching
   spec. All tasks in that spec and the specs it links, including nested links,
   land there. If none match, land on the default branch.
 - **14.2** A runner MUST NOT create an integration branch and MUST NOT merge

@@ -118,6 +118,7 @@ function approveEpic(
       taskIds: [],
       spec: plan.spec,
       files: plan.files,
+      flat: plan.flat,
       approval: approvalRecord(approver, approvalCommit),
       epic: { members: listed },
     };
@@ -588,6 +589,7 @@ export function approvePlan(
       taskIds: Object.values(mapping),
       spec,
       files: plan.files,
+      flat: plan.flat,
       approval: approvalRecord(approver, approvalCommit),
     };
     store.put("approvals", receipt);

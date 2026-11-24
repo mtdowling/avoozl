@@ -20,7 +20,7 @@ at a pinned release (SW12).
 
 #### What this builds on
 
-`.kiro/specs/avoozl/` is the product spec. This spec reuses the operation
+[avoozl](avoozl.md) is the product spec. This spec reuses the operation
 set in `src/app/api/operations.ts` and adds no operation for agents.
 
 #### Scope
@@ -398,7 +398,7 @@ fork and a new Kiro Crew release is one change.
    Kiro Crew's sources scanned, without the line that adds the Avoozl page.
    A class the page uses that this stylesheet lacks SHALL fail, naming the
    files that use it, because inside Kiro Crew that class does nothing.
-   `.kiro/specs/ui-components/` (UC4) runs this check in CI.
+   [ui-components](ui-components.md) (UC4) runs this check in CI.
 10. Each pin move SHALL put the standalone page beside the same views in a
     running Kiro Crew at the new pin, for Home, Specs, a task drawer and
     Settings › Models, at 390 and 1280 px, light and dark, and give those
@@ -409,7 +409,7 @@ fork and a new Kiro Crew release is one change.
 
 See [Requirements](#requirements) for SW1 to SW12. Section numbers here
 (D1 to D11) are this file's; `§` numbers refer to
-`.kiro/specs/avoozl/avoozl.md#design`.
+[avoozl design](avoozl.md#design).
 
 ### D1. Shape
 
@@ -708,7 +708,7 @@ installed to build the modules the page reaches.
 Tasks run in list order, and each phase waits for the one above it. Requirement
 numbers are in brackets (`SW1` to `SW12`, in [Requirements](#requirements)); `D` sections
 refer to [Design](#design), `R` numbers to
-`.kiro/specs/avoozl/avoozl.md#requirements`.
+[avoozl requirements](avoozl.md#requirements).
 
 Rules for every task: work in a task worktree; tests use isolated temporary
 workspaces and state folders; Avoozl runs the repository's checks

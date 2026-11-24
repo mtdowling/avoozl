@@ -152,7 +152,7 @@ leave no branches on the remote, so that my CI does not run on them.
 ## Design
 
 `MB` numbers are in [Requirements](#requirements); `R` numbers and `§`
-sections without a `D` are in `.kiro/specs/avoozl/`.
+sections without a `D` are in [avoozl](avoozl.md).
 
 ### D1. The parts
 
@@ -241,7 +241,7 @@ checkout never sends it, and it never reaches CI.
 Tasks run in list order, and each phase waits for the one above it. Requirement
 numbers are in brackets (`MB1` to `MB6`, in [Requirements](#requirements)); `D` sections
 refer to [Design](#design), `R` numbers to
-`.kiro/specs/avoozl/avoozl.md#requirements`.
+[avoozl requirements](avoozl.md#requirements).
 
 Rules for every task: work in a task worktree; tests use isolated temporary
 workspaces, real git with a bare remote, and fake executors; Avoozl runs the

@@ -94,6 +94,7 @@ export const entries = [
           .filter(({ root }) => !filter.repo || root === repoRoot)
           .map(({ root, spec }) => ({
             name: spec.name,
+            flat: spec.flat,
             root,
             files: spec.files ?? {},
           })),

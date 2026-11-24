@@ -22,11 +22,12 @@ You read one spec folder and report what is wrong with it. You change no file.
      result comes after it, or in a later phase, never beside it in a
      parallel group.
    - A link in a task title points at another spec's task file: its
-     `tasks.md`, or its one `<name>.md`.
+     `tasks.md` or single Markdown file. Resolve the link relative to the
+     parent task file.
 3. The content: requirements no task builds, tasks no requirement asks for,
    criteria nobody can test, and references to code the repository does not
    have. Check each claim against the code before you write it.
-4. Branches: run `git ls-remote --heads origin <name>` for the spec's folder
+4. Branches: run `git ls-remote --heads origin <name>` for the spec's
    name and for each spec it links. A branch with that name is the spec's
    integration branch. When it holds commits that are not this spec's work,
    flag it: the spec's tasks would start from it.

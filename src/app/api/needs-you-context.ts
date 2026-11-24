@@ -19,6 +19,7 @@ interface Delivery {
 }
 type Plan = {
   id: string;
+  specFolder?: string;
   spec?: string;
   title?: string;
   deletedAt?: string;
@@ -191,7 +192,11 @@ function referenceMaterialOf(
     material.push({
       kind,
       ref,
-      path: plan?.spec ? `.kiro/specs/${plan.spec}/${file}` : file,
+      path: plan?.specFolder
+        ? plan.specFolder + file
+        : plan?.spec
+          ? `.kiro/specs/${plan.spec}/${file}`
+          : file,
       ...block,
     });
   }

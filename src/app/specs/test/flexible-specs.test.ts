@@ -10,7 +10,7 @@ import {
   revisionFiles,
   specCategory,
 } from "../spec-plans.ts";
-import { specsPath, specsPathProblem } from "../specs-path.ts";
+import { flatSpecPath, specsPath, specsPathProblem } from "../specs-path.ts";
 import { loadLayeredConfig } from "../../settings/layered-config.ts";
 import { Operations } from "../../api/operations.ts";
 import { leafBrief } from "../../delivery/delivery.ts";
@@ -49,6 +49,61 @@ test("specs.path moves where spec folders are read", () => {
   assert.equal(readSpecFolder(root, "old").exists, false);
   // Unset is the default.
   assert.equal(specsPath(temporaryDirectory()), ".kiro/specs");
+});
+
+test("flat and split specs share a custom directory and name namespace", async (t) => {
+  const { root, store } = fixture(t),
+    ops = new Operations(store, { workspaceRoot: root }),
+    directory = path.join(root, "specs", "split");
+  setPath(root, "specs");
+  fs.mkdirSync(directory, { recursive: true });
+  fs.writeFileSync(
+    path.join(directory, "tasks.md"),
+    "- [ ] `split-1` Split task\n  - The parser reads a complete message\n",
+  );
+  const flat = path.join(root, flatSpecPath(root, "tasks"));
+  const text = [
+    "# Task setup",
+    "",
+    "- [ ] Prose checkbox",
+    "",
+    "## Tasks",
+    "",
+    "- [ ] `setup-1` Set up the task",
+    "  - The settings store records the default",
+    "",
+    "- [ ] `setup-2` Run [split](split/tasks.md)",
+    "",
+    "## Notes",
+    "",
+    "- [ ] Another prose checkbox",
+    "",
+  ].join("\n");
+  fs.writeFileSync(flat, text);
+  assert.deepEqual(listSpecFolders(root), ["split", "tasks"]);
+  assert.equal(readSpecFolder(root, "tasks").flat, true);
+  await ops.execute("plan.create", { spec: "split" });
+  await ops.execute("plan.create", { spec: "tasks" });
+  const result = await ops.execute<{ file: string }>("spec.graph.write", {
+    spec: "tasks",
+  });
+  assert.equal(result.file, flat);
+  const projected = fs.readFileSync(flat, "utf8");
+  const graph = projected.slice(text.length);
+  assert.match(graph, /Set up the task/);
+  assert.match(graph, /Split task/);
+  assert.doesNotMatch(graph, /prose checkbox/);
+  assert.deepEqual(
+    codes(readSpecFolder(root, "tasks")).filter(
+      (code) => !code.startsWith("link."),
+    ),
+    [],
+  );
+  fs.mkdirSync(path.join(root, "specs/tasks"));
+  assert.throws(
+    () => readSpecFolder(root, "tasks"),
+    /both specs\/tasks\.md and specs\/tasks\//,
+  );
 });
 
 test("specs.path must stay inside the repository", () => {

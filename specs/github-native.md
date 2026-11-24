@@ -26,7 +26,7 @@ spec covers runner sharing, landing commits, spec issues and review output.
 | ------------- | -------------------------------------------------------------------------- |
 | Approver      | The login whose evidence approves a spec commit (workflow v1 rule 7.2)     |
 | Review output | A review round's verdict and findings, or a failing run of Avoozl's checks |
-| Spec PR       | A pull request whose changes are all under `.kiro/specs/`                  |
+| Spec PR | A pull request whose changes are all under the configured specs folder |
 
 
 #### Requirement GN1: Runners share a spec through claim branches

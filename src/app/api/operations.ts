@@ -244,6 +244,7 @@ export interface Plan extends PlanRow {
 }
 // An approval receipt.
 export interface Approval {
+  flat?: boolean;
   id: string;
   planId: string;
   hash: string;
@@ -642,7 +643,8 @@ export class Operations {
       linked = linkedReader(
         homes.map(({ spec }) => ({
           name: spec.name,
-          text: specTasks(spec.files ?? {})?.text ?? "",
+          flat: spec.flat,
+          text: specTasks(spec.files ?? {}, spec.flat)?.text ?? "",
         })),
       );
     return {
@@ -665,7 +667,9 @@ export class Operations {
             disk,
           );
         const front = frontMatter(
-          disk.files["requirements.md"] ?? disk.files["bugfix.md"],
+          disk.files["requirements.md"] ??
+            disk.files["bugfix.md"] ??
+            (disk.flat ? disk.files[`${name}.md`] : undefined),
         );
         return {
           name,
@@ -673,10 +677,9 @@ export class Operations {
           title: specTitle(disk),
           category: front.category,
           categoryProblem: front.problem?.message ?? null,
-          modifiedAt: root
-            ? specModifiedAt(root, name, Object.keys(disk.files))
-            : null,
+          modifiedAt: root ? specModifiedAt(root, disk) : null,
           folder: disk.folder,
+          flat: disk.flat,
           type: quality.type,
           kind: quality.kind,
           epic: quality.epic,
@@ -1112,8 +1115,17 @@ export class Operations {
     for (const plan of this.store.list<Plan>("plans")) {
       if (!plan.spec || plan.deletedAt || plan.archivedAt) continue;
       try {
-        const disk = this.readSpec(plan.spec).hash ?? "";
-        if (disk === plan.hash && approved.has(`${plan.id}:${disk}`)) continue;
+        const spec = this.readSpec(plan.spec),
+          disk = spec.hash ?? "";
+        if (disk === plan.hash) {
+          if (plan.specFolder !== spec.folder || plan.flat !== spec.flat)
+            saveSpecPlan(
+              this.store,
+              { id: plan.id, expectedHash: plan.hash },
+              spec,
+            );
+          if (approved.has(`${plan.id}:${disk}`)) continue;
+        }
         const home = await homeOf(plan);
         if (!home) continue;
         groups.set(home, [...(groups.get(home) ?? []), { plan, disk }]);
@@ -1258,9 +1270,10 @@ export class Operations {
     return {
       name: spec.name,
       folder: spec.folder,
+      flat: spec.flat,
       hash: spec.hash,
       documents,
-      tasksFile: taskFile(spec.files),
+      tasksFile: taskFile(spec.files, spec.flat),
     };
   }
   // The plan change a page edit becomes when the page must not write the
@@ -1302,7 +1315,7 @@ export class Operations {
         change,
       };
     const spec = this.readSpec(plan.spec),
-      tasks = specTasks(spec.files)?.text ?? "",
+      tasks = specTasks(spec.files, spec.flat)?.text ?? "",
       specName = plan.spec,
       lines = tasks.split("\n"),
       item = specItems(specName, tasks).find(
@@ -1319,6 +1332,7 @@ export class Operations {
       planId: plan.id,
       spec: plan.spec,
       folder: spec.folder,
+      file: taskFile(spec.files, spec.flat),
       message:
         "Apply this change to the spec folder, then approve the plan. Only this task needs review again.",
       tasks: item && {
@@ -1358,7 +1372,11 @@ export class Operations {
   // The stored specs, with `current` read as given, so a spec group reaches
   // into the spec it links (§D19.2).
   linkedSpecs(
-    current: { name?: string; files?: Record<string, string> } | null = null,
+    current: {
+      name?: string;
+      files?: Record<string, string>;
+      flat?: boolean;
+    } | null = null,
   ) {
     return storedLinks(this.store, current);
   }
@@ -1372,7 +1390,9 @@ export class Operations {
         name: String(plan.spec),
         exists: true,
         files,
-        linked: this.linkedSpecs({ name: plan.spec, files }),
+        flat: plan.flat,
+        folder: plan.specFolder,
+        linked: this.linkedSpecs({ name: plan.spec, files, flat: plan.flat }),
       },
       declarations = specDeclarations(this.store.list<Plan>("plans")),
       linted = lintSpec({

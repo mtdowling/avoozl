@@ -276,6 +276,7 @@ export function refuseSpecText(
         id: string;
         title?: string;
         spec?: string;
+        specFolder?: string;
         deletedAt?: string;
         files?: Record<string, string>;
       }>("plans", task.planId)
@@ -292,7 +293,7 @@ export function refuseSpecText(
   throw Object.assign(
     Error(
       plan.spec
-        ? `Task ${task.id} comes from spec ${plan.spec}, whose Markdown owns its ${changed.join(", ")}. Edit ${specFolderPath(store.getMeta<{ root?: string }>("workspaceRepository")?.root ?? null, plan.spec)}${taskFile(plan.files ?? {})} and approve the spec.`
+        ? `Task ${task.id} comes from spec ${plan.spec}, whose Markdown owns its ${changed.join(", ")}. Edit ${plan.specFolder ?? specFolderPath(store.getMeta<{ root?: string }>("workspaceRepository")?.root ?? null, plan.spec)}${taskFile(plan.files ?? {})} and approve the spec.`
         : `Task ${task.id} comes from plan ${name}, whose text owns its ${changed.join(", ")}. Edit the plan and approve it.`,
     ),
     { status: 409, code: "authority-spec" },
