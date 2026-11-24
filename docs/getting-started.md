@@ -332,15 +332,29 @@ A new workspace has no tasks and no repositories. Add one with
 
 ## Write and approve a spec
 
-A spec is a Kiro spec folder: `requirements.md` (or `bugfix.md`), `design.md`
-and `tasks.md`:
+Put each spec in its own folder. For a single-file spec, write a Markdown
+file such as `.kiro/specs/config/config.md` and put the checklist under
+`## Tasks`.
 
 ```markdown
+---
+repo: app
+---
+
+# Configuration
+
+## Tasks
+
 - [ ] `cfg-1` Read the config file
   - A file with every key loads
 - [ ] `cfg-2` Validate config
   - An unknown key is reported with its path
 ```
+
+To keep specs in a different folder, set `specs.path` in the spec
+repository's `.avoozl.json`, for example to `docs/specs`. Avoozl also reads
+the split Kiro layout with `requirements.md` or `bugfix.md`, `design.md`,
+and `tasks.md`. See [spec folders](github-workflow.md#1-spec-folders).
 
 Write it by hand, or ask a chat to with the `avoozl-spec` skill, which lints
 it, writes its graph block and leaves it on a spec branch. `avoozl spec lint`

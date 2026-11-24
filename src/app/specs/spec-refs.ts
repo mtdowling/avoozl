@@ -1,5 +1,5 @@
 // Task IDs and the requirement and design refs on a tasks.md item
-// (Requirement 115, design §4.43). A named ID may be bare or a code span.
+// (Requirement 115, design §4.43). Task IDs are written as code spans.
 // The title may end in `[R91.5, R94.4a]`, the requirements it builds, then
 // `(§4.26)`, the design sections it follows:
 //
@@ -14,6 +14,8 @@
 //                (`### 4.26 …`, `## D1. …`); or a fact row of design.md.
 // A range `R47.1–R47.6` (or `NK1 to NK9`) checks both ends; the second end
 // may leave out the first end's letters.
+import { TASKS_FILE } from "./spec-tasks.ts";
+
 const FENCE = /^\s*(```|~~~)/;
 // Task IDs. `1`, `2.14`: Kiro's own numbering, written bare; a trailing
 // period is Kiro's style.
@@ -142,40 +144,77 @@ const WRITE: Record<Kind, string> = {
     "Write a design section as § and its heading's number, such as §4.26 or §D1, or a fact as F13.",
 };
 
-// The refs of one item, resolved against the spec's files: each is
-// {kind, ref, file, line}; line is null for a ref that names nothing. A
-// problem is {code, message} for lint.
+// Keep original line numbers so a ref opens the heading or criterion in
+// the spec file. A section ends at the next level-one or level-two heading.
+function sectionText(text: string, title: string) {
+  let start = 0;
+  let end: number | undefined;
+  for (const [raw, line] of unfenced(text)) {
+    const heading = HEADING.exec(raw);
+    if (!heading || heading[1].length > 2) continue;
+    if (start) {
+      end = line - 1;
+      break;
+    }
+    if (heading[1] === "##" && heading[2] === title) start = line;
+  }
+  if (!start) return undefined;
+  return "\n".repeat(start) + text.split("\n").slice(start, end).join("\n");
+}
+
+export function refSources(files: Record<string, string>, tasksFile: string) {
+  const requirements =
+    files["requirements.md"] !== undefined ? "requirements.md" : "bugfix.md";
+  const combined = tasksFile === TASKS_FILE ? undefined : files[tasksFile];
+  const requirementsSection =
+    combined === undefined ? undefined : sectionText(combined, "Requirements");
+  const designSection =
+    combined === undefined ? undefined : sectionText(combined, "Design");
+  const requirementText =
+    tasksFile === requirements
+      ? (requirementsSection ?? files[requirements])
+      : (files[requirements] ?? requirementsSection);
+  const designText =
+    tasksFile === "design.md"
+      ? (designSection ?? files["design.md"])
+      : (files["design.md"] ?? designSection);
+  return {
+    requirement: {
+      file:
+        files[requirements] === undefined && requirementsSection !== undefined
+          ? tasksFile
+          : requirements,
+      ids:
+        requirementText === undefined ? null : requirementIds(requirementText),
+    },
+    design: {
+      file:
+        files["design.md"] === undefined && designSection !== undefined
+          ? tasksFile
+          : "design.md",
+      ids: designText === undefined ? null : designIds(designText),
+    },
+  };
+}
+
+// The refs of one item, resolved to the file and line each one names.
 export function resolveRefs(
   item: {
     key?: string | null;
     refs?: { requirements?: string[]; design?: string[] };
   },
-  files: Record<string, string | undefined>,
+  sources: ReturnType<typeof refSources>,
 ) {
-  const prose =
-      files["requirements.md"] !== undefined ? "requirements.md" : "bugfix.md",
-    kinds = {
-      requirement: {
-        entries: item.refs?.requirements ?? [],
-        file: prose,
-        ids: requirementIds(files[prose]),
-      },
-      design: {
-        entries: item.refs?.design ?? [],
-        file: "design.md",
-        ids: designIds(files["design.md"]),
-      },
+  const entries = {
+      requirement: item.refs?.requirements ?? [],
+      design: item.refs?.design ?? [],
     },
     refs: { kind: Kind; ref: string; file: string; line: number | null }[] = [],
     problems: { code: string; ref: string; message: string }[] = [];
-  for (const [kind, { entries, file, ids }] of Object.entries(kinds) as [
-    Kind,
-    (typeof kinds)[Kind],
-  ][])
-    for (const entry of entries) {
-      // Only tasks.md is required: a ref is checked against its file when
-      // the spec has one, and names the missing file when it does not.
-      if (files[file] === undefined) {
+  for (const kind of ["requirement", "design"] as const) {
+    const { file, ids } = sources[kind];
+    for (const entry of entries[kind]) {
+      if (!ids) {
         problems.push({
           code: "task.ref-file-missing",
           ref: entry,
@@ -203,5 +242,6 @@ export function resolveRefs(
         });
       refs.push({ kind, ref: entry, file, line: ids.get(ends[0]) ?? null });
     }
+  }
   return { refs, problems };
 }
