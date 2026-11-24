@@ -41,6 +41,14 @@ yourself. See [Autopilot](docs/delivery.md#turning-autopilot-on).
   for each role. Use Kiro Crew, Claude Code, Codex, or a process harness you
   define. See [Roles and models](docs/agents.md#roles-and-models).
 
+## Pick up where you left off
+
+If you need to switch priorities between tasks, reassign the spec's GitHub
+issue to a coworker. Their Avoozl runner can pick up the next ready task
+from the same plan. If you need to switch which computer is driving your
+Avoozl session, clone the workspace repository and run `avoozl rebuild`.
+Avoozl restores specs, approvals, and completed tasks from Git.
+
 ## Open workflow
 
 [Workflow v1](docs/github-workflow.md) is the public workflow. Its numbered
