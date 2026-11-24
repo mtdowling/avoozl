@@ -11,19 +11,35 @@ changes first, so the tasks match what exists.
 
 ## Spec layout
 
-Write a single file named for the spec, such as `config/config.md`. Put
-numbered requirements under `## Requirements`, design sections under
-`## Design`, and the checklist under `## Tasks`. Keep the existing layout
-when revising a split spec with `tasks.md`, `design.md`, and either
-`requirements.md` or `bugfix.md`. Use `bugfix.md` for a fix whose unchanged
-behavior must become acceptance criteria on every leaf.
+Read `specs.layout` in the `.avoozl.json` at the root of the repository that
+holds the specs. Write a new spec in that layout:
+
+- `single`, or no setting: one file named for the spec, such as
+  `config/config.md`. Put numbered requirements under `## Requirements`,
+  design sections under `## Design`, and the checklist under `## Tasks`.
+- `kiro`: Kiro's split folder, `config/requirements.md` (or `bugfix.md`),
+  `config/design.md` and `config/tasks.md`. The checklist is all of
+  `tasks.md`, with `##` phases.
+
+```json
+{
+  "specs": {
+    "layout": "kiro"
+  }
+}
+```
+
+When revising a spec, keep the layout it has, whatever the setting says. A
+spec with a `tasks.md` is split; otherwise its one file holds `## Tasks`. In
+the `kiro` layout, use `bugfix.md` in place of `requirements.md` for a fix
+whose unchanged behavior must become acceptance criteria on every leaf.
 
 Keep approval in Git on the specs branch. Write the spec as Markdown with
 `repo` and optional `category` front matter.
 
-## Task list
+### Single file
 
-Front matter names the repository the spec changes:
+The one file starts with the front matter:
 
 ```markdown
 ---
@@ -44,6 +60,35 @@ repo: app
 
 Validate keys before applying the settings.
 
+## Tasks
+
+- [ ] `cfg-1` Read the config file [R1.1] (§1)
+  - A missing file yields defaults.
+```
+
+### Kiro folder
+
+`tasks.md` starts with the front matter. The prose files hold the same
+headings without the `## Requirements` and `## Design` wrappers:
+
+```markdown
+---
+repo: app
+---
+# Configuration tasks
+
+## Phase 1: Configuration
+
+- [ ] `cfg-1` Read the config file [R1.1] (§1)
+  - A missing file yields defaults.
+```
+
+## Task list
+
+Every layout uses the same task list. This one is a single file's `## Tasks`;
+in `tasks.md` the `###` phases are `##`:
+
+```markdown
 ## Tasks
 
 ### Phase 1: Configuration
@@ -82,8 +127,8 @@ Validate keys before applying the settings.
   criterion the spec has.
 - A change across repositories is one spec per repository. A parent task
   whose title links another spec's task file, such as
-  `[Parser](../parser/parser.md)`, runs the linked spec's tasks in that
-  position.
+  `[Parser](../parser/parser.md)` or `[Parser](../parser/tasks.md)` for a
+  split spec, runs the linked spec's tasks in that position.
 - One medium-sized leaf of related work beats many small ones. Split only
   when parts land and check on their own.
 

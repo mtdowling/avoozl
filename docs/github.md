@@ -66,7 +66,8 @@ comes only from approved specs.
 
 The planning repository's `.avoozl.json` can set `specs.branch` to a branch
 such as `avoozl-plans` and `specs.path` to a repository-relative folder such
-as `docs/specs`. The folder defaults to `.kiro/specs`. For the file layout,
+as `docs/specs`. The folder defaults to `.kiro/specs`. `specs.layout` picks
+the files a new spec is written as, `single` or `kiro`. For the file layout,
 see [Spec folders](github-workflow.md#1-spec-folders).
 
 ## Setting up GitHub
