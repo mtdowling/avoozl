@@ -53,9 +53,9 @@ export function hostPage({
     record = path.join(paths.root, "page.json"),
     config = readServeConfig(configDirectory),
     running = readJson(record);
-  // A test run sets AVOOZL_NO_PAGE (scripts/test/run-tests.ts), so the ticks
+  // A test run sets NO_AVOOZL_PAGE (scripts/test/run-tests.ts), so the ticks
   // its tests run leave no page behind.
-  if (env.AVOOZL_NO_PAGE) config.enabled = false;
+  if (env.NO_AVOOZL_PAGE) config.enabled = false;
   const alive = running && sameProcess(running.pid, running.started, startTime);
   if (alive && (!config.enabled || running.port !== config.port)) {
     try {

@@ -90,7 +90,7 @@ async function hosted(
     XDG_STATE_HOME: path.join(root, "xdg-state"),
   };
   for (const name of Object.keys(env))
-    if (/^AVOOZL_/.test(name)) delete env[name];
+    if (/^AVOOZL_|^NO_AVOOZL_PAGE$/.test(name)) delete env[name];
   // One tick's page step; a test calls it again as the next tick.
   const tick = () => hostPage({ stateDirectory, configDirectory, env });
   let page = tick();
@@ -307,13 +307,13 @@ test("readServeConfig: on with no file or no serve block, off only when it says 
   assert.equal(readServeConfig(dir).enabled, false);
 });
 
-test("a test run's AVOOZL_NO_PAGE starts no page", () => {
+test("a test run's NO_AVOOZL_PAGE starts no page", () => {
   const root = temporaryDirectory();
   assert.equal(
     hostPage({
       stateDirectory: path.join(root, "state"),
       configDirectory: path.join(root, "config"),
-      env: { ...process.env, AVOOZL_NO_PAGE: "1" },
+      env: { ...process.env, NO_AVOOZL_PAGE: "1" },
     }),
     null,
   );

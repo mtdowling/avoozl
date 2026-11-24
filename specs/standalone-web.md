@@ -633,7 +633,7 @@ the origin stays the same across restarts, so a browser tab only needs a new
 link, not a new address. A start that fails writes
 `{"pid": ..., "error": ...}` to `serve.json` and exits; `serveStatus` reports
 the error as `problem`, and a tick with the page off removes it. The test
-runner sets `AVOOZL_NO_PAGE`, so the ticks a test runs start no page.
+runner sets `NO_AVOOZL_PAGE`, so the ticks a test runs start no page.
 
 The page is local to its machine.
 
