@@ -22,6 +22,25 @@ both are done.
 See [Epic rollout](docs/overview.md#epic-rollout) for how Avoozl runs this
 plan.
 
+## Control during delivery
+
+Let Autopilot run the waves of an epic. Put sign-off gates between phases
+and choose who merges in each repository. You can also take and land a task
+yourself. See [Autopilot](docs/delivery.md#turning-autopilot-on).
+
+- **Pull the andon cord.** Pause new work for a task, spec, repository, or the
+  whole workspace. You decide when to resume. See
+  [Stop the line](docs/flow.md#stop-the-line).
+- **Steer work in flight.** Open the worker's session to see what it has done
+  and send guidance on the current task. See
+  [Steering a running task](docs/delivery.md#steering-a-running-task).
+- **Run a retro.** Use delivery timings to find the slowest part of the loop
+  and get proposed changes to the plan or settings. You choose which changes
+  to make. See [Retros](docs/flow.md#retros).
+- **Choose the agent and harness.** Pick the worker agent and set the harness
+  for each role. Use Kiro Crew, Claude Code, Codex, or a process harness you
+  define. See [Roles and models](docs/agents.md#roles-and-models).
+
 ## Open workflow
 
 [Workflow v1](docs/github-workflow.md) is the public workflow. Its numbered
@@ -80,8 +99,6 @@ Agents write the code, and people keep the decisions.
   or review.
 - Checks run in a sandbox with the network off by default, and never see a
   push or GitHub token.
-- Anyone, agent or person, can stop new work with **Stop the line**. Only a
-  person can resume it.
 
 ## Requirements
 

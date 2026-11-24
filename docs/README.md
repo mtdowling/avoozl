@@ -13,6 +13,8 @@ These pages show how to run an epic and how to start with one spec.
 
 - Follow the [epic rollout](overview.md#epic-rollout) to link specs, run
   tasks in parallel, and require sign-off.
+- Use [Control during a rollout](overview.md#control-during-a-rollout) to
+  pause new work, steer a running task, or adjust the plan after a retro.
 - Use [Getting started](getting-started.md) to install Avoozl and run a first
   spec.
 - See [Avoozl](overview.md) for shared state, work in progress, and decisions.

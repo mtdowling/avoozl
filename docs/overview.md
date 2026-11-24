@@ -35,6 +35,32 @@ needs.
 See [Getting started](getting-started.md) to install Avoozl and run a first
 spec. A local-only workspace needs only Git.
 
+## Control during a rollout
+
+In **Settings › Autopilot**, choose the epics the runner can start. Agents
+can deliver each wave up to the gates you put in the plan. Between waves,
+a [manual task](manual-tasks.md) gives a person the go/no-go decision, and
+the repository's landing mode determines who merges its pull requests.
+
+- **Pause new work.** If a shared check breaks during the rollout, pull the
+  andon cord in **In flight**. Choose the task, spec, repository, or workspace
+  to pause. Running sessions keep going while you investigate. Flow can also
+  pause affected work when a previously passing check fails on the landing
+  branch and fails again on rerun. See [Stop the line](flow.md#stop-the-line).
+- **Steer a worker.** Open the active attempt from **In flight**. Send
+  guidance in the Kiro Crew chat or use **Send message** for a process
+  session. See [Steering a running task](delivery.md#steering-a-running-task).
+- **Adjust the next wave.** Run a retro in **Insights** to see which stage
+  slowed delivery and what to change in the plan or settings. For example, a
+  retro can identify repeated review rounds and suggest clearer acceptance
+  criteria for the next wave. Review the suggestions and decide which to
+  apply. See [Retros](flow.md#retros).
+- **Set the execution roles.** Choose a worker agent and a harness for each
+  role in **Settings › Models**. A worker can use a coding CLI while a
+  reviewer works in a Kiro Crew chat. Each machine can approve its own
+  process harnesses. See [Roles and models](agents.md#roles-and-models) and
+  [Approve a harness](getting-started.md#approve-a-harness).
+
 ## State
 
 Git holds what matters. SQLite is a cache, and `avoozl rebuild` makes it again.

@@ -191,6 +191,17 @@ Implementation, integration, and acceptance are separate steps, and each keeps
 its own record. Avoozl never replaces a worker only because its activity went
 quiet. It checks the durable session and delivery records first.
 
+### Steering a running task
+
+Open **In flight** to find the active attempt for a task. For a Kiro Crew
+session, open its chat and send your guidance there. For a process session,
+read the log and use **Send message**. Avoozl queues the message and resumes
+that session with it after the current turn exits.
+
+Use the worker's session to clarify the current task. To change the scope,
+order, or acceptance criteria for later work, revise the spec and get the new
+revision approved. See [Approval](github-workflow.md#7-approval).
+
 ### Time boxes and check-ins
 
 Autopilot bounds unattended work by wall-clock time, not by model credits.
