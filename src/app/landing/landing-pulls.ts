@@ -565,11 +565,20 @@ export function pullSteps({
         (await issueRefused(entry))
       )
         return false;
-      // Avoozl adds no trailer or attribution to the merge commit.
-      return headGuardedMerge(github, target, pull.number, candidate, method, {
-        title: `${pull.title ?? commitSubject(commitPrefix, `Land ${entry.key}`)} (#${pull.number})`,
-        message: "",
-      });
+      // Avoozl adds no trailer or attribution to the merge commit. The
+      // claim branch's lease is read just before the merge (rule 15.9).
+      return headGuardedMerge(
+        github,
+        target,
+        pull.number,
+        candidate,
+        method,
+        {
+          title: `${pull.title ?? commitSubject(commitPrefix, `Land ${entry.key}`)} (#${pull.number})`,
+          message: "",
+        },
+        { root, branch: ref.source.branch },
+      );
     },
   };
 }

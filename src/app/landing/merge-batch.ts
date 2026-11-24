@@ -21,6 +21,7 @@ import os from "node:os";
 import path from "node:path";
 import { git, remoteGit } from "../git/git.ts";
 import { guardedFastForward } from "./guarded-push.ts";
+import { claimBranch } from "../workers/claims.ts";
 import { runCheckAt } from "../flow/flow-line.ts";
 import { runChecksAt } from "../delivery/check-runs.ts";
 import { runPluginCheck } from "../plugins/plugin-check-run.ts";
@@ -410,13 +411,24 @@ export function directSteps({
       }
       return { ok: out.every((c) => c.exitCode === 0), checks: out };
     },
-    async land({ candidate, baseHead }) {
+    async land({ entries, candidate, baseHead }) {
       return guardedFastForward(root, {
         url,
         branch,
         base: baseHead,
         candidate,
         env,
+        // Each member's claim branch: its lease is read first (rule 15.9).
+        claims: entries.flatMap((entry) =>
+          entry.spec
+            ? entry.tasks.map((task) =>
+                claimBranch({
+                  id: typeof task === "string" ? task : task.task,
+                  planId: entry.spec ?? undefined,
+                }),
+              )
+            : [],
+        ),
       });
     },
     // The landed base comes back into each spec's working branch in `root`

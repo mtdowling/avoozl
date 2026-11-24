@@ -17,6 +17,7 @@ import { globalAvoozlConfigPath } from "../settings/layered-config.ts";
 import { privacyHits, privacyRules } from "../content/privacy.ts";
 import { fail } from "../store/store.ts";
 import type { Store } from "../store/store.ts";
+import { holdLease } from "../workers/claims.ts";
 
 // A fully qualified reference: where the work is and where it lands.
 export interface QualifiedRef {
@@ -254,6 +255,8 @@ export function privacyScan(
 // check the same range, commit messages and ref name (R102.7), so a
 // private plan's names never reach a pushed branch. A plain push only: a non-fast-forward is refused by git, never
 // forced. Avoozl's own process pushes; agents have no credentials for it.
+// A claim branch is pushed only while this runner holds its newest lease,
+// read just before the push (workflow rule 15.3).
 export async function pushHead(
   root: string,
   {
@@ -327,6 +330,7 @@ export async function pushHead(
       },
       { mode: "refuse" },
     );
+  await holdLease(root, url, branch, { env });
   try {
     await remoteGit(
       root,

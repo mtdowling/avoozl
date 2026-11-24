@@ -31,3 +31,33 @@ export async function scratchUpstream(root: string, clones: string[]) {
     ).split(/\s+/)[0];
   return { upstream, dirs, head };
 }
+
+// Pushes generation `generation` of `parser/p-2`'s lease to `upstream`
+// from `dir`: a lease commit on `base` that names `runner`, or a release
+// commit (workflow rule 15).
+export async function pushLease(
+  dir: string,
+  upstream: string,
+  {
+    generation,
+    base,
+    runner,
+    released = false,
+  }: { generation: number; base: string; runner: string; released?: boolean },
+) {
+  const message = `${released ? "Release" : "Lease"} parser/p-2 generation ${generation}\n\nStart: ${base}\nTask: Report unknown tokens\nRunner: ${runner}`,
+    sha = await git(dir, [
+      "commit-tree",
+      `${base}^{tree}`,
+      "-p",
+      base,
+      "-m",
+      message,
+    ]);
+  await git(dir, [
+    "push",
+    "-q",
+    upstream,
+    `${sha}:refs/heads/avoozl-lease/parser/p-2/${generation}`,
+  ]);
+}

@@ -1,13 +1,26 @@
 // Claim branches: `avoozl/<spec>/<task>` on origin is the lock
 // on a task. Creating it is the claim; GitHub's refs create call refuses a
-// second one with 422, so two runners never hold one task. The cache keeps
-// the branches each read saw, so a rebuilt cache finds every claim again.
+// second one with 422, so two runners never hold one task. Each claim has
+// leases (workflow rule 15): `avoozl-lease/<spec>/<task>/<generation>`, a
+// commit that names the start commit, the task text and the runner that
+// holds it. The cache keeps the branches and newest leases each read saw,
+// and which claims are this runner's comes from the lease, so a rebuilt
+// cache finds every claim and its holder again.
+import { randomUUID } from "node:crypto";
 import { fail, type Store } from "../store/store.ts";
 import { asJob, confirmStep } from "../github/github-jobs.ts";
-import { git, remoteGit, type Repository } from "../git/git.ts";
+import {
+  effectiveGitIdentity,
+  git,
+  listWorktrees,
+  remoteGit,
+  type Repository,
+} from "../git/git.ts";
 import type { QueueEntry } from "../landing/landing-queue.ts";
+import type { Task } from "../../types.ts";
 
 const PREFIX = "avoozl/";
+const LEASE_PREFIX = "avoozl-lease/";
 const META = "claims.branches";
 const CLAIM_REFUSALS = 10;
 const ALL_CLAIMED = "every ready task is claimed";
@@ -17,26 +30,64 @@ interface Ref {
   ref?: string;
   object?: { sha?: string };
 }
+// A commit as GitHub's commit read returns it, in the fields leases read.
+type CommitRead = {
+  commit?: {
+    committer?: { date?: string };
+    message?: string;
+    tree?: { sha?: string };
+  };
+} | null;
+// The person a commit names, from their git config.
+type Author = { name: string; email: string };
 // The GitHub calls claims make; a reader may lack the optional ones.
 export interface ClaimGitHub {
   branchesUnder?(repository: string, prefix: string): Promise<Ref[]>;
   deleteBranch?(repository: string, name: string): Promise<unknown>;
-  commit?(
+  commit?(repository: string, sha: string): Promise<CommitRead>;
+  createCommit?(
     repository: string,
-    sha: string,
-  ): Promise<{ commit?: { committer?: { date?: string } } } | null>;
+    body: { message: string; tree: string; parents: string[]; author?: Author },
+  ): Promise<{ sha?: string } | null>;
+  moveBranch?(repository: string, name: string, sha: string): Promise<unknown>;
 }
-// What claiming a task needs of GitHub.
-export type CreateGitHub = Required<Pick<ClaimGitHub, "branchesUnder">> & {
-  branch(repository: string, name: string): Promise<unknown>;
-  createBranch(repository: string, name: string, sha: string): Promise<unknown>;
-};
+// What claiming a task needs of GitHub. Lease commits need the commit
+// calls too; a client without them (a test fake) leases at the claim head.
+export type CreateGitHub = Required<Pick<ClaimGitHub, "branchesUnder">> &
+  Pick<ClaimGitHub, "commit" | "createCommit" | "moveBranch"> & {
+    branch(repository: string, name: string): Promise<unknown>;
+    createBranch(
+      repository: string,
+      name: string,
+      sha: string,
+    ): Promise<unknown>;
+  };
+// What writing a lease, renewal or takeover commit needs of GitHub.
+type CommitGitHub = Required<
+  Pick<ClaimGitHub, "commit" | "createCommit" | "moveBranch">
+>;
+const canCommit = (github: ClaimGitHub): github is CommitGitHub =>
+  typeof github.commit === "function" &&
+  typeof github.createCommit === "function" &&
+  typeof github.moveBranch === "function";
 // What deleting a claim needs of GitHub.
 type DeleteGitHub = Pick<ClaimGitHub, "branchesUnder"> &
   Required<Pick<ClaimGitHub, "deleteBranch">>;
 const canDelete = (github: ClaimGitHub): github is DeleteGitHub =>
   typeof github.deleteBranch === "function";
-// A claim branch, as the cache holds it.
+// A claim's newest lease (workflow rule 15.5), as the claims read keeps it:
+// its ref and commit, the commit's time, and what its message names.
+export interface Lease {
+  ref: string;
+  generation: number;
+  sha: string | null;
+  at?: string | null;
+  released?: boolean;
+  runner?: string | null;
+  start?: string | null;
+}
+// A claim branch, as the cache holds it. `own`: this runner holds its
+// newest lease.
 export interface Claim {
   spec: string;
   task: string;
@@ -44,18 +95,27 @@ export interface Claim {
   sha: string | null;
   at?: string | null;
   own?: boolean;
+  lease?: Lease | null;
 }
 // The cached claims, by GitHub repository.
 type ClaimCache = Record<string, Claim[]>;
-// A task, as far as its claim branch names it.
+// A task, as far as its claim branch names it, and the text its lease
+// records.
 type ClaimTask = { id: string; planId?: string };
+type LeaseTask = ClaimTask &
+  Partial<Pick<Task, "title" | "labeledIssue">> & { acceptance?: unknown };
 // A repository, as far as claims read it.
 type ClaimRepository = Pick<Repository, "id"> & {
   github?: string | null;
+  root?: string | null;
   claims?: { staleHours?: number };
 };
 // The claim cache's store: a Store, or a test's fake.
 type ClaimStore = Pick<Store, "getMeta" | "setMeta">;
+// The claims read's store: the cache and the repositories it reads.
+type ReadStore = ClaimStore & {
+  list<T = ClaimRepository>(table: "repositories"): T[];
+};
 const cacheOf = (store: Pick<Store, "getMeta">) =>
   store.getMeta<ClaimCache>(META) || {};
 // A refused create: GitHub's 422, unless content rules blocked it.
@@ -96,7 +156,7 @@ async function readClaims(github: ClaimGitHub, repository: string) {
 }
 
 // Replace the cached claims of the repositories read; others keep theirs.
-function cacheClaims(store: Store, byRepository: ClaimCache) {
+function cacheClaims(store: ClaimStore, byRepository: ClaimCache) {
   const current = cacheOf(store),
     next = { ...current, ...byRepository };
   // Written only when a read changed it, so a read that finds the same
@@ -136,11 +196,41 @@ export function cacheClaim(
   store.setMeta(META, { ...all, [repository]: [...own, claim] });
 }
 
+// The newest lease ref of each task, by `<spec>/<task>`, from one
+// matching-refs read (15.5: the highest generation is the newest).
+async function newestLeases(github: ClaimGitHub, repository: string) {
+  // A 404 is no lease ref at all.
+  const refs = await github
+      .branchesUnder?.(repository, LEASE_PREFIX)
+      .catch((error) => {
+        if ((error as { status?: number })?.status === 404) return [];
+        throw error;
+      }),
+    newest = new Map<string, Lease>();
+  for (const ref of Array.isArray(refs) ? refs : []) {
+    const match = /^refs\/heads\/(avoozl-lease\/([^/]+)\/([^/]+)\/(\d+))$/.exec(
+      ref?.ref ?? "",
+    );
+    if (!match) continue;
+    const key = `${match[2]}/${match[3]}`,
+      generation = Number(match[4]);
+    if ((newest.get(key)?.generation ?? 0) < generation)
+      newest.set(key, {
+        ref: match[1],
+        generation,
+        sha: ref.object?.sha ?? null,
+      });
+  }
+  return newest;
+}
+
 // Read and cache the claim branches of every repository with a GitHub name,
-// each with its head commit's time (`at`), read once per head. A repository
-// whose read fails keeps its cached claims.
+// each with its head commit's time (`at`) and its newest lease, each commit
+// read once. A claim is this runner's (`own`) when its newest lease names
+// this runner and is not released; a lease that names no runner keeps what
+// the cache said. A repository whose read fails keeps its cached claims.
 export async function refreshClaims(
-  store: Store,
+  store: ReadStore,
   github: ClaimGitHub | null | undefined,
 ) {
   if (!github?.branchesUnder) return [];
@@ -148,17 +238,37 @@ export async function refreshClaims(
     errors: { repository: string; error: string }[] = [],
     cached = cacheOf(store);
   for (const repository of store.list<ClaimRepository>("repositories"))
-    if (repository.github)
+    if (repository.github && !read[repository.github])
       try {
         const claims = await readClaims(github, repository.github),
+          leases = await newestLeases(github, repository.github),
           before = cached[repository.github] || [],
           known = new Map(before.map((c) => [c.sha, c.at])),
-          own = new Set(before.filter((c) => c.own).map((c) => c.branch));
+          knownLeases = new Map(
+            before.flatMap((c) => (c.lease ? [[c.lease.sha, c.lease]] : [])),
+          ),
+          own = new Set(before.filter((c) => c.own).map((c) => c.branch)),
+          runner = await runnerId(repository.root);
         for (const claim of claims) {
           claim.at =
             known.get(claim.sha) ??
-            (await headTime(github, repository.github, claim.sha));
-          if (own.has(claim.branch)) claim.own = true;
+            (await readCommit(github, repository.github, claim.sha)).at;
+          const lease = leases.get(`${claim.spec}/${claim.task}`) ?? null;
+          claim.lease = lease && {
+            ...lease,
+            ...(knownLeases.get(lease.sha) ??
+              (await readCommit(github, repository.github, lease.sha))),
+            ref: lease.ref,
+            generation: lease.generation,
+            sha: lease.sha,
+          };
+          const holder = claim.lease?.runner;
+          if (
+            holder
+              ? holder === runner && !claim.lease?.released
+              : own.has(claim.branch)
+          )
+            claim.own = true;
         }
         read[repository.github] = claims;
       } catch (error) {
@@ -171,20 +281,23 @@ export async function refreshClaims(
   return errors;
 }
 
-// A claim head's commit time, or null when it cannot be read (the claim
-// still counts; it just cannot go stale until a read gives its time).
-async function headTime(
+// A commit's time and what its lease message names, or a null time when it
+// cannot be read (the claim still counts; it just cannot go stale until a
+// read gives its time).
+async function readCommit(
   github: ClaimGitHub,
   repository: string,
   sha: string | null,
-) {
-  if (!github.commit || !sha) return null;
+): Promise<Partial<Lease> & { at: string | null }> {
+  if (!github.commit || !sha) return { at: null };
   try {
-    return (
-      (await github.commit(repository, sha))?.commit?.committer?.date ?? null
-    );
+    const commit = (await github.commit(repository, sha))?.commit;
+    return {
+      at: commit?.committer?.date ?? null,
+      ...parseLease(commit?.message),
+    };
   } catch {
-    return null;
+    return { at: null };
   }
 }
 
@@ -328,27 +441,78 @@ export function claimsDue(store: Store, now = Date.now()) {
   return true;
 }
 
-// Cached claims whose head commit is older than their repository's
-// `claims.staleHours` (default 24), with their age in hours.
+// Each GitHub repository's stale hours (`claims.staleHours`, default 24).
+function staleHoursOf(store: Pick<ReadStore, "list">) {
+  const hours = new Map<string, number>();
+  for (const repository of store.list<ClaimRepository>("repositories"))
+    if (repository.github && !hours.has(repository.github))
+      hours.set(
+        repository.github,
+        repository.claims?.staleHours ?? DEFAULT_STALE_HOURS,
+      );
+  return hours;
+}
+
+// The newer of a claim's head time and its newest lease's time: a claim is
+// stale only when both are older than the stale hours (15.6), so a fresh
+// lease on a quiet base is not stale.
+const lastActive = (claim: Claim) =>
+  Math.max(Date.parse(claim.at ?? ""), Date.parse(claim.lease?.at ?? "") || 0);
+
+// Whether this runner may resume a claim (15.7): not its own, and its
+// newest lease is released or stale, or it has no lease and a stale head.
+export function resumable(claim: Claim, hours: number, now = Date.now()) {
+  if (claim.own) return false;
+  if (claim.lease?.released) return true;
+  const at = lastActive(claim);
+  return Number.isFinite(at) && now - at > hours * HOUR;
+}
+
+// Task IDs another runner's claim holds: its claim has a live lease. This
+// runner works its own claims, and a claim it may resume is ready again.
+export function heldTaskIds(store: Store, now = Date.now()) {
+  const hours = staleHoursOf(store),
+    held = new Set(
+      Object.entries(cacheOf(store)).flatMap(([repository, claims]) =>
+        claims
+          .filter(
+            (claim) =>
+              !claim.own &&
+              !resumable(
+                claim,
+                hours.get(repository) ?? DEFAULT_STALE_HOURS,
+                now,
+              ),
+          )
+          .map((claim) => claim.branch),
+      ),
+    );
+  if (!held.size) return new Set<string>();
+  return new Set(
+    store
+      .read()
+      .tasks.filter((task) => held.has(claimBranch(task)))
+      .map((task) => task.id),
+  );
+}
+
+// Cached claims whose head commit and newest lease are both older than their
+// repository's `claims.staleHours` (default 24), with their age in hours.
 export function staleClaims(store: Store, now = Date.now()) {
   const all = cacheOf(store),
-    seen = new Set<string>(),
     stale: (Claim & {
       repository: string;
       hours: number;
       ageHours: number;
       staleAt: string;
     })[] = [];
-  for (const repository of store.list<ClaimRepository>("repositories")) {
-    if (!repository.github || seen.has(repository.github)) continue;
-    seen.add(repository.github);
-    const hours = repository.claims?.staleHours ?? DEFAULT_STALE_HOURS;
-    for (const claim of all[repository.github] || []) {
-      const at = Date.parse(claim.at ?? "");
+  for (const [repository, hours] of staleHoursOf(store)) {
+    for (const claim of all[repository] || []) {
+      const at = lastActive(claim);
       if (Number.isFinite(at) && now - at > hours * HOUR)
         stale.push({
           ...claim,
-          repository: repository.github,
+          repository,
           hours,
           ageHours: Math.floor((now - at) / HOUR),
           staleAt: new Date(at + hours * HOUR).toISOString(),
@@ -451,7 +615,10 @@ export async function deleteClaim(
 // skips the candidate (its integration branch could not take the default
 // branch).
 export async function claimFirst<
-  C extends { task: ClaimTask; repository: { github: string } },
+  C extends {
+    task: LeaseTask;
+    repository: { github: string; root?: string | null };
+  },
 >(
   github: CreateGitHub,
   candidates: C[],
@@ -481,16 +648,16 @@ export async function claimFirst<
       continue;
     }
     // The next generation above any lease refs left by a claim branch
-    // deleted outside Avoozl, else 1 (workflow rules 15.1 and 15.5).
+    // deleted outside Avoozl, else 1 (workflow rules 15.1 and 15.5). Its
+    // commit records the base head as the start commit.
     const generation =
-        (await highestLease(github, repository.github, task)) + 1,
-      lease = await takeLease(
-        github,
-        repository.github,
-        task,
-        generation,
+        ((await leaseRefs(github, repository.github, task))[0]?.generation ??
+          0) + 1,
+      lease = await takeLease(github, repository.github, task, generation, {
         head,
-      );
+        start: head,
+        signer: await leaseSigner(repository.root),
+      });
     if (!lease) fail(`Another runner took the lease on ${branch} first.`, 409);
     return { ...candidate, branch, base, head, lease, refusals };
   }
@@ -518,33 +685,146 @@ const shaOf = (branch: unknown) => {
     : undefined;
 };
 const leaseRef = (task: ClaimTask, generation: number | "") =>
-  `avoozl-lease/${taskSpec(task)}/${task.id}/${generation}`;
+  `${LEASE_PREFIX}${taskSpec(task)}/${task.id}/${generation}`;
 
-// The highest generation whose lease ref exists for a task, or 0 (15.5).
-async function highestLease(
-  github: CreateGitHub,
+// A task's lease refs, newest (highest generation) first (15.5).
+async function leaseRefs(
+  github: Pick<CreateGitHub, "branchesUnder">,
   repository: string,
   task: ClaimTask,
 ) {
   const refs = await github.branchesUnder(repository, leaseRef(task, ""));
-  return Math.max(
-    0,
-    ...refs.map((lease) => Number(String(lease.ref).split("/").pop()) || 0),
-  );
+  return (Array.isArray(refs) ? refs : [])
+    .map((lease) => ({
+      generation: Number(String(lease.ref).split("/").pop()) || 0,
+      sha: lease.object?.sha ?? null,
+    }))
+    .sort((a, b) => b.generation - a.generation);
 }
 
-// Take generation `generation` of a task's lease by creating its ref; null
-// when another runner created it first.
-// shortcut: the lease points at the claim's head and is not renewed (12.6);
-// renew it when the loop runs tasks that outlive the stale hours.
-export async function takeLease(
-  github: Pick<CreateGitHub, "createBranch">,
-  repository: string,
-  task: ClaimTask,
+// This runner's ID: `avoozl.runner` in the checkout's git config, made once.
+// It lives in git, not SQLite, so a rebuilt workspace knows its own leases.
+// shortcut: two workspaces sharing one checkout share one runner ID; give
+// each its own ID if a person ever runs two on one checkout.
+const runnerIds = new Map<string, Promise<string | null>>();
+export function runnerId(root: string | null | undefined) {
+  if (!root) return Promise.resolve(null);
+  let known = runnerIds.get(root);
+  if (!known) {
+    known = git(root, ["config", "--get", "avoozl.runner"])
+      .catch(() => "")
+      .then(async (id) => {
+        if (id) return id;
+        const made = `runner-${randomUUID().slice(0, 12)}`;
+        return git(root, ["config", "avoozl.runner", made]).then(
+          () => made,
+          () => null,
+        );
+      });
+    runnerIds.set(root, known);
+  }
+  return known;
+}
+
+// Who writes a lease: this runner's ID, and the person's git identity as
+// the commit's author.
+export type Signer = { runner: string | null; author?: Author };
+export async function leaseSigner(root: string | null | undefined) {
+  const [runner, author] = await Promise.all([
+    runnerId(root),
+    root ? effectiveGitIdentity(root) : null,
+  ]);
+  return { runner, ...(author ? { author } : {}) } satisfies Signer;
+}
+
+const oneLine = (text: unknown) =>
+  String(text ?? "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+// A lease commit's message (15.1): the start commit and the task text as
+// approved, then lines another runner ignores: the runner that holds it, and
+// a labeled issue's authorizing event (11.2).
+export function leaseMessage(
+  task: LeaseTask,
   generation: number,
-  sha: string,
+  { start, runner }: { start: string; runner?: string | null },
 ) {
-  const ref = leaseRef(task, generation);
+  const issue = task.labeledIssue;
+  return [
+    `Lease ${taskSpec(task)}/${task.id} generation ${generation}`,
+    "",
+    `Start: ${start}`,
+    `Task: ${oneLine(task.title || task.id)}`,
+    ...(Array.isArray(task.acceptance) ? task.acceptance : []).map(
+      (done) => `Done: ${oneLine(done)}`,
+    ),
+    ...(runner ? [`Runner: ${runner}`] : []),
+    ...(issue?.number && issue.event?.id
+      ? [`Issue #${issue.number} label event ${issue.event.id}`]
+      : []),
+  ].join("\n");
+}
+
+// What a lease or release commit's message names.
+export function parseLease(message: string | null | undefined) {
+  const lines = String(message ?? "").split("\n"),
+    value = (key: string) =>
+      lines
+        .find((line) => line.startsWith(`${key}: `))
+        ?.slice(key.length + 2)
+        .trim() || null;
+  return {
+    released: /^Release /.test(lines[0] ?? ""),
+    start: value("Start"),
+    runner: value("Runner"),
+  };
+}
+
+// A child of `parent` with the same tree and `message(parent's message)`:
+// a lease, renewal, release or takeover commit. Returns its sha.
+async function childCommit(
+  github: CommitGitHub,
+  repository: string,
+  parent: string,
+  message: (old: string) => string,
+  author?: Author,
+) {
+  const commit = (await github.commit(repository, parent))?.commit,
+    tree = commit?.tree?.sha;
+  if (!tree) return fail(`Cannot read commit ${parent} in ${repository}.`, 502);
+  const made = await github.createCommit(repository, {
+    message: message(commit?.message ?? ""),
+    tree,
+    parents: [parent],
+    ...(author ? { author } : {}),
+  });
+  return made?.sha ?? fail(`GitHub made no commit in ${repository}.`, 502);
+}
+
+// Take generation `generation` of a task's lease by creating its ref at a
+// lease commit on the claim head; null when another runner created it
+// first.
+// shortcut: a client with no commit calls (a test fake) points the lease at
+// the claim head, with no message; GitHub's client always writes the commit.
+export async function takeLease(
+  github: Pick<CreateGitHub, "createBranch"> & ClaimGitHub,
+  repository: string,
+  task: LeaseTask,
+  generation: number,
+  { head, start, signer }: { head: string; start: string; signer?: Signer },
+) {
+  const ref = leaseRef(task, generation),
+    sha = canCommit(github)
+      ? await childCommit(
+          github,
+          repository,
+          head,
+          () =>
+            leaseMessage(task, generation, { start, runner: signer?.runner }),
+          signer?.author,
+        )
+      : head;
   try {
     await github.createBranch(repository, ref, sha);
   } catch (error) {
@@ -554,89 +834,251 @@ export async function takeLease(
   return ref;
 }
 
-// Whether a lease is stale (workflow rule 15.6): its lease commit and the
-// claim branch's newest commit are both older than the stale hours.
-// A lease of a claim, as resumeClaim reads it.
-type Lease = { generation: number; ageHours: number; released?: boolean };
-const leaseStale = (lease: Lease, claimAgeHours: number, staleHours: number) =>
-  lease.ageHours > staleHours && claimAgeHours > staleHours;
+// Renew this runner's leases (15.6): each newest lease it holds whose commit
+// is older than half the stale hours moves to a new lease commit with the
+// same message, a fast-forward. Returns the repositories whose renewal
+// failed.
+export async function renewLeases(
+  store: ReadStore,
+  github: ClaimGitHub | null | undefined,
+  now = Date.now(),
+) {
+  if (!github || !canCommit(github)) return [];
+  const all = cacheOf(store),
+    roots = new Map(
+      store
+        .list<ClaimRepository>("repositories")
+        .map((repository) => [repository.github, repository.root]),
+    ),
+    errors: { repository: string; error: string }[] = [];
+  let renewed = false;
+  for (const [repository, hours] of staleHoursOf(store))
+    for (const claim of all[repository] || []) {
+      const lease = claim.lease,
+        at = Date.parse(lease?.at ?? "");
+      if (!claim.own || !lease?.sha || lease.released) continue;
+      if (Number.isFinite(at) && now - at < (hours * HOUR) / 2) continue;
+      try {
+        const signer = await leaseSigner(roots.get(repository)),
+          sha = await childCommit(
+            github,
+            repository,
+            lease.sha,
+            (message) => message,
+            signer.author,
+          );
+        await github.moveBranch(repository, lease.ref, sha);
+        Object.assign(lease, { sha, at: new Date(now).toISOString() });
+        renewed = true;
+      } catch (error) {
+        errors.push({
+          repository,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+  if (renewed) store.setMeta(META, all);
+  return errors;
+}
 
-// Resume a claim (15.7): with no lease, or a newest one (the highest
-// generation) that is stale or released, each runner in turn tries the next
-// generation; the first create wins and the rest stop. With a live lease
-// nobody resumes.
-export async function resumeClaim<R>(
-  github: Pick<CreateGitHub, "createBranch">,
+// Resume a claim this runner may resume (15.7, `resumable`): take the next
+// generation, with the start commit its newest lease named, then push the
+// takeover commit (15.8). Null when the newest lease moved since the claims
+// read, or another runner took that generation first: that runner holds it,
+// and this one stops. Returns the new lease and the claim's new head.
+export async function resumeClaim(
+  github: CreateGitHub,
   {
     repository,
+    claim,
     task,
-    leases,
-    claimAgeHours,
-    staleHours,
-    runners,
-    sha,
-  }: {
-    repository: string;
-    task: ClaimTask;
-    leases: Lease[];
-    claimAgeHours: number;
-    staleHours: number;
-    runners: R[];
-    sha: string;
-  },
+    signer,
+  }: { repository: string; claim: Claim; task: LeaseTask; signer: Signer },
 ) {
-  const newest = [...leases].sort((a, b) => b.generation - a.generation)[0];
-  if (
-    newest &&
-    !newest.released &&
-    !leaseStale(newest, claimAgeHours, staleHours)
-  )
-    return { holder: null, lease: null, stopped: [...runners] };
+  const [newest] = await leaseRefs(github, repository, task);
+  if ((newest?.sha ?? null) !== (claim.lease?.sha ?? null)) return null;
+  const head = shaOf(await github.branch(repository, claim.branch));
+  if (!head) return null;
   const generation = (newest?.generation ?? 0) + 1,
-    stopped: R[] = [];
-  let holder: R | null = null,
-    lease: string | null = null;
-  for (const runner of runners) {
-    const ref = await takeLease(github, repository, task, generation, sha);
-    if (ref && !holder) [holder, lease] = [runner, ref];
-    else stopped.push(runner);
-  }
-  return { holder, lease, stopped };
+    start = claim.lease?.start ?? head,
+    ref = await takeLease(github, repository, task, generation, {
+      head,
+      start,
+      signer,
+    });
+  if (!ref) return null;
+  return {
+    lease: {
+      ref,
+      generation,
+      sha: null,
+      at: new Date().toISOString(),
+      runner: signer.runner,
+      start,
+    },
+    head: await pushTakeover(github, repository, claim.branch, signer.author),
+  };
 }
 
 // The takeover commit (workflow rule 15.8): a runner that took a lease on an
-// existing claim pushes a child of the claim branch's head that changes no
-// file, before it works or lands. The old holder's later push builds on the
-// head before it, so it is not a fast-forward and is rejected. A rejected
-// takeover reads the head again and pushes on top of it. Returns the
+// existing claim moves the claim branch to a child of its head that changes
+// no file, before it works or lands. The old holder's later push builds on
+// the head before it, so it is not a fast-forward and is rejected. A
+// rejected takeover reads the head again and moves on top of it. Returns the
 // takeover commit.
 export async function pushTakeover(
-  root: string,
+  github: ClaimGitHub & Pick<CreateGitHub, "branch">,
+  repository: string,
   branch: string,
-  { env, tries = 3 }: { env?: NodeJS.ProcessEnv; tries?: number } = {},
+  author?: Author,
+  tries = 3,
 ) {
-  const options = env ? { env } : {};
+  if (!canCommit(github))
+    return fail("Taking over a claim needs GitHub's commit calls.", 500);
   for (let attempt = 1; ; attempt++) {
-    await remoteGit(root, ["fetch", "-q", "origin", branch], options);
-    await git(
-      root,
-      ["checkout", "-q", "-B", branch, `origin/${branch}`],
-      options,
-    );
-    await git(
-      root,
-      ["commit", "-q", "--allow-empty", "-m", `Take over ${branch}`],
-      options,
+    const head = shaOf(await github.branch(repository, branch));
+    if (!head) return fail(`Cannot read the head of ${branch}.`, 502);
+    const sha = await childCommit(
+      github,
+      repository,
+      head,
+      () => `Take over ${branch}`,
+      author,
     );
     try {
-      await remoteGit(
-        root,
-        ["push", "-q", "origin", `HEAD:refs/heads/${branch}`],
-        options,
-      );
-      return git(root, ["rev-parse", "HEAD"], options);
+      await github.moveBranch(repository, branch, sha);
+      return sha;
     } catch (error) {
-      if (attempt >= tries) throw error;
+      if (!refused(error) || attempt >= tries) throw error;
     }
   }
+}
+
+// After a takeover, the local claim branch takes origin's head, so the
+// worker builds on the takeover commit: a missing branch is made there, the
+// worktree that holds it merges it, and an idle branch behind it moves up.
+// Never forced.
+// shortcut: an idle local branch with commits origin lacks is left as it
+// is, and its push is refused; merge it by hand if that ever happens.
+export async function syncClaimBranch(
+  root: string,
+  branch: string,
+  { env }: { env?: NodeJS.ProcessEnv } = {},
+) {
+  const options = env ? { env } : {},
+    local = `refs/heads/${branch}`;
+  await remoteGit(root, ["fetch", "--quiet", "origin", branch], options);
+  const remote = await git(root, ["rev-parse", `origin/${branch}`], options),
+    holder = [...(await listWorktrees(root))].find(
+      ([, ref]) => ref === local,
+    )?.[0];
+  if (holder)
+    return void (await git(
+      holder,
+      ["merge", "--quiet", "--no-edit", remote],
+      options,
+    ));
+  const current = await git(
+    root,
+    ["rev-parse", "--verify", "--quiet", local],
+    options,
+  ).catch(() => "");
+  if (!current) return void (await git(root, ["branch", branch, remote]));
+  const behind = await git(root, [
+    "merge-base",
+    "--is-ancestor",
+    current,
+    remote,
+  ]).then(
+    () => true,
+    () => false,
+  );
+  if (behind) await git(root, ["update-ref", local, remote, current], options);
+}
+
+// Rules 15.3 and 15.9: refuse (409) unless this runner, by its checkout
+// `root`, holds the newest lease of claim `claim` and has not released it.
+// A claim with no lease ref is not Avoozl's and passes.
+async function refuseUnlessHeld(
+  root: string,
+  claim: Claim,
+  newest: { ref: string; message: string } | null,
+) {
+  if (!newest) return;
+  const lease = parseLease(newest.message),
+    runner = await runnerId(root);
+  if (lease.released || !lease.runner || lease.runner !== runner)
+    fail(
+      `${claim.branch} has a newer lease than this runner holds, or its lease is released (${newest.ref}), so Avoozl stops work on ${claim.task} and pushes nothing.`,
+      409,
+    );
+}
+
+// The lease check before a push to a claim branch or a land, read with git
+// from `url`. A branch that is no claim passes.
+export async function holdLease(
+  root: string,
+  url: string,
+  branch: string,
+  { env }: { env?: NodeJS.ProcessEnv } = {},
+) {
+  const claim = parseClaimRef({ ref: `refs/heads/${branch}` });
+  if (!claim) return;
+  const options = {
+      env: { ...(env ?? process.env), GIT_TERMINAL_PROMPT: "0" },
+    },
+    prefix = `refs/heads/${LEASE_PREFIX}${claim.spec}/${claim.task}/`,
+    [newest] = (
+      await remoteGit(root, ["ls-remote", url, `${prefix}*`], options)
+    )
+      .split("\n")
+      .map((line) => line.split(/\s+/))
+      .filter(([sha, ref]) => sha && ref?.startsWith(prefix))
+      .map(([sha, ref]) => ({
+        sha,
+        ref: ref.slice("refs/heads/".length),
+        generation: Number(ref.slice(prefix.length)) || 0,
+      }))
+      .sort((a, b) => b.generation - a.generation);
+  if (newest)
+    await remoteGit(root, ["fetch", "--quiet", url, newest.ref], options);
+  await refuseUnlessHeld(
+    root,
+    claim,
+    newest && {
+      ref: newest.ref,
+      message: await git(
+        root,
+        ["log", "-1", "--format=%B", newest.sha],
+        options,
+      ),
+    },
+  );
+}
+
+// The same check read through GitHub's API, for a merge GitHub makes. A
+// client without the reads (a test fake) is not checked.
+export async function holdLeaseOnGitHub(
+  github: ClaimGitHub,
+  repository: string,
+  root: string,
+  branch: string,
+) {
+  const claim = parseClaimRef({ ref: `refs/heads/${branch}` });
+  if (!claim || !github.branchesUnder || !github.commit) return;
+  const newest = (await newestLeases(github, repository)).get(
+    `${claim.spec}/${claim.task}`,
+  );
+  await refuseUnlessHeld(
+    root,
+    claim,
+    newest?.sha
+      ? {
+          ref: newest.ref,
+          message:
+            (await github.commit(repository, newest.sha))?.commit?.message ??
+            "",
+        }
+      : null,
+  );
 }

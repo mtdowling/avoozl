@@ -524,7 +524,7 @@ async function remoteRepository(root: string, remote = "origin") {
     return null;
   }
 }
-async function effectiveGitIdentity(root: string) {
+export async function effectiveGitIdentity(root: string) {
   try {
     const [name, email] = await Promise.all([
       git(root, ["config", "--get", "user.name"]),
@@ -714,7 +714,7 @@ export async function createWorktree(
   );
 }
 // The worktrees git knows for `root`: path -> branch ref (or null if detached).
-async function listWorktrees(root: string) {
+export async function listWorktrees(root: string) {
   const entries = new Map<string, string | null>();
   let current: string | null = null;
   for (const line of (

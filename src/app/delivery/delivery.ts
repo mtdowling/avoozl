@@ -17,7 +17,7 @@ import { hasPendingSpecDependencies } from "../../spec-dependencies.ts";
 import { spawn } from "node:child_process";
 import path from "node:path";
 import { issueReportToken } from "../workers/report-match.ts";
-import { claimBranch, claimOf, claimedTaskIds } from "../workers/claims.ts";
+import { claimBranch, claimOf, heldTaskIds } from "../workers/claims.ts";
 import { fail } from "../store/store.ts";
 import type { Store } from "../store/store.ts";
 import type { Snapshot, Task } from "../../types.ts";
@@ -2008,8 +2008,9 @@ export function busyTaskIds(
   }
   for (const delivery of deliveries.values())
     if (delivery.state !== "failed") claimed.add(delivery.taskId);
-  // A claim branch on origin holds its task, whoever made it (§D3).
-  for (const id of claimedTaskIds(store)) claimed.add(id);
+  // Another runner's claim branch on origin holds its task (§D3); this
+  // runner's own claims, and claims it may resume, do not (rule 15.7).
+  for (const id of heldTaskIds(store)) claimed.add(id);
   return claimed;
 }
 

@@ -3,7 +3,13 @@
 // answers against the case, and the scenario runner reuses the readers.
 import { lintSpec, parseSpec, specHash } from "../specs/spec-plans.ts";
 import { unblockCounts } from "../specs/ranking.ts";
-import { claimFirst, resumeClaim } from "../workers/claims.ts";
+import {
+  type Claim,
+  claimBranch,
+  claimFirst,
+  resumable,
+  resumeClaim,
+} from "../workers/claims.ts";
 import { linkedReader } from "../specs/order.ts";
 import {
   catchUp,
@@ -43,7 +49,10 @@ export interface KitCase extends Case {
     branches: string[];
     behind?: string[];
     mergedPullHeads?: string[];
-    leases?: Record<string, { generation: number; ageHours: number }[]>;
+    leases?: Record<
+      string,
+      { generation: number; ageHours: number; released?: boolean }[]
+    >;
     claimAgeHours?: Record<string, number>;
     taskFiles?: Record<string, string[]>;
     graph: Record<string, string[]>;
@@ -307,10 +316,12 @@ export async function ready(testCase: ReadyCase, specs: Specs) {
 }
 
 // An origin whose refs create call refuses a ref it already has, and keeps
-// each one it makes.
+// each one it makes. A ref's sha is its own name; commits it makes are
+// numbered.
 export function origin(testCase: Pick<ReadyCase, "origin">) {
   const branches = new Set(testCase.origin.branches),
     behind = new Set(testCase.origin.behind ?? []);
+  let made = 0;
   return {
     merged: [] as string[],
     branch: async (_repository: string, name: string) => {
@@ -333,23 +344,59 @@ export function origin(testCase: Pick<ReadyCase, "origin">) {
     branchesUnder: async (_repository: string, prefix: string) =>
       [...branches]
         .filter((name) => name.startsWith(prefix))
-        .map((name) => ({ ref: `refs/heads/${name}` })),
+        .map((name) => ({ ref: `refs/heads/${name}`, object: { sha: name } })),
+    commit: async () => ({ commit: { tree: { sha: "tree" }, message: "" } }),
+    createCommit: async () => ({ sha: `commit-${++made}` }),
+    moveBranch: async () => null,
   };
 }
 
-// The resume: the runners of one login try Avoozl's lease call in turn.
+// The resume: the runners of one login each run Avoozl's resume over the
+// claim as the claims read left it, in turn; the first lease create wins and
+// the rest stop. With a live lease nobody resumes.
 async function resume(testCase: KitCase) {
   const key = testCase.resume.task,
-    [spec, id] = key.split("/");
-  return resumeClaim(origin(testCase), {
-    repository: "o/r",
-    task: { id, planId: spec },
-    leases: testCase.origin.leases?.[key] ?? [],
-    claimAgeHours: testCase.origin.claimAgeHours?.[key] ?? 0,
-    staleHours: testCase.runner.staleHours ?? 24,
-    runners: testCase.resume.runners,
-    sha: "head",
-  });
+    [spec, id] = key.split("/"),
+    now = Date.parse("2026-11-20T12:00:00Z"),
+    ago = (hours: number) => new Date(now - hours * 3600 * 1000).toISOString(),
+    newest = [...(testCase.origin.leases?.[key] ?? [])].sort(
+      (a, b) => b.generation - a.generation,
+    )[0],
+    branch = claimBranch({ id, planId: spec }),
+    ref = newest && `avoozl-lease/${key}/${newest.generation}`,
+    claim: Claim = {
+      spec,
+      task: id,
+      branch,
+      sha: branch,
+      at: ago(testCase.origin.claimAgeHours?.[key] ?? 0),
+      lease: newest
+        ? {
+            ref,
+            generation: newest.generation,
+            sha: ref,
+            at: ago(newest.ageHours),
+            released: newest.released,
+          }
+        : null,
+    },
+    github = origin(testCase),
+    stopped: string[] = [];
+  let holder: string | null = null,
+    lease: string | null = null;
+  for (const runner of testCase.resume.runners) {
+    const taken = resumable(claim, testCase.runner.staleHours ?? 24, now)
+      ? await resumeClaim(github, {
+          repository: "o/r",
+          claim,
+          task: { id, planId: spec },
+          signer: { runner },
+        })
+      : null;
+    if (taken && !holder) [holder, lease] = [runner, taken.lease.ref];
+    else stopped.push(runner);
+  }
+  return { holder, lease, stopped };
 }
 
 // The claim: Avoozl's claim call over the ready list, on the base its
@@ -362,13 +409,16 @@ export async function claim(
   github: ReturnType<typeof origin> | ReturnType<World["github"]> = origin(
     testCase,
   ),
-  { raw = false } = {},
+  { raw = false, root = null }: { raw?: boolean; root?: string | null } = {},
 ) {
   const linked = linkedOf(specs),
     store = new MetaStore(),
     candidates = order.map((name) => {
       const [spec, id] = name.split("/");
-      return { task: { id, planId: spec }, repository: { github: "o/r" } };
+      return {
+        task: { id, planId: spec },
+        repository: { github: "o/r", root },
+      };
     }),
     fallback = testCase.runner.defaultBranch,
     claimed = await claimFirst(github, candidates, {

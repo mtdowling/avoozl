@@ -1,0 +1,73 @@
+{
+  "title": "A runner that restarts with an empty cache keeps its own claim",
+  "rules": ["15.1", "15.3", "15.7"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main",
+    "staleHours": 24
+  },
+  "origin": {
+    "branches": ["main"]
+  },
+  "issues": {
+    "parser": ["acme-alice"]
+  },
+  "landing": {
+    "mode": "direct"
+  },
+  "runners": {
+    "A": "acme-alice",
+    "B": "acme-alice"
+  },
+  "steps": [
+    {
+      "runner": "A",
+      "do": "next"
+    },
+    {
+      "runner": "A",
+      "do": "claim",
+      "expect": {
+        "claimed": "avoozl/parser/p-2"
+      }
+    },
+    {
+      "runner": "A",
+      "do": "restart",
+      "expect": {
+        "claims": ["parser/p-2"]
+      }
+    },
+    {
+      "runner": "B",
+      "do": "takeOver",
+      "task": "parser/p-2",
+      "afterHours": 2,
+      "expect": {
+        "holder": false
+      }
+    },
+    {
+      "runner": "A",
+      "do": "push",
+      "task": "parser/p-2",
+      "expect": {
+        "push": "accepted"
+      }
+    },
+    {
+      "runner": "A",
+      "do": "land",
+      "task": "parser/p-2",
+      "expect": {
+        "action": "fast-forward-base",
+        "landed": true
+      }
+    }
+  ],
+  "then": {
+    "rejectedPushes": [],
+    "branches": [],
+    "ticked": ["parser/p-1", "parser/p-2"]
+  }
+}

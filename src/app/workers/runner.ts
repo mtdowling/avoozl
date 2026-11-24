@@ -18,7 +18,12 @@ import {
   claimOf,
   claimedTaskIds,
   type CreateGitHub,
+  DEFAULT_STALE_HOURS,
+  leaseSigner,
   refreshClaims,
+  resumable,
+  resumeClaim,
+  syncClaimBranch,
   taskSpec,
 } from "./claims.ts";
 import { manualTake } from "./manual-take.ts";
@@ -36,6 +41,7 @@ type RepositoryRow = {
   github?: string;
   baseBranch?: string;
   commitPrefix?: string;
+  claims?: { staleHours?: number };
 };
 // A task's delivery row, as the lists read it.
 type DeliveryRow = {
@@ -348,14 +354,16 @@ function claimBase(store: Store, client: BranchClient, linked: Linked) {
 // start whose claim another runner made first is dropped, so two machines
 // never start one task, and so is one whose claim GitHub could not make: it
 // is tried again next pass. A task this runner already claimed keeps its
-// start. Returns {dispatches, errors}.
+// start, after a rebuild too. A claim this runner may resume (workflow rule
+// 15.7) is resumed: the next lease, the takeover commit, and the local
+// branch brought up to it. Returns {dispatches, errors}.
 export async function claimDispatches<
   D extends { task?: string; role?: string },
 >(
   store: Store,
   client: BranchClient,
   dispatches: D[],
-  { linked = null }: { linked?: Linked } = {},
+  { linked = null, now = Date.now() }: { linked?: Linked; now?: number } = {},
 ) {
   const repositories = new Map(
       store.list<RepositoryRow>("repositories").map((r) => [r.id, r]),
@@ -363,17 +371,58 @@ export async function claimDispatches<
     tasks = new Map(store.read().tasks.map((task) => [task.id, task])),
     baseOf = claimBase(store, client, linked),
     kept: D[] = [],
-    errors: { repository: string; error: string }[] = [];
+    errors: { repository: string; error: string }[] = [],
+    failed = (repository: string, error: unknown) =>
+      errors.push({
+        repository,
+        error: error instanceof Error ? error.message : String(error),
+      });
   for (const dispatch of dispatches) {
     const task = tasks.get(dispatch.task ?? ""),
-      repository = task && repositories.get(taskRepository(task) ?? "");
+      repository = task && repositories.get(taskRepository(task) ?? ""),
+      cached =
+        task && repository?.github
+          ? claimOf(store, repository.github, task.id)
+          : null;
     if (
       dispatch.role !== "worker" ||
       !task ||
       !repository?.github ||
-      claimOf(store, repository.github, task.id)?.own
+      cached?.own
     ) {
       kept.push(dispatch);
+      continue;
+    }
+    if (cached) {
+      const github = repository.github;
+      if (
+        !resumable(
+          cached,
+          repository.claims?.staleHours ?? DEFAULT_STALE_HOURS,
+          now,
+        )
+      )
+        continue;
+      try {
+        const resumed = await resumeClaim(client, {
+          repository: github,
+          claim: cached,
+          task,
+          signer: await leaseSigner(repository.root),
+        });
+        if (!resumed) continue;
+        cacheClaim(store, github, {
+          ...cached,
+          sha: resumed.head,
+          at: resumed.lease.at,
+          own: true,
+          lease: resumed.lease,
+        });
+        await syncClaimBranch(repository.root, cached.branch);
+        kept.push(dispatch);
+      } catch (error) {
+        failed(github, error);
+      }
       continue;
     }
     let claim = null;
@@ -384,11 +433,7 @@ export async function claimDispatches<
         { baseOf },
       );
     } catch (error) {
-      if (statusOf(error) !== 409)
-        errors.push({
-          repository: repository.github,
-          error: error instanceof Error ? error.message : String(error),
-        });
+      if (statusOf(error) !== 409) failed(repository.github, error);
     }
     if (!claim) continue;
     cacheClaim(store, repository.github, {

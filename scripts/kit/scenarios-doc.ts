@@ -75,6 +75,7 @@ const SENTENCE: Record<string, (step: Step) => string> = {
   mergePr: (step) => `merges the pull request of ${code(step.task)}`,
   deleteBranch: (step) =>
     `deletes the claim branch of ${code(step.task ?? step.branch)}`,
+  restart: () => "restarts with an empty cache and reads its claims back",
 };
 
 const stepLine = (step: Step, index: number) => {
