@@ -4,6 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
+import { specsPath } from "../specs/specs-path.ts";
 
 const root = fileURLToPath(new URL("../../../", import.meta.url));
 const skip = ["docs/research", "docs/evidence"];
@@ -26,7 +27,7 @@ test("json blocks in the docs are pretty-printed", () => {
       "docs",
       "hosts/kirocrew/skills",
       "prompts",
-      ".kiro/specs",
+      specsPath(root),
       ".kiro/skills",
     ].flatMap((d) => [...markdown(path.join(root, d))]),
   ];

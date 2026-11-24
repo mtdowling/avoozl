@@ -1,12 +1,12 @@
 ---
 name: writing-documentation
-description: How Avoozl's prose is written, covering page shape, titles, layering, examples, JSON layout, diagrams, cross-links, voice, fixed words and formatting. Use whenever writing or editing a page under `docs/`, the README, a spec under `.kiro/specs/`, a role prompt under `prompts/`, a skill, or CLI help text, or when reviewing any of those for style. The rules are enforced by review rather than a tool, so read this before writing.
+description: How Avoozl's prose is written, covering page shape, titles, layering, examples, JSON layout, diagrams, cross-links, voice, fixed words and formatting. Use whenever writing or editing a page under `docs/`, the README, a spec under `specs/`, a role prompt under `prompts/`, a skill, or CLI help text, or when reviewing any of those for style. The rules are enforced by review rather than a tool, so read this before writing.
 ---
 
 # Documentation style
 
 This is how Avoozl's prose is written: the pages under `docs/`, `README.md`,
-the specs under `.kiro/specs/`, the role prompts under `prompts/`, the skills,
+the specs under `specs/`, the role prompts under `prompts/`, the skills,
 and CLI help text. It is prescriptive. When a rule and a habit disagree, the
 rule wins and the page gets fixed.
 

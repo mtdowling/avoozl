@@ -158,6 +158,7 @@ and a local database that isn't committed. A new workspace is empty.
 Write the spec by hand, or ask a chat to with the `avoozl-spec` skill, then
 approve it. See
 [Write and approve a spec](docs/getting-started.md#write-and-approve-a-spec).
+For examples, browse [Avoozl's own specs](specs/).
 
 Register the checkout the work changes, with its base branch, a folder for
 worktrees, and the checks every task must pass:

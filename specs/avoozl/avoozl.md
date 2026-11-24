@@ -136,7 +136,7 @@ graph of groups and leaves, so that work can proceed in safe pieces.
    leaf. Only leaves SHALL be claimed; a group's box SHALL follow its
    children.
 4. Waits SHALL follow list order, including the `(**PARALLEL**)` groups and
-   phases in [Workflow v1](../../../docs/github-workflow.md#3-order).
+   phases in [Workflow v1](../../docs/github-workflow.md#3-order).
 5. WHEN a leaf has no plain sub-bullet, an ID is used twice, a tag is written
    wrong, or a linked spec does not exist THEN `avoozl spec lint` SHALL
    report it, and the same inputs SHALL give the same result.
@@ -1082,7 +1082,7 @@ grouping is made up from a file path.
    title whose target is `<specs.path>/<name>/tasks.md`. That task SHALL be
    a spec group whose children are the linked spec's phases, so the linked
    spec's tasks wait as the parent's list orders them. See
-   [linked specs](../../../docs/github-workflow.md#6-linked-specs).
+   [linked specs](../../docs/github-workflow.md#6-linked-specs).
 2. Lint SHALL refuse a spec group whose linked folder does not exist
    (unless an earlier open task in the same list stands for it), a spec
    linked as a spec group more than once in the repository, and a spec
@@ -1162,7 +1162,7 @@ do, such as a team review, so that a person's step gates the work after it.
 Design §8.7.
 
 **User story:** As the owner, I want the page and its words to say spec,
-so that the name matches the `.kiro/specs/<name>/` folders I write.
+so that the name matches the spec folders I write.
 
 ##### Acceptance criteria
 
@@ -1819,7 +1819,7 @@ the last tick did.
 3. Settings › Models SHALL set a harness and a model per role.
 4. A headless machine SHALL get the CLI (`avoozl status` and
    `avoozl runner status --json`), and the standalone page that each tick
-   keeps up when `serve.enabled` is set (`.kiro/specs/standalone-web/`).
+   keeps up when `serve.enabled` is set ([standalone-web](../standalone-web/standalone-web.md)).
    Avoozl SHALL host no other UI and SHALL serve nothing beyond
    `127.0.0.1`.
 5. `.avoozl.json` SHALL hold one `roles` table with one row per role:
@@ -3822,7 +3822,7 @@ detached, so the child outlives the tick. A later pass finds it by pid and
 start time, reads its result once it ends, and resumes it on a queued
 message with the same session id; one it cannot find is `gone`. Whatever
 runs the tick runs the pass: the app's cron on a Kiro Crew machine, a
-launchd, systemd or cron timer, or a chat (`.kiro/specs/machine-server/`).
+launchd, systemd or cron timer, or a chat ([machine-server](../machine-server/machine-server.md)).
 
 **Finishing.** A sandboxed child cannot reach the database, so a `process`
 child ends by writing `.avoozl/result.json` in its folder (`state` `done`
@@ -4509,7 +4509,7 @@ flowchart LR
 
 | Step | Who | What happens |
 | --- | --- | --- |
-| 1. Write | A person, Kiro, Spec Builder, or a chat with the `avoozl-spec` skill | Writes `.kiro/specs/<name>/` (§6.8) on a `spec/<name>` branch, runs `avoozl graph SPEC --write` and `avoozl spec lint SPEC` |
+| 1. Write | A person, Kiro, Spec Builder, or a chat with the `avoozl-spec` skill | Writes `<specs.path>/<name>/` (§6.8) on a `spec/<name>` branch, runs `avoozl graph SPEC --write` and `avoozl spec lint SPEC` |
 | 2. Approve | A person | Approval is a commit on the specs branch that an approver stands behind (`src/app/git/git-approvals.ts`): the merge of the spec's pull request, or **Approve** in the Specs view. MCP callers cannot approve |
 | 3. Claim | The tick when `loop` is set, `avoozl next --claim`, or `plans_next` with `claim` | Picks the best ready task, creates its claim branch and its worktree, and writes its brief |
 | 4. Work | A worker session on a free lane | Commits in the task worktree and reports `done` through `plans_report` or `avoozl runner report` |
@@ -4975,8 +4975,8 @@ command.
 
 #### 8.7 Specs: the page's name
 
-Requirement 62. People write `.kiro/specs/<name>/` folders, and the page says
-spec wherever a person reads it. Inside Avoozl the record is a plan.
+Requirement 62. People write spec folders, and the page says spec wherever
+a person reads it. Inside Avoozl the record is a plan.
 
 | Shown to people | Kept as is |
 | --- | --- |
@@ -5828,7 +5828,7 @@ Requirement 114, design §4.42.
 Requirement 115, design §4.43.
 
 - [x] `67.1` Check task IDs and link requirement and design references [R115] (§4.43)
-  - A ref the spec does not define is a lint error naming the ref, file and line; a task ID must be in a code span; refs are left out of the title and shown as chips that open their section; every spec under `.kiro/specs/` lints clean.
+  - A ref the spec does not define is a lint error naming the ref, file and line; a task ID must be in a code span; refs are left out of the title and shown as chips that open their section; every spec in this repository lints clean.
   - `spec-refs.ts`, `specItems` and `parseSpec` in `spec-plans.ts`, `PhaseTasks` in `PlansView.tsx`.
 
 ### Phase FS: Flexible spec folders

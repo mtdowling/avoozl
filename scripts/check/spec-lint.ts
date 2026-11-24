@@ -1,4 +1,4 @@
-// Lint every spec folder under .kiro/specs/ with the checks approval runs
+// Lint every spec folder at the configured path with the checks approval runs
 // (lintSpec). Exits 1 when any folder has an error. CI runs it on every
 // change, including docs-only ones that skip the full suite.
 import path from "node:path";
@@ -15,6 +15,7 @@ import { git } from "../../src/app/git/git.ts";
 import { foreignCommits } from "../../src/app/specs/integration-lint.ts";
 import { linkedReader } from "../../src/app/specs/order.ts";
 import { specTasks } from "../../src/app/specs/spec-tasks.ts";
+import { specsDirectory } from "../../src/app/specs/specs-path.ts";
 
 // The repository root, or the folder named as the first argument.
 const root = process.argv[2]
@@ -23,7 +24,7 @@ const root = process.argv[2]
 let failed = false;
 const names = listSpecFolders(root);
 if (!names.length) {
-  console.log(`No spec folders under ${root}/.kiro/specs/.`);
+  console.log(`No spec folders under ${specsDirectory(root)}.`);
   process.exit(1);
 }
 // A `Status:` line repeats approval, which lives in Avoozl's workspace

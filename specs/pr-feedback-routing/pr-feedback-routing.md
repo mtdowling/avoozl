@@ -361,7 +361,7 @@ the one that lands, so that I can follow one thread from first look to merge.
 
 `PF` numbers are in [Requirements](#requirements). Rule numbers are workflow
 v1's (`docs/github-workflow.md`). `R` numbers are in
-`.kiro/specs/avoozl/avoozl.md#requirements`.
+[avoozl requirements](../avoozl/avoozl.md#requirements).
 
 ### D1. The parts
 
