@@ -3,11 +3,65 @@
 // vertical text and comes back; a desktop has the nav, a phone the hamburger.
 // Browser parts run in a real Chrome (AVOOZL_CHROME), skipped without one.
 import assert from 'node:assert/strict'
-import { test } from 'node:test'
-import { findChrome, type Harness, type Page } from './browser/chrome.ts'
-import { withChrome } from './browser/harness-page.ts'
+import { once } from 'node:events'
+import { readFileSync } from 'node:fs'
+import { createServer } from 'node:http'
+import path from 'node:path'
+import { after, before, test } from 'node:test'
+import { findChrome, startChrome, stopChrome, type Page } from './browser/chrome.ts'
 
 const { NAV, LIST, clampWidth, listSpec, readFlag, readWidth, stepWidth, writeFlag, writeWidth } = await import('../src/columns.ts')
+
+const chrome = findChrome()
+const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the shell tests'
+let started: Awaited<ReturnType<typeof startChrome>> | undefined
+let page: Page
+// Test reload persistence on an HTTP origin. Chrome's file URLs do not
+// guarantee that local storage remains available across navigation.
+let server: ReturnType<typeof createServer> | undefined
+let origin: string
+before(async () => {
+  if (!chrome) return
+  started = await startChrome(chrome)
+  page = started.page
+  const { harness } = started
+  const assets = new Map([
+    ['/index.html', { type: 'text/html', bytes: readFileSync(path.join(harness.dir, 'index.html')) }],
+    ['/harness.js', { type: 'text/javascript', bytes: readFileSync(path.join(harness.dir, 'harness.js')) }],
+    ['/harness.css', { type: 'text/css', bytes: readFileSync(path.join(harness.dir, 'harness.css')) }],
+  ])
+  server = createServer((req, res) => {
+    const asset = assets.get((req.url ?? '').split('?', 1)[0])
+    if (!asset) {
+      res.writeHead(404).end()
+      return
+    }
+    res.writeHead(200, { 'Content-Type': asset.type }).end(asset.bytes)
+  })
+  server.listen(0, '127.0.0.1')
+  await once(server, 'listening')
+  const address = server.address()
+  assert.ok(address && typeof address !== 'string')
+  origin = `http://127.0.0.1:${address.port}/index.html`
+})
+after(async () => {
+  await stopChrome(started?.browser, started?.harness)
+  if (server) {
+    const closed = once(server, 'close')
+    server.close()
+    await closed
+  }
+})
+const shellUrl = (query: Record<string, string>) => `${origin}?${new URLSearchParams(query)}`
+const settle = () => page.evaluate('new Promise((r) => setTimeout(r, 120))')
+// The element's box, which a test needs on the page.
+const box = async (sel: string) => {
+  const found = await page.evaluate<{ left: number; top: number; width: number; height: number } | null>(
+    `(() => { const el = document.querySelector(${JSON.stringify(sel)}); if (!el) return null; const r = el.getBoundingClientRect(); return { left: r.left, top: r.top, width: r.width, height: r.height } })()`,
+  )
+  assert.ok(found, sel + ' is on the page')
+  return found
+}
 
 test('widths clamp, step by 16 px and are kept per column, the default unstored', () => {
   assert.equal(clampWidth(NAV, 10), NAV.min)
@@ -31,24 +85,10 @@ test('widths clamp, step by 16 px and are kept per column, the default unstored'
   assert.equal(readFlag(storage, 'k'), false)
 })
 
-const chrome = findChrome()
-const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the shell tests'
-let harness: Harness, page: Page
-withChrome(chrome, (got) => ({ harness, page } = got))
-const settle = () => page.evaluate('new Promise((r) => setTimeout(r, 120))')
-// The element's box, which a test needs on the page.
-const box = async (sel: string) => {
-  const found = await page.evaluate<{ left: number; top: number; width: number; height: number } | null>(
-    `(() => { const el = document.querySelector(${JSON.stringify(sel)}); if (!el) return null; const r = el.getBoundingClientRect(); return { left: r.left, top: r.top, width: r.width, height: r.height } })()`,
-  )
-  assert.ok(found, sel + ' is on the page')
-  return found
-}
-
 for (const dark of [false, true]) {
   const theme = dark ? 'dark' : 'light'
   test(`desktop (${theme}): the nav is a left column; it collapses to a thin bar with vertical text, and both are remembered`, { skip }, async () => {
-    await page.open(harness.url({ page: 'app', theme }), { width: 1280, height: 800, dark })
+    await page.open(shellUrl({ page: 'app', theme }), { width: 1280, height: 800, dark })
     await page.evaluate('localStorage.clear()')
     await page.reload()
     await page.until(`Boolean(document.querySelector('[data-left-nav="open"]'))`)
@@ -69,6 +109,7 @@ for (const dark of [false, true]) {
       document.querySelector('[data-left-nav="open"]')?.getBoundingClientRect().width === ${wider}
     `)
     assert.equal((await box('[data-left-nav]')).width, wider, 'the width is remembered')
+    assert.equal(await page.evaluate(`localStorage.getItem(${JSON.stringify(NAV.key)})`), String(wider), 'reload keeps the saved width')
     // Collapse.
     await page.evaluate(`document.querySelector('[data-nav-collapse]').click()`)
     await settle()
@@ -85,7 +126,7 @@ for (const dark of [false, true]) {
   })
 
   test(`phone (${theme}): no left nav; the hamburger sits in the one header row`, { skip }, async () => {
-    await page.open(harness.url({ page: 'app', theme }), { width: 390, height: 800, dark })
+    await page.open(shellUrl({ page: 'app', theme }), { width: 390, height: 800, dark })
     await page.until(`Boolean(document.querySelector('[data-top-rail-bar]'))`)
     assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-left-nav]'))`), false)
     const header = await box('[data-phone-header]')
