@@ -609,9 +609,23 @@ Feedback: pull 41 through 2026-11-24T17:02:11Z line:2219 comment:2231
 ```
 
 A `Feedback:` line names a source (`pull` or `issue` and its number), the
-time of the newest comment delivered from it, and the keys delivered in the
-10 minutes before that time (21.3). A comment at or before that window is
-delivered. A runner without feedback routing (21) writes no `Feedback:` line.
+time `T` of the newest comment delivered from it, and the keys delivered in
+the 10 minutes before `T` (21.3). A comment at or before `T` minus 10 minutes
+is delivered. A comment after that and at or before `T` is delivered only
+when its key is listed. A comment after `T` is pending.
+
+A key is a kind and GitHub's `fullDatabaseId`, written `kind:id`. Each kind
+takes its time from one GitHub field.
+
+| Kind | Key | Time |
+| --- | --- | --- |
+| Review | `review:<id>` | `submittedAt` |
+| Review line comment | `line:<id>` | `publishedAt` |
+| Issue or pull comment | `comment:<id>` | `createdAt` |
+
+A runner without feedback routing (21) adds no `Feedback:` line of its own.
+Every runner still copies the `Feedback:` lines of the previous lease commit,
+on renewal (15.6) and on a new lease.
 
 On an existing claim, copy `Start` and every `Feedback:` line from the
 previous lease. For the first lease, use the claim head. An agent starts only
