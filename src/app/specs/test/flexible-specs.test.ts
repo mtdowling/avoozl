@@ -130,6 +130,29 @@ test("specs.path must stay inside the repository", () => {
   assert.equal(specsPath(root), "not-yet/specs");
 });
 
+test("specs.layout is single or kiro, and any other value is refused by name", () => {
+  const root = temporaryDirectory(),
+    write = (layout: unknown) =>
+      fs.writeFileSync(
+        path.join(root, ".avoozl.json"),
+        JSON.stringify({ version: 1, specs: { layout } }),
+      );
+  for (const layout of ["single", "kiro"]) {
+    write(layout);
+    assert.equal(
+      loadLayeredConfig({ workspaceRoot: root }).config.specs?.layout,
+      layout,
+    );
+  }
+  for (const bad of ["split", "Kiro", "", 1]) {
+    write(bad);
+    assert.throws(
+      () => loadLayeredConfig({ workspaceRoot: root }),
+      /specs\.layout .* is not a layout; use single or kiro\./,
+    );
+  }
+});
+
 test("a spec with only tasks.md lints clean", () => {
   const root = temporaryDirectory();
   writeSpec(root, "lean", { "requirements.md": null, "design.md": null });

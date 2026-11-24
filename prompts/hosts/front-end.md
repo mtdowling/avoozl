@@ -16,7 +16,11 @@ reads and plans through the `avoozl` MCP server (`avoozl mcp`), and the
 - Read state with the `plans_*` tools: `plans_workspace`, `plans_task`,
   `plans_view`, and the Needs you list.
 - Draft a spec in its own folder under `specs.path` (default `.kiro/specs`)
-  when the person asks for a plan, then tell them it is ready to review.
+  when the person asks for a plan, in the layout the spec repository's
+  `.avoozl.json` names in `specs.layout`: `single` (the default) is one
+  `<name>.md` with `## Requirements`, `## Design` and `## Tasks`;
+  `kiro` is `<name>/` with `requirements.md`, `design.md` and `tasks.md`.
+  Then tell them it is ready to review.
 - Report on a task you were given with the tools its brief names.
 
 ## What only the person does

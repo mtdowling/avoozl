@@ -352,7 +352,19 @@ repo: app
 
 To keep specs in a different folder, set `specs.path` in the spec
 repository's `.avoozl.json`, for example to `docs/specs`. Keep split Kiro
-specs in their own subfolders alongside the single files. See [spec folders](github-workflow.md#1-spec-folders).
+specs in their own subfolders alongside the single files. Set `specs.layout`
+to `kiro` to have the spec skills write new specs as split folders;
+`single`, the default, writes one `<name>.md`:
+
+```json
+{
+  "specs": {
+    "layout": "kiro"
+  }
+}
+```
+
+See [spec folders](github-workflow.md#1-spec-folders).
 
 Write it by hand, or ask a chat to with the `avoozl-spec` skill, which lints
 it, writes its graph block and leaves it on a spec branch. `avoozl spec lint`

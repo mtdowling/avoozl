@@ -8,6 +8,11 @@ import { fail } from "../store/store.ts";
 
 export const DEFAULT_SPECS_PATH = ".kiro/specs";
 export const SPEC_NAME = /^[a-z0-9][a-z0-9-]{0,79}$/;
+// `specs.layout`: the files a new spec is written as. `single` is one
+// `<name>.md` with a `## Tasks` section; `kiro` is Kiro's split folder. Spec
+// lint and approval read both, whatever the setting says.
+export const SPECS_LAYOUTS = ["single", "kiro"] as const;
+export type SpecsLayout = (typeof SPECS_LAYOUTS)[number];
 const SEGMENT = /^[A-Za-z0-9._-]+$/;
 
 // Why `value` is not a specs path, or null. Checks the text only.
