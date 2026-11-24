@@ -37,6 +37,9 @@ export interface SpecPlace {
   plan: string
   tab: string
 }
+export interface SpecLink extends SpecPlace {
+  workspace?: string
+}
 const validSpecPlace = (value: unknown): SpecPlace | null => {
   const place = value as Partial<SpecPlace> | null
   if (!place || typeof place.plan !== 'string' || !place.plan) return null
@@ -44,16 +47,30 @@ const validSpecPlace = (value: unknown): SpecPlace | null => {
   if (place.tab !== 'overview' && (!/^[\w./-]{1,64}$/.test(place.tab) || place.tab.includes('..'))) return null
   return { plan: place.plan, tab: place.tab }
 }
-export function specTabLink(plan: string, tab: string): string {
+export function specTabLink(plan: string, tab: string, workspace?: string): string {
   const query = new URLSearchParams({ plan })
   if (tab !== 'overview') query.set('tab', tab)
+  if (workspace) query.set('workspace', workspace)
   return '?' + query.toString()
 }
-export function parseSpecTab(search: string): SpecPlace | null {
+export function parseSpecTab(search: string): SpecLink | null {
   const query = new URLSearchParams(search)
   const plan = query.get('plan'),
-    tab = query.get('tab') ?? 'overview'
-  return validSpecPlace({ plan, tab })
+    tab = query.get('tab') ?? 'overview',
+    workspace = query.get('workspace')
+  const place = validSpecPlace({ plan, tab })
+  if (!place) return null
+  if (workspace !== null && !/^[a-z][a-z0-9-]{0,60}$/.test(workspace)) return null
+  return { ...place, ...(workspace ? { workspace } : {}) }
+}
+
+// A spec address belongs to its named workspace. Old unscoped links are
+// accepted only when the caller knows this is the page's first workspace;
+// after a workspace switch they must not overwrite the new workspace's place.
+export function specPlaceForWorkspace(search: string, workspace: string, allowUnscoped = true): SpecPlace | null {
+  const linked = parseSpecTab(search)
+  if (!linked || (linked.workspace ? linked.workspace !== workspace : !allowUnscoped)) return null
+  return { plan: linked.plan, tab: linked.tab }
 }
 
 // The last spec and its inner tab, per workspace. The address remains the

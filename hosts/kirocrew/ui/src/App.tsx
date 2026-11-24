@@ -105,6 +105,7 @@ function AvoozlPage() {
   // A notice's link to one decision, read once as the page opens; it stays in
   // the address, so a reload or sign-in opens it again (direct-links D3).
   const [decisionLink, setDecisionLink] = useState(() => parseDecisionLink(window.location.search))
+  const [specLink] = useState(() => parseSpecTab(window.location.search))
   const linkWorkspaceSet = useRef(false)
 
   // The header's catalog. Settings > Workspaces hands over a fresh one after
@@ -124,11 +125,12 @@ function AvoozlPage() {
 
   // The link's workspace, once the catalog confirms it exists.
   useEffect(() => {
-    if (!decisionLink?.workspace || !list || linkWorkspaceSet.current) return
+    const linkedWorkspace = decisionLink?.workspace ?? specLink?.workspace
+    if (!linkedWorkspace || !list || linkWorkspaceSet.current) return
     linkWorkspaceSet.current = true
-    if (list.items.some((w) => w.id === decisionLink.workspace)) setWorkspaceId(decisionLink.workspace)
-    else setError(`This link is for workspace ${decisionLink.workspace}, which this page does not list.`)
-  }, [decisionLink, list])
+    if (list.items.some((w) => w.id === linkedWorkspace)) setWorkspaceId(linkedWorkspace)
+    else setError(`This link is for workspace ${linkedWorkspace}, which this page does not list.`)
+  }, [decisionLink, list, specLink])
 
   // Every change of tab or Settings section is a Back step that keeps
   // where the page was (changePage).
@@ -156,7 +158,7 @@ function AvoozlPage() {
     const base = urlBase(window.location.pathname)
     if (base) {
       try {
-        hostNavigate(base + specTabLink(planId, 'overview'))
+        hostNavigate(base + specTabLink(planId, 'overview', active ?? undefined))
       } catch {
         // The address is a convenience; Specs still opens.
       }
@@ -192,7 +194,7 @@ function AvoozlPage() {
     // ?tree=task:<id> or ?graph=frontier opens the Graph there (FocusTree.tsx).
     else if (parseGraphLink(window.location.search)) go({ tab: 'graph', focus: null, drill: null })
     // ?plan=P&tab=T opens the Specs page on that spec's tab.
-    else if (parseSpecTab(window.location.search)) go({ tab: 'plans', focus: null, drill: null })
+    else if (specLink) go({ tab: 'plans', focus: null, drill: null })
     // ?github=<tab> opens Settings › GitHub, which opens that tab.
     else if (
       readTab(
