@@ -251,9 +251,10 @@ test("an approved spec task's edit previews the tasks.md line and its facts", as
   assert.equal(change.route, "spec");
   assert.deepEqual(change.tasks, {
     line:
-      tasksBefore.split("\n").indexOf("  - [ ] 1.2 Validate loaded config") + 1,
-    before: "  - [ ] 1.2 Validate loaded config",
-    after: "  - [ ] 1.2 Validate and report config",
+      tasksBefore.split("\n").indexOf("  - [ ] `1.2` Validate loaded config") +
+      1,
+    before: "  - [ ] `1.2` Validate loaded config",
+    after: "  - [ ] `1.2` Validate and report config",
   });
   assert.deepEqual(change.facts.after.acceptance, ["Unknown keys are listed."]);
   assert.equal(

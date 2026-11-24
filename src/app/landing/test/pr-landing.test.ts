@@ -69,7 +69,7 @@ const leaf = (id: string) =>
   fixtureLeaf(id, { acceptance: [id + " works."], planId: "s" });
 
 const FILE = ".kiro/specs/s/tasks.md";
-const TASKS = "# Tasks\n\n- [ ] 1.1 First\n  - It works\n";
+const TASKS = "# Tasks\n\n- [ ] `1.1` First\n  - It works\n";
 
 // `spec`: the spec's tasks.md is in the code repository, so a landing
 // ticks it there.
@@ -462,7 +462,10 @@ test("the pull request carries the work commit and its tick on top, so its check
   const head = git(w.origin, "rev-parse", "avoozl/t1");
   assert.notEqual(head, commit);
   assert.equal(git(w.origin, "rev-parse", `${head}^`), commit);
-  assert.match(git(w.origin, "show", `${head}:${FILE}`), /- \[x\] 1\.1 First/);
+  assert.match(
+    git(w.origin, "show", `${head}:${FILE}`),
+    /- \[x\] `1\.1` First/,
+  );
   assert.equal(
     landingQueue(w.store, { repositoryId: "app", base: "main" })[0].commit,
     head,
@@ -491,7 +494,7 @@ test("a pull request a person merges lands its task with its tick, and Avoozl de
       ?.commit,
   );
   assert.equal(git(w.origin, "rev-parse", `${landed}^`), commit);
-  assert.match(git(w.origin, "show", `${landed}:${FILE}`), /- \[x\] 1\.1/);
+  assert.match(git(w.origin, "show", `${landed}:${FILE}`), /- \[x\] `1\.1`/);
   assert.deepEqual(github.calls.merged, [], "Avoozl merged nothing");
   assert.deepEqual(github.calls.deleted, ["avoozl/s/t1"]);
   assert.equal(claimOf(w.store, "acme/app", "t1"), null);

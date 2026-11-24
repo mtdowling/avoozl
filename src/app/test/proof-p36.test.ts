@@ -104,7 +104,7 @@ function writeEpic(
   writeSpec(root, name, {
     "requirements.md": `# Rewrite\n\nRewrite the runtime in two plans.\n\n## What done means\n\nAlpha and beta are done.\n`,
     "design.md": "# Design\n\nAlpha first, then beta.\n",
-    "tasks.md": `# Plans\n\n${members.map((m, i) => `- [ ] ${i + 1} ${m}\n`).join("")}`,
+    "tasks.md": `# Plans\n\n${members.map((m, i) => `- [ ] \`${i + 1}\` ${m}\n`).join("")}`,
     "avoozl/manifest.json": JSON.stringify(
       {
         kind: "epic",

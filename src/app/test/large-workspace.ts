@@ -75,7 +75,7 @@ function specFiles(
   for (let g = 1; g <= groups; g++) {
     const epic = String(g),
       members: string[] = [];
-    lines.push(`- [ ] ${epic} Deliver area ${g} of ${name}`);
+    lines.push(`- [ ] \`${epic}\` Deliver area ${g} of ${name}`);
     for (let l = 1; l <= leaves; l++) {
       const key = `${g}.${l}`,
         requires = l > 1 ? [`${g}.${l - 1}`] : [];
@@ -85,7 +85,7 @@ function specFiles(
           if (!requires.includes(other)) requires.push(other);
         }
       members.push(key);
-      lines.push(`  - [ ] ${key} Build part ${l} of area ${g} in ${name}`);
+      lines.push(`  - [ ] \`${key}\` Build part ${l} of area ${g} in ${name}`);
       manifest[key] = {
         kind: "leaf",
         repository: "app",
