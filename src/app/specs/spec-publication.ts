@@ -7,10 +7,12 @@
 // from it stays. Publishing again writes nothing.
 //
 // shortcut: the home is the named or only configured repository.
+import { statusComplete } from "../../query.ts";
+import { taskDone } from "../../work-model.ts";
 import { fail } from "../store/store.ts";
 import { epicOfPlan } from "../epics/epics.ts";
 import { asJob } from "../github/github-jobs.ts";
-import { personOf } from "../github/github.ts";
+import { parseRepository, personOf } from "../github/github.ts";
 import { noreplyLogin } from "../git/git-approvals.ts";
 import { PERMISSIONS } from "../github/github-policy.ts";
 import type { Store } from "../store/store.ts";
@@ -89,11 +91,26 @@ const reusableInput = (
   Number.isInteger(input?.number) &&
   lower(input?.repository) === lower(home);
 
+// The GitHub repositories a spec issue may live in: each one set up for
+// issues (github_repositories) and each checkout's GitHub name, the same
+// repositories the assignee rule (8.3) and readSpecIssues read.
+function homes(store: Store): Config[] {
+  const found = new Map<string, Config>();
+  for (const entry of store.list<Config>("github_repositories"))
+    found.set(lower(entry.id), entry);
+  for (const { github } of store.list<{ github?: string | null }>(
+    "repositories",
+  ))
+    if (github && !found.has(lower(github)))
+      found.set(lower(github), parseRepository(github));
+  return [...found.values()];
+}
+
 function homeRepository(
   store: Store,
   repository: string | null | undefined,
 ): Config {
-  const configured = store.list<Config>("github_repositories");
+  const configured = homes(store);
   const config = repository
     ? configured.find((entry) => lower(entry.id) === lower(repository))
     : configured.length === 1
@@ -312,7 +329,8 @@ export async function publishSpec(
   const plan = store.get<Plan>("plans", planId);
   if (!plan) return fail("Plan not found.", 404);
   if (!plan.spec) fail("Only a spec plan has a spec issue.", 409);
-  if (!identity?.mode || identity.mode === "local" || !github?.available?.())
+  // A checkout with a GitHub name is on GitHub whatever the mode (8.3).
+  if (!github?.available?.() || (!identity?.mode && !homes(store).length))
     fail("Making the GitHub issues needs GitHub; run gh auth login.", 409);
   const config = homeRepository(store, repository as string | null | undefined),
     held = store.get<Receipt>("receipts", receiptId("plan", plan.id));
@@ -405,9 +423,13 @@ export async function publishSpec(
 }
 
 // Approvals the next tick publishes (workflow v1 rule 8.1), as plan ID ->
-// approval commit. Only an approval this workspace adopts or makes is queued,
-// so a rebuild publishes nothing and specs approved before stay as they are.
+// approval commit: each approval this workspace adopts or makes. The tick
+// also publishes each approved spec `unpublished` finds.
 const PENDING = "publish.pending";
+// Specs `unpublished` found that this runner does not publish (another
+// login approved them, or their home has no GitHub name), as plan ID ->
+// approval commit, so no later tick reads GitHub for them again.
+const PASSED = "publish.passed";
 
 export function queuePublish(
   store: Store,
@@ -428,9 +450,37 @@ const loginsOf = (
     .filter((login): login is string => Boolean(login));
 
 const configured = (store: Store, repository: string) =>
-  store
-    .list<Config>("github_repositories")
-    .some((entry) => lower(entry.id) === lower(repository));
+  homes(store).some((entry) => lower(entry.id) === lower(repository));
+
+// Approved spec plans with a task not done and no spec issue receipt, as
+// plan ID -> approval commit. A spec approved before its repository had a
+// GitHub name, or read back by rebuild, is never queued at approval, and
+// the assignee rule (8.3) holds it until its issue exists. A spec whose work
+// is all done needs no issue, so none is made for it.
+function unpublished(store: Store) {
+  const data = store.read(),
+    open = new Set(
+      data.tasks
+        .filter(
+          (task) => !taskDone(task, (status) => statusComplete(data, status)),
+        )
+        .map((task) => task.planId),
+    ),
+    passed = store.getMeta<Record<string, string>>(PASSED) ?? {},
+    found: Record<string, string> = {};
+  for (const plan of store.list<Plan & { archivedAt?: string }>("plans")) {
+    if (!plan.spec || plan.deletedAt || plan.archivedAt || !open.has(plan.id))
+      continue;
+    if (store.get<Receipt>("receipts", receiptId("plan", plan.id))?.number)
+      continue;
+    const commit = store.get<{ approval?: { commit?: string } }>(
+      "approvals",
+      plan.approvalId,
+    )?.approval?.commit;
+    if (commit && passed[plan.id] !== commit) found[plan.id] = commit;
+  }
+  return found;
+}
 
 // Publish each queued approval that has no spec issue (rule 8.1). Only the
 // runner acting as the approver publishes, so runners do not race: the login
@@ -466,15 +516,19 @@ export async function publishApproved(
     homeOf: (plan: Plan) => Promise<string | null>;
   },
 ) {
-  const pending = store.getMeta<Record<string, string>>(PENDING) ?? {};
+  const pending = {
+    ...unpublished(store),
+    ...store.getMeta<Record<string, string>>(PENDING),
+  };
   if (!Object.keys(pending).length) return [];
   // `identity` may be a function, read only when something is queued.
   const identity = typeof given === "function" ? given() : given;
-  if (!identity?.mode || !github?.available?.()) {
+  if (!github?.available?.()) {
     store.setMeta(PENDING, {});
     return [];
   }
   const left = { ...pending },
+    passed = { ...store.getMeta<Record<string, string>>(PASSED) },
     errors: Errors = [],
     held = (planId: string) =>
       store.get<Receipt>("receipts", receiptId("plan", planId))?.number;
@@ -497,6 +551,7 @@ export async function publishApproved(
       repository = await homeOf(plan);
       if (!repository || !configured(store, repository)) {
         delete left[planId];
+        passed[planId] = commit;
         continue;
       }
       const proof = evidence?.get(commit) ?? {},
@@ -514,6 +569,7 @@ export async function publishApproved(
           (await github.commit(repository, commit))?.author?.login ?? null;
       if (String(actor ?? "").toLowerCase() !== login.toLowerCase()) {
         delete left[planId];
+        passed[planId] = commit;
         continue;
       }
       const assignees = proof.pull
@@ -537,5 +593,6 @@ export async function publishApproved(
     }
   }
   store.setMeta(PENDING, left);
+  store.setMeta(PASSED, passed);
   return errors;
 }
