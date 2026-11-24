@@ -8,6 +8,7 @@ import { DatabaseSync } from "node:sqlite";
 import { supervisorPaths } from "../executors/supervisor.ts";
 import { listHarnessDefinitions } from "../executors/harness-definitions.ts";
 import { machineAvoozlPaths } from "../settings/host-config.ts";
+import { readServeConfig } from "../settings/serve-config.ts";
 import { ROLES, resolveRoles } from "../agents/role-table.ts";
 import { lastPasses } from "../executors/tick-passes.ts";
 import type { RolesConfig } from "../agents/role-table.ts";
@@ -30,26 +31,53 @@ const statusOf = (row: ChildRow) =>
       ? `exited ${row.exit_code}`
       : "gone";
 
+// The command that prints a one-time sign-in link for the running page.
+export const PAGE_LINK_COMMAND = "avoozl link";
+
 // The standalone page's server, from the file it writes at start (serve.json):
-// its origin and pid, when that process is alive.
+// its origin and pid, when that process is alive, or why it could not start.
 export function serveStatus(stateDirectory: string): {
   running: boolean;
   origin?: string;
   pid?: number;
+  open?: string;
+  problem?: string;
 } {
+  let found: { origin?: string; pid: number; error?: string };
   try {
-    const found = JSON.parse(
+    found = JSON.parse(
       fs.readFileSync(path.join(stateDirectory, "serve.json"), "utf8"),
     );
+  } catch {
+    return { running: false };
+  }
+  if (typeof found.error === "string")
+    return { running: false, problem: found.error };
+  try {
     process.kill(found.pid, 0);
-    return { running: true, origin: found.origin, pid: found.pid };
   } catch (error) {
     // EPERM: the process exists, owned by another user.
     if ((error as NodeJS.ErrnoException)?.code === "EPERM")
       return { running: true };
     return { running: false };
   }
+  return {
+    running: true,
+    origin: found.origin,
+    pid: found.pid,
+    open: PAGE_LINK_COMMAND,
+  };
 }
+
+// The page for `avoozl status` and Settings: whether the machine file leaves
+// it on, and serveStatus.
+export const pageStatus = (
+  stateDirectory: string,
+  configDirectory: string,
+) => ({
+  enabled: readServeConfig(configDirectory).enabled,
+  ...serveStatus(stateDirectory),
+});
 
 // Each role whose saved harness cannot start on this machine, and why (MS5.3).
 export function roleProblems(config: RolesConfig, harnesses: Harness[]) {
@@ -107,7 +135,7 @@ export function machineStatus({
     at: new Date().toISOString(),
     // Each workspace's last pass: whether a timer runs `avoozl tick`.
     passes,
-    serve: serveStatus(stateDirectory),
+    serve: pageStatus(stateDirectory, configDirectory),
     harnesses: (listHarnessDefinitions(configDirectory) as Harness[]).map(
       ({ name, approved, startProblem }) => ({ name, approved, startProblem }),
     ),

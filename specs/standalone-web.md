@@ -12,7 +12,8 @@ category: Planning
 This spec lets a person who runs Avoozl with Claude Code, Codex or another
 agent CLI, and no Kiro Crew, use the Avoozl page in a browser. Avoozl
 serves the page itself, on `127.0.0.1` only, behind a one-time owner link:
-with `serve.enabled`, each `avoozl tick` keeps the page's server up.
+each `avoozl tick` keeps the page's server up unless the machine sets
+`serve.enabled: false`.
 
 The page looks exactly as it does in Kiro Crew and is not a fork: it is
 built with Kiro Crew's own UI parts, SDK provider and stylesheet, unmodified,
@@ -137,8 +138,9 @@ so that nobody on my network can reach Avoozl.
 ##### Acceptance criteria
 
 1. The page's server (`src/app/serve/serve-main.ts`, which a tick starts
-   with `serve.enabled`) SHALL listen on `127.0.0.1` only. It SHALL have no
-   host or bind option and SHALL read no environment variable for one.
+   unless `serve.enabled` is `false`) SHALL listen on `127.0.0.1` only. It
+   SHALL have no host or bind option and SHALL read no environment variable
+   for one.
 2. With no `serve.port`, or port 0, the server SHALL take a random free
    port. With `serve.port` N (1024 to 65535) it SHALL take that port or exit
    with "port N is in use" and not try another.
@@ -320,14 +322,23 @@ kept up by the tick, so that I do not keep a terminal open for it.
 
 ##### Acceptance criteria
 
-1. With `serve.enabled: true` (and an optional `serve.port`) in the machine
-   configuration, each `avoozl tick` SHALL start the server detached when it
-   does not run, start it again once it has exited, stop it when the setting
-   is off or the port changed, and record its pid, start time and port
-   (machine-server MS3.4). The keys SHALL be refused in `.avoozl.json`.
+1. Unless the machine configuration sets `serve.enabled: false`, each
+   `avoozl tick` SHALL start the server detached when it does not run, start
+   it again once it has exited, stop it when the setting is `false` or the
+   port changed, and record its pid, start time and port (machine-server
+   MS3.4). A machine with no configuration file or no `serve` block SHALL
+   get the page; a file that does not parse, or a `serve` value that fails
+   validation, SHALL start none. The keys SHALL be refused in `.avoozl.json`.
 2. The server SHALL print no link. The owner SHALL get one with
    `avoozl link` at that machine's own shell.
-3. `avoozl status` SHALL show whether the server runs and its origin.
+3. `avoozl status` SHALL show whether the setting leaves the page on,
+   whether the server runs, its origin, and `avoozl link` as the way to sign
+   in. When the server could not start, such as on a taken `serve.port`, it
+   SHALL record why in `serve.json` and exit; `avoozl status` and
+   **Settings › Workspaces › Browser page** SHALL show that reason, and the
+   tick SHALL go on and try again next pass. Inside Kiro Crew, that box
+   SHALL show the origin and `avoozl link`, from the `observe` operation
+   `page.status`, which has no MCP route.
 4. The tick process itself SHALL listen on no socket; only the server it
    starts does, under SW3 and SW4.
 
@@ -611,14 +622,18 @@ and starts nothing (SW7.5).
 ### D8. The tick keeps the page up
 
 `serve.enabled` and `serve.port` are machine configuration keys, validated
-in `src/app/settings/serve-config.ts` and refused in `.avoozl.json`. When
-enabled, each `avoozl tick` starts `serve-main.ts` detached when it does not
-run, records its pid, start time and port in `supervisor/page.json` in the
-machine state folder, starts it again once it has exited, and stops it when
-the setting is off or the port changed (machine-server D8). The server
+in `src/app/settings/serve-config.ts` and refused in `.avoozl.json`. The page
+is on unless `serve.enabled` is `false`. Each `avoozl tick` starts
+`serve-main.ts` detached when it does not run, records its pid, start time
+and port in `supervisor/page.json` in the machine state folder, starts it
+again once it has exited, and stops it when the setting is `false` or the
+port changed (machine-server D8). The server
 prints no link; `avoozl link` makes one (SW9.2). With a fixed `serve.port`
 the origin stays the same across restarts, so a browser tab only needs a new
-link, not a new address.
+link, not a new address. A start that fails writes
+`{"pid": ..., "error": ...}` to `serve.json` and exits; `serveStatus` reports
+the error as `problem`, and a tick with the page off removes it. The test
+runner sets `NO_AVOOZL_PAGE`, so the ticks a test runs start no page.
 
 The page is local to its machine.
 
@@ -733,7 +748,7 @@ of the other specs.
   - UI tests on the standalone page: Ask for help opens the dialog with the message and the `assist` role, and Start, with a fake `process` executor, records one read-only session request in the workspace root and shows its process view; `openChat` with `autoSend: true` starts nothing until Start; with no approved harness the dialog offers Copy and starts nothing; `session.open` from MCP and from an `agent-tool` principal is refused; every SW10.1 feature shows "Needs Kiro Crew" and no error; a role on the `kirocrew` executor with no Kiro Crew opens one Needs you item across three ticks; with notices on and a fake `Notification`, two new Needs you items give two notices and a reload gives none; screenshots go to the owner.
   - The Start a session dialog behind the chat launcher's navigation (SW1.5); the `session.open` operation (person-only) and the `assist` role with `prompts/assist.md`; "Needs Kiro Crew" states on the page from `workspaces.list`; Settings › Notifications on the standalone page; a role on `kirocrew` with no Kiro Crew waits with one Needs you item.
 - [x] `sw-1.5` Each tick keeps the page up, after sw-1.3 [SW9] (§D8)
-  - Tests: with `serve.enabled` a tick starts the server child and records its pid and port; a killed child is restarted on the same fixed port; the child prints no link; `avoozl status` shows the origin; `serve.*` in `.avoozl.json` is refused naming the key; the tick process itself has no listening socket.
+  - Tests: with no `serve` block a tick starts the page on `127.0.0.1`, no other address of the machine answers on its port, and every route without a session gets 401 and `/login` without a good token 403; `serve.enabled: false` starts none and status says so; a taken port shows its reason in status and the tick goes on; with `serve.enabled` a tick starts the server child and records its pid and port; a killed child is restarted on the same fixed port; the child prints no link; `avoozl status` shows the origin; `serve.*` in `.avoozl.json` is refused naming the key; the tick process itself has no listening socket.
   - `serve.enabled` and `serve.port` in the machine configuration schema; the tick starts, records and restarts `serve-main.ts`; `avoozl status` shows the origin.
 
 - [x] `sw-p1` Proof: Avoozl runs a task end to end with no Kiro Crew, from its own page, after sw-1.1, sw-1.2, sw-1.3, sw-1.4, sw-1.5 [SW1 to SW10] (§D1, §D5, §D7)

@@ -5,7 +5,7 @@
 // session requests, the queued checks, then the queued notifications to this
 // machine's sinks (NK7.1). Around them, the supervisor pass reaps and resumes
 // `process` children and starts the requested ones, and the standalone page
-// is kept up when `serve.enabled`. Check runners, process children and the
+// is kept up unless `serve.enabled` is false. Check runners, process children and the
 // page may outlive this pass.
 // A start for the `kirocrew` executor is not left queued with no word: with
 // no Kiro Crew seen lately, it opens one Needs you item per role (NK8.2).
@@ -147,8 +147,8 @@ export function machineSinks(file?: string) {
   const { value } = machineFile(file),
     serve = value.serve as { enabled?: unknown; port?: unknown } | undefined,
     pageUrl =
-      serve?.enabled === true && Number.isInteger(serve.port)
-        ? `http://127.0.0.1:${serve.port}/apps/avoozl`
+      serve?.enabled !== false && Number.isInteger(serve?.port)
+        ? `http://127.0.0.1:${serve?.port}/apps/avoozl`
         : null;
   return sinkPushers(validateNotifications(value.notifications).sinks, {
     pageUrl,

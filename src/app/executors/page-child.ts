@@ -1,5 +1,5 @@
 // The standalone page's server (standalone-web SW9), kept up by each tick
-// when the machine file has `serve.enabled`. The tick starts it detached and
+// unless the machine file sets `serve.enabled: false`. The tick starts it detached and
 // records its pid and start time in `page.json`; a later tick finds it again
 // by both, stops it when the setting is off or names another port, and
 // starts it again when it has exited. The tick itself never listens.
@@ -8,6 +8,7 @@ import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { readServeConfig } from "../settings/serve-config.ts";
+import { serveStatus } from "../workspace/machine-status.ts";
 import {
   processStartTime,
   sameProcess,
@@ -52,6 +53,9 @@ export function hostPage({
     record = path.join(paths.root, "page.json"),
     config = readServeConfig(configDirectory),
     running = readJson(record);
+  // A test run sets NO_AVOOZL_PAGE (scripts/test/run-tests.ts), so the ticks
+  // its tests run leave no page behind.
+  if (env.NO_AVOOZL_PAGE) config.enabled = false;
   const alive = running && sameProcess(running.pid, running.started, startTime);
   if (alive && (!config.enabled || running.port !== config.port)) {
     try {
@@ -61,7 +65,13 @@ export function hostPage({
     return null;
   }
   if (alive) return { pid: running.pid, port: running.port };
-  if (!config.enabled) return null;
+  if (!config.enabled) {
+    // A start that failed left why in serve.json; with the page off it is
+    // no longer news.
+    if (serveStatus(stateDirectory).problem)
+      fs.rmSync(path.join(stateDirectory, "serve.json"), { force: true });
+    return null;
+  }
   fs.mkdirSync(paths.root, { recursive: true, mode: 0o700 });
   const args = [
     SERVE_MAIN,

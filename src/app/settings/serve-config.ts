@@ -34,14 +34,22 @@ export function validateServe(value: unknown, source = "Avoozl configuration") {
     );
 }
 
-// What the machine file says: { enabled, port }, off when it says nothing or
-// cannot be read (the supervisor then runs no server).
+// What the machine file says: { enabled, port }. On unless `serve.enabled` is
+// false; a missing file is on too. A file that cannot be parsed or holds a bad
+// `serve` value turns it off (the supervisor then runs no server).
 export function readServeConfig(configDirectory: string) {
+  const file = path.join(configDirectory, "config.json");
+  let text: string;
   try {
-    const file = path.join(configDirectory, "config.json");
-    const { serve } = JSON.parse(fs.readFileSync(file, "utf8"));
+    text = fs.readFileSync(file, "utf8");
+  } catch (error) {
+    const missing = (error as NodeJS.ErrnoException).code === "ENOENT";
+    return { enabled: missing, port: 0 };
+  }
+  try {
+    const { serve } = JSON.parse(text);
     validateServe(serve);
-    return { enabled: serve?.enabled === true, port: serve?.port ?? 0 };
+    return { enabled: serve?.enabled !== false, port: serve?.port ?? 0 };
   } catch {
     return { enabled: false, port: 0 };
   }

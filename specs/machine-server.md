@@ -158,9 +158,10 @@ process has to wait for it.
    started detached by the pass with the tick's environment, which serves
    that session's socket until the run's exit file appears. The pass that
    records the child's end SHALL stop it.
-4. With `serve.enabled`, each tick SHALL keep the standalone page's server
-   up: start it detached when it does not run, record its pid, start time
-   and port, stop it when `serve.enabled` is off or the port changed, and
+4. Unless `serve.enabled` is `false`, each tick SHALL keep the standalone
+   page's server up: start it detached when it does not run, record its pid,
+   start time and port, stop it when `serve.enabled` is `false` or the port
+   changed, and
    start it again when it has exited. `avoozl link` SHALL print a new
    one-time owner link for it, and SHALL be refused in a `process` child
    (`AVOOZL_CHILD`).
@@ -430,7 +431,7 @@ sections without a `D` are in [avoozl](avoozl.md).
  Kiro Crew cron (tick.py) ── mcp ────┼──────>  each workspace: tick -> drain
  driver chat (avoozl-drive skill) ───┘           -> checks -> notifications
                                                supervisor pass: start
-                                               page step (serve.enabled)
+                                               page step (unless serve off)
  front ends
  ----------
  Kiro Crew page ── app backend ──┐
@@ -660,10 +661,10 @@ session, the servers by command and variable names only, the socket in a
 `0700` folder, the token, and the run's exit file. It serves until the exit
 file appears or the pass that records the child's end signals it.
 
-**The page.** With `serve.enabled`, each pass's page step reads
+**The page.** Unless `serve.enabled` is `false`, each pass's page step reads
 `supervisor/page.json` (pid, start time, port). It starts `serve-main.ts`
 detached when that process is not alive, and stops it when `serve.enabled` is
-off or `serve.port` changed. On Windows a detached child would inherit the
+`false` or `serve.port` changed. On Windows a detached child would inherit the
 tick caller's handles and hold its output open, so the page starts through
 `Start-Process`, which passes none, and writes its own log.
 
@@ -755,8 +756,9 @@ socket, a test, or explained in the pull request.
 4. **`machine.env` holds model keys (MS5.2).** Keys never go in timer lines.
 5. **Timers are the person's (MS4.2).** Avoozl prints none and installs
    none; the docs hold the lines.
-6. **The page stays opt-in (`serve.enabled`).** No listener is added unless
-   asked for.
+6. **The page is on by default, loopback only.** Its one listener binds
+   `127.0.0.1` behind a one-time owner link, so it is on unless
+   `serve.enabled` is `false`.
 
 ### D14. Risks
 
