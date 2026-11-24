@@ -38,9 +38,12 @@ interface Graph {
 interface StateRow {
   id: string;
   status: string;
+  complete: boolean;
   state: string;
   stateLabel: string;
   decision?: string;
+  kind?: string;
+  integration?: { commit?: string };
 }
 // delivery.view.
 interface Delivery {
@@ -208,7 +211,7 @@ test("graph view shows delivery stages inside a task node", async (t) => {
   );
 });
 
-test("a leaf merged into its base is done on the Graph and in query, as next counts it", async (t) => {
+test("a leaf merged into its base is done on the Graph, in query and task.get, as next counts it", async (t) => {
   // Nearby inputs: a leaf a person completes (merged, waiting for that
   // person), and a leaf with no integration.
   const { store } = fixture(t);
@@ -232,15 +235,33 @@ test("a leaf merged into its base is done on the Graph and in query, as next cou
   });
   const ops = new Operations(store, {}),
     graph = await ops.execute<Graph>("graph.view", {}),
-    listed = await ops.execute<StateRow[]>("query");
+    listed = await ops.execute<StateRow[]>("query"),
+    got = await ops.execute<StateRow>("task.get", { id: "merged" });
   assert.deepEqual(
-    Object.fromEntries(graph.tasks.map((task) => [task.id, task.state])),
-    { merged: "done", signed: "needs-you", open: "ready" },
+    Object.fromEntries(
+      graph.tasks.map((task) => [task.id, [task.state, task.complete]]),
+    ),
+    {
+      merged: ["done", true],
+      signed: ["needs-you", false],
+      open: ["ready", false],
+    },
   );
   assert.deepEqual(
-    Object.fromEntries(listed.map((row) => [row.id, row.stateLabel])),
-    { merged: "Done", signed: "Needs you", open: "Ready" },
+    Object.fromEntries(
+      listed.map((row) => [row.id, [row.stateLabel, row.complete]]),
+    ),
+    {
+      merged: ["Done", true],
+      signed: ["Needs you", false],
+      open: ["Ready", false],
+    },
   );
+  // task.get keeps the fields the completion rule reads, so its state is
+  // not judged from the status alone.
+  assert.equal(got.kind, "leaf");
+  assert.equal(got.integration?.commit, "f".repeat(40));
+  assert.deepEqual([got.state, got.complete], ["done", true]);
 });
 
 test("query and task.get say the state the Graph draws, beside the status", async (t) => {
