@@ -1,0 +1,43 @@
+{
+  "title": "A merged pull request whose head is not the checked commit is not landed work",
+  "rules": ["16.5"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main",
+    "specsBranch": "plans"
+  },
+  "origin": {
+    "branches": ["main", "plans"],
+    "behind": [],
+    "graph": {
+      "c1": [],
+      "c2": ["c1"],
+      "c3": ["c1"],
+      "c4": ["c2"]
+    },
+    "heads": {
+      "main": "c3"
+    },
+    "mergedPullHeads": ["avoozl/parser/p-2"]
+  },
+  "issues": {
+    "parser": ["acme-alice"]
+  },
+  "land": {
+    "task": "parser/p-2",
+    "checks": "pass",
+    "baseMoved": false,
+    "mode": "pr",
+    "claim": {
+      "start": "c1",
+      "head": "c2",
+      "pull": {
+        "merged": true,
+        "head": "c4"
+      }
+    }
+  },
+  "expect": {
+    "landed": false
+  }
+}

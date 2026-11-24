@@ -1,0 +1,52 @@
+{
+  "title": "A runner claims only a ready task",
+  "rules": ["12.2", "15.1"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": ["main"]
+  },
+  "issues": {
+    "parser": ["acme-alice"]
+  },
+  "runners": {
+    "A": "acme-alice"
+  },
+  "steps": [
+    {
+      "runner": "A",
+      "do": "next",
+      "expect": {
+        "ready": ["parser/p-2"]
+      }
+    },
+    {
+      "runner": "A",
+      "do": "claim",
+      "task": "parser/p-3",
+      "expect": {
+        "claimed": null
+      }
+    },
+    {
+      "runner": "A",
+      "do": "claim",
+      "expect": {
+        "claimed": "avoozl/parser/p-2"
+      }
+    }
+  ],
+  "then": {
+    "branches": ["avoozl/parser/p-2"],
+    "lease": {
+      "parser/p-2": {
+        "subject": "Lease parser/p-2 generation 1",
+        "startsAtBase": true,
+        "task": "Report unknown tokens",
+        "done": ["An unknown token is reported with its line and column"]
+      }
+    }
+  }
+}

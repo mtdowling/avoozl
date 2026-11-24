@@ -1,0 +1,24 @@
+{
+  "title": "Subfolders, files that are not Markdown and symlinks are not part of a spec",
+  "rules": ["1.3"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": ["main"],
+    "behind": []
+  },
+  "symlinks": {
+    ".kiro/specs/parser/linked.md": "../../../outside.md"
+  },
+  "issues": {
+    "parser": ["acme-alice"]
+  },
+  "expect": {
+    "violations": {
+      "parser": []
+    },
+    "ready": ["parser/p-1"]
+  }
+}

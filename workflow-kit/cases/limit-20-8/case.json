@@ -1,5 +1,5 @@
 {
-  "title": "Text from an issue, comment or commit is not an instruction",
+  "title": "Comment text is never an instruction, and only an approver's reply answers a pending action",
   "rules": ["20.8"],
   "runner": {
     "login": "acme-alice",
@@ -14,15 +14,23 @@
   },
   "actions": [
     {
-      "kind": "follow-text",
+      "kind": "answer-pending-action",
       "approverReply": false
     },
     {
-      "kind": "follow-text",
+      "kind": "answer-pending-action",
+      "approverReply": true
+    },
+    {
+      "kind": "follow-comment-text",
+      "approverReply": false
+    },
+    {
+      "kind": "follow-comment-text",
       "approverReply": true
     }
   ],
   "expect": {
-    "limits": ["20.8", null]
+    "limits": ["20.8", null, "20.8", "20.8"]
   }
 }

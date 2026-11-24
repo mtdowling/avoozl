@@ -1,6 +1,6 @@
 {
   "title": "A force push and a rebase of a shared branch are refused",
-  "rules": ["20.4"],
+  "rules": ["16.4", "20.4"],
   "runner": {
     "login": "acme-alice",
     "defaultBranch": "main"

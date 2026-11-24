@@ -312,7 +312,7 @@ export function nextView(
 // call of the function this returns.
 type Linked = Parameters<typeof integrationBase>[1]["linked"];
 
-function claimBase(store: Store, client: BranchClient, linked: Linked) {
+export function claimBase(store: Store, client: BranchClient, linked: Linked) {
   const branches = new Map<string, Promise<boolean>>(),
     caughtUp = new Map<string, ReturnType<typeof catchUp>>(),
     exists = (repository: string) => (name: string) =>
@@ -326,8 +326,8 @@ function claimBase(store: Store, client: BranchClient, linked: Linked) {
     task,
     repository,
   }: {
-    task: Task;
-    repository: RepositoryRow;
+    task: { id: string; planId?: string };
+    repository: Pick<RepositoryRow, "github" | "baseBranch" | "commitPrefix">;
   }) => {
     const fallback = repository.baseBranch || "main",
       base = await integrationBase(taskSpec(task), {

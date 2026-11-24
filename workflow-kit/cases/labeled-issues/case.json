@@ -1,0 +1,142 @@
+{
+  "title": "A labeled issue is a task only while a writer's label authorizes its text and the runner is its only assignee",
+  "rules": ["9.1", "11.1", "11.2"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main",
+    "labels": {
+      "require": ["avoozl:ready"]
+    }
+  },
+  "origin": {
+    "branches": ["main"],
+    "behind": []
+  },
+  "writers": ["acme-alice", "acme-bob"],
+  "labeledIssues": [
+    {
+      "number": 11,
+      "title": "Report unknown tokens",
+      "body": "An unknown token is reported with its line.",
+      "assignees": ["acme-alice"],
+      "events": [
+        {
+          "event": "labeled",
+          "name": "avoozl:ready",
+          "by": "acme-bob",
+          "at": 1
+        }
+      ]
+    },
+    {
+      "number": 12,
+      "title": "Labeled by a triager",
+      "assignees": ["acme-alice"],
+      "events": [
+        {
+          "event": "labeled",
+          "name": "avoozl:ready",
+          "by": "acme-triager",
+          "at": 1
+        }
+      ]
+    },
+    {
+      "number": 13,
+      "title": "Two assignees",
+      "assignees": ["acme-alice", "acme-carol"],
+      "events": [
+        {
+          "event": "labeled",
+          "name": "avoozl:ready",
+          "by": "acme-bob",
+          "at": 1
+        }
+      ]
+    },
+    {
+      "number": 14,
+      "title": "Edited after the label",
+      "assignees": ["acme-alice"],
+      "editedAt": 2,
+      "events": [
+        {
+          "event": "labeled",
+          "name": "avoozl:ready",
+          "by": "acme-bob",
+          "at": 1
+        }
+      ]
+    },
+    {
+      "number": 15,
+      "title": "Renamed after the label",
+      "assignees": ["acme-alice"],
+      "events": [
+        {
+          "event": "labeled",
+          "name": "avoozl:ready",
+          "by": "acme-bob",
+          "at": 1
+        },
+        {
+          "event": "renamed",
+          "by": "acme-carol",
+          "at": 2
+        }
+      ]
+    },
+    {
+      "number": 16,
+      "title": "Edited, then labeled again",
+      "assignees": ["acme-alice"],
+      "editedAt": 2,
+      "events": [
+        {
+          "event": "labeled",
+          "name": "avoozl:ready",
+          "by": "acme-bob",
+          "at": 1
+        },
+        {
+          "event": "unlabeled",
+          "name": "avoozl:ready",
+          "by": "acme-bob",
+          "at": 3
+        },
+        {
+          "event": "labeled",
+          "name": "avoozl:ready",
+          "by": "acme-bob",
+          "at": 4
+        }
+      ]
+    },
+    {
+      "number": 17,
+      "title": "Closed",
+      "state": "closed",
+      "assignees": ["acme-alice"],
+      "events": [
+        {
+          "event": "labeled",
+          "name": "avoozl:ready",
+          "by": "acme-bob",
+          "at": 1
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "issueTasks": [
+      {
+        "task": "issue-11",
+        "branch": "avoozl/issue-11/issue-11"
+      },
+      {
+        "task": "issue-16",
+        "branch": "avoozl/issue-16/issue-16"
+      }
+    ]
+  }
+}

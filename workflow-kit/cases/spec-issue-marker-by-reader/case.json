@@ -1,0 +1,37 @@
+{
+  "title": "A marker in an older issue by a member who can only read is not the spec issue",
+  "rules": ["8.2"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": ["main"],
+    "behind": []
+  },
+  "writers": ["acme-alice"],
+  "readers": ["acme-reader"],
+  "issues": {},
+  "issueList": [
+    {
+      "number": 1,
+      "state": "open",
+      "author": "acme-reader",
+      "author_association": "MEMBER",
+      "body": "The spec's issue.\n\n<!-- avoozl-spec:parser -->\n"
+    },
+    {
+      "number": 2,
+      "state": "open",
+      "author": "acme-alice",
+      "author_association": "MEMBER",
+      "body": "The spec's issue.\n\n<!-- avoozl-spec:parser -->\n"
+    }
+  ],
+  "expect": {
+    "specIssues": {
+      "parser": 2
+    },
+    "duplicates": []
+  }
+}

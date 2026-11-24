@@ -41,6 +41,36 @@ so it has no steps.
 
 ## Scenarios
 
+### A runner claims only a ready task
+
+Rules: [12.2](github-workflow.md#12-ready-tasks), [15.1](github-workflow.md#15-claims). Case: `scenario-claim-not-ready`.
+
+Given
+
+- Runner `A` acts as `acme-alice`.
+- The default branch is `main`.
+- Origin holds the branches `main`.
+- The issue of spec `parser` is assigned to `acme-alice`.
+
+The tasks of `parser`:
+
+```markdown
+- [x] `p-1` Read the token table
+- [ ] `p-2` Report unknown tokens
+- [ ] `p-3` Recover after an unknown token
+```
+
+When
+
+1. `A` reads the ready tasks, and expects ready `["parser/p-2"]`.
+2. `A` claims `parser/p-3`, and expects claimed `null`.
+3. `A` claims the first ready task, and expects claimed `avoozl/parser/p-2`.
+
+Then
+
+- Origin holds the claim branches `avoozl/parser/p-2`.
+- Probe `lease` is `{"parser/p-2":{"subject":"Lease parser/p-2 generation 1","startsAtBase":true,"task":"Report unknown tokens","done":["An unknown token is reported with its line and column"]}}`.
+
 ### A fresh claim after a restart holds no landed work
 
 Rules: [12.1](github-workflow.md#12-ready-tasks), [15.1](github-workflow.md#15-claims), [16.5](github-workflow.md#16-landing). Case: `scenario-fresh-claim-restart`.
@@ -263,6 +293,39 @@ Then
 - GitHub rejects no push.
 - Origin holds no claim branch.
 - The done branches tick `parser/p-1`, `parser/p-2`.
+
+### A runner never takes or deletes another login's stale claim
+
+Rules: [15.4](github-workflow.md#15-claims). Case: `scenario-stale-claim-kept`.
+
+Given
+
+- Runner `A` acts as `acme-alice`.
+- Runner `B` acts as `acme-bob`.
+- The default branch is `main`.
+- A claim or lease is stale after 24 hours.
+- Origin holds the branches `main`.
+- The issue of spec `parser` is assigned to `acme-alice`.
+
+The tasks of `parser`:
+
+```markdown
+- [x] `p-1` Read the token table
+- [ ] `p-2` Report unknown tokens
+- [ ] `p-3` Recover after an unknown token
+```
+
+When
+
+1. `A` reads the ready tasks.
+2. `A` claims the first ready task, and expects claimed `avoozl/parser/p-2`.
+3. `B` takes over `parser/p-2` after 48 hours, and expects holder `false`.
+
+Then
+
+- Origin holds the claim branches `avoozl/parser/p-2`.
+- The newest lease of `parser/p-2` is `A`'s.
+- `parser/p-2` has the lease generations `1`.
 
 ### A stale holder's push is rejected after a takeover
 
@@ -710,6 +773,33 @@ Then
 - Probe `approved` is `{"parser":true}`.
 - The ready tasks are `parser/p-2`.
 
+### A runner with no GitHub remote runs its own specs
+
+Rules: [8.3](github-workflow.md#8-spec-issues-and-assignment). Case: `assignment-local-only`.
+
+Given
+
+- The runner acts as `acme-alice`.
+- The default branch is `main`.
+- Origin holds the branches `main`.
+- The runner's repository has no GitHub remote.
+
+The tasks of `parser`:
+
+```markdown
+- [x] `p-1` Read the token table
+- [ ] `p-2` Report unknown tokens
+- [ ] `p-3` Recover after an unknown token
+```
+
+When
+
+- The runner answers `ready`.
+
+Then
+
+- The ready tasks are `parser/p-2`.
+
 ### A spec with no spec issue does not run
 
 Rules: [8.3](github-workflow.md#8-spec-issues-and-assignment), [12.1](github-workflow.md#12-ready-tasks). Case: `assignment-no-issue`.
@@ -816,6 +906,63 @@ When
 Then
 
 - No task is ready.
+
+### Auto-merge is armed only once the current base is merged in and the checks passed
+
+Rules: [17.7](github-workflow.md#17-landing-modes). Case: `auto-merge-armed`.
+
+Given
+
+- The runner acts as `acme-alice`.
+- The default branch is `main`.
+- Origin holds the branches `main`.
+- `autoMerge` is `{"waiting":"review","behind":0}`.
+
+When
+
+- The runner answers `autoMerge`.
+
+Then
+
+- Auto-merge is armed.
+
+### Auto-merge is armed only once the current base is merged in and the checks passed: while the head is behind the base
+
+Rules: [17.7](github-workflow.md#17-landing-modes). Case: `auto-merge-armed/behind`.
+
+Given
+
+- The runner acts as `acme-alice`.
+- The default branch is `main`.
+- Origin holds the branches `main`.
+- `autoMerge` is `{"waiting":"review","behind":2}`.
+
+When
+
+- The runner answers `autoMerge`.
+
+Then
+
+- Auto-merge is not armed.
+
+### Auto-merge is armed only once the current base is merged in and the checks passed: while the checks still run
+
+Rules: [17.7](github-workflow.md#17-landing-modes). Case: `auto-merge-armed/checks`.
+
+Given
+
+- The runner acts as `acme-alice`.
+- The default branch is `main`.
+- Origin holds the branches `main`.
+- `autoMerge` is `{"waiting":"checks","behind":0}`.
+
+When
+
+- The runner answers `autoMerge`.
+
+Then
+
+- Auto-merge is not armed.
 
 ### A claim takes the generation above leases its deleted branch left
 
@@ -1123,6 +1270,62 @@ Then
 - The ready tasks are `client/c-1`.
 - Probe `claim` is `{"branch":"avoozl/client/c-1","base":"client","mergeBase":true}`.
 
+### A runner neither creates an integration branch nor merges one into the default branch
+
+Rules: [14.2](github-workflow.md#14-integration-branches). Case: `integration-branch-person`.
+
+Given
+
+- The runner acts as `acme-alice`.
+- The default branch is `main`.
+- Origin holds the branches `main`, `client`.
+- The issue of spec `client` is assigned to `acme-alice`.
+- `actions` is `[{"kind":"create-integration-branch"},{"kind":"merge-integration-branch"}]`.
+
+The tasks of `client`:
+
+```markdown
+- [ ] `c-1` Split the transport
+- [ ] `c-2` Move the callers
+```
+
+When
+
+- The runner answers `limits`.
+
+Then
+
+- Probe `limits` is `["14.2","14.2"]`.
+
+### No task is claimed on an integration branch while merging the default branch into it conflicts
+
+Rules: [14.3](github-workflow.md#14-integration-branches), [14.5](github-workflow.md#14-integration-branches). Case: `integration-conflict`.
+
+Given
+
+- The runner acts as `acme-alice`.
+- The default branch is `main`.
+- Origin holds the branches `main`, `client`.
+- Origin's `client` lacks the default branch's head.
+- Merging the default branch into `client` conflicts.
+- The issue of spec `client` is assigned to `acme-alice`.
+
+The tasks of `client`:
+
+```markdown
+- [ ] `c-1` Split the transport
+- [ ] `c-2` Move the callers
+```
+
+When
+
+- The runner answers `ready`, `claim`.
+
+Then
+
+- The ready tasks are `client/c-1`.
+- Probe `claim` is `null`.
+
 ### An integration branch that already holds the default branch is not merged
 
 Rules: [14.1](github-workflow.md#14-integration-branches), [14.3](github-workflow.md#14-integration-branches). Case: `integration-current`.
@@ -1186,6 +1389,219 @@ When
 Then
 
 - Probe `claim` is `{"branch":"avoozl/client-parser/client-parser-1","base":"client-v2","mergeBase":false}`.
+
+### Tasks claimed together on an integration branch start from one merge of the default branch
+
+Rules: [14.3](github-workflow.md#14-integration-branches), [14.4](github-workflow.md#14-integration-branches). Case: `integration-parallel`.
+
+Given
+
+- The runner acts as `acme-alice`.
+- The default branch is `main`.
+- Origin holds the branches `main`, `client`.
+- Origin's `client` lacks the default branch's head.
+- The issue of spec `client` is assigned to `acme-alice`.
+
+The tasks of `client`:
+
+```markdown
+- [ ] `c-0` Split the client (**PARALLEL**)
+```
+
+When
+
+- The runner answers `ready`, `claimEach`.
+
+Then
+
+- The ready tasks are `client/c-1`, `client/c-2`.
+- Probe `claimEach` is `{"branches":["avoozl/client/c-1","avoozl/client/c-2"],"baseMerges":1}`.
+
+### A required label counts only from a writer, and an excluded label holds work whoever added it
+
+Rules: [9.1](github-workflow.md#9-labels), [12.1](github-workflow.md#12-ready-tasks). Case: `label-filters`.
+
+Given
+
+- The runner acts as `acme-alice`.
+- The default branch is `main`.
+- Origin holds the branches `main`.
+- The issue of spec `alpha` is assigned to `acme-alice`.
+- The issue of spec `beta` is assigned to `acme-alice`.
+- The issue of spec `delta` is assigned to `acme-alice`.
+- The issue of spec `gamma` is assigned to `acme-alice`.
+- `labels setting` is `{"require":["ready"],"exclude":["needs-design"]}`.
+- `writers` is `["acme-alice","acme-bob"]`.
+- `labels` is `{"alpha":[{"event":"labeled","name":"ready","by":"acme-bob"}],"beta":[{"event":"labeled","name":"ready","by":"acme-triager"}],"gamma":[{"event":"labeled","name":"ready","by":"acme-bob"},{"event":"labeled","name":"needs-design","by":"acme-triager"}]}`.
+
+The tasks of `alpha`:
+
+```markdown
+- [ ] `a-1` Build alpha
+```
+The tasks of `beta`:
+
+```markdown
+- [ ] `b-1` Build beta
+```
+The tasks of `delta`:
+
+```markdown
+- [ ] `d-1` Build delta
+```
+The tasks of `gamma`:
+
+```markdown
+- [ ] `g-1` Build gamma
+```
+
+When
+
+- The runner answers `ready`.
+
+Then
+
+- The ready tasks are `alpha/a-1`.
+
+### Landing closes a labeled issue only after the issue is checked again
+
+Rules: [11.3](github-workflow.md#11-labeled-issues), [11.4](github-workflow.md#11-labeled-issues), [12.2](github-workflow.md#12-ready-tasks). Case: `labeled-issue-close`.
+
+Given
+
+- The runner acts as `acme-alice`.
+- The default branch is `main`.
+- Origin holds the branches `main`.
+- `labels setting` is `{"require":["avoozl:ready"]}`.
+- `writers` is `["acme-alice","acme-bob"]`.
+- `labeledIssues` is `[{"number":11,"title":"Report unknown tokens","body":"An unknown token is reported with its line.","assignees":["acme-alice"],"events":[{"event":"labeled","name":"avoozl:ready","by":"acme-bob","at":1}]}]`.
+- `issueLanding` is `{"number":11}`.
+
+When
+
+- The runner answers `issueClose`.
+
+Then
+
+- Landing leaves the issue closed.
+
+### Landing closes a labeled issue only after the issue is checked again: edited after the label
+
+Rules: [11.3](github-workflow.md#11-labeled-issues), [11.4](github-workflow.md#11-labeled-issues), [12.2](github-workflow.md#12-ready-tasks). Case: `labeled-issue-close/edited`.
+
+Given
+
+- The runner acts as `acme-alice`.
+- The default branch is `main`.
+- Origin holds the branches `main`.
+- `labels setting` is `{"require":["avoozl:ready"]}`.
+- `writers` is `["acme-alice","acme-bob"]`.
+- `labeledIssues` is `[{"number":11,"title":"Report unknown tokens","body":"An unknown token is reported with its line.","assignees":["acme-alice"],"events":[{"event":"labeled","name":"avoozl:ready","by":"acme-bob","at":1}]}]`.
+- `issueLanding` is `{"number":11,"after":{"editedAt":3}}`.
+
+When
+
+- The runner answers `issueClose`.
+
+Then
+
+- Landing leaves the issue open.
+
+### Landing closes a labeled issue only after the issue is checked again: assigned to someone else
+
+Rules: [11.3](github-workflow.md#11-labeled-issues), [11.4](github-workflow.md#11-labeled-issues), [12.2](github-workflow.md#12-ready-tasks). Case: `labeled-issue-close/reassigned`.
+
+Given
+
+- The runner acts as `acme-alice`.
+- The default branch is `main`.
+- Origin holds the branches `main`.
+- `labels setting` is `{"require":["avoozl:ready"]}`.
+- `writers` is `["acme-alice","acme-bob"]`.
+- `labeledIssues` is `[{"number":11,"title":"Report unknown tokens","body":"An unknown token is reported with its line.","assignees":["acme-alice"],"events":[{"event":"labeled","name":"avoozl:ready","by":"acme-bob","at":1}]}]`.
+- `issueLanding` is `{"number":11,"after":{"assignees":["acme-carol"]}}`.
+
+When
+
+- The runner answers `issueClose`.
+
+Then
+
+- Landing leaves the issue open.
+
+### Landing closes a labeled issue only after the issue is checked again: labeled again after its work started
+
+Rules: [11.3](github-workflow.md#11-labeled-issues), [11.4](github-workflow.md#11-labeled-issues), [12.2](github-workflow.md#12-ready-tasks). Case: `labeled-issue-close/relabeled`.
+
+Given
+
+- The runner acts as `acme-alice`.
+- The default branch is `main`.
+- Origin holds the branches `main`.
+- `labels setting` is `{"require":["avoozl:ready"]}`.
+- `writers` is `["acme-alice","acme-bob"]`.
+- `labeledIssues` is `[{"number":11,"title":"Report unknown tokens","body":"An unknown token is reported with its line.","assignees":["acme-alice"],"events":[{"event":"labeled","name":"avoozl:ready","by":"acme-bob","at":1}]}]`.
+- `issueLanding` is `{"number":11,"after":{"events":[{"event":"unlabeled","name":"avoozl:ready","by":"acme-bob","at":3},{"event":"labeled","name":"avoozl:ready","by":"acme-bob","at":4}]}}`.
+
+When
+
+- The runner answers `issueClose`.
+
+Then
+
+- Landing leaves the issue open.
+
+### A labeled issue is a task only while a writer's label authorizes its text and the runner is its only assignee
+
+Rules: [9.1](github-workflow.md#9-labels), [11.1](github-workflow.md#11-labeled-issues), [11.2](github-workflow.md#11-labeled-issues). Case: `labeled-issues`.
+
+Given
+
+- The runner acts as `acme-alice`.
+- The default branch is `main`.
+- Origin holds the branches `main`.
+- `labels setting` is `{"require":["avoozl:ready"]}`.
+- `writers` is `["acme-alice","acme-bob"]`.
+- `labeledIssues` is `[{"number":11,"title":"Report unknown tokens","body":"An unknown token is reported with its line.","assignees":["acme-alice"],"events":[{"event":"labeled","name":"avoozl:ready","by":"acme-bob","at":1}]},{"number":12,"title":"Labeled by a triager","assignees":["acme-alice"],"events":[{"event":"labeled","name":"avoozl:ready","by":"acme-triager","at":1}]},{"number":13,"title":"Two assignees","assignees":["acme-alice","acme-carol"],"events":[{"event":"labeled","name":"avoozl:ready","by":"acme-bob","at":1}]},{"number":14,"title":"Edited after the label","assignees":["acme-alice"],"editedAt":2,"events":[{"event":"labeled","name":"avoozl:ready","by":"acme-bob","at":1}]},{"number":15,"title":"Renamed after the label","assignees":["acme-alice"],"events":[{"event":"labeled","name":"avoozl:ready","by":"acme-bob","at":1},{"event":"renamed","by":"acme-carol","at":2}]},{"number":16,"title":"Edited, then labeled again","assignees":["acme-alice"],"editedAt":2,"events":[{"event":"labeled","name":"avoozl:ready","by":"acme-bob","at":1},{"event":"unlabeled","name":"avoozl:ready","by":"acme-bob","at":3},{"event":"labeled","name":"avoozl:ready","by":"acme-bob","at":4}]},{"number":17,"title":"Closed","state":"closed","assignees":["acme-alice"],"events":[{"event":"labeled","name":"avoozl:ready","by":"acme-bob","at":1}]}]`.
+
+When
+
+- The runner answers `issueTasks`.
+
+Then
+
+- The labeled issues that are tasks are `issue-11` on `avoozl/issue-11/issue-11`, `issue-16` on `avoozl/issue-16/issue-16`.
+
+### A merged pull request whose head is not the checked commit is not landed work
+
+Rules: [16.5](github-workflow.md#16-landing). Case: `landed-pr-other-head`.
+
+Given
+
+- The runner acts as `acme-alice`.
+- The default branch is `main`, and the specs branch is `plans`.
+- Origin holds the branches `main`, `plans`.
+- The issue of spec `parser` is assigned to `acme-alice`.
+- `graph` is `{"c1":[],"c2":["c1"],"c3":["c1"],"c4":["c2"]}`.
+- `heads` is `{"main":"c3"}`.
+- `mergedPullHeads` is `["avoozl/parser/p-2"]`.
+- `land` is `{"task":"parser/p-2","checks":"pass","baseMoved":false,"mode":"pr","claim":{"start":"c1","head":"c2","pull":{"merged":true,"head":"c4"}}}`.
+
+The tasks of `parser`:
+
+```markdown
+- [x] `p-1` Read the token table
+- [ ] `p-2` Report unknown tokens
+- [ ] `p-3` Recover after an unknown token
+```
+
+When
+
+- The runner answers `landed`.
+
+Then
+
+- Probe `landed` is `false`.
 
 ### An auto pull request is merged by the runner once checks pass
 
@@ -1535,6 +1951,49 @@ Then
 
 - Probe `landing` is `{"action":"tick-landed-work","base":"plans","tick":"own-commit","mergeBase":false,"deleteClaimBranch":true}`.
 
+### A spec is one file or one folder, and a name in both is refused
+
+Rules: [1.1](github-workflow.md#1-spec-folders). Case: `layout-flat-and-folder`.
+
+Given
+
+- The runner acts as `acme-alice`.
+- The default branch is `main`.
+- Origin holds the branches `main`.
+- The issue of spec `lexer` is assigned to `acme-alice`.
+- The issue of spec `parser` is assigned to `acme-alice`.
+- The issue of spec `widget` is assigned to `acme-alice`.
+
+The tasks of `lexer`:
+
+```markdown
+- [ ] `l-1` Read identifiers
+```
+The tasks of `parser`:
+
+```markdown
+- [ ] `p-1` Read the token table
+```
+The tasks of `widget`:
+
+```markdown
+- [ ] `w-1` Draw the widget
+```
+The tasks of `widget`:
+
+```markdown
+- [ ] `w-2` Size the widget
+```
+
+When
+
+- The runner answers `violations`, `ready`.
+
+Then
+
+- Probe `violations` is `{"lexer":[],"parser":[],"widget":["1.1"]}`.
+- The ready tasks are `lexer/l-1`, `parser/p-1`.
+
 ### The newest lease is the highest generation, whatever its age
 
 Rules: [15.5](github-workflow.md#15-claims), [15.6](github-workflow.md#15-claims), [15.7](github-workflow.md#15-claims). Case: `lease-highest-generation`.
@@ -1680,7 +2139,7 @@ Then
 
 ### A force push and a rebase of a shared branch are refused
 
-Rules: [20.4](github-workflow.md#20-runner-limits). Case: `limit-20-4`.
+Rules: [16.4](github-workflow.md#16-landing), [20.4](github-workflow.md#20-runner-limits). Case: `limit-20-4`.
 
 Given
 
@@ -1790,7 +2249,7 @@ Then
 
 - Probe `limits` is `["20.7","20.7",null]`.
 
-### Text from an issue, comment or commit is not an instruction
+### Comment text is never an instruction, and only an approver's reply answers a pending action
 
 Rules: [20.8](github-workflow.md#20-runner-limits). Case: `limit-20-8`.
 
@@ -1800,7 +2259,7 @@ Given
 - The default branch is `main`.
 - Origin holds the branches `main`.
 - The issue of spec `parser` is assigned to `acme-alice`.
-- `actions` is `[{"kind":"follow-text","approverReply":false},{"kind":"follow-text","approverReply":true}]`.
+- `actions` is `[{"kind":"answer-pending-action","approverReply":false},{"kind":"answer-pending-action","approverReply":true},{"kind":"follow-comment-text","approverReply":false},{"kind":"follow-comment-text","approverReply":true}]`.
 
 The tasks of `parser`:
 
@@ -1816,7 +2275,7 @@ When
 
 Then
 
-- Probe `limits` is `["20.8",null]`.
+- Probe `limits` is `["20.8",null,"20.8","20.8"]`.
 
 ### Only the repository's own checks run
 
@@ -2278,6 +2737,68 @@ Then
 
 - The ready tasks are `config/c-2`.
 
+### On a tie in waiting tasks, the longer chain goes first
+
+Rules: [13.1](github-workflow.md#13-next-task), [13.2](github-workflow.md#13-next-task). Case: `rank-chain-tie`.
+
+Given
+
+- The runner acts as `acme-alice`.
+- The default branch is `main`.
+- Origin holds the branches `main`.
+- The issue of spec `rank` is assigned to `acme-alice`.
+
+The tasks of `rank`:
+
+```markdown
+- [ ] `r-0` Two lines of work (**PARALLEL**)
+```
+
+When
+
+- The runner answers `ready`.
+
+Then
+
+- The ready tasks are `rank/d-1`, `rank/w-1`.
+
+### A spec names the one repository it changes when the runner runs several
+
+Rules: [5.2](github-workflow.md#5-front-matter), [5.3](github-workflow.md#5-front-matter). Case: `repo-one-repository`.
+
+Given
+
+- The runner acts as `acme-alice`.
+- The default branch is `main`.
+- Origin holds the branches `main`.
+- `repositories` is `["app","docs"]`.
+
+The tasks of `notes`:
+
+```markdown
+- [ ] `n-1` Write the release notes
+```
+The tasks of `pair`:
+
+```markdown
+- [ ] `pr-1` Change the app and its docs together
+```
+The tasks of `parser`:
+
+```markdown
+- [x] `p-1` Read the token table
+- [ ] `p-2` Report unknown tokens
+- [ ] `p-3` Recover after an unknown token
+```
+
+When
+
+- The runner answers `violations`.
+
+Then
+
+- Probe `violations` is `{"notes":["5.3"],"pair":["5.2"],"parser":[]}`.
+
 ### Two runners resume one handed-off claim, and the first lease create wins
 
 Rules: [8.4](github-workflow.md#8-spec-issues-and-assignment), [15.3](github-workflow.md#15-claims), [15.5](github-workflow.md#15-claims), [15.6](github-workflow.md#15-claims), [15.7](github-workflow.md#15-claims). Case: `resume-handoff`.
@@ -2371,6 +2892,25 @@ Then
 
 - Probe `resume` is `{"holder":"r1","lease":"avoozl-lease/parser/p-2/2","stopped":["r2"]}`.
 
+### Review findings go to the spec issue as advice naming the task and the commit
+
+Rules: [19.1](github-workflow.md#19-review-output), [19.2](github-workflow.md#19-review-output). Case: `review-output`.
+
+Given
+
+- The runner acts as `acme-alice`.
+- The default branch is `main`.
+- Origin holds the branches `main`.
+- `review` is `{"task":"parser/p-2","commit":"4b825dc642cb6eb9a060e54bf8d69288fbee4904","issue":7}`.
+
+When
+
+- The runner answers `reviewOutput`.
+
+Then
+
+- Probe `reviewOutput` is `[{"kind":"comment","number":7,"namesTask":true,"namesCommit":true}]`.
+
 ### A claim branch takes the task, and the next waits
 
 Rules: [12.1](github-workflow.md#12-ready-tasks), [15.1](github-workflow.md#15-claims). Case: `serial-list-claimed`.
@@ -2463,12 +3003,26 @@ Given
 - The default branch is `main`.
 - Origin holds the branches `main`.
 
+The tasks of `config/config`:
+
+```markdown
+- [x] `c-1` Read the file
+- [ ] `c-2` Report unknown keys
+- [ ] `c-3` Apply the settings
+```
 The tasks of `config`:
 
 ```markdown
 - [x] `c-1` Read the file
 - [ ] `c-2` Report unknown keys
 - [ ] `c-3` Apply the settings
+```
+The tasks of `notes/notes`:
+
+```markdown
+- [x] `n-1` Read the file
+- [ ] `n-2` Report unknown keys
+- [ ] `n-3` Apply the settings
 ```
 
 When
@@ -2491,6 +3045,13 @@ Given
 - The issue of spec `config` is assigned to `acme-alice`.
 - The issue of spec `settings` is assigned to `acme-alice`.
 
+The tasks of `config/config`:
+
+```markdown
+- [x] `c-1` Read the file
+- [ ] `c-2` Report unknown keys
+- [ ] `c-3` Apply the settings
+```
 The tasks of `settings`:
 
 ```markdown
@@ -2506,6 +3067,38 @@ Then
 
 - The ready tasks are `config/c-2`.
 - Probe `claim` is `{"branch":"avoozl/config/c-2","base":"main","mergeBase":false}`.
+
+### Subfolders, files that are not Markdown and symlinks are not part of a spec
+
+Rules: [1.3](github-workflow.md#1-spec-folders). Case: `spec-files-markdown-only`.
+
+Given
+
+- The runner acts as `acme-alice`.
+- The default branch is `main`.
+- Origin holds the branches `main`.
+- The issue of spec `parser` is assigned to `acme-alice`.
+- `symlinks` is `{".kiro/specs/parser/linked.md":"../../../outside.md"}`.
+
+The tasks of `parser/drafts`:
+
+```markdown
+- [ ] `p-9` A task in a subfolder
+```
+The tasks of `parser`:
+
+```markdown
+- [ ] `p-1` Read the token table
+```
+
+When
+
+- The runner answers `violations`, `ready`.
+
+Then
+
+- Probe `violations` is `{"parser":[]}`.
+- The ready tasks are `parser/p-1`.
 
 ### A spec issue is found by its marker in an open writer's issue
 
@@ -2550,6 +3143,130 @@ Then
 - Probe `specIssues` is `{"lexer":3,"parser":1,"widget":null}`.
 - Probe `duplicates` is `[4]`.
 
+### A marker in an older issue by a member who can only read is not the spec issue
+
+Rules: [8.2](github-workflow.md#8-spec-issues-and-assignment). Case: `spec-issue-marker-by-reader`.
+
+Given
+
+- The runner acts as `acme-alice`.
+- The default branch is `main`.
+- Origin holds the branches `main`.
+- `writers` is `["acme-alice"]`.
+- `readers` is `["acme-reader"]`.
+- `issueList` is `[{"number":1,"state":"open","author":"acme-reader","author_association":"MEMBER","body":"The spec's issue.\n\n<!-- avoozl-spec:parser -->\n"},{"number":2,"state":"open","author":"acme-alice","author_association":"MEMBER","body":"The spec's issue.\n\n<!-- avoozl-spec:parser -->\n"}]`.
+
+The tasks of `parser`:
+
+```markdown
+- [ ] `p-1` Read the token table
+- [ ] `p-2` Report unknown tokens
+- [ ] `p-3` Recover after an unknown token
+```
+
+When
+
+- The runner answers `specIssues`, `duplicates`.
+
+Then
+
+- Probe `specIssues` is `{"parser":2}`.
+- Probe `duplicates` is `[]`.
+
+### The approver's runner publishes the spec issue with the approving pull request's assignees
+
+Rules: [8.1](github-workflow.md#8-spec-issues-and-assignment), [8.2](github-workflow.md#8-spec-issues-and-assignment). Case: `spec-issue-published`.
+
+Given
+
+- The runner acts as `acme-alice`.
+- The default branch is `main`.
+- Origin holds the branches `main`.
+- `writers` is `["acme-alice","acme-bob"]`.
+- `publish` is `{"spec":"parser","commit":"c1","mergedBy":"acme-alice","assignees":["acme-bob"]}`.
+
+When
+
+- The runner answers `published`.
+
+Then
+
+- The runner creates the spec issue, assigned to `acme-bob`.
+
+### The approver's runner publishes the spec issue with the approving pull request's assignees: on a runner that did not approve
+
+Rules: [8.1](github-workflow.md#8-spec-issues-and-assignment), [8.2](github-workflow.md#8-spec-issues-and-assignment). Case: `spec-issue-published/other-runner`.
+
+Given
+
+- The runner acts as `acme-bob`.
+- The default branch is `main`.
+- Origin holds the branches `main`.
+- `writers` is `["acme-alice","acme-bob"]`.
+- `publish` is `{"spec":"parser","commit":"c1","mergedBy":"acme-alice","assignees":["acme-bob"]}`.
+
+When
+
+- The runner answers `published`.
+
+Then
+
+- The runner creates no spec issue.
+
+### The approver's runner publishes the spec issue with the approving pull request's assignees: when a writer's spec issue is already open
+
+Rules: [8.1](github-workflow.md#8-spec-issues-and-assignment), [8.2](github-workflow.md#8-spec-issues-and-assignment). Case: `spec-issue-published/existing`.
+
+Given
+
+- The runner acts as `acme-alice`.
+- The default branch is `main`.
+- Origin holds the branches `main`.
+- `writers` is `["acme-alice","acme-bob"]`.
+- `publish` is `{"spec":"parser","commit":"c1","mergedBy":"acme-alice","assignees":["acme-bob"],"existing":7}`.
+
+When
+
+- The runner answers `published`.
+
+Then
+
+- The runner creates no spec issue.
+
+### Only an approver's removal of the stop label clears a stop
+
+Rules: [10.1](github-workflow.md#10-stopping-a-spec), [12.1](github-workflow.md#12-ready-tasks). Case: `stop-cleared`.
+
+Given
+
+- The runner acts as `acme-alice`.
+- The default branch is `main`.
+- Origin holds the branches `main`.
+- The issue of spec `alpha` is assigned to `acme-alice`.
+- The issue of spec `beta` is assigned to `acme-alice`.
+- `writers` is `["acme-alice","acme-bob","acme-owner"]`.
+- `approvers` is `["acme-owner"]`.
+- `labels` is `{"alpha":[{"event":"labeled","name":"avoozl:stopped","by":"acme-bob"},{"event":"unlabeled","name":"avoozl:stopped","by":"acme-bob"}],"beta":[{"event":"labeled","name":"avoozl:stopped","by":"acme-bob"},{"event":"unlabeled","name":"avoozl:stopped","by":"acme-owner"}]}`.
+
+The tasks of `alpha`:
+
+```markdown
+- [ ] `a-1` Build alpha
+```
+The tasks of `beta`:
+
+```markdown
+- [ ] `b-1` Build beta
+```
+
+When
+
+- The runner answers `ready`.
+
+Then
+
+- The ready tasks are `beta/b-1`.
+
 ### A holder of a stopped spec's task makes no push and does not land it
 
 Rules: [10.2](github-workflow.md#10-stopping-a-spec). Case: `stop-holder`.
@@ -2583,6 +3300,73 @@ Then
 - No task is ready.
 - Probe `push` is `{"holder":"held"}`.
 - Probe `landing` is `{"action":"hold"}`.
+
+### The operator names the stop label, and a default name starts with avoozl:
+
+Rules: [9.2](github-workflow.md#9-labels), [10.1](github-workflow.md#10-stopping-a-spec). Case: `stop-label-configured`.
+
+Given
+
+- The runner acts as `acme-alice`.
+- The default branch is `main`.
+- Origin holds the branches `main`.
+- The issue of spec `alpha` is assigned to `acme-alice`.
+- The issue of spec `beta` is assigned to `acme-alice`.
+- `labels setting` is `{"stop":"hold"}`.
+- `writers` is `["acme-alice","acme-bob"]`.
+- `labels` is `{"alpha":[{"event":"labeled","name":"avoozl:stopped","by":"acme-bob"}],"beta":[{"event":"labeled","name":"hold","by":"acme-bob"}]}`.
+
+The tasks of `alpha`:
+
+```markdown
+- [ ] `a-1` Build alpha
+```
+The tasks of `beta`:
+
+```markdown
+- [ ] `b-1` Build beta
+```
+
+When
+
+- The runner answers `ready`.
+
+Then
+
+- The ready tasks are `alpha/a-1`.
+
+### The operator names the stop label, and a default name starts with avoozl:: with no stop label set
+
+Rules: [9.2](github-workflow.md#9-labels), [10.1](github-workflow.md#10-stopping-a-spec). Case: `stop-label-configured/default`.
+
+Given
+
+- The runner acts as `acme-alice`.
+- The default branch is `main`.
+- Origin holds the branches `main`.
+- The issue of spec `alpha` is assigned to `acme-alice`.
+- The issue of spec `beta` is assigned to `acme-alice`.
+- `writers` is `["acme-alice","acme-bob"]`.
+- `labels` is `{"alpha":[{"event":"labeled","name":"avoozl:stopped","by":"acme-bob"}],"beta":[{"event":"labeled","name":"hold","by":"acme-bob"}]}`.
+
+The tasks of `alpha`:
+
+```markdown
+- [ ] `a-1` Build alpha
+```
+The tasks of `beta`:
+
+```markdown
+- [ ] `b-1` Build beta
+```
+
+When
+
+- The runner answers `ready`.
+
+Then
+
+- The ready tasks are `beta/b-1`.
 
 ### A stop on a parent spec's issue makes the linked tasks not ready
 
@@ -2628,6 +3412,39 @@ When
 Then
 
 - The ready tasks are `widget/w-1`.
+
+### A task ID is any code span in the ID grammar, and a bare ID is refused
+
+Rules: [2.1](github-workflow.md#2-tasks), [15.1](github-workflow.md#15-claims). Case: `task-id-forms`.
+
+Given
+
+- The runner acts as `acme-alice`.
+- The default branch is `main`.
+- Origin holds the branches `main`.
+- The issue of spec `bare` is assigned to `acme-alice`.
+- The issue of spec `ids` is assigned to `acme-alice`.
+
+The tasks of `bare`:
+
+```markdown
+- [ ] q-3 An ID that is not in a code span
+```
+The tasks of `ids`:
+
+```markdown
+- [ ] `forms` Every form of ID (**PARALLEL**)
+```
+
+When
+
+- The runner answers `violations`, `ready`, `claim`.
+
+Then
+
+- Probe `violations` is `{"bare":["2.1"],"ids":[]}`.
+- The ready tasks are `ids/1.2`, `ids/parse`, `ids/P-4`.
+- Probe `claim` is `{"branch":"avoozl/ids/1.2","base":"main","mergeBase":false}`.
 
 ### Each broken rule is refused, and clean specs are not
 
@@ -2768,10 +3585,22 @@ Then
 
 ## Rules
 
+### Rule 1.1
+
+- [A spec is one file or one folder, and a name in both is refused](#a-spec-is-one-file-or-one-folder-and-a-name-in-both-is-refused)
+
 ### Rule 1.2
 
 - [A spec holds its tasks in tasks.md or one ## Tasks section, not both](#a-spec-holds-its-tasks-in-tasksmd-or-one--tasks-section-not-both)
 - [A spec in one file keeps its tasks under ## Tasks](#a-spec-in-one-file-keeps-its-tasks-under--tasks)
+
+### Rule 1.3
+
+- [Subfolders, files that are not Markdown and symlinks are not part of a spec](#subfolders-files-that-are-not-markdown-and-symlinks-are-not-part-of-a-spec)
+
+### Rule 2.1
+
+- [A task ID is any code span in the ID grammar, and a bare ID is refused](#a-task-id-is-any-code-span-in-the-id-grammar-and-a-bare-id-is-refused)
 
 ### Rule 2.2
 
@@ -2841,6 +3670,14 @@ Then
 
 - [Each broken rule is refused, and clean specs are not](#each-broken-rule-is-refused-and-clean-specs-are-not)
 
+### Rule 5.2
+
+- [A spec names the one repository it changes when the runner runs several](#a-spec-names-the-one-repository-it-changes-when-the-runner-runs-several)
+
+### Rule 5.3
+
+- [A spec names the one repository it changes when the runner runs several](#a-spec-names-the-one-repository-it-changes-when-the-runner-runs-several)
+
 ### Rule 6.1
 
 - [A linked spec's tasks run in the linked spec's own order](#a-linked-specs-tasks-run-in-the-linked-specs-own-order)
@@ -2899,12 +3736,23 @@ Then
 
 - [A runner's tick of a linked spec and its spec group approves nothing and keeps both approvals](#a-runners-tick-of-a-linked-spec-and-its-spec-group-approves-nothing-and-keeps-both-approvals)
 
+### Rule 8.1
+
+- [The approver's runner publishes the spec issue with the approving pull request's assignees](#the-approvers-runner-publishes-the-spec-issue-with-the-approving-pull-requests-assignees)
+- [The approver's runner publishes the spec issue with the approving pull request's assignees: on a runner that did not approve](#the-approvers-runner-publishes-the-spec-issue-with-the-approving-pull-requests-assignees-on-a-runner-that-did-not-approve)
+- [The approver's runner publishes the spec issue with the approving pull request's assignees: when a writer's spec issue is already open](#the-approvers-runner-publishes-the-spec-issue-with-the-approving-pull-requests-assignees-when-a-writers-spec-issue-is-already-open)
+
 ### Rule 8.2
 
 - [A spec issue is found by its marker in an open writer's issue](#a-spec-issue-is-found-by-its-marker-in-an-open-writers-issue)
+- [A marker in an older issue by a member who can only read is not the spec issue](#a-marker-in-an-older-issue-by-a-member-who-can-only-read-is-not-the-spec-issue)
+- [The approver's runner publishes the spec issue with the approving pull request's assignees](#the-approvers-runner-publishes-the-spec-issue-with-the-approving-pull-requests-assignees)
+- [The approver's runner publishes the spec issue with the approving pull request's assignees: on a runner that did not approve](#the-approvers-runner-publishes-the-spec-issue-with-the-approving-pull-requests-assignees-on-a-runner-that-did-not-approve)
+- [The approver's runner publishes the spec issue with the approving pull request's assignees: when a writer's spec issue is already open](#the-approvers-runner-publishes-the-spec-issue-with-the-approving-pull-requests-assignees-when-a-writers-spec-issue-is-already-open)
 
 ### Rule 8.3
 
+- [A runner with no GitHub remote runs its own specs](#a-runner-with-no-github-remote-runs-its-own-specs)
 - [A spec with no spec issue does not run](#a-spec-with-no-spec-issue-does-not-run)
 - [A spec with no assignee does not run](#a-spec-with-no-assignee-does-not-run)
 - [A spec assigned to another login does not run](#a-spec-assigned-to-another-login-does-not-run)
@@ -2915,8 +3763,21 @@ Then
 
 - [Two runners resume one handed-off claim, and the first lease create wins](#two-runners-resume-one-handed-off-claim-and-the-first-lease-create-wins)
 
+### Rule 9.1
+
+- [A required label counts only from a writer, and an excluded label holds work whoever added it](#a-required-label-counts-only-from-a-writer-and-an-excluded-label-holds-work-whoever-added-it)
+- [A labeled issue is a task only while a writer's label authorizes its text and the runner is its only assignee](#a-labeled-issue-is-a-task-only-while-a-writers-label-authorizes-its-text-and-the-runner-is-its-only-assignee)
+
+### Rule 9.2
+
+- [The operator names the stop label, and a default name starts with avoozl:](#the-operator-names-the-stop-label-and-a-default-name-starts-with-avoozl)
+- [The operator names the stop label, and a default name starts with avoozl:: with no stop label set](#the-operator-names-the-stop-label-and-a-default-name-starts-with-avoozl-with-no-stop-label-set)
+
 ### Rule 10.1
 
+- [Only an approver's removal of the stop label clears a stop](#only-an-approvers-removal-of-the-stop-label-clears-a-stop)
+- [The operator names the stop label, and a default name starts with avoozl:](#the-operator-names-the-stop-label-and-a-default-name-starts-with-avoozl)
+- [The operator names the stop label, and a default name starts with avoozl:: with no stop label set](#the-operator-names-the-stop-label-and-a-default-name-starts-with-avoozl-with-no-stop-label-set)
 - [A stop on a parent spec's issue makes the linked tasks not ready](#a-stop-on-a-parent-specs-issue-makes-the-linked-tasks-not-ready)
 
 ### Rule 10.2
@@ -2924,12 +3785,35 @@ Then
 - [A holder of a stopped spec's task makes no push and does not land it](#a-holder-of-a-stopped-specs-task-makes-no-push-and-does-not-land-it)
 - [A stop on a parent spec's issue makes the linked tasks not ready](#a-stop-on-a-parent-specs-issue-makes-the-linked-tasks-not-ready)
 
+### Rule 11.1
+
+- [A labeled issue is a task only while a writer's label authorizes its text and the runner is its only assignee](#a-labeled-issue-is-a-task-only-while-a-writers-label-authorizes-its-text-and-the-runner-is-its-only-assignee)
+
+### Rule 11.2
+
+- [A labeled issue is a task only while a writer's label authorizes its text and the runner is its only assignee](#a-labeled-issue-is-a-task-only-while-a-writers-label-authorizes-its-text-and-the-runner-is-its-only-assignee)
+
+### Rule 11.3
+
+- [Landing closes a labeled issue only after the issue is checked again](#landing-closes-a-labeled-issue-only-after-the-issue-is-checked-again)
+- [Landing closes a labeled issue only after the issue is checked again: edited after the label](#landing-closes-a-labeled-issue-only-after-the-issue-is-checked-again-edited-after-the-label)
+- [Landing closes a labeled issue only after the issue is checked again: assigned to someone else](#landing-closes-a-labeled-issue-only-after-the-issue-is-checked-again-assigned-to-someone-else)
+- [Landing closes a labeled issue only after the issue is checked again: labeled again after its work started](#landing-closes-a-labeled-issue-only-after-the-issue-is-checked-again-labeled-again-after-its-work-started)
+
+### Rule 11.4
+
+- [Landing closes a labeled issue only after the issue is checked again](#landing-closes-a-labeled-issue-only-after-the-issue-is-checked-again)
+- [Landing closes a labeled issue only after the issue is checked again: edited after the label](#landing-closes-a-labeled-issue-only-after-the-issue-is-checked-again-edited-after-the-label)
+- [Landing closes a labeled issue only after the issue is checked again: assigned to someone else](#landing-closes-a-labeled-issue-only-after-the-issue-is-checked-again-assigned-to-someone-else)
+- [Landing closes a labeled issue only after the issue is checked again: labeled again after its work started](#landing-closes-a-labeled-issue-only-after-the-issue-is-checked-again-labeled-again-after-its-work-started)
+
 ### Rule 12.1
 
 - [A spec with no spec issue does not run](#a-spec-with-no-spec-issue-does-not-run)
 - [A spec with no assignee does not run](#a-spec-with-no-assignee-does-not-run)
 - [A spec assigned to another login does not run](#a-spec-assigned-to-another-login-does-not-run)
 - [A spec assigned to two logins does not run](#a-spec-assigned-to-two-logins-does-not-run)
+- [A required label counts only from a writer, and an excluded label holds work whoever added it](#a-required-label-counts-only-from-a-writer-and-an-excluded-label-holds-work-whoever-added-it)
 - [A merged pull request whose branch GitHub deleted is landed work awaiting its tick](#a-merged-pull-request-whose-branch-github-deleted-is-landed-work-awaiting-its-tick)
 - [A claimed child leaves its siblings ready](#a-claimed-child-leaves-its-siblings-ready)
 - [A fresh claim after a restart holds no landed work](#a-fresh-claim-after-a-restart-holds-no-landed-work)
@@ -2937,18 +3821,29 @@ Then
 - [A claim branch takes the task, and the next waits](#a-claim-branch-takes-the-task-and-the-next-waits)
 - [A spec with every task ticked has nothing ready](#a-spec-with-every-task-ticked-has-nothing-ready)
 - [A task waits for the one above it](#a-task-waits-for-the-one-above-it)
+- [Only an approver's removal of the stop label clears a stop](#only-an-approvers-removal-of-the-stop-label-clears-a-stop)
 - [A stop on a parent spec's issue makes the linked tasks not ready](#a-stop-on-a-parent-specs-issue-makes-the-linked-tasks-not-ready)
+
+### Rule 12.2
+
+- [Landing closes a labeled issue only after the issue is checked again](#landing-closes-a-labeled-issue-only-after-the-issue-is-checked-again)
+- [Landing closes a labeled issue only after the issue is checked again: edited after the label](#landing-closes-a-labeled-issue-only-after-the-issue-is-checked-again-edited-after-the-label)
+- [Landing closes a labeled issue only after the issue is checked again: assigned to someone else](#landing-closes-a-labeled-issue-only-after-the-issue-is-checked-again-assigned-to-someone-else)
+- [Landing closes a labeled issue only after the issue is checked again: labeled again after its work started](#landing-closes-a-labeled-issue-only-after-the-issue-is-checked-again-labeled-again-after-its-work-started)
+- [A runner claims only a ready task](#a-runner-claims-only-a-ready-task)
 
 ### Rule 13.1
 
 - [An untagged group inside a parallel group runs in order](#an-untagged-group-inside-a-parallel-group-runs-in-order)
 - [A parallel group's children are ready together, in file order](#a-parallel-groups-children-are-ready-together-in-file-order)
+- [On a tie in waiting tasks, the longer chain goes first](#on-a-tie-in-waiting-tasks-the-longer-chain-goes-first)
 - [Two runners race for one claim](#two-runners-race-for-one-claim)
 - [Two runners race for one claim: the second runner is not the assignee](#two-runners-race-for-one-claim-the-second-runner-is-not-the-assignee)
 
 ### Rule 13.2
 
 - [A parallel group's children are ready together, in file order](#a-parallel-groups-children-are-ready-together-in-file-order)
+- [On a tie in waiting tasks, the longer chain goes first](#on-a-tie-in-waiting-tasks-the-longer-chain-goes-first)
 
 ### Rule 14.1
 
@@ -2957,10 +3852,24 @@ Then
 - [An integration branch that already holds the default branch is not merged](#an-integration-branch-that-already-holds-the-default-branch-is-not-merged)
 - [A linked spec lands on the branch named for its parent](#a-linked-spec-lands-on-the-branch-named-for-its-parent)
 
+### Rule 14.2
+
+- [A runner neither creates an integration branch nor merges one into the default branch](#a-runner-neither-creates-an-integration-branch-nor-merges-one-into-the-default-branch)
+
 ### Rule 14.3
 
 - [A claim on an integration branch merges the default branch in first](#a-claim-on-an-integration-branch-merges-the-default-branch-in-first)
+- [No task is claimed on an integration branch while merging the default branch into it conflicts](#no-task-is-claimed-on-an-integration-branch-while-merging-the-default-branch-into-it-conflicts)
 - [An integration branch that already holds the default branch is not merged](#an-integration-branch-that-already-holds-the-default-branch-is-not-merged)
+- [Tasks claimed together on an integration branch start from one merge of the default branch](#tasks-claimed-together-on-an-integration-branch-start-from-one-merge-of-the-default-branch)
+
+### Rule 14.4
+
+- [Tasks claimed together on an integration branch start from one merge of the default branch](#tasks-claimed-together-on-an-integration-branch-start-from-one-merge-of-the-default-branch)
+
+### Rule 14.5
+
+- [No task is claimed on an integration branch while merging the default branch into it conflicts](#no-task-is-claimed-on-an-integration-branch-while-merging-the-default-branch-into-it-conflicts)
 
 ### Rule 14.6
 
@@ -2973,6 +3882,7 @@ Then
 
 - [A claim takes the generation above leases its deleted branch left](#a-claim-takes-the-generation-above-leases-its-deleted-branch-left)
 - [A fresh claim after a restart holds no landed work](#a-fresh-claim-after-a-restart-holds-no-landed-work-1)
+- [A runner claims only a ready task](#a-runner-claims-only-a-ready-task)
 - [A fresh claim after a restart holds no landed work](#a-fresh-claim-after-a-restart-holds-no-landed-work)
 - [Landing on an integration branch is interrupted before the tick](#landing-on-an-integration-branch-is-interrupted-before-the-tick)
 - [Two runners race for one claim](#two-runners-race-for-one-claim)
@@ -2980,6 +3890,7 @@ Then
 - [A runner that restarts with an empty cache keeps its own claim](#a-runner-that-restarts-with-an-empty-cache-keeps-its-own-claim)
 - [A claim branch takes the task, and the next waits](#a-claim-branch-takes-the-task-and-the-next-waits)
 - [A task waits for the one above it](#a-task-waits-for-the-one-above-it)
+- [A task ID is any code span in the ID grammar, and a bare ID is refused](#a-task-id-is-any-code-span-in-the-id-grammar-and-a-bare-id-is-refused)
 
 ### Rule 15.2
 
@@ -2993,6 +3904,10 @@ Then
 - [Two runners resume one handed-off claim, and the first lease create wins](#two-runners-resume-one-handed-off-claim-and-the-first-lease-create-wins)
 - [A runner that restarts with an empty cache keeps its own claim](#a-runner-that-restarts-with-an-empty-cache-keeps-its-own-claim)
 - [A stale holder's push is rejected after a takeover](#a-stale-holders-push-is-rejected-after-a-takeover)
+
+### Rule 15.4
+
+- [A runner never takes or deletes another login's stale claim](#a-runner-never-takes-or-deletes-another-logins-stale-claim)
 
 ### Rule 15.5
 
@@ -3063,8 +3978,13 @@ Then
 - [A base that moved is merged into the claim branch before the checks](#a-base-that-moved-is-merged-into-the-claim-branch-before-the-checks)
 - [Failing checks land nothing](#failing-checks-land-nothing)
 
+### Rule 16.4
+
+- [A force push and a rebase of a shared branch are refused](#a-force-push-and-a-rebase-of-a-shared-branch-are-refused)
+
 ### Rule 16.5
 
+- [A merged pull request whose head is not the checked commit is not landed work](#a-merged-pull-request-whose-head-is-not-the-checked-commit-is-not-landed-work)
 - [A fresh claim after a restart holds no landed work](#a-fresh-claim-after-a-restart-holds-no-landed-work-1)
 - [Landed work with no tick on an integration branch is ticked there](#landed-work-with-no-tick-on-an-integration-branch-is-ticked-there)
 - [A merged pull request whose branch GitHub deleted is landed work awaiting its tick](#a-merged-pull-request-whose-branch-github-deleted-is-landed-work-awaiting-its-tick)
@@ -3099,6 +4019,12 @@ Then
 
 - [A pull request merges and GitHub deletes its branch before the tick](#a-pull-request-merges-and-github-deletes-its-branch-before-the-tick)
 
+### Rule 17.7
+
+- [Auto-merge is armed only once the current base is merged in and the checks passed](#auto-merge-is-armed-only-once-the-current-base-is-merged-in-and-the-checks-passed)
+- [Auto-merge is armed only once the current base is merged in and the checks passed: while the head is behind the base](#auto-merge-is-armed-only-once-the-current-base-is-merged-in-and-the-checks-passed-while-the-head-is-behind-the-base)
+- [Auto-merge is armed only once the current base is merged in and the checks passed: while the checks still run](#auto-merge-is-armed-only-once-the-current-base-is-merged-in-and-the-checks-passed-while-the-checks-still-run)
+
 ### Rule 18.1
 
 - [Landed work with no tick on an integration branch is ticked there](#landed-work-with-no-tick-on-an-integration-branch-is-ticked-there)
@@ -3106,6 +4032,14 @@ Then
 - [A manual task is ticked on the specs branch when the base is the default branch](#a-manual-task-is-ticked-on-the-specs-branch-when-the-base-is-the-default-branch)
 - [Landing on an integration branch is interrupted before the tick](#landing-on-an-integration-branch-is-interrupted-before-the-tick)
 - [A spec in one file keeps its tasks under ## Tasks](#a-spec-in-one-file-keeps-its-tasks-under--tasks)
+
+### Rule 19.1
+
+- [Review findings go to the spec issue as advice naming the task and the commit](#review-findings-go-to-the-spec-issue-as-advice-naming-the-task-and-the-commit)
+
+### Rule 19.2
+
+- [Review findings go to the spec issue as advice naming the task and the commit](#review-findings-go-to-the-spec-issue-as-advice-naming-the-task-and-the-commit)
 
 ### Rule 20.1
 
@@ -3137,7 +4071,7 @@ Then
 
 ### Rule 20.8
 
-- [Text from an issue, comment or commit is not an instruction](#text-from-an-issue-comment-or-commit-is-not-an-instruction)
+- [Comment text is never an instruction, and only an approver's reply answers a pending action](#comment-text-is-never-an-instruction-and-only-an-approvers-reply-answers-a-pending-action)
 
 ### Rule 20.9
 

@@ -1,0 +1,25 @@
+{
+  "title": "A spec is one file or one folder, and a name in both is refused",
+  "rules": ["1.1"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": ["main"],
+    "behind": []
+  },
+  "issues": {
+    "lexer": ["acme-alice"],
+    "parser": ["acme-alice"],
+    "widget": ["acme-alice"]
+  },
+  "expect": {
+    "violations": {
+      "lexer": [],
+      "parser": [],
+      "widget": ["1.1"]
+    },
+    "ready": ["lexer/l-1", "parser/p-1"]
+  }
+}

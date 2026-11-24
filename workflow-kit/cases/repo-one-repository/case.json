@@ -1,0 +1,21 @@
+{
+  "title": "A spec names the one repository it changes when the runner runs several",
+  "rules": ["5.2", "5.3"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": ["main"],
+    "behind": []
+  },
+  "repositories": ["app", "docs"],
+  "issues": {},
+  "expect": {
+    "violations": {
+      "notes": ["5.3"],
+      "pair": ["5.2"],
+      "parser": []
+    }
+  }
+}

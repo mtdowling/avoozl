@@ -34,8 +34,13 @@ export type Permission = (login: string | undefined) => Promise<unknown>;
 // minimumPermission (github-policy.ts actorAllowed).
 type Approvers = Parameters<typeof actorAllowed>[0];
 type Policy = { repositories?: Record<string, Approvers> } | null | undefined;
-// One spec's cached result.
-type Result = { pass: boolean; reason?: string; stopped?: boolean };
+// One spec's cached result, with the issue's `updated_at` when it was read.
+type Result = {
+  pass: boolean;
+  reason?: string;
+  stopped?: boolean;
+  updatedAt?: string;
+};
 // The spec links a stop follows.
 interface Linked {
   parents(name: string): { name: string }[];
@@ -45,7 +50,7 @@ export interface LabelReader {
   issue(
     repository: string,
     number: number,
-  ): Promise<{ labels?: Label[] } | null>;
+  ): Promise<{ labels?: Label[]; updated_at?: string } | null>;
   issueEvents?(repository: string, number: number): Promise<IssueEvent[]>;
   permission(
     repository: string,
@@ -183,7 +188,8 @@ export function stoppedSpecs(
 // Read the spec issue of every approved spec with one, and cache whether its
 // filters pass and whether it carries a writer's stop label. One permission
 // read per actor per pass; the events are read only when a filter, the stop
-// label or a stop to clear needs them. `policy` is the GitHub policy, whose
+// label or a stop to clear needs them, or the issue is new to the cache or
+// changed since its last read. `policy` is the GitHub policy, whose
 // repository entries name who approves. Returns the read errors; a spec
 // whose read fails keeps its last result.
 export async function readLabelFilters(
@@ -224,8 +230,17 @@ export async function readLabelFilters(
             lower(typeof label === "string" ? label : label?.name) ===
             lower(filters.stop),
         ),
+        previous = results[plan.id],
+        updated = issue?.updated_at,
+        // A stop a non-approver removed leaves no label to see, so the
+        // events are read on the first read and whenever the issue changed
+        // since the last one: a rebuilt cache never reads it as cleared.
         events =
-          filtering(filters) || stopOn || results[plan.id]?.stopped
+          filtering(filters) ||
+          stopOn ||
+          previous?.stopped ||
+          !previous ||
+          previous.updatedAt !== updated
             ? await issueEvents(github_, receipt.number)
             : [],
         permission = async (login: string | undefined) => {
@@ -247,6 +262,7 @@ export async function readLabelFilters(
           permission,
           approversOf(policy, github_),
         ),
+        ...(updated ? { updatedAt: updated } : {}),
       };
     } catch (error) {
       errors.push({ repository: github_, error: (error as Error).message });

@@ -1,0 +1,50 @@
+{
+  "title": "A runner never takes or deletes another login's stale claim",
+  "rules": ["15.4"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main",
+    "staleHours": 24
+  },
+  "origin": {
+    "branches": ["main"]
+  },
+  "issues": {
+    "parser": ["acme-alice"]
+  },
+  "runners": {
+    "A": "acme-alice",
+    "B": "acme-bob"
+  },
+  "steps": [
+    {
+      "runner": "A",
+      "do": "next"
+    },
+    {
+      "runner": "A",
+      "do": "claim",
+      "expect": {
+        "claimed": "avoozl/parser/p-2"
+      }
+    },
+    {
+      "runner": "B",
+      "do": "takeOver",
+      "task": "parser/p-2",
+      "afterHours": 48,
+      "expect": {
+        "holder": false
+      }
+    }
+  ],
+  "then": {
+    "branches": ["avoozl/parser/p-2"],
+    "leaseHolder": {
+      "parser/p-2": "A"
+    },
+    "leases": {
+      "parser/p-2": [1]
+    }
+  }
+}

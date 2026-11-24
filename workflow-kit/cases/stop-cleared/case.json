@@ -1,0 +1,47 @@
+{
+  "title": "Only an approver's removal of the stop label clears a stop",
+  "rules": ["10.1", "12.1"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": ["main"],
+    "behind": []
+  },
+  "writers": ["acme-alice", "acme-bob", "acme-owner"],
+  "approvers": ["acme-owner"],
+  "issues": {
+    "alpha": ["acme-alice"],
+    "beta": ["acme-alice"]
+  },
+  "labels": {
+    "alpha": [
+      {
+        "event": "labeled",
+        "name": "avoozl:stopped",
+        "by": "acme-bob"
+      },
+      {
+        "event": "unlabeled",
+        "name": "avoozl:stopped",
+        "by": "acme-bob"
+      }
+    ],
+    "beta": [
+      {
+        "event": "labeled",
+        "name": "avoozl:stopped",
+        "by": "acme-bob"
+      },
+      {
+        "event": "unlabeled",
+        "name": "avoozl:stopped",
+        "by": "acme-owner"
+      }
+    ]
+  },
+  "expect": {
+    "ready": ["beta/b-1"]
+  }
+}
