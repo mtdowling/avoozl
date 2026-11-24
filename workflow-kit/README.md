@@ -56,6 +56,7 @@ workflow-kit/cases/serial-list-next/
 | `runner` | The login the runner acts as, and the repository's default branch |
 | `origin.branches` | Every branch on origin, claim branches and lease refs included |
 | `origin.behind` | Integration branches that do not yet hold the default branch's head |
+| `origin.conflicts` | Integration branches into which the default branch does not merge cleanly |
 | `origin.leases` | Each task's leases as `{generation, ageHours}`, by `spec/task`, with `released: true` on a released lease |
 | `origin.claimAgeHours` | Hours since each claim branch's newest commit, by `spec/task` |
 | `origin.graph` | The commits a case names, as `{commit: [parents]}` |
@@ -64,8 +65,17 @@ workflow-kit/cases/serial-list-next/
 | `origin.mergedPullHeads` | Head ref names of merged pull requests, claim branches GitHub deleted included |
 | `issues` | Each spec's issue assignees, by spec name. A spec missing here has no issue |
 | `stops` | The specs whose issue carries a writer's stop label |
-| `issueList` | Present on marker cases: each issue's `number`, `state`, `author` and `body` |
+| `labels` | Each spec issue's label changes, oldest first, by spec name, as `{event, name, by}` with `event` `labeled` or `unlabeled` |
+| `issueList` | Present on marker cases: each issue's `number`, `state`, `author`, `author_association` and `body` |
 | `writers` | The logins with write access, when a case needs to tell them from strangers |
+| `readers` | The logins with read access only |
+| `repositories` | The repositories the runner runs specs for, when it runs more than one |
+| `symlinks` | Symlinks in `repo/`, as path to target, made when the case is read |
+| `labeledIssues` | Present on labeled issue cases: each issue's `number`, `title`, `body`, `state`, `assignees`, `editedAt` and `events` as `{event, name, by, at}`, where `at` and `editedAt` are hours into the day |
+| `issueLanding` | The labeled issue whose task lands, by `number`, and `after`, the fields of the issue that change before it lands |
+| `publish` | Present on publishing cases: the approved `spec`, its approving `commit`, who merged its pull request (`mergedBy`), that pull request's `assignees`, and `existing`, a writer's open spec issue |
+| `autoMerge` | Present on auto-merge cases: what the pull request `waiting` for (`checks` or `review`), and how many commits its head is `behind` the base |
+| `review` | Present on review output cases: the `task`, the reviewed `commit` and the spec issue's number, `issue` |
 | `approvers` | The logins that may approve a spec, with `history` |
 | `approvalTrust` | `github` (unset) or `branch-protection`, the repository's setting for rule 7.2 |
 | `history` | The specs branch's commits, oldest first, each `{commit, author}` and, when GitHub says so, `mergedBy` (who merged its pull request) and `signer` (who signed it with a verified signature). `author` is the login the commit's author email names, which proves nothing under `github`. The files a commit changes are under `commits/<commit>/` |
@@ -85,8 +95,10 @@ workflow-kit/cases/serial-list-next/
 | `variants` | Other inputs for the same case, by name, each holding the fields it replaces |
 
 A box marked `x` in `repo/` is ticked on the specs branch. `runner.specsBranch`
-names the specs branch when it is not the default branch, and
-`runner.staleHours` sets the hours after which a claim or lease is stale.
+names the specs branch when it is not the default branch,
+`runner.staleHours` sets the hours after which a claim or lease is stale,
+`runner.labels` holds the repository's `require`, `exclude` and `stop` label
+settings, and `runner.localOnly` says the repository has no GitHub remote.
 
 A case with no `history` has every spec approved. A case with a `history` has
 the commits it lists, and `repo/` holds the files as the last commit leaves
@@ -99,7 +111,8 @@ them. A spec is approved as rule 7.3 says, with the authors in `approvers`.
 | `violations` | For each spec name, the sorted rule numbers its text breaks |
 | `approved` | For each spec name, whether its current text is approved |
 | `ready` | The ready tasks as `spec/task`, the one to take first at the front |
-| `claim` | The claim branch for the first ready task, the branch it starts from, and whether the default branch is merged in first |
+| `claim` | The claim branch for the first ready task, the branch it starts from, and whether the default branch is merged in first, or `null` when nothing is claimed |
+| `claimEach` | The claim `branches` of each ready task claimed in turn, and `baseMerges`, how many times the default branch was merged into an integration branch for them |
 | `resume` | For the `resume` task, the `holder` runner that gets the lease or `null`, the `lease` ref it creates or `null`, and the runners that `stopped` |
 | `landed` | Whether the `land` claim holds landed work, from its graph |
 | `push` | For each runner of `push`, `accepted` or `rejected`, or `held` when the task's spec is stopped |
@@ -110,6 +123,11 @@ them. A spec is approved as rule 7.3 says, with the authors in `approvers`.
 | `specIssues` | For each spec name, the number of the issue that is its spec issue, or `null` |
 | `duplicates` | The numbers of the issues the runner closes as duplicates, in order |
 | `groupTicks` | For each spec name, the IDs of the groups the runner ticks in their own commit, open groups whose children are all ticked |
+| `issueTasks` | The labeled issues that are tasks, each `{task, branch}` with its claim branch |
+| `issueClose` | `closed` when landing the `issueLanding` task closes its issue, else `open` |
+| `published` | The spec issue the runner creates for `publish`, as `{assignees}`, or `null` |
+| `autoMerge` | `armed` when the runner arms GitHub auto-merge on the pull request, else `not-armed` |
+| `reviewOutput` | Each write the runner makes to GitHub for the `review` round, as `{kind, number, namesTask, namesCommit}`, where `kind` is `comment` or `review` |
 
 A case checks only the probes in its `expect`. `landing.action` is one of
 `fast-forward-base`, `open-draft-pull-request`, `open-pull-request`,
@@ -182,6 +200,7 @@ probe, and `expectFail` can mark one.
 | `claims` | For each runner that claimed, the task it holds or `null` |
 | `leaseHolder` | For each listed task, the runner that made its newest lease |
 | `leases` | For each listed task, the lease generations on origin |
+| `lease` | For each listed task, its newest lease commit's `subject`, whether its `Start:` line is the default branch's head (`startsAtBase`), its `Task:` line and its `Done:` lines |
 | `branches` | The claim branches on origin, sorted |
 | `rejectedPushes` | The runners with a push that GitHub rejected, sorted |
 | `ticked` | The tasks ticked on their done branches, sorted |
@@ -203,9 +222,9 @@ shows as a failed probe.
 | `do` | Arguments | The runner | Returns |
 | --- | --- | --- | --- |
 | `next` | | Reads the specs and GitHub, and ranks the ready tasks (13) | `ready` |
-| `claim` | `task` (default: the first of `next`) | Creates the claim branch and the first lease (15.1) | `claimed`, the branch or `null`, and `base` and `lease` |
+| `claim` | `task` (default: the first of `next`) | Creates the claim branch and the first lease (15.1), for a task that is ready (12.2) | `claimed`, the branch or `null`, and `base` and `lease` |
 | `readLeases` | `task` | Reads the generations of the task's leases (15.3) | `generations` |
-| `takeOver` | `task`, `afterHours` | Takes the next lease of a claim, which the clock `afterHours` after its last commit makes stale, and pushes its takeover commit (15.7, 15.8) | `holder`, whether it took the lease, and `lease` |
+| `takeOver` | `task`, `afterHours` | Takes the next lease of a claim on a spec assigned to its login, which the clock `afterHours` after its last commit makes stale, and pushes its takeover commit (15.7, 15.8) | `holder`, whether it took the lease, and `lease` |
 | `push` | `task` or `branch`, `files` | Pushes a commit to the task's claim branch, or to `branch`, never forced | `push`, `accepted` or `rejected` |
 | `land` | `task`, `mode`, `pr`, `checks`, `interrupt` | Decides the landing from the mode and the checks, ticks, and lands (16, 17). `interrupt: "before-tick"` stops after the work reaches the base and before the tick | `action`, and `landed` or `pull` |
 | `recover` | `task` | Reads whether the claim holds landed work, then ticks it on its done branch and deletes the claim branch and leases (16.5) | `action` and `landed` |
@@ -220,8 +239,17 @@ with `revision: "redo-or-stop"` when they differ.
 
 ### Avoozl's adapter
 
-Avoozl's adapter is `src/app/test/workflow-kit-scenario.ts`. It calls Avoozl's
-own claim, lease, landing and tick code, and runs it against a bare local git
+Avoozl's adapter is `src/app/test/workflow-kit-adapter.ts` for snapshot
+cases and `src/app/test/workflow-kit-scenario.ts` for scenarios. Both call
+Avoozl's own code. A case's specs are written to a temporary checkout and
+read by Avoozl's spec folder reader. The ready list comes from Avoozl's parser,
+its assignee, label filter and stop readers over a workspace cache in memory,
+and its ranking. The claim uses Avoozl's claim base and claim calls. Spec
+issue markers go through its permission-checked reader, and labeled issues,
+spec issue publishing, auto-merge and review output go through their own
+readers and writers (`workflow-kit-github.ts`) over a fake GitHub API.
+
+Scenarios run against a bare local git
 repository with a fake GitHub API over it (`workflow-kit-world.ts`). The fake
 API keeps pull requests, merges with `merged_by`, deletes a head branch when
 the repository says so, and signs the commits it makes. A rejected push is

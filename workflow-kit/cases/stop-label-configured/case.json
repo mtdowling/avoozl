@@ -1,0 +1,51 @@
+{
+  "title": "The operator names the stop label, and a default name starts with avoozl:",
+  "rules": ["9.2", "10.1"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main",
+    "labels": {
+      "stop": "hold"
+    }
+  },
+  "origin": {
+    "branches": ["main"],
+    "behind": []
+  },
+  "writers": ["acme-alice", "acme-bob"],
+  "issues": {
+    "alpha": ["acme-alice"],
+    "beta": ["acme-alice"]
+  },
+  "labels": {
+    "alpha": [
+      {
+        "event": "labeled",
+        "name": "avoozl:stopped",
+        "by": "acme-bob"
+      }
+    ],
+    "beta": [
+      {
+        "event": "labeled",
+        "name": "hold",
+        "by": "acme-bob"
+      }
+    ]
+  },
+  "expect": {
+    "ready": ["alpha/a-1"]
+  },
+  "variants": {
+    "default": {
+      "title": "with no stop label set",
+      "runner": {
+        "login": "acme-alice",
+        "defaultBranch": "main"
+      },
+      "expect": {
+        "ready": ["beta/b-1"]
+      }
+    }
+  }
+}

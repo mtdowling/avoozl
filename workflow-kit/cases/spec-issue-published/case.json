@@ -1,0 +1,49 @@
+{
+  "title": "The approver's runner publishes the spec issue with the approving pull request's assignees",
+  "rules": ["8.1", "8.2"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": ["main"],
+    "behind": []
+  },
+  "writers": ["acme-alice", "acme-bob"],
+  "publish": {
+    "spec": "parser",
+    "commit": "c1",
+    "mergedBy": "acme-alice",
+    "assignees": ["acme-bob"]
+  },
+  "expect": {
+    "published": {
+      "assignees": ["acme-bob"]
+    }
+  },
+  "variants": {
+    "other-runner": {
+      "title": "on a runner that did not approve",
+      "runner": {
+        "login": "acme-bob",
+        "defaultBranch": "main"
+      },
+      "expect": {
+        "published": null
+      }
+    },
+    "existing": {
+      "title": "when a writer's spec issue is already open",
+      "publish": {
+        "spec": "parser",
+        "commit": "c1",
+        "mergedBy": "acme-alice",
+        "assignees": ["acme-bob"],
+        "existing": 7
+      },
+      "expect": {
+        "published": null
+      }
+    }
+  }
+}

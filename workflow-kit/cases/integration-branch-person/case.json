@@ -1,0 +1,26 @@
+{
+  "title": "A runner neither creates an integration branch nor merges one into the default branch",
+  "rules": ["14.2"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": ["main", "client"],
+    "behind": []
+  },
+  "issues": {
+    "client": ["acme-alice"]
+  },
+  "actions": [
+    {
+      "kind": "create-integration-branch"
+    },
+    {
+      "kind": "merge-integration-branch"
+    }
+  ],
+  "expect": {
+    "limits": ["14.2", "14.2"]
+  }
+}

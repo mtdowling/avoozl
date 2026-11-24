@@ -1,0 +1,89 @@
+{
+  "title": "Landing closes a labeled issue only after the issue is checked again",
+  "rules": ["11.3", "11.4", "12.2"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main",
+    "labels": {
+      "require": ["avoozl:ready"]
+    }
+  },
+  "origin": {
+    "branches": ["main"],
+    "behind": []
+  },
+  "writers": ["acme-alice", "acme-bob"],
+  "labeledIssues": [
+    {
+      "number": 11,
+      "title": "Report unknown tokens",
+      "body": "An unknown token is reported with its line.",
+      "assignees": ["acme-alice"],
+      "events": [
+        {
+          "event": "labeled",
+          "name": "avoozl:ready",
+          "by": "acme-bob",
+          "at": 1
+        }
+      ]
+    }
+  ],
+  "issueLanding": {
+    "number": 11
+  },
+  "expect": {
+    "issueClose": "closed"
+  },
+  "variants": {
+    "edited": {
+      "title": "edited after the label",
+      "issueLanding": {
+        "number": 11,
+        "after": {
+          "editedAt": 3
+        }
+      },
+      "expect": {
+        "issueClose": "open"
+      }
+    },
+    "reassigned": {
+      "title": "assigned to someone else",
+      "issueLanding": {
+        "number": 11,
+        "after": {
+          "assignees": ["acme-carol"]
+        }
+      },
+      "expect": {
+        "issueClose": "open"
+      }
+    },
+    "relabeled": {
+      "title": "labeled again after its work started",
+      "issueLanding": {
+        "number": 11,
+        "after": {
+          "events": [
+            {
+              "event": "unlabeled",
+              "name": "avoozl:ready",
+              "by": "acme-bob",
+              "at": 3
+            },
+            {
+              "event": "labeled",
+              "name": "avoozl:ready",
+              "by": "acme-bob",
+              "at": 4
+            }
+          ]
+        }
+      },
+      "expect": {
+        "issueClose": "open"
+      }
+    }
+  }
+}

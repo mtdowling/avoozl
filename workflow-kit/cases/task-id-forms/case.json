@@ -1,0 +1,28 @@
+{
+  "title": "A task ID is any code span in the ID grammar, and a bare ID is refused",
+  "rules": ["2.1", "15.1"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": ["main"],
+    "behind": []
+  },
+  "issues": {
+    "bare": ["acme-alice"],
+    "ids": ["acme-alice"]
+  },
+  "expect": {
+    "violations": {
+      "bare": ["2.1"],
+      "ids": []
+    },
+    "ready": ["ids/1.2", "ids/parse", "ids/P-4"],
+    "claim": {
+      "branch": "avoozl/ids/1.2",
+      "base": "main",
+      "mergeBase": false
+    }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "title": "A runner with no GitHub remote runs its own specs",
+  "rules": ["8.3"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main",
+    "localOnly": true
+  },
+  "origin": {
+    "branches": ["main"],
+    "behind": []
+  },
+  "issues": {},
+  "expect": {
+    "ready": ["parser/p-2"]
+  }
+}

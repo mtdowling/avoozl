@@ -120,13 +120,14 @@ export function runnerLimit(action: Action, { login }: { login: string }) {
         : "20.7";
     // An approver's reply may answer a pending action the runner named;
     // comment text never changes a task, runs a command or lands work.
-    // shortcut: `follow-text` is `answer-pending-action` until the kit case
-    // limit-20-8 moves to the split kinds.
-    case "follow-text":
     case "answer-pending-action":
       return action.approverReply ? null : "20.8";
     case "follow-comment-text":
       return "20.8";
+    // A person creates an integration branch and merges it (14.2).
+    case "create-integration-branch":
+    case "merge-integration-branch":
+      return "14.2";
     case "run-command":
       return action.repositoryCheck ? null : "20.9";
     case "write-public":

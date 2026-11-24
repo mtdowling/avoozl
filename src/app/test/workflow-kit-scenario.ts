@@ -37,6 +37,7 @@ import {
   MetaStore,
   ready,
   type Specs,
+  specHolds,
   specsOf,
 } from "./workflow-kit-adapter.ts";
 import { found } from "./view-shapes.ts";
@@ -237,22 +238,23 @@ export async function scenario(read: Case) {
       claim: async (runner, args) => {
         const files = treeOf(),
           specs = specsOf(files),
-          order = args.task ? [args.task] : runner.ready;
-        let claimed = null;
-        try {
-          claimed = await claim(
-            view(runner.login),
-            specs,
-            order,
-            runner.github,
-            {
-              raw: true,
-              root: runner.root,
-            },
-          );
-        } catch (error) {
-          if ((error as { status?: number }).status !== 409) throw error;
-        }
+          // Rule 12.2: a named task is claimed only while it is ready, as
+          // the runner's own claims come only from its ready list.
+          order = args.task
+            ? (await ready(view(runner.login), specs)).filter(
+                (name) => name === args.task,
+              )
+            : runner.ready;
+        const claimed = await claim(
+          view(runner.login),
+          specs,
+          order,
+          runner.github,
+          {
+            raw: true,
+            root: runner.root,
+          },
+        );
         if (!claimed || !("task" in claimed)) {
           runner.claimed = null;
           return { claimed: null };
@@ -302,7 +304,11 @@ export async function scenario(read: Case) {
           [spec, id] = taskParts(task),
           now = Date.now() + (args.afterHours ?? 0) * HOUR;
         await refreshClaims(runner.store, runner.github);
-        const claimed = claimOf(runner.store, REPOSITORY, id),
+        // Rule 15.7: only a runner the spec is assigned to resumes it.
+        const assigned = !(
+            await specHolds(view(runner.login), specsOf(treeOf()))
+          ).held.has(spec),
+          claimed = assigned ? claimOf(runner.store, REPOSITORY, id) : null,
           taken =
             claimed && resumable(claimed, testCase.runner.staleHours ?? 24, now)
               ? await resumeClaim(runner.github, {
@@ -621,6 +627,35 @@ async function probes(
         task,
         lease(task).map((item) => generationOf(item.ref)),
       ]),
+    );
+  // Rule 15.1: the newest lease commit's message, as any runner reads it.
+  if (want.includes("lease"))
+    out.lease = Object.fromEntries(
+      Object.keys(testCase.then.lease ?? {}).map((task) => {
+        const newest = lease(task).at(-1),
+          lines = newest
+            ? world
+                .git(["log", "-1", "--format=%B", newest.object.sha])
+                .split("\n")
+            : [],
+          values = (key: string) =>
+            lines
+              .filter((line) => line.startsWith(`${key}: `))
+              .map((line) => line.slice(key.length + 2));
+        return [
+          task,
+          newest
+            ? {
+                subject: lines[0],
+                startsAtBase:
+                  values("Start")[0] ===
+                  world.head(testCase.runner.defaultBranch),
+                task: values("Task")[0] ?? null,
+                done: values("Done"),
+              }
+            : null,
+        ];
+      }),
     );
   if (want.includes("claims"))
     out.claims = Object.fromEntries(

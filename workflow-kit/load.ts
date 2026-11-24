@@ -26,6 +26,8 @@ export interface Case {
     defaultBranch?: string;
     specsBranch?: string;
     staleHours?: number;
+    localOnly?: boolean;
+    labels?: { require?: string[]; exclude?: string[]; stop?: string };
   };
   runners?: Record<string, string>;
   origin?: {

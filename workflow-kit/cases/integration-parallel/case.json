@@ -1,0 +1,22 @@
+{
+  "title": "Tasks claimed together on an integration branch start from one merge of the default branch",
+  "rules": ["14.3", "14.4"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": ["main", "client"],
+    "behind": ["client"]
+  },
+  "issues": {
+    "client": ["acme-alice"]
+  },
+  "expect": {
+    "ready": ["client/c-1", "client/c-2"],
+    "claimEach": {
+      "branches": ["avoozl/client/c-1", "avoozl/client/c-2"],
+      "baseMerges": 1
+    }
+  }
+}

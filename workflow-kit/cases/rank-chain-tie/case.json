@@ -1,0 +1,18 @@
+{
+  "title": "On a tie in waiting tasks, the longer chain goes first",
+  "rules": ["13.1", "13.2"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": ["main"],
+    "behind": []
+  },
+  "issues": {
+    "rank": ["acme-alice"]
+  },
+  "expect": {
+    "ready": ["rank/d-1", "rank/w-1"]
+  }
+}

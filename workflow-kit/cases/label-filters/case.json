@@ -1,0 +1,54 @@
+{
+  "title": "A required label counts only from a writer, and an excluded label holds work whoever added it",
+  "rules": ["9.1", "12.1"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main",
+    "labels": {
+      "require": ["ready"],
+      "exclude": ["needs-design"]
+    }
+  },
+  "origin": {
+    "branches": ["main"],
+    "behind": []
+  },
+  "writers": ["acme-alice", "acme-bob"],
+  "issues": {
+    "alpha": ["acme-alice"],
+    "beta": ["acme-alice"],
+    "delta": ["acme-alice"],
+    "gamma": ["acme-alice"]
+  },
+  "labels": {
+    "alpha": [
+      {
+        "event": "labeled",
+        "name": "ready",
+        "by": "acme-bob"
+      }
+    ],
+    "beta": [
+      {
+        "event": "labeled",
+        "name": "ready",
+        "by": "acme-triager"
+      }
+    ],
+    "gamma": [
+      {
+        "event": "labeled",
+        "name": "ready",
+        "by": "acme-bob"
+      },
+      {
+        "event": "labeled",
+        "name": "needs-design",
+        "by": "acme-triager"
+      }
+    ]
+  },
+  "expect": {
+    "ready": ["alpha/a-1"]
+  }
+}

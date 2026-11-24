@@ -1,0 +1,41 @@
+{
+  "title": "Auto-merge is armed only once the current base is merged in and the checks passed",
+  "rules": ["17.7"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": ["main"],
+    "behind": []
+  },
+  "autoMerge": {
+    "waiting": "review",
+    "behind": 0
+  },
+  "expect": {
+    "autoMerge": "armed"
+  },
+  "variants": {
+    "behind": {
+      "title": "while the head is behind the base",
+      "autoMerge": {
+        "waiting": "review",
+        "behind": 2
+      },
+      "expect": {
+        "autoMerge": "not-armed"
+      }
+    },
+    "checks": {
+      "title": "while the checks still run",
+      "autoMerge": {
+        "waiting": "checks",
+        "behind": 0
+      },
+      "expect": {
+        "autoMerge": "not-armed"
+      }
+    }
+  }
+}

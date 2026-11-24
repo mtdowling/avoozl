@@ -136,6 +136,25 @@ const THEN: Record<string, (value: unknown) => string[]> = {
       ? `The ready tasks are ${list(value)}.`
       : "No task is ready.",
   ],
+  issueTasks: (value) => [
+    listOf(value).length
+      ? `The labeled issues that are tasks are ${listOf(value)
+          .map((item) => {
+            const { task, branch } = item as { task?: string; branch?: string };
+            return `${code(task)} on ${code(branch)}`;
+          })
+          .join(", ")}.`
+      : "No labeled issue is a task.",
+  ],
+  issueClose: (value) => [`Landing leaves the issue ${value}.`],
+  published: (value) => [
+    value
+      ? `The runner creates the spec issue, assigned to ${list((value as { assignees?: unknown }).assignees) || "no one"}.`
+      : "The runner creates no spec issue.",
+  ],
+  autoMerge: (value) => [
+    value === "armed" ? "Auto-merge is armed." : "Auto-merge is not armed.",
+  ],
 };
 
 const taskLines = (text: string) =>
@@ -162,6 +181,11 @@ function givenOf(testCase: Case) {
     out.push(
       `Origin's ${list(origin.behind)} lacks the default branch's head.`,
     );
+  const conflicts = listOf(origin.conflicts);
+  if (conflicts.length)
+    out.push(`Merging the default branch into ${list(conflicts)} conflicts.`);
+  if (runner.localOnly)
+    out.push("The runner's repository has no GitHub remote.");
   if (testCase.landing)
     out.push(
       `The landing mode is ${code(testCase.landing.mode)}${testCase.landing.pr ? ` with ${code(testCase.landing.pr)} pull requests` : ""}.`,
@@ -173,9 +197,14 @@ function givenOf(testCase: Case) {
   for (const spec of testCase.stops ?? [])
     out.push(`The issue of spec ${code(spec)} has a stop label.`);
   const extras: [string, unknown][] = [
+    ["labels setting", runner.labels],
     ["writers", testCase.writers],
+    ["readers", testCase.readers],
     ["approvers", testCase.approvers],
     ["approvalTrust", testCase.approvalTrust],
+    ["repositories", testCase.repositories],
+    ["symlinks", testCase.symlinks],
+    ["labels", testCase.labels],
     ["history", testCase.history?.map(({ files: _files, ...rest }) => rest)],
     ["leases", origin.leases],
     ["claimAgeHours", origin.claimAgeHours],
@@ -190,18 +219,29 @@ function givenOf(testCase: Case) {
     ["actions", testCase.actions],
     ["resume", testCase.resume],
     ["issueList", testCase.issueList],
+    ["labeledIssues", testCase.labeledIssues],
+    ["issueLanding", testCase.issueLanding],
+    ["publish", testCase.publish],
+    ["autoMerge", testCase.autoMerge],
+    ["review", testCase.review],
   ];
   for (const [key, value] of extras)
     if (value !== undefined) out.push(`${code(key)} is ${code(value)}.`);
   return out;
 }
 
+// The task lines of each spec file: a folder's tasks.md, or a spec file
+// with a `## Tasks` section, either layout.
 function specBlocks(testCase: Case) {
   const blocks: string[] = [];
   for (const [file, text] of Object.entries(testCase.files).sort())
-    if (file.endsWith("tasks.md") && taskLines(text).length)
+    if (
+      /^\.kiro\/specs\/.+\.md$/.test(file) &&
+      (file.endsWith("tasks.md") || /^## Tasks/m.test(text)) &&
+      taskLines(text).length
+    )
       blocks.push(
-        `The tasks of ${code(file.replace(/^\.kiro\/specs\//, "").replace(/\/tasks\.md$/, ""))}:`,
+        `The tasks of ${code(file.replace(/^\.kiro\/specs\//, "").replace(/(\/tasks)?\.md$/, ""))}:`,
         "",
         "```markdown",
         ...taskLines(text),

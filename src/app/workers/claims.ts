@@ -17,6 +17,7 @@ import {
   type Repository,
 } from "../git/git.ts";
 import type { QueueEntry } from "../landing/landing-queue.ts";
+import { LETTERED, NUMBERED } from "../specs/spec-refs.ts";
 import type { Task } from "../../types.ts";
 
 const PREFIX = "avoozl/";
@@ -130,8 +131,20 @@ const refused = (error: unknown) =>
 // A task with no spec claims under its own ID, as a labeled issue does.
 export const taskSpec = (task: ClaimTask) => task.planId || task.id;
 
+// The task part of a claim or lease ref is the ID as the spec writes it
+// (rules 2.1 and 15.1). Avoozl keeps a numbered or lettered ID, such as
+// `1.2`, as `<spec>.1.2`; the ref drops that prefix and a read adds it back.
+const namespaced = (id: string) => NUMBERED.test(id) || LETTERED.test(id);
+const refTask = (task: ClaimTask) => {
+  const prefix = `${taskSpec(task)}.`,
+    written = task.id.slice(prefix.length);
+  return task.id.startsWith(prefix) && namespaced(written) ? written : task.id;
+};
+const taskOfRef = (spec: string, written: string) =>
+  namespaced(written) ? `${spec}.${written}` : written;
+
 export const claimBranch = (task: ClaimTask) =>
-  `${PREFIX}${taskSpec(task)}/${task.id}`;
+  `${PREFIX}${taskSpec(task)}/${refTask(task)}`;
 
 // `refs/heads/avoozl/<spec>/<task>` as {spec, task, branch, sha}; any other
 // name under avoozl/ is not a claim.
@@ -140,7 +153,7 @@ function parseClaimRef(ref: Ref | null | undefined): Claim | null {
   return match
     ? {
         spec: match[1],
-        task: match[2],
+        task: taskOfRef(match[1], match[2]),
         branch: `${PREFIX}${match[1]}/${match[2]}`,
         sha: ref?.object?.sha ?? null,
       }
@@ -212,7 +225,7 @@ async function newestLeases(github: ClaimGitHub, repository: string) {
       ref?.ref ?? "",
     );
     if (!match) continue;
-    const key = `${match[2]}/${match[3]}`,
+    const key = `${match[2]}/${taskOfRef(match[2], match[3])}`,
       generation = Number(match[4]);
     if ((newest.get(key)?.generation ?? 0) < generation)
       newest.set(key, {
@@ -340,7 +353,10 @@ async function deleteWithLeases(
   { spec, task, branch }: Claim,
 ) {
   const leases = github.branchesUnder
-    ? await github.branchesUnder(repository, `avoozl-lease/${spec}/${task}/`)
+    ? await github.branchesUnder(
+        repository,
+        leaseRef({ id: task, planId: spec }, ""),
+      )
     : [];
   for (const lease of Array.isArray(leases) ? leases : [])
     await github.deleteBranch(
@@ -685,7 +701,7 @@ const shaOf = (branch: unknown) => {
     : undefined;
 };
 const leaseRef = (task: ClaimTask, generation: number | "") =>
-  `${LEASE_PREFIX}${taskSpec(task)}/${task.id}/${generation}`;
+  `${LEASE_PREFIX}${taskSpec(task)}/${refTask(task)}/${generation}`;
 
 // A task's lease refs, newest (highest generation) first (15.5).
 async function leaseRefs(
@@ -752,7 +768,7 @@ export function leaseMessage(
 ) {
   const issue = task.labeledIssue;
   return [
-    `Lease ${taskSpec(task)}/${task.id} generation ${generation}`,
+    `Lease ${taskSpec(task)}/${refTask(task)} generation ${generation}`,
     "",
     `Start: ${start}`,
     `Task: ${oneLine(task.title || task.id)}`,
@@ -1027,7 +1043,7 @@ export async function holdLease(
   const options = {
       env: { ...(env ?? process.env), GIT_TERMINAL_PROMPT: "0" },
     },
-    prefix = `refs/heads/${LEASE_PREFIX}${claim.spec}/${claim.task}/`,
+    prefix = `refs/heads/${leaseRef({ id: claim.task, planId: claim.spec }, "")}`,
     [newest] = (
       await remoteGit(root, ["ls-remote", url, `${prefix}*`], options)
     )

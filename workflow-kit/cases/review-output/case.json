@@ -1,0 +1,27 @@
+{
+  "title": "Review findings go to the spec issue as advice naming the task and the commit",
+  "rules": ["19.1", "19.2"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": ["main"],
+    "behind": []
+  },
+  "review": {
+    "task": "parser/p-2",
+    "commit": "4b825dc642cb6eb9a060e54bf8d69288fbee4904",
+    "issue": 7
+  },
+  "expect": {
+    "reviewOutput": [
+      {
+        "kind": "comment",
+        "number": 7,
+        "namesTask": true,
+        "namesCommit": true
+      }
+    ]
+  }
+}
