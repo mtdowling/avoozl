@@ -367,7 +367,7 @@ function graphStates(store: Store, data: Snapshot) {
     );
   // One state per node for the Graph drawing. Needs-you comes first among
   // open tasks so a person sees it even on a running or deferred task.
-  const state = (task: StateTask) => {
+  const state = (task: Task) => {
     if (complete(task.status)) return "done";
     if (
       task.decision ||
@@ -381,6 +381,9 @@ function graphStates(store: Store, data: Snapshot) {
     // Running only while a session is live; a delivery between sessions
     // (the tick opens the next one) waits.
     if (live.has(task.id)) return "running";
+    // Done as `next` counts it once nothing else holds it: the task's
+    // completion level reached, such as a leaf merged into its base.
+    if (completionReached(task, undefined, complete)) return "done";
     return ready.has(task.id) ? "ready" : "waiting";
   };
   return {
@@ -401,7 +404,7 @@ const STATE_LABELS = new Map(NODE_STATES);
 // never disagree. The stored status stays; the state sits beside it.
 export function withGraphState(store: Store, data: Snapshot) {
   const { state } = graphStates(store, data);
-  return (task: StateTask & Record<string, unknown>) => {
+  return (task: Task & Record<string, unknown>) => {
     const id = state(task),
       word = { state: id, stateLabel: STATE_LABELS.get(id) },
       out: Record<string, unknown> = {};

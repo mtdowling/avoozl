@@ -208,6 +208,41 @@ test("graph view shows delivery stages inside a task node", async (t) => {
   );
 });
 
+test("a leaf merged into its base is done on the Graph and in query, as next counts it", async (t) => {
+  // Nearby inputs: a leaf a person completes (merged, waiting for that
+  // person), and a leaf with no integration.
+  const { store } = fixture(t);
+  store.initialize({
+    ...snapshot(),
+    tasks: [
+      leaf("merged", {
+        kind: "leaf",
+        status: "implemented",
+        integration: { commit: "f".repeat(40) },
+      }),
+      leaf("signed", {
+        kind: "leaf",
+        status: "implemented",
+        completion: "person",
+        integration: { commit: "e".repeat(40) },
+      }),
+      leaf("open", { kind: "leaf", status: "implemented" }),
+    ],
+    edges: [],
+  });
+  const ops = new Operations(store, {}),
+    graph = await ops.execute<Graph>("graph.view", {}),
+    listed = await ops.execute<StateRow[]>("query");
+  assert.deepEqual(
+    Object.fromEntries(graph.tasks.map((task) => [task.id, task.state])),
+    { merged: "done", signed: "needs-you", open: "ready" },
+  );
+  assert.deepEqual(
+    Object.fromEntries(listed.map((row) => [row.id, row.stateLabel])),
+    { merged: "Done", signed: "Needs you", open: "Ready" },
+  );
+});
+
 test("query and task.get say the state the Graph draws, beside the status", async (t) => {
   const { store, ops } = graphFixture(t);
   store.mutate("Defer one", (data) => {
