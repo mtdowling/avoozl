@@ -23,17 +23,17 @@ const git = (cwd: string, ...args: string[]) =>
 const TASKS = [
   "# Tasks",
   "",
-  "- [ ] 1 Parent",
-  "  - [ ] 1.1 First",
+  "- [ ] `1` Parent",
+  "  - [ ] `1.1` First",
   "    - It works",
   "    - A summary.",
-  "  - [ ] 1.2 Second",
+  "  - [ ] `1.2` Second",
   "    - It works",
   "",
 ].join("\n");
 const mainOf = (w: { origin: string }) => git(w.origin, "rev-parse", "main");
 const tick = (text: string, n: number) =>
-  text.replace(`- [ ] 1.${n} `, `- [x] 1.${n} `);
+  text.replace(`- [ ] \`1.${n}\` `, `- [x] \`1.${n}\` `);
 
 // Another machine: its own database and a fresh clone of `origin` (the code
 // repository's unless named) at `branch`, after one read of the ticks.
@@ -223,7 +223,7 @@ test("landing ticks the task in the same commit, touches only its line, and tick
   await land(w, "t2");
   assert.equal(
     show(w.origin, "main"),
-    tick(tick(TASKS, 1), 2).replace("- [ ] 1 ", "- [x] 1 "),
+    tick(tick(TASKS, 1), 2).replace("- [ ] `1` ", "- [x] `1` "),
     "the parent ticks when its last child does",
   );
 });
@@ -325,7 +325,7 @@ test("a group two landings left open is ticked by the next read, in its own comm
     start = git(origin, "rev-parse", "main");
   await machine(t, w, "a");
   const head = git(origin, "rev-parse", "main");
-  assert.equal(show(origin, "main"), raced.replace("- [ ] 1 ", "- [x] 1 "));
+  assert.equal(show(origin, "main"), raced.replace("- [ ] `1` ", "- [x] `1` "));
   assert.equal(git(origin, "rev-list", "--count", `${start}..${head}`), "1");
   assert.equal(git(origin, "log", "-1", "--format=%s", head), "Tick s.1");
   assert.equal(
@@ -434,15 +434,20 @@ test("a landing commit is authored and committed by the configured identity, wit
 test("tickedText ticks a parent only when every child is ticked, and nothing else", () => {
   const one = tickedText("s", TASKS, ["s.1.1"]);
   assert.deepEqual(one.ticked, ["s.1.1"]);
-  assert.equal(one.text, TASKS.replace("- [ ] 1.1 ", "- [x] 1.1 "));
+  assert.equal(one.text, TASKS.replace("- [ ] `1.1` ", "- [x] `1.1` "));
   const both = tickedText("s", one.text, ["s.1.2"]);
   assert.deepEqual(both.ticked, ["s.1.2", "s.1"]);
   // A parent whose children are all ticked is left alone when nothing under
   // it ticks now.
-  const idle = tickedText("s", both.text.replace("- [x] 1 ", "- [ ] 1 "), []);
+  const idle = tickedText(
+    "s",
+    both.text.replace("- [x] `1` ", "- [ ] `1` "),
+    [],
+  );
   assert.deepEqual(idle.ticked, []);
   assert.equal(
-    tickedText("s", TASKS.replace("[ ] 1.2", "[~] 1.2"), ["s.1.2"]).ticked[0],
+    tickedText("s", TASKS.replace("[ ] `1.2`", "[~] `1.2`"), ["s.1.2"])
+      .ticked[0],
     "s.1.2",
     "a queued mark becomes ticked",
   );

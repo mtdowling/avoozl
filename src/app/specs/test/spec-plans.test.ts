@@ -86,12 +86,12 @@ test("tasks.md items map to stable IDs; fenced examples and plain words are not 
   const items = specItems(
     "config",
     [
-      "- [ ] 1. Epic",
-      "  - [x] 1.2 Done leaf",
+      "- [ ] `1` Epic",
+      "  - [x] `1.2` Done leaf",
       "```markdown",
-      "- [ ] 9 An example",
+      "- [ ] `9` An example",
       "```",
-      "- [ ]* w3.reactor-timers Migrated",
+      "- [ ]* `w3.reactor-timers` Migrated",
       "- [ ] Write tests",
     ].join("\n"),
   );
@@ -115,7 +115,7 @@ test("a valid feature spec yields its leaves and manifest edges", () => {
   assert.equal(result.type, "feature");
   const validator = found(result.proposals.find((p) => p.id === "config.1.2"));
   assert.deepEqual(validator.requires, ["config.1.1"]);
-  assert.equal(validator.lineStart, lineOf(tasksText(), "1.2 Validate"));
+  assert.equal(validator.lineStart, lineOf(tasksText(), "`1.2` Validate"));
 });
 
 test("a missing folder is refused", () => {
@@ -246,7 +246,7 @@ test("an item with no ID is refused at its line", () => {
 
 test("a repeated ID is refused at its second line", () => {
   const root = temporaryDirectory();
-  const text = tasksText() + "- [ ] 1.1 Read it again\n";
+  const text = tasksText() + "- [ ] `1.1` Read it again\n";
   writeSpec(root, "config", { "tasks.md": text, "avoozl/manifest.json": null });
   const result = lint(root);
   assert.deepEqual(codes(result), [
@@ -254,16 +254,16 @@ test("a repeated ID is refused at its second line", () => {
   ]);
   assert.match(
     found(result.diagnostics[0]).message,
-    new RegExp(`line ${lineOf(text, "1.1 Read the")}`),
+    new RegExp(`line ${lineOf(text, "`1.1` Read the")}`),
   );
 });
 
 test("a task with no Facts bullet is refused at its line", () => {
   const root = temporaryDirectory(),
-    text = tasksText() + "- [ ] 2.1 Document it\n";
+    text = tasksText() + "- [ ] `2.1` Document it\n";
   writeSpec(root, "config", { "tasks.md": text, "avoozl/manifest.json": null });
   assert.deepEqual(codes(lint(root)), [
-    `done.missing tasks.md:${lineOf(text, "2.1 Document")}`,
+    `done.missing tasks.md:${lineOf(text, "`2.1` Document")}`,
   ]);
 });
 
@@ -278,7 +278,7 @@ test("an ID owned by another plan is refused", () => {
     },
   });
   assert.deepEqual(codes(result), [
-    `task.duplicate-id tasks.md:${lineOf(tasksText(), "1.1 Read")}`,
+    `task.duplicate-id tasks.md:${lineOf(tasksText(), "`1.1` Read")}`,
   ]);
 });
 
@@ -396,8 +396,11 @@ test("a spec plan is created, reloaded, and approved by its folder hash", async 
   const data = store.read(),
     leaf = found(data.tasks.find((task) => task.id === "config.1.2"));
   assert.equal(leaf.source?.document, "spec:config");
-  assert.equal(leaf.source?.lineStart, lineOf(tasksText(), "1.2 Validate"));
-  assert.equal(leaf.approvedSource?.text, "  - [ ] 1.2 Validate loaded config");
+  assert.equal(leaf.source?.lineStart, lineOf(tasksText(), "`1.2` Validate"));
+  assert.equal(
+    leaf.approvedSource?.text,
+    "  - [ ] `1.2` Validate loaded config",
+  );
   assert.ok(
     data.edges.some(
       (e) =>
@@ -561,8 +564,8 @@ test("Kiro's checkbox marks do not change the revision", async (t) => {
     tasks,
     fs
       .readFileSync(tasks, "utf8")
-      .replace("- [ ] 1.1", "- [x] 1.1")
-      .replace("- [ ] 1.2", "- [-] 1.2"),
+      .replace("- [ ] `1.1`", "- [x] `1.1`")
+      .replace("- [ ] `1.2`", "- [-] `1.2`"),
   );
   assert.equal(readSpecFolder(root, "config").hash, plan.hash);
   assert.equal(
@@ -590,7 +593,7 @@ test("an item nested under an epic is its child; flat items have no parent", () 
   const flat = temporaryDirectory();
   writeSpec(flat, "config", {
     "tasks.md":
-      "- [ ] 1 Load and validate configuration\n- [ ] 1.1 Read the config file\n- [ ] 1.2 Validate loaded config\n",
+      "- [ ] `1` Load and validate configuration\n- [ ] `1.1` Read the config file\n- [ ] `1.2` Validate loaded config\n",
   });
   assert.deepEqual(Object.values(parents(lint(flat))), [null, null, null]);
 });
@@ -598,7 +601,7 @@ test("an item nested under an epic is its child; flat items have no parent", () 
 test("an item with sub-items is a package", () => {
   const root = temporaryDirectory(),
     text = tasksWithFacts(
-      "- [ ] 1 Load and validate configuration\n  - [ ] 1.1 Read the config file\n    - [ ] 1.2 Validate loaded config\n",
+      "- [ ] `1` Load and validate configuration\n  - [ ] `1.1` Read the config file\n    - [ ] `1.2` Validate loaded config\n",
     );
   writeSpec(root, "config", { "tasks.md": text });
   const kinds = Object.fromEntries(
@@ -632,7 +635,7 @@ test("approval sets each nested task's parent and re-approval moves it", async (
   fs.writeFileSync(
     path.join(directory, "tasks.md"),
     tasksWithFacts(
-      "- [ ] 1 Load and validate configuration\n  - [ ] 1.1 Read the config file\n- [ ] 1.2 Validate loaded config\n",
+      "- [ ] `1` Load and validate configuration\n  - [ ] `1.1` Read the config file\n- [ ] `1.2` Validate loaded config\n",
     ),
   );
   await ops.execute<Plan>("plan.save", {
@@ -658,7 +661,7 @@ test("an approved ID whose item text changed is refused until approved", async (
     tasks,
     fs
       .readFileSync(tasks, "utf8")
-      .replace("1.2 Validate loaded config", "1.2 Write the config file"),
+      .replace("`1.2` Validate loaded config", "`1.2` Write the config file"),
   );
   await ops.execute<Plan>("plan.save", {
     id: "config",
@@ -666,7 +669,7 @@ test("an approved ID whose item text changed is refused until approved", async (
   });
   const quality = await ops.execute<Lint>("plan.lint", { id: "config" });
   assert.deepEqual(codes(quality), [
-    `task.changed-text tasks.md:${lineOf(tasksText(), "1.2 Validate")}`,
+    `task.changed-text tasks.md:${lineOf(tasksText(), "`1.2` Validate")}`,
   ]);
   assert.equal(found(quality.diagnostics[0]).taskId, "config.1.2");
   await assert.rejects(approve(ops), /task\.changed-text/);
@@ -886,10 +889,10 @@ test("approval starts checked items as accepted from the approved tasks.md", asy
   const { root, store, ops } = workspace(t),
     files = specFiles(),
     marked = found(files["tasks.md"])
-      .replace("- [ ] 1.1 Read", "- [x] 1.1 Read")
+      .replace("- [ ] `1.1` Read", "- [x] `1.1` Read")
       .replace(
-        "  - [ ] 1.2",
-        "    - Built: `abc1234`, receipt `docs/evidence/x.md`.\n  - [-] 1.2",
+        "  - [ ] `1.2`",
+        "    - Built: `abc1234`, receipt `docs/evidence/x.md`.\n  - [-] `1.2`",
       ),
     directory = writeSpec(root, "config", { "tasks.md": marked }),
     plan = await ops.execute<Plan>("plan.create", { spec: "config" });
@@ -905,8 +908,8 @@ test("approval starts checked items as accepted from the approved tasks.md", asy
   fs.writeFileSync(
     tasks,
     marked
-      .replace("- [-] 1.2", "- [x] 1.2")
-      .replace("- [ ] 1 Load", "- [x] 1 Load"),
+      .replace("- [-] `1.2`", "- [x] `1.2`")
+      .replace("- [ ] `1` Load", "- [x] `1` Load"),
   );
   const receipt = await approve(ops, "config", { approvedBy: "owner" });
   assert.deepEqual(receipt.baseline, ["config.1.1"]);
@@ -914,7 +917,7 @@ test("approval starts checked items as accepted from the approved tasks.md", asy
       found(store.read().tasks.find((task) => task.id === id)),
     leaf = row("config.1.1");
   assert.equal(leaf.status, "accepted");
-  const line = lineOf(marked, "1.1 Read");
+  const line = lineOf(marked, "`1.1` Read");
   assert.equal(
     leaf.acceptanceEvidence?.evidence,
     `tasks.md line ${line} marks 1.1 [x] at approved revision ${plan.hash}. Built: \`abc1234\`, receipt \`docs/evidence/x.md\`.`,
@@ -984,8 +987,8 @@ test("lettered IDs such as P1 and P2b are namespaced like numbers", async (t) =>
     specItems(
       "config",
       [
-        "- [ ] P1 Proof: it runs",
-        "- [ ] P2b Proof: again",
+        "- [ ] `P1` Proof: it runs",
+        "- [ ] `P2b` Proof: again",
         "- [ ] `avoozl-p3` P3 Proof: named",
         "- [ ] p4 lowercase",
         "- [ ] Add a thing",
@@ -1008,7 +1011,7 @@ test("lettered IDs such as P1 and P2b are namespaced like numbers", async (t) =>
   };
   writeSpec(root, "config", {
     "tasks.md":
-      found(files["tasks.md"]) + "- [ ] P1 Proof: config loads end to end\n",
+      found(files["tasks.md"]) + "- [ ] `P1` Proof: config loads end to end\n",
     "avoozl/manifest.json": JSON.stringify(manifest),
   });
   assert.deepEqual(codes(lint(root)), []);
@@ -1027,23 +1030,23 @@ test("an item's whole line is its title, and one over the limit is refused", () 
     long =
       "Add the `a, b` reader: " +
       "it reads every file and reports each problem with its line. ".repeat(5),
-    item = `1.2 ${long.trim()}`;
+    item = `\`1.2\` ${long.trim()}`;
   assert.ok(long.length > 240);
   writeSpec(root, "config", {
     "tasks.md": found(files["tasks.md"]).replace(
-      "1.2 Validate loaded config",
+      "`1.2` Validate loaded config",
       item,
     ),
   });
   assert.deepEqual(codes(lint(root)), [
-    `task.title-length tasks.md:${lineOf(found(files["tasks.md"]), "1.2 Validate")}`,
+    `task.title-length tasks.md:${lineOf(found(files["tasks.md"]), "`1.2` Validate")}`,
   ]);
   const fits =
     "Add the `a, b` reader: it reads every file and reports each problem.";
   writeSpec(root, "fits", {
     "tasks.md": found(files["tasks.md"]).replace(
-      "1.2 Validate loaded config",
-      `1.2 ${fits}`,
+      "`1.2` Validate loaded config",
+      `\`1.2\` ${fits}`,
     ),
   });
   const proposal = found(

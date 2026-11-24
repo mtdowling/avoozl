@@ -223,7 +223,7 @@ test("Approve commits the spec on main as the person; a rebuilt database has the
   const tasks = path.join(r.root, ".kiro/specs/feature/tasks.md");
   fs.writeFileSync(
     tasks,
-    fs.readFileSync(tasks, "utf8").replace("- [ ] 1.1 ", "- [x] 1.1 "),
+    fs.readFileSync(tasks, "utf8").replace("- [ ] `1.1` ", "- [x] `1.1` "),
   );
   r.run(["add", ".kiro"]);
   r.run(["commit", "-q", "-m", "Land feature.1.1"]);
@@ -446,7 +446,7 @@ test("with specs.branch, approvals and ticks are read and written on that branch
   const tasks = path.join(r.root, ".kiro/specs/feature/tasks.md");
   fs.writeFileSync(
     tasks,
-    fs.readFileSync(tasks, "utf8").replace("- [ ] 1.1 ", "- [x] 1.1 "),
+    fs.readFileSync(tasks, "utf8").replace("- [ ] `1.1` ", "- [x] `1.1` "),
   );
   r.run(["commit", "-qam", "Tick feature.1.1"]);
   await ops.applyBaseTicks();
