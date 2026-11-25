@@ -20,6 +20,17 @@ meaning. Words that look alike are set apart below.
 | code review | Reviewer chats that read a task's commit before it merges, and the approvals the base branch's review rule on GitHub requires. | `delivery.reviewers` |
 | changed tasks | Tasks whose design text changed since they were approved. Needs you lists them as "N tasks in SPEC changed: check them". | |
 
+## Draft, early review
+
+"Draft" names one setting only. The in-flight pull request has its own name.
+
+| Name | Means | Setting |
+| ---- | ----- | ------- |
+| draft pull request | A done task's pull request under `landing.pr` `draft`. It waits for a person to mark it ready and merge it. | `landing.pr` |
+| early review | A repository opts in to open a task's pull request while the task is in flight, in `pr` mode only ([Workflow 22](github-workflow.md#22-early-review)). | `landing.earlyReview` |
+| checkpoint | A commit the worker reports as worth looking at, with what is ready, what is still underway and which acceptance criteria it covers. Making a commit does not make a checkpoint. | |
+| early review pull request | The one pull request a task under early review opens at its first checkpoint. It stays a GitHub draft while the task is in flight, and becomes the task's landing pull request when the task is done. | |
+
 ## Other terms
 
 - **trust list**: the people or permission whose reviews and discussions count:

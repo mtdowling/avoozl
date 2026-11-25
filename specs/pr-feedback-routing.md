@@ -1034,7 +1034,7 @@ specs.
   - Section 15's lease commit example shows a `Feedback:` line, and the text says a new lease copies it
   - The Kit coverage table lists 21.1 to 21.6 under "No case"
   - `npm test -- docs-links docs-json` passes
-- [ ] `pf-1.2` Write the early review rules into the workflow [PF8.3, PF13.4] (§D9, §D15)
+- [x] `pf-1.2` Write the early review rules into the workflow [PF8.3, PF13.4] (§D9, §D15)
   - `docs/github-workflow.md` has section 22, Early review, with rules 22.1 to 22.7 as D9 states them
   - The Optional parts table lists Early review with section 22 and "The runner opens no pull request before a task is done"
   - Section 17's text says that under early review the task's pull request opens before it is done and lands under 22.5
