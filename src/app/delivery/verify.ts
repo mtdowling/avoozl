@@ -326,6 +326,7 @@ export async function runEach(
     timeoutFor,
     run = commandEvidence,
     env,
+    taskEnv,
     repository,
     plugin,
   }: {
@@ -336,6 +337,7 @@ export async function runEach(
       options: Parameters<typeof commandEvidence>[2],
     ) => Promise<CommandRecord>;
     env?: readonly string[];
+    taskEnv?: Readonly<Record<string, string>>;
     repository?: CheckRepository | null;
     plugin?:
       | ((
@@ -386,7 +388,7 @@ export async function runEach(
       name = Array.isArray(check) ? command : check.name,
       timeoutMs = timeoutFor(name, command),
       started = Date.now(),
-      result = await run(dir, argv, { timeoutMs, env, isolate });
+      result = await run(dir, argv, { timeoutMs, env, taskEnv, isolate });
     out.push({
       name,
       command,
