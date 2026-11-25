@@ -71,6 +71,15 @@ function writeJson(file: string, value: unknown) {
   fs.renameSync(pending, file);
 }
 
+// Node starts a script at its real path, so runners compare by real path.
+const real = (file: string) => {
+  try {
+    return fs.realpathSync.native(file);
+  } catch {
+    return path.resolve(file);
+  }
+};
+
 const isBuild = (value: unknown): value is Build =>
   Boolean(value) &&
   COMMIT.test(String((value as Build).commit)) &&
@@ -136,7 +145,9 @@ export function engineRunner(stateDirectory: string, own: string): string {
     mine = before?.commit === current.commit ? before : null,
     since = mine?.since ?? now,
     finished =
-      ran?.runner === runner && Date.parse(String(ran.at)) >= Date.parse(since);
+      typeof ran?.runner === "string" &&
+      real(ran.runner) === real(runner) &&
+      Date.parse(String(ran.at)) >= Date.parse(since);
   const count = finished ? 1 : (mine?.count ?? 0) + 1;
   if (count > STRIKES) {
     rollBack(
