@@ -70,6 +70,22 @@ const SHAPES: Record<string, Shape> = {
     unconfirmed: { ...reads("working"), ...FAILED },
     confirm: (store) => observeSessions(store, async () => "idle").then(),
   },
+  // The planner's retry start on a stale read: idle was recorded between
+  // turns, then the worker reported blocked mid-turn. Only a read after the
+  // report confirms the end.
+  "tick retry, stale idle": {
+    seed: (store) =>
+      store.put(
+        "session_bindings",
+        binding({
+          status: "idle",
+          statusAt: new Date(Date.now() - 60_000).toISOString(),
+          report: { ...BLOCKED, at: new Date().toISOString() },
+        }),
+      ),
+    unconfirmed: { ...reads("working"), ...FAILED },
+    confirm: (store) => observeSessions(store, async () => "idle").then(),
+  },
   // A tick worker with no report yet: idle is a turn, not an end.
   "tick, no report": {
     seed: (store) =>
@@ -192,17 +208,30 @@ test("previousAttemptEnded holds only for the ends SW2.1 and SW2.2 name", () => 
     settled = new Date(now - GONE_GRACE_MS).toISOString(),
     fresh = new Date(now - 1000).toISOString(),
     before = new Date(now - 5000).toISOString(),
-    stop = { stop: "x", at: new Date(now - 2000).toISOString() };
+    at = new Date(now - 2000).toISOString(),
+    stop = { stop: "x", at };
   const rows: [Record<string, unknown>, boolean][] = [
     [{ status: "closed" }, true],
     [{ status: "lost" }, true],
     [{ status: "gone", statusAt: settled }, true],
     [{ status: "gone", statusAt: fresh }, false],
-    [{ status: "idle", report: { kind: "done" } }, true],
-    [{ status: "idle", report: { kind: "blocked" } }, true],
-    [{ status: "idle", report: { kind: "wait" } }, true],
-    [{ status: "idle", report: { kind: "progress" } }, false],
-    [{ status: "idle", report: { kind: "question" } }, false],
+    [{ status: "idle", statusAt: fresh, report: { kind: "done", at } }, true],
+    [
+      { status: "idle", statusAt: fresh, report: { kind: "blocked", at } },
+      true,
+    ],
+    [{ status: "idle", statusAt: fresh, report: { kind: "wait", at } }, true],
+    [{ status: "idle", statusAt: at, report: { kind: "done", at } }, true],
+    [{ status: "idle", statusAt: before, report: { kind: "done", at } }, false],
+    [{ status: "idle", statusAt: fresh, report: { kind: "done" } }, false],
+    [
+      { status: "idle", statusAt: fresh, report: { kind: "progress", at } },
+      false,
+    ],
+    [
+      { status: "idle", statusAt: fresh, report: { kind: "question", at } },
+      false,
+    ],
     [{ status: "idle" }, false],
     [{ status: "idle", statusAt: fresh, interrupted: stop }, true],
     [{ status: "idle", statusAt: before, interrupted: stop }, false],
