@@ -43,6 +43,38 @@ without a report opens a decision instead of a new attempt; **Retry** in
 Conflicts ends it and starts the next attempt. A gone reviewer is replaced on its
 own, since it changes no code. Statuses are up to one tick old.
 
+## Engine updates
+
+The tick, its checks and landing run from a build of Avoozl's own main, not
+from the installed app. When the workspace that holds `mtdowling/avoozl` sees
+its base branch move, and every `requiredChecks` name of that repository
+passed on that exact commit, the tick builds the commit and moves to it:
+
+1. `git archive` of the commit from the local checkout, `npm ci
+   --ignore-scripts`, then `npm run build:kirocrew-app`, in this machine's
+   state folder under `engine/builds/<commit>`.
+2. `avoozl status` from the new build, which must exit 0.
+3. `engine/current.json` names the new build, and the cron starts the next
+   tick from it. The build before it is kept.
+
+A build that fails, or that starts five times without finishing a pass, is
+dropped: the tick goes back to the build before it and opens one Needs you
+row. That commit is not tried again; the next green commit is. It looks at
+main at most every five minutes.
+
+`avoozl status` shows the build in use under `machine.engine` (`commit`
+null is the installed app's copy), and **Settings › Autopilot** shows it
+under This machine's engine. To stop following main, set `engine.update`
+to `false` in this machine's `config.json`, with that switch, or with
+`avoozl settings set delivery`:
+
+```sh
+avoozl settings set delivery --json '{"engine":{"update":false}}'
+```
+
+The page, the app backend and the MCP server stay the installed app's. A
+change to them still needs `npm run build && kirocrew app update avoozl`.
+
 ## Tick watchdog
 
 `avoozl tick watchdog --workspace PATH` is an opt-in check for a tick that

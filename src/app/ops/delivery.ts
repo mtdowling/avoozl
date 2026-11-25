@@ -37,6 +37,8 @@ import {
   destructive,
 } from "../api/operation-policy.ts";
 import type { OperationCall, Operations } from "../api/operations.ts";
+import { engineStatus, writeEngineSetting } from "../tick/engine.ts";
+import { validateEngine } from "../settings/engine-config.ts";
 
 // This machine's loop for Settings › Autopilot; a file that cannot be read
 // says why instead.
@@ -47,6 +49,14 @@ function machineLoopSettings(operations: Operations) {
     return { loop: null, loopError: (error as Error).message };
   }
 }
+
+// The build this machine's tick runs, and engine.update (engine.ts).
+const machineEngine = (operations: Operations) => ({
+  engine: engineStatus(
+    machineAvoozlPaths().stateDirectory,
+    loopFile(operations.configDirectory),
+  ),
+});
 
 // What turning Autopilot on writes when this machine has no loop yet, as
 // Settings › Autopilot does (DeliverySettings.tsx DEFAULT_LOOP).
@@ -165,6 +175,7 @@ export const entries = [
       return {
         ...this.settingsFile().readDeliverySettings(),
         ...machineLoopSettings(this),
+        ...machineEngine(this),
       };
     },
   },
@@ -212,10 +223,12 @@ export const entries = [
     policy: audited,
     handler(this: Operations, { input, context }: OperationCall) {
       // `loop`: this machine's loop (an object), or null to remove it.
-      // Checked before anything is written.
-      const { loop, ...workspace } = input ?? {};
+      // `engine`: this machine's {update}. Checked before anything is
+      // written.
+      const { loop, engine, ...workspace } = input ?? {};
       if (loop !== undefined && loop !== null)
         validateLoop(loop, "This machine's config");
+      if (engine !== undefined) validateEngine(engine, "This machine's config");
       const written = ["delivery", "turnOn", "landingPr"].some(
         (key) => workspace[key] !== undefined,
       )
@@ -223,8 +236,14 @@ export const entries = [
         : this.settingsFile().readDeliverySettings();
       if (loop !== undefined)
         writeMachineLoop(loopFile(this.configDirectory), loop);
+      if (engine !== undefined)
+        writeEngineSetting(loopFile(this.configDirectory), engine);
       this.configuration?.reload();
-      return { ...written, ...machineLoopSettings(this) };
+      return {
+        ...written,
+        ...machineLoopSettings(this),
+        ...machineEngine(this),
+      };
     },
   },
 

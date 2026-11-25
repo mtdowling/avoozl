@@ -312,7 +312,7 @@ Object.assign(tools, {
       models: ["models.settings.update", "chat models per role"],
       delivery: [
         "delivery.settings.update",
-        "delivery limits, landing.pr and this machine's loop",
+        "delivery limits, landing.pr, this machine's loop and engine.update",
       ],
       conversations: ["conversations.settings.update", "conversation settings"],
       activity: [

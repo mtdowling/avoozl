@@ -11,6 +11,7 @@ import { machineAvoozlPaths } from "../settings/host-config.ts";
 import { readServeConfig } from "../settings/serve-config.ts";
 import { ROLES, resolveRoles } from "../agents/role-table.ts";
 import { lastPasses } from "../executors/tick-passes.ts";
+import { engineStatus } from "../tick/engine.ts";
 import type { RolesConfig } from "../agents/role-table.ts";
 
 type ChildRow = Record<string, unknown>;
@@ -136,6 +137,11 @@ export function machineStatus({
     // Each workspace's last pass: whether a timer runs `avoozl tick`.
     passes,
     serve: pageStatus(stateDirectory, configDirectory),
+    // The build the machine tick runs; commit null: the installed copy.
+    engine: engineStatus(
+      stateDirectory,
+      path.join(configDirectory, "config.json"),
+    ),
     harnesses: (listHarnessDefinitions(configDirectory) as Harness[]).map(
       ({ name, approved, startProblem }) => ({ name, approved, startProblem }),
     ),

@@ -47,6 +47,18 @@
         }
       }
     },
+    "engine": {
+      "type": "object",
+      "description": "The build this machine's tick runs. Machine file only: a repository's .avoozl.json may not set it.",
+      "additionalProperties": false,
+      "properties": {
+        "update": {
+          "type": "boolean",
+          "default": true,
+          "description": "Build Avoozl's newest main once its required checks pass on that commit, and run the tick from that build. The page, app backend and MCP server still change only with the app's Update."
+        }
+      }
+    },
     "telemetry": {
       "type": "object",
       "description": "Export task timing to an OTLP endpoint. Machine file only: a repository's .avoozl.json may not set it. The OTEL_EXPORTER_OTLP_* environment of the process that runs the tick beats endpoint, protocol and headers, and header values come only from OTEL_EXPORTER_OTLP_HEADERS.",

@@ -51,6 +51,7 @@ import { lanesNeedsYou } from "../sessions/lane-sessions.ts";
 import { completeManual, reopenManual } from "../tasks/manual-tasks.ts";
 import { needsKirocrewItems } from "../tick/needs-kirocrew.ts";
 import { needsHarnessItems } from "../tick/needs-harness.ts";
+import { engineNeedsYou } from "../tick/engine.ts";
 import { addItemContext } from "../api/needs-you-context.ts";
 import {
   claimedOrNone,
@@ -377,7 +378,7 @@ export const entries = [
             .map((d) => d.name),
         ),
       );
-      view.items.push(...needsHarnessItems(store));
+      view.items.push(...needsHarnessItems(store), ...engineNeedsYou(store));
       addItemContext(store, data, view.items);
       // A notice's link (direct-links D3): which item it names, marked so the
       // page opens it even when filters would hide it. Reads only.
