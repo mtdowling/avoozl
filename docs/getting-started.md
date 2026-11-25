@@ -46,8 +46,11 @@ grants:
 - `/api/models` fills the model lists in Settings.
 - `/api/reveal` opens a repository's folder in Finder.
 
-An update that adds a grant waits until you approve it. To update, pull, then
-run `npm run build && kirocrew app update avoozl` in the checkout.
+An update that adds a grant waits until you approve it. The tick moves to
+Avoozl's newest green main by itself
+([Engine updates](../hosts/kirocrew/README.md#engine-updates)). The page, app
+backend and MCP server change only when you update the app: pull, then run
+`npm run build && kirocrew app update avoozl` in the checkout.
 
 ## Run it without Kiro Crew
 
