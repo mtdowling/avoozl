@@ -7,6 +7,7 @@ import {
   osSensitive,
   planFor,
   shardOf,
+  withoutChrome,
 } from "../../../scripts/test/test-plan.ts";
 
 const all = allTestFiles();
@@ -58,4 +59,23 @@ test("macOS and Windows run only OS-sensitive tests on a pull request, and all o
     assert.ok(pr.files.length < full.files.length);
     assert.equal(full.files.length, all.node.length + all.ui.length);
   }
+});
+
+test("--no-chrome keeps every page test but the Chrome ones; only the local check passes it", () => {
+  const kept = withoutChrome(all.ui);
+  const chrome = all.ui.filter(needsChrome);
+  assert.ok(chrome.length > 0 && kept.length > 0);
+  assert.deepEqual([...kept, ...chrome].sort(), [...all.ui].sort());
+  assert.ok(!kept.some(needsChrome));
+  const read = (file: string) =>
+    fs.readFileSync(new URL(`../../../${file}`, import.meta.url), "utf8");
+  const checks = JSON.parse(read(".avoozl.json")).repositories.avoozl.checks;
+  assert.deepEqual(checks.test, [
+    "npm",
+    "run",
+    "test:changed",
+    "--",
+    "--no-chrome",
+  ]);
+  assert.ok(!read(".github/workflows/test-shards.yml").includes("--no-chrome"));
 });

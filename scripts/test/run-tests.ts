@@ -9,6 +9,11 @@
 //                            macos or windows), balanced by measured time
 //   --system linux --chrome-only   only the page tests that drive Chrome
 // With --changed, macOS and Windows keep only the OS-sensitive files.
+//
+// `--no-chrome` runs every test but the Chrome page tests: it drops the files
+// that start Chrome and makes the shared page harness skip, as CI's
+// non-Chrome shards do. The repo's local `test` check (.avoozl.json) passes
+// it, since Chrome cannot start inside a Kiro Crew sandbox; CI still runs them.
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -16,7 +21,13 @@ import { spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 import { machineAvoozlPaths } from "../../src/app/settings/host-config.ts";
 import { changedFiles, select } from "./select-tests.ts";
-import { allTestFiles, planFor, shardOf, type System } from "./test-plan.ts";
+import {
+  allTestFiles,
+  planFor,
+  shardOf,
+  withoutChrome,
+  type System,
+} from "./test-plan.ts";
 
 const args = process.argv.slice(2),
   changed = args.includes("--changed"),
@@ -116,6 +127,14 @@ if (changed) {
   for (const r of sel.reasons.slice(0, 12)) console.log(`  ${r}`);
   nodeFiles = sel.node;
   uiFiles = sel.uiFiles;
+}
+if (args.includes("--no-chrome")) {
+  const kept = withoutChrome(uiFiles);
+  console.log(
+    `--no-chrome: skipping ${uiFiles.length - kept.length} Chrome page test files.`,
+  );
+  uiFiles = kept;
+  process.env.AVOOZL_CHROME = "skip";
 }
 if (isSystem(system)) {
   const plan = planFor({ node: nodeFiles, uiFiles }, system, {
