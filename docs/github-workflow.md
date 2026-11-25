@@ -825,6 +825,10 @@ A base that requires up-to-date branches also guards against a push to the
 base between the runner's last check and GitHub's merge. Without it,
 auto-merge can merge a head that was checked against an older base.
 
+Under early review (22), the task's pull request opens before the task is
+done, as a draft, and when the task is done that same pull request lands
+under 22.5.
+
 ## 18. Done tasks
 
 Look for a checked box on the task's done branch (14.6), or a closed issue for
@@ -857,7 +861,9 @@ mode.
 - **[20.1](github-workflow-scenarios.md#rule-201)** A runner MUST NOT push to
   the base without the repository's checks passing on that exact head (16.3).
 - **[20.2](github-workflow-scenarios.md#rule-202)** A runner MUST NOT merge a
-  draft pull request, mark one ready, or arm auto-merge on one (17.2).
+  draft pull request, mark one ready, or arm auto-merge on one (17.2). The
+  one exception is early review: in `ready` and `auto` mode a runner marks a
+  done task's early review pull request ready for review (22.5).
 - **[20.3](github-workflow-scenarios.md#rule-203)** A runner MUST NOT act on a
   label a non-writer added. An excluded label is the one exception: it holds
   work whoever added it (9.1).
@@ -911,6 +917,31 @@ another runner never sends it again.
   request to a person, who changes the spec by approval (7.5) or the issue by
   relabeling (11.1).
 
+## 22. Early review
+
+A runner can open a task's pull request while the task is in flight, so that
+coworkers see the work at checkpoints the worker reports. These rules say when
+that pull request opens, how it moves with the work, and how it lands.
+
+- **22.1** A runner MAY open a task's pull request before the task is done
+  only when the repository opts in, only in `pr` mode, and only at a
+  checkpoint the worker reported. It MUST open it as a draft from the claim
+  branch to the task's base (14.1).
+- **22.2** A runner MUST push a checkpoint only under 15.3, and only after
+  the push and the pull request text pass its content checks (20.8). A
+  refused checkpoint MUST NOT push, open or edit anything.
+- **22.3** A task MUST have at most one pull request. A later checkpoint MUST
+  reach it by a fast-forward push and an edit of the same pull request. A
+  runner MUST NOT force push.
+- **22.4** While the task is not done, a runner MUST NOT mark the pull request
+  ready, merge it or arm auto-merge on it.
+- **22.5** When the task is done, the same pull request MUST land under 16 and
+  17. In `draft` mode it stays a draft for a person to release. In `ready`
+  and `auto` mode the runner marks it ready for review.
+- **22.6** A runner MUST count a required check only from a run on the exact
+  head that started after the pull request left draft.
+- **22.7** Comments on the pull request route under 21.
+
 ## Conformance
 
 A conforming runner follows the required rules and the rules for its optional
@@ -951,6 +982,7 @@ The last column describes runners that omit the feature.
 | Labeled issues | 9.1, 11 | The runner makes no spec from an issue |
 | Review output | 19 | The runner posts no review |
 | Feedback routing | 21 | The runner delivers no comment to a worker |
+| Early review | 22 | The runner opens no pull request before a task is done |
 
 ### Workflow kit
 
@@ -968,7 +1000,7 @@ rule.
 
 | Rules | Why the kit does not check them |
 | --- | --- |
-| 13.3, 16.6, 21.1, 21.2, 21.3, 21.4, 21.5, 21.6 | No case |
+| 13.3, 16.6, 21.1, 21.2, 21.3, 21.4, 21.5, 21.6, 22.1, 22.2, 22.3, 22.4, 22.5, 22.6, 22.7 | No case |
 
 The kit checks these rules in part:
 
