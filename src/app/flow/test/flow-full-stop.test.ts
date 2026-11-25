@@ -264,6 +264,10 @@ test("Resume starts each interrupted task again on the same branch and model", a
     delivery: { retries: 0 },
     roles: { worker: { model: "policy-model", agent: "policy-agent" } },
   });
+  // A stop counts as ended only once a later status read confirms it (SW2.2).
+  assert.ok(!planReadyDispatches(store, policy).some((d) => d.task === "a1"));
+  // Kiro Crew keeps a stopped chat: the read it can give is idle.
+  await ops.execute("session.status", { slot: "s-a1", status: "idle" });
   const dispatch = planReadyDispatches(store, policy).find(
     (d) => d.task === "a1",
   );

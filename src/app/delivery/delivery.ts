@@ -77,6 +77,7 @@ import { specFolderPath } from "../specs/specs-path.ts";
 import {
   FINAL_STATUSES,
   listSessionBindings,
+  endingAt,
   checkInStep,
   unansweredCheckIns,
 } from "../sessions/session-bindings.ts";
@@ -1220,9 +1221,37 @@ function runnerAttempts(bindings: SessionBinding[]) {
 // this long. shortcut: a fixed grace; upgrade when Kiro Crew reports that
 // its sessions are restored.
 export const GONE_GRACE_MS = 5 * 60_000;
-const goneSettled = (binding: SessionBinding, now: number) =>
+const goneSettled = (
+  binding: Pick<SessionBinding, "status" | "statusAt" | "boundAt">,
+  now: number,
+) =>
   binding.status === "gone" &&
   now - Date.parse(binding.statusAt || binding.boundAt || "0") >= GONE_GRACE_MS;
+
+// The only test of whether a task may get a new worker attempt (SW2, §D2):
+// its executor confirmed the previous one ended. A refused or failed status
+// read leaves the stored status as it was, so it never counts as an end;
+// quiet, a missed message or an expired lease never does either. A stop
+// Avoozl sent (SW2.2) or an ending report ends the attempt once a read after
+// it finds the session idle: Kiro Crew keeps a stopped chat, so idle is all
+// it can say, and an idle read from before the report was a turn break.
+export const previousAttemptEnded = (
+  binding: Pick<
+    SessionBinding,
+    "status" | "statusAt" | "boundAt" | "report" | "interrupted"
+  >,
+  now: number,
+) =>
+  FINAL_STATUSES.has(binding.status ?? "") ||
+  goneSettled(binding, now) ||
+  (binding.status === "idle" &&
+    endingAt(binding) > 0 &&
+    Date.parse(binding.statusAt ?? "") >= endingAt(binding));
+
+// An attempt whose session status Avoozl reads: one the tick opened here.
+// A hand take or a relay has no session read, so its final report is its end.
+export const statusRead = (binding: { source?: string; relay?: unknown }) =>
+  binding.source === "tick" && !binding.relay;
 
 export const liveAttempt = (
   binding: Pick<SessionBinding, "interrupted" | "status" | "report">,
@@ -1415,7 +1444,11 @@ export function reconcileDeliveries(
         (a) => a.attempt === binding.attempt,
       ),
       result = outcomeOf(binding),
-      open = !result && !recorded;
+      open = !result && !recorded,
+      // Kiro Crew's settled gone answer for an attempt that never reported:
+      // the guard confirms it ended before the resume opens another.
+      vanished =
+        open && binding.status === "gone" && previousAttemptEnded(binding, now);
     if (result && !recorded) {
       const attempts = [
         ...delivery.attempts,
@@ -1446,8 +1479,7 @@ export function reconcileDeliveries(
         updatedAt: at,
       };
     } else if (
-      open &&
-      goneSettled(binding, now) &&
+      vanished &&
       !delivery.attempts.slice(delivery.retryFrom || 0).some((a) => a.vanished)
     ) {
       // Kiro Crew says the chat is gone and it never reported (R88.4): the
@@ -1482,7 +1514,7 @@ export function reconcileDeliveries(
           statusAt: at,
         }),
       );
-    } else if (open && goneSettled(binding, now)) {
+    } else if (vanished) {
       // A second vanish since the last person retry: a person decides. Retry ends this attempt (retryDelivery); a session
       // that reads live again resumes below.
       if (delivery.state !== "decision")
@@ -1990,6 +2022,7 @@ export function workerBrief(
 export function busyTaskIds(
   store: Store,
   bindings = listSessionBindings(store),
+  now = Date.now(),
 ): Set<string> {
   const claimed = new Set<string>(),
     deliveries = new Map(
@@ -2000,7 +2033,11 @@ export function busyTaskIds(
       claimed.add(binding.taskId);
   for (const [taskId, binding] of runnerAttempts(bindings)) {
     const delivery = deliveries.get(taskId);
-    if (!delivery?.attempts.some((a) => a.attempt === binding.attempt))
+    // A retry or a vanished resume opens only once the guard holds.
+    if (
+      !delivery?.attempts.some((a) => a.attempt === binding.attempt) ||
+      (statusRead(binding) && !previousAttemptEnded(binding, now))
+    )
       claimed.add(taskId);
   }
   for (const delivery of deliveries.values())
