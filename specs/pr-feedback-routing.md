@@ -1028,7 +1028,7 @@ specs.
 
 ### Phase 1: Workflow rules
 
-- [ ] `pf-1.1` Write the feedback routing rules into the workflow [PF8] (§D9)
+- [x] `pf-1.1` Write the feedback routing rules into the workflow [PF8] (§D9)
   - `docs/github-workflow.md` has section 21, Feedback routing, with rules 21.1 to 21.6 as D9 states them
   - The Optional parts table lists Feedback routing with sections 21 and "The runner delivers no comment to a worker"
   - Section 15's lease commit example shows a `Feedback:` line, and the text says a new lease copies it
