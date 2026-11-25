@@ -420,11 +420,8 @@ test("a check that fails past its rounds keeps its name and first error line for
   assert.equal(later.context?.failedChecks, null);
 });
 
-test("a queued task whose base moved is withdrawn, merged with the base and verified again", async (t) => {
-  const w = await workspace(t);
-  const first = verified(w, "t1");
-  await integrateVerified(w.store);
-  // Someone lands other work on GitHub's base.
+// Someone lands other work on GitHub's base.
+function landOtherWork(w: World) {
   const other = path.join(w.root, "other");
   git(w.root, "clone", "-q", w.origin, other);
   git(other, "config", "user.name", "Test");
@@ -433,6 +430,13 @@ test("a queued task whose base moved is withdrawn, merged with the base and veri
   git(other, "add", ".");
   git(other, "commit", "-qm", "Other");
   git(other, "push", "-q", "origin", "main");
+}
+
+test("a queued task whose base moved is withdrawn, merged with the base and verified again", async (t) => {
+  const w = await workspace(t);
+  const first = verified(w, "t1");
+  await integrateVerified(w.store);
+  landOtherWork(w);
   await integrateVerified(w.store);
   const delivery = storedRow<Delivery>(w.store, "task_deliveries", "t1");
   assert.equal(delivery.state, "done", "back to verification");
@@ -625,4 +629,38 @@ test("an auto merge checks the labeled issue again: one edited after its label i
     String(held.decision),
     /did not merge pull request #1, so issue #12 stays open: its text changed after the label/,
   );
+});
+
+test("a moved main and a pushed tick end in a fast-forward of the same branch and the same pull request", async (t) => {
+  const w = await workspace(t, { spec: true }),
+    github = fakeGithub(w);
+  verified(w, "t1");
+  await integrateVerified(w.store);
+  await step(w, github);
+  assert.equal(github.calls.created, 1);
+  const pushed = git(w.origin, "rev-parse", "avoozl/t1");
+  landOtherWork(w);
+  await integrateVerified(w.store);
+  const delivery = storedRow<Delivery>(w.store, "task_deliveries", "t1");
+  assert.equal(delivery.state, "done", "back to verification");
+  // Verified again: the work commit carries the base, but not the pushed
+  // tick, so the new head is built on top of the pushed one.
+  w.store.put("task_deliveries", { ...delivery, state: "verified" });
+  await integrateVerified(w.store);
+  const [queued] = landingQueue(w.store, { repositoryId: "app", base: "main" }),
+    head = git(w.origin, "rev-parse", "avoozl/t1");
+  assert.equal(queued?.source?.branch, "avoozl/t1");
+  assert.equal(head, queued?.commit);
+  // A fast-forward of the pushed head that carries main.
+  git(w.checkout, "fetch", "-q", "origin");
+  git(w.checkout, "merge-base", "--is-ancestor", pushed, head);
+  git(w.checkout, "merge-base", "--is-ancestor", "origin/main", head);
+  assert.equal(
+    git(w.checkout, "ls-remote", "--heads", "origin", "avoozl/t1-2"),
+    "",
+    "no new branch",
+  );
+  await step(w, github);
+  assert.equal(github.calls.created, 1, "the same pull request");
+  assert.equal(github.pulls[0].head.sha, head);
 });

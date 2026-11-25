@@ -207,6 +207,61 @@ export async function stillQueued(
   return false;
 }
 
+// The commit to push on `branch` so it stays the same pull request: `head`
+// when the remote lacks the branch or `head` fast-forwards it. Else the
+// branch already carries an earlier ticked head, and the worktree merged
+// the moved base into the work commit, not into that tick, so `head` is
+// built again on top of the pushed head: a merge of `head` into it, pushed
+// as a fast-forward and never forced. The merge must have `head`'s tree,
+// the one the checks judged; anything else goes back for verification.
+async function onPushed(
+  root: string,
+  url: string,
+  branch: string,
+  head: string,
+  base: string,
+  env?: NodeJS.ProcessEnv,
+) {
+  const options = { env: { ...(env ?? process.env), ...NO_PROMPT } },
+    listed = await remoteGit(
+      root,
+      ["ls-remote", "--heads", url, `refs/heads/${branch}`],
+      options,
+    ),
+    remote = listed.split(/\s+/)[0] || null;
+  if (!remote || remote === head) return head;
+  await remoteGit(
+    root,
+    ["fetch", "--quiet", url, `refs/heads/${branch}`],
+    options,
+  );
+  try {
+    await git(root, ["merge-base", "--is-ancestor", remote, head]);
+    return head;
+  } catch {}
+  let tree: string | null = null;
+  try {
+    tree = (
+      await git(root, ["merge-tree", "--write-tree", remote, head])
+    ).split("\n")[0];
+  } catch {}
+  if (!tree || tree !== (await git(root, ["rev-parse", `${head}^{tree}`])))
+    return fail(
+      `${branch} on GitHub does not merge cleanly with the verified head ${head.slice(0, 12)}; verify it again.`,
+      409,
+    );
+  return git(root, [
+    "commit-tree",
+    tree,
+    "-p",
+    remote,
+    "-p",
+    head,
+    "-m",
+    `Merge ${base} into ${branch}`,
+  ]);
+}
+
 // Pushes one verified task's branch and queues it. Returns the delivery
 // with the queued commit recorded.
 export async function queuePullRequest(
@@ -252,10 +307,6 @@ export async function queuePullRequest(
       taskId: delivery.taskId,
       repository: target,
     }),
-    source = {
-      repository: target,
-      branch: named ? `avoozl/${named}` : worktree.branch,
-    },
     // The tick goes on the branch before the checks: the
     // pull request carries the work commit and, on top, its tick.
     head = await tickedHead(
@@ -271,7 +322,19 @@ export async function queuePullRequest(
             : undefined,
       },
     );
-  await pushHead(repository.root, { ...source, commit: head }, registry, {
+  const source = {
+      repository: target,
+      branch: named ? `avoozl/${named}` : worktree.branch,
+    },
+    pushed = await onPushed(
+      repository.root,
+      registry.get(target).url,
+      source.branch,
+      head,
+      base,
+      env,
+    );
+  await pushHead(repository.root, { ...source, commit: pushed }, registry, {
     since,
     env,
     machine,
@@ -282,7 +345,7 @@ export async function queuePullRequest(
     repositoryId: repository.id,
     base,
     key: delivery.taskId,
-    commit: head,
+    commit: pushed,
     spec,
     tasks: [
       {
