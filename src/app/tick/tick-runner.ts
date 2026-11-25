@@ -2,13 +2,15 @@
 // may run repository checks longer than that. The cron starts this detached
 // machine pass and returns the intents a completed pass already released.
 // Per-workspace pass locks let a later runner skip a busy workspace while
-// continuing every other enabled workspace.
+// continuing every other enabled workspace. The pass runs from the engine
+// build this machine moved to (engine.ts), else from this copy.
 import fs from "node:fs";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { runPass } from "./tick-pass.ts";
 import { openRunnerLog } from "./runner-log.ts";
+import { engineRunner, recordEngineRan } from "./engine.ts";
 
 const RUNNER = fileURLToPath(import.meta.url);
 
@@ -20,7 +22,9 @@ function launch(
   const output = openRunnerLog(path.join(stateDirectory, "tick-runner.log"));
   let child;
   try {
-    child = spawn(process.execPath, [RUNNER, stateDirectory, configDirectory], {
+    // The engine build this machine moved to, else this copy (engine.ts).
+    const runner = engineRunner(stateDirectory, RUNNER);
+    child = spawn(process.execPath, [runner, stateDirectory, configDirectory], {
       detached: true,
       stdio: ["ignore", output, output],
       env,
@@ -64,7 +68,8 @@ export async function runTickPass(
 ) {
   if (typeof stateDirectory !== "string" || typeof configDirectory !== "string")
     throw Error("The tick runner needs machine state and configuration paths.");
-  await runPass({ stateDirectory, configDirectory });
+  await runPass({ stateDirectory, configDirectory, updateEngine: true });
+  recordEngineRan(stateDirectory, RUNNER);
 }
 
 if (
