@@ -171,7 +171,7 @@ export async function runCheckAt(
         ? { isolation: result.isolation }
         : {}),
       durationMs: Date.now() - started,
-      tail: String((result.stdout || "") + (result.stderr || ""))
+      tail: String((result.stderr || "") + "\n" + (result.stdout || ""))
         .split("\n")
         .filter(Boolean)
         .slice(-TAIL_LINES)

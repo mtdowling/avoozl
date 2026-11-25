@@ -11,6 +11,7 @@ import { Operations } from "../../api/operations.ts";
 import { Store } from "../../store/store.ts";
 import {
   allowProtectedPaths,
+  checkResult,
   checkTimeout,
   firstErrorLine,
   matchesPath,
@@ -368,4 +369,19 @@ test("a failed check's first error line: the first naming an error, else the fir
     /someone/,
   );
   assert.equal(firstErrorLine("Error " + "x".repeat(400))?.length, 200);
+});
+
+test("a check's tail ends with its stdout, so warnings on stderr do not hide the failure", () => {
+  const warnings = Array.from({ length: 30 }, (_, i) => `warning ${i}`);
+  const { tail } = checkResult(
+    {
+      exitCode: 1,
+      stdout: "tests 10\nfail 1\nnot ok 3 - the page loads",
+      stderr: warnings.join("\n"),
+    },
+    10,
+    undefined,
+    "/tmp/x",
+  );
+  assert.match(String(tail), /fail 1\nnot ok 3 - the page loads$/);
 });

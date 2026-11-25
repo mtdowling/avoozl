@@ -404,8 +404,10 @@ export function checkResult(
   timeoutMs: number | undefined,
   dir: string,
 ) {
+  // stderr first: a test runner's summary and failing names end stdout,
+  // and warnings on stderr would otherwise push them out of the tail.
   const tail = outputTail(
-    (result.stdout || "") + "\n" + (result.stderr || ""),
+    (result.stderr || "") + "\n" + (result.stdout || ""),
     dir,
   );
   return {
