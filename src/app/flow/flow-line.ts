@@ -131,6 +131,8 @@ interface LandingRecord {
   repositoryId: string;
   green: Record<string, string>;
   head?: string;
+  // Each check's argv at `head`, so a changed command is run again there.
+  commands?: Record<string, string>;
   checkedAt?: string;
 }
 const messageOf = (error: unknown) =>
@@ -572,7 +574,17 @@ export async function watchLine(
           now,
           `Line stop closed: ${stop.check} has not passed on ${stop.branch} here`,
         );
-    if (state.head === head) continue;
+    const commands = Object.fromEntries(
+      repositoryChecks(repository, []).map(({ name, argv }) => [
+        name,
+        JSON.stringify(argv),
+      ]),
+    );
+    if (
+      state.head === head &&
+      JSON.stringify(state.commands) === JSON.stringify(commands)
+    )
+      continue;
     const known = Object.keys(state.green).length > 0;
     // Nothing known green and a head Avoozl did not integrate: nothing to
     // compare against, so nothing is written.
@@ -621,6 +633,7 @@ export async function watchLine(
         ...state,
         head,
         green,
+        commands,
         checkedAt: new Date(now).toISOString(),
       }),
     );

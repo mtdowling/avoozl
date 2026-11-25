@@ -199,6 +199,28 @@ test("a direct landing's integrated delivery is the first green head", async (t)
   assert.match(notify[0].title, /Line stopped: node check\.mjs fails on main/);
 });
 
+test("a changed check command runs again on the same head and can close its stop", async (t) => {
+  const s = setup(t, [leaf("c2"), leaf("a1")]);
+  const checks = (line: string[]) =>
+    s.store.put("repositories", {
+      ...storedRow(s.store, "repositories", "app"),
+      checks: { line },
+    });
+  checks(["node", "check.mjs"]);
+  s.integrated(s.land("c2", "c2.txt"));
+  await watchLine(s.store, s.config);
+  s.land("a1", "broken");
+  await watchLine(s.store, s.config);
+  const [stop] = s.store.list<LineStop>("flow_stops");
+  assert.equal(stop.check, "line");
+  assert.deepEqual((await watchLine(s.store, s.config)).notify, []);
+  // The repository's command changes; main does not move.
+  checks(["node", "-e", "0"]);
+  const { notify } = await watchLine(s.store, s.config);
+  assert.match(notify[0].title, /Line green: line passes on main/);
+  assert.ok(storedRow<LineStop>(s.store, "flow_stops", stop.id).closedAt);
+});
+
 test("a failure that passes on rerun is flaky, not a stop", async (t) => {
   const s = setup(t, [leaf("a1")]);
   s.integrated(s.land(null, "one.txt"));
