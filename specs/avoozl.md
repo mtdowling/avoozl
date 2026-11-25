@@ -1516,7 +1516,10 @@ second system deciding what to claim, push or merge.
    check's name in `verify.checkTimeouts`. A check SHALL see only the
    environment a process needs to start and the names the repository lists
    in `checksEnv`, and never the push or GitHub credentials, even when
-   listed. Checks are the repository's; a task never names them.
+   listed. A task's check run SHALL also get `AVOOZL_TASK`, `AVOOZL_SPEC`
+   and `AVOOZL_START`, set by Avoozl; a run with no task SHALL get none of
+   them, even when listed. Checks are the repository's; a task never names
+   them.
 8. Approval SHALL be an approver's commit on the specs branch (Requirement
    114).
 
@@ -4912,7 +4915,11 @@ changed after approval.
 **S8, checks env.** Repository settings take `checksEnv`, and every check's
 environment is `checkEnvironment(env, allow)` in `src/app/git/git.ts`: the
 start-up names plus `checksEnv`, even when `checksEnv` is absent, and never
-the push or GitHub credentials.
+the push or GitHub credentials or `AVOOZL_TASK`, `AVOOZL_SPEC` and
+`AVOOZL_START`. A task's check run sets those three over it with `taskEnv`
+in `src/app/delivery/check-runs.ts`: the task's ID, its spec's path, and
+the start commit its claim's newest lease names, else the merge base the
+path check diffs from.
 
 | Choice | Why |
 | --- | --- |
