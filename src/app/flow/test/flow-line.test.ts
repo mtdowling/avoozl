@@ -221,6 +221,29 @@ test("a changed check command runs again on the same head and can close its stop
   assert.ok(storedRow<LineStop>(s.store, "flow_stops", stop.id).closedAt);
 });
 
+test("the line runs each check with its own timeout, not the two-minute default", async (t) => {
+  const s = setup(t, [leaf("c2"), leaf("a1")]);
+  s.integrated(s.land("c2", "c2.txt"));
+  const config = {
+      version: 1,
+      flow: { verify: { checkTimeoutSeconds: 900 } },
+    },
+    seen: (number | undefined)[] = [];
+  const run = async (
+    _repository: unknown,
+    _commit: string,
+    _argv: string[],
+    timeoutMs?: number,
+  ) => {
+    seen.push(timeoutMs);
+    return { exitCode: 0, tail: "" };
+  };
+  await watchLine(s.store, config, { run });
+  s.land("a1", "a1.txt");
+  await watchLine(s.store, config, { run });
+  assert.deepEqual(seen, [900_000]);
+});
+
 test("a failure that passes on rerun is flaky, not a stop", async (t) => {
   const s = setup(t, [leaf("a1")]);
   s.integrated(s.land(null, "one.txt"));
