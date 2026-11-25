@@ -60,6 +60,7 @@
         ],
         "landing": {
           "mode": "pr",
+          "pr": "auto",
           "method": "squash"
         }
       }
