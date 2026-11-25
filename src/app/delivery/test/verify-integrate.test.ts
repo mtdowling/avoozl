@@ -180,10 +180,11 @@ async function verified(ops: Operations, taskId: string) {
   return commit;
 }
 
+// One setup per test below: run together, the cases outlast the per-test
+// timeout on a loaded machine.
 test("a verified commit integrates with integrateRun and records the integrated commit", async (t) => {
-  // Nearby inputs: the checkout on its base branch (fast-forwarded), a dirty
-  // checkout and a repository without checks (both decisions, nothing moved),
-  // and a repeated tick (nothing integrated twice).
+  // Nearby inputs: the checkout on its base branch (fast-forwarded) and a
+  // repeated tick (nothing integrated twice).
   const { store, ops, checkout } = setup(t, { tasks: [leaf("a")] });
   const commit = await verified(ops, "a");
   const result = await tick(ops);
@@ -202,7 +203,9 @@ test("a verified commit integrates with integrateRun and records the integrated 
   const quiet = JSON.stringify(store.list("task_deliveries"));
   await tick(ops);
   assert.equal(JSON.stringify(store.list("task_deliveries")), quiet);
+});
 
+test("untracked .kiro/settings in the checkout does not hold integration", async (t) => {
   // Kiro Crew writes untracked `.kiro/settings` into a session's project
   // directory; that alone does not hold integration.
   const kiro = setup(t, { tasks: [leaf("k")] });
@@ -213,7 +216,9 @@ test("a verified commit integrates with integrateRun and records the integrated 
   fs.writeFileSync(path.join(kiro.checkout, ".kiro/settings/cli.json"), "{}\n");
   await tick(kiro.ops);
   assert.equal(deliveryOf(kiro.store, "k").state, "integrated");
+});
 
+test("a dirty checkout holds integration once, and a retry keeps the approved commit", async (t) => {
   const dirty = setup(t, { tasks: [leaf("b")] });
   await verified(dirty.ops, "b");
   fs.writeFileSync(path.join(dirty.checkout, "README.md"), "edited\n");
@@ -246,7 +251,9 @@ test("a verified commit integrates with integrateRun and records the integrated 
     attempts,
     "integration retry does not spend another writer attempt",
   );
+});
 
+test("an integration retry goes back to a writer when the worktree is gone or a person says why", async (t) => {
   // An integration retry goes back to a writer when the worktree is gone,
   // or when a person sends it back with a reason.
   for (const [taskId, lose, input] of [
@@ -273,7 +280,9 @@ test("a verified commit integrates with integrateRun and records the integrated 
     assert.equal(sent.delivery.state, "failed", taskId);
     assert.equal(sent.delivery.retryFrom, attempts, taskId);
   }
+});
 
+test("a repository with no checks does not integrate", async (t) => {
   // A repository with no checks is judged by its reviewers only, and
   // integration still needs checks to run on the rebased work.
   const unchecked = setup(t, {
