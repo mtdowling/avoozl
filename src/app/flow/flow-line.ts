@@ -38,6 +38,7 @@ import {
   rebaseForIntegration,
 } from "../delivery/delivery.ts";
 import { fence } from "../github/github-respond.ts";
+import { checkTimeout } from "../delivery/verify.ts";
 import { listSessionBindings } from "../sessions/session-bindings.ts";
 import { checkOptions, prepareChecks } from "../workspace/check-isolation.ts";
 import { requireDiskSpace } from "../workspace/disk-space.ts";
@@ -74,6 +75,7 @@ type Run = (
   repository: CheckRepository,
   commit: string,
   argv: string[],
+  timeoutMs?: number,
 ) => Promise<CheckRun>;
 // Where a culprit was looked for, and what was found.
 interface Culprit {
@@ -131,6 +133,8 @@ interface LandingRecord {
   repositoryId: string;
   green: Record<string, string>;
   head?: string;
+  // Each check's argv at `head`, so a changed command is run again there.
+  commands?: Record<string, string>;
   checkedAt?: string;
 }
 const messageOf = (error: unknown) =>
@@ -152,6 +156,7 @@ export async function runCheckAt(
   repository: CheckRepository,
   commit: string,
   argv: string[],
+  timeoutMs?: number,
 ): Promise<CheckRun> {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-line-"));
   try {
@@ -164,7 +169,10 @@ export async function runCheckAt(
         tail: `prepare failed: ${String(ready.stderr || "").split("\n")[0]}`,
       };
     const started = Date.now(),
-      result = await commandEvidence(dir, argv, checkOptions(repository, dir));
+      result = await commandEvidence(dir, argv, {
+        ...checkOptions(repository, dir),
+        ...(timeoutMs ? { timeoutMs } : {}),
+      });
     return {
       exitCode: result.exitCode,
       ...(result.isolation !== undefined
@@ -183,6 +191,36 @@ export async function runCheckAt(
     );
     fs.rmSync(dir, { recursive: true, force: true });
   }
+}
+
+// `run` with each of the repository's checks given its own timeout, as a
+// writer's check run gets it (verify.checkTimeouts, else
+// checkTimeoutSeconds): a line or base run of a whole suite is not cut at
+// commandEvidence's two-minute default.
+function timed(
+  run: Run,
+  policy: ReturnType<typeof flowPolicy>,
+  repository: Repository,
+): Run {
+  const flow = policy.for(repository.id),
+    names = new Map(
+      repositoryChecks(repository, []).map((check) => [
+        JSON.stringify(check.argv),
+        check.name,
+      ]),
+    );
+  return (repo, commit, argv) =>
+    run(
+      repo,
+      commit,
+      argv,
+      checkTimeout(
+        names.get(JSON.stringify(argv)) ?? argv.join(" "),
+        flow,
+        undefined,
+        argv.join(" "),
+      ),
+    );
 }
 
 // Output lines that pass the content rules at the brief boundary; a match or
@@ -524,6 +562,7 @@ export async function watchLine(
     policy = flowPolicy(config || {});
   for (const repository of store.list<Repository>("repositories")) {
     if (!repository.root || !repositoryChecks(repository, []).length) continue;
+    const runs = timed(run, policy, repository);
     // Its checks run in scratch worktrees: a full volume skips this watch.
     try {
       requireDiskSpace(
@@ -572,12 +611,22 @@ export async function watchLine(
           now,
           `Line stop closed: ${stop.check} has not passed on ${stop.branch} here`,
         );
-    if (state.head === head) continue;
+    const commands = Object.fromEntries(
+      repositoryChecks(repository, []).map(({ name, argv }) => [
+        name,
+        JSON.stringify(argv),
+      ]),
+    );
+    if (
+      state.head === head &&
+      JSON.stringify(state.commands) === JSON.stringify(commands)
+    )
+      continue;
     const known = Object.keys(state.green).length > 0;
     // Nothing known green and a head Avoozl did not integrate: nothing to
     // compare against, so nothing is written.
     if (!known && !integratedHead(store, repository, head)) continue;
-    const results = await headResults(store, repository, head, run, known),
+    const results = await headResults(store, repository, head, runs, known),
       green = { ...state.green },
       scope = policy.for(repository.id).stopTheLine.scope;
     for (const { name, argv } of repositoryChecks(repository, [])) {
@@ -593,7 +642,7 @@ export async function watchLine(
       }
       // Never green here before: nothing broke that worked.
       if (!green[name] || open) continue;
-      const again = await run(repository, head, argv);
+      const again = await runs(repository, head, argv);
       if (again.exitCode === 0) {
         recordFlaky(store, repository, name, head, now);
         green[name] = head;
@@ -605,7 +654,7 @@ export async function watchLine(
         argv,
         green[name],
         head,
-        { run },
+        { run: runs },
       );
       openStop(store, repository, {
         check: name,
@@ -621,6 +670,7 @@ export async function watchLine(
         ...state,
         head,
         green,
+        commands,
         checkedAt: new Date(now).toISOString(),
       }),
     );
@@ -761,7 +811,10 @@ export async function judgeBaseFailures(
           await landingRef(repository),
         ]);
       } catch {}
-    const result = base && argv ? await run(repository, base, argv) : null,
+    const result =
+        base && argv
+          ? await timed(run, policy, repository)(repository, base, argv)
+          : null,
       broken = result && result.exitCode !== 0,
       green =
         (failingName &&

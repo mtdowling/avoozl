@@ -35,6 +35,8 @@ export const allTestFiles = () => ({
 // shard with Chrome; elsewhere they run with Chrome skipped.
 export const needsChrome = (file: string) =>
   fs.readFileSync(path.join(root, file), "utf8").includes("findChrome");
+export const withoutChrome = (files: string[]) =>
+  files.filter((f) => !needsChrome(f));
 
 // scripts/test/test-map.json lists, in "osNeutral", the test files a person has
 // reviewed and found to give the same result on every system: they start no

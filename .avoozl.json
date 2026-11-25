@@ -35,7 +35,7 @@
       "worktreeRoot": "../avoozl-worktrees",
       "checks": {
         "format": ["npm", "run", "format:check"],
-        "test": ["npm", "run", "test:changed"],
+        "test": ["npm", "run", "test:changed", "--", "--no-chrome"],
         "typecheck": ["npm", "run", "typecheck"],
         "typecheck-ui": ["npm", "run", "typecheck:ui"],
         "dup": ["npm", "run", "dup:changed"],

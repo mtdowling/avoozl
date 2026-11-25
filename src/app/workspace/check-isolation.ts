@@ -212,15 +212,37 @@ export function isolatedCheck(
   };
 }
 
+// On macOS a check runs under `caffeinate -i -s`, so the Mac does not sleep
+// while it runs: a sleep stops the clock-bound tests and the check's own
+// timeout. `-i` alone does not hold a Mac with its lid closed, which drops
+// back to sleep from each maintenance wake; `-s` does, on AC power only.
+// Elsewhere, or without caffeinate, the argv is unchanged.
+const CAFFEINATE = "/usr/bin/caffeinate";
+export function keepAwake(
+  argv: string[],
+  {
+    platform = process.platform,
+    exists = fs.existsSync,
+  }: { platform?: string; exists?: (file: string) => boolean } = {},
+) {
+  return platform === "darwin" && exists(CAFFEINATE)
+    ? [CAFFEINATE, "-i", "-s", ...argv]
+    : argv;
+}
+
 // The commandEvidence options for a repository check in `dir`: its
-// environment allowlist and its isolation.
+// environment allowlist, its isolation, and keepAwake outside both.
 export const checkOptions = (
   repository: IsolatedRepository | null | undefined,
   dir: string,
 ) => ({
   env: repository?.checksEnv,
-  isolate: (argv: string[], env: Env) =>
-    isolatedCheck(repository, dir, argv, env),
+  isolate: (argv: string[], env: Env) => {
+    const isolated = isolatedCheck(repository, dir, argv, env);
+    return "argv" in isolated && isolated.argv
+      ? { ...isolated, argv: keepAwake(isolated.argv) }
+      : isolated;
+  },
 });
 
 const prepared = new Set<string>();
