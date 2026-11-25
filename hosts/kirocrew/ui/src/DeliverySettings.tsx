@@ -138,6 +138,7 @@ export default function DeliverySettings({ workspaceId }: { workspaceId: string 
   const [pr, setPr] = useState<PrMode | null>(null)
   const [form, setForm] = useState<LoopForm>(loopForm(null))
   const [limits, setLimits] = useState<LimitForm>(limitForm(undefined))
+  const [engineUpdate, setEngineUpdate] = useState(true)
   const [message, setMessage] = useState<{ ok?: string; error?: string } | null>(null)
   const [modeError, setModeError] = useState<string | null>(null)
   const [turning, setTurning] = useState(false)
@@ -147,13 +148,15 @@ export default function DeliverySettings({ workspaceId }: { workspaceId: string 
     setPr(value.landingPr ?? null)
     setForm(loopForm(value.loop))
     setLimits(limitForm(value.delivery))
+    setEngineUpdate(value.engine?.update ?? true)
   }, [value])
   const prDirty = Boolean(value) && pr !== (value?.landingPr ?? null)
   // The loop saves here only while it is on; while off, picking Autopilot
   // writes it.
   const loopDirty = Boolean(value?.loop) && !sameLoop(value?.loop, loopOf(form))
   const limitsDirty = Boolean(value?.on) && !sameLimits(value?.delivery, limits)
-  const dirty = prDirty || loopDirty || limitsDirty
+  const engineDirty = Boolean(value?.engine) && engineUpdate !== value?.engine?.update
+  const dirty = prDirty || loopDirty || limitsDirty || engineDirty
   const save = async () => {
     if (!value) return
     setMessage(null)
@@ -163,6 +166,7 @@ export default function DeliverySettings({ workspaceId }: { workspaceId: string 
         ...(prDirty ? { landingPr: pr } : {}),
         ...(loopDirty ? { loop: loopOf(form) } : {}),
         ...(limitsDirty ? { delivery: limitsOf(limits) } : {}),
+        ...(engineDirty ? { engine: { update: engineUpdate } } : {}),
       })
       await reload()
       setMessage({ ok: 'Saved.' })
@@ -296,6 +300,36 @@ export default function DeliverySettings({ workspaceId }: { workspaceId: string 
             </Field>
           </Stack>
         </Section>
+        {value.engine && (
+          <Section
+            level="sub"
+            title="This machine's engine"
+            blurb="The Avoozl build the tick runs. Saved in this machine's config. The page itself changes only with the app's Update."
+          >
+            <Stack gap={2} data-engine>
+              <CheckRow
+                label="Follow green main"
+                help="When main moves and Linux, macOS and Windows pass on that commit, the tick builds it and runs from it. If it fails, the tick keeps the build before it."
+                raw="engine.update"
+                checked={engineUpdate}
+                onChange={(on) => {
+                  setMessage(null)
+                  setEngineUpdate(on)
+                }}
+              />
+              <Hint as="p" size="sm" data-engine-commit>
+                {value.engine.commit
+                  ? `Running ${value.engine.commit.slice(0, 9)} since ${new Date(value.engine.since ?? '').toLocaleString()}.`
+                  : "Running the installed app's build."}
+              </Hint>
+              {value.engine.failed && (
+                <ErrorText role="alert" size="sm">
+                  {`${value.engine.failed.commit.slice(0, 9)} did not take: ${value.engine.failed.error}`}
+                </ErrorText>
+              )}
+            </Stack>
+          </Section>
+        )}
         <Section
           level="sub"
           title="Run limits"
@@ -388,13 +422,14 @@ export default function DeliverySettings({ workspaceId }: { workspaceId: string 
         dirty={dirty}
         error={message?.error}
         ok={message?.ok}
-        note={loopDirty ? "Writes workspace settings in .avoozl.json and loop in this machine's config." : 'Writes workspace settings in .avoozl.json.'}
+        note={loopDirty || engineDirty ? "Writes workspace settings in .avoozl.json and this machine's config." : 'Writes workspace settings in .avoozl.json.'}
         onSave={() => void save()}
         onDiscard={() => {
           setMessage(null)
           setPr(value.landingPr ?? null)
           setForm(loopForm(value.loop))
           setLimits(limitForm(value.delivery))
+          setEngineUpdate(value.engine?.update ?? true)
         }}
       />
     </Stack>

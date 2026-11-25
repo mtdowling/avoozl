@@ -26,6 +26,8 @@ import { hostPage } from "../executors/page-child.ts";
 import { needsKirocrewStep } from "./needs-kirocrew.ts";
 import { blockedHarnesses, needsHarnessStep } from "./needs-harness.ts";
 import type { Sink } from "./notifications.ts";
+import { engineUpdateStep } from "./engine.ts";
+import { asJob } from "../github/github-jobs.ts";
 
 // The machine's folders a pass reads.
 interface PassPaths {
@@ -63,7 +65,12 @@ export async function tickWorkspace(
     configDirectory,
     sinks = [],
     env = process.env,
-  }: PassPaths & { sinks?: Sink[]; env?: NodeJS.ProcessEnv },
+    updateEngine = false,
+  }: PassPaths & {
+    sinks?: Sink[];
+    env?: NodeJS.ProcessEnv;
+    updateEngine?: boolean;
+  },
 ) {
   const target = workspaceConfig({
     workspace: root,
@@ -125,11 +132,27 @@ export async function tickWorkspace(
     } catch (error) {
       errors.push({ id: "notifications", error: (error as Error).message });
     }
+    // The machine tick moves to Avoozl's newest green main (engine.ts).
+    let engine: unknown = null;
+    if (updateEngine)
+      try {
+        engine = await engineUpdateStep({
+          store,
+          github: ops.github ? asJob("check-in", ops.github) : null,
+          workspaceRoot: target.workspaceRoot,
+          stateDirectory,
+          configFile: path.join(path.resolve(configDirectory), "config.json"),
+          env,
+        });
+      } catch (error) {
+        errors.push({ id: "engine", error: (error as Error).message });
+      }
     return {
       root,
       tick: tick?.skipped ? { skipped: tick.skipped } : "ran",
       errors,
       ...(notifications ? { notifications } : {}),
+      ...(engine ? { engine } : {}),
     };
   } finally {
     // This process ends with the store, so send what is queued first. The
@@ -162,6 +185,7 @@ async function tickCatalog(
     roots?: string[];
     sinks?: Sink[];
     env?: NodeJS.ProcessEnv;
+    updateEngine?: boolean;
   },
 ) {
   const results: PassResult[] = [];
@@ -202,17 +226,26 @@ export async function runPass({
   configDirectory,
   roots,
   env = process.env,
+  updateEngine = false,
 }: {
   stateDirectory: string;
   configDirectory: string;
   roots?: string[];
   env?: NodeJS.ProcessEnv;
+  // Only the machine tick the cron starts moves the engine (tick-runner.ts).
+  updateEngine?: boolean;
 }): Promise<PassResult[]> {
   const supervisor = openSupervisor({ stateDirectory, configDirectory, env });
   try {
     supervisor.pass();
     const results = (
-      await tickCatalog({ stateDirectory, configDirectory, roots, env })
+      await tickCatalog({
+        stateDirectory,
+        configDirectory,
+        roots,
+        env,
+        updateEngine,
+      })
     ).map(
       (result): PassResult => ({ at: new Date().toISOString(), ...result }),
     );

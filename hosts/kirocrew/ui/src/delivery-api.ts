@@ -252,6 +252,15 @@ export interface DeliverySettings {
   // only with both.
   loop?: { run: string[]; every?: string; epics?: string[] } | null
   loopError?: string
+  // The build this machine's tick runs (tick/engine.ts); commit null is
+  // the installed app's copy.
+  engine?: {
+    update: boolean
+    commit: string | null
+    since: string | null
+    previous: string | null
+    failed: { commit: string; error: string; at: string } | null
+  }
 }
 
 // One chip per value with its card count, in the order `options` gives.

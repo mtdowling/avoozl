@@ -1,4 +1,5 @@
 import { validateServe } from "./serve-config.ts";
+import { validateEngine } from "./engine-config.ts";
 import { validateEpicContext } from "../context/epic-context-config.ts";
 import { validateTelemetry } from "./telemetry-config.ts";
 import { validateLinks } from "../api/direct-links.ts";
@@ -276,6 +277,7 @@ export function normalizeHostConfig(
   const port = value.port ?? 9428;
   assertInteger(port, "port", { minimum: 0, maximum: 65535 });
   validateServe(value.serve, source);
+  validateEngine(value.engine, source);
   validateTelemetry(value.telemetry, source);
   validateLinks(value.links, source);
   if (value.epicContext !== undefined)
