@@ -5,7 +5,13 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
-import { checkRuns, drainCheckRuns, outputTail } from "../check-runs.ts";
+import {
+  checkRuns,
+  drainCheckRuns,
+  outputTail,
+  runChecksAt,
+  taskEnv,
+} from "../check-runs.ts";
 import { startCheckRunners } from "../check-runner.ts";
 import { listSpans } from "../../flow/flow.ts";
 import {
@@ -279,4 +285,109 @@ test("a run at the wrong commit runs nothing, and a stale run judges nothing", a
     checkRuns(store).some((r) => r.commit === commit && r.state === "queued"),
     "a full stop starts no run",
   );
+});
+
+// A check that prints the task names it was given, as JSON.
+const printTaskEnv = [
+  node,
+  "-e",
+  "const e = process.env; console.log('ENV ' + JSON.stringify({ task: e.AVOOZL_TASK, spec: e.AVOOZL_SPEC, start: e.AVOOZL_START }))",
+];
+const printedEnv = (tail: string | undefined) =>
+  JSON.parse(/ENV (\{.*\})/.exec(tail ?? "")?.[1] ?? "null");
+
+// Set one variable in Avoozl's own environment for a test.
+function inherit(t: TestContext, name: string, value: string) {
+  const before = process.env[name];
+  process.env[name] = value;
+  t.after(() => {
+    if (before === undefined) delete process.env[name];
+    else process.env[name] = before;
+  });
+}
+
+test("a task's check run is told its task and start commit, over a stray inherited value", async (t) => {
+  // Nearby inputs: stray AVOOZL_TASK and AVOOZL_START in Avoozl's own
+  // environment, listed in checksEnv (overridden), and a task with no plan
+  // and no claim (no AVOOZL_SPEC; the start is the merge base).
+  inherit(t, "AVOOZL_TASK", "stray");
+  inherit(t, "AVOOZL_START", "stray");
+  const { store, ops, checkout } = setup(t, { checks: [printTaskEnv] });
+  store.put("repositories", {
+    ...storedRow(store, "repositories", "app"),
+    checksEnv: ["AVOOZL_TASK", "AVOOZL_START"],
+  });
+  const commit = await workerDone(ops, "a", "w-1");
+  await tick(ops, ["w-1"]);
+  await drainCheckRuns(store);
+  const [run] = checkRuns(store);
+  assert.deepEqual(printedEnv(found(run.checks)[0].tail), {
+    task: "a",
+    start: git(checkout, "merge-base", "main", commit).trim(),
+  });
+});
+
+test("a run with no task gets none of the task names, even listed and inherited", async (t) => {
+  inherit(t, "AVOOZL_TASK", "stray");
+  inherit(t, "AVOOZL_SPEC", "stray");
+  const { checkout } = setup(t),
+    head = git(checkout, "rev-parse", "HEAD").trim(),
+    { checks } = await runChecksAt(
+      {
+        id: "app",
+        root: checkout,
+        checksEnv: ["AVOOZL_TASK", "AVOOZL_SPEC"],
+      },
+      head,
+      [printTaskEnv],
+    );
+  assert.deepEqual(printedEnv(found(checks[0]).tail), {});
+});
+
+test("taskEnv names the lease's start commit and the spec's path", () => {
+  // Nearby inputs: a single-file spec, a split spec folder, a claim with
+  // no lease yet (the base), and no GitHub name (the base).
+  const plans: Record<string, unknown> = {
+      flat: { spec: "flat", specFolder: "specs/", flat: true },
+      split: { spec: "split", specFolder: ".kiro/specs/split/" },
+    },
+    claims = {
+      "acme/app": [
+        { task: "flat.1", lease: { start: "lease-start" } },
+        { task: "split.1", lease: null },
+      ],
+    },
+    store = {
+      get: (_table: string, id: string) => plans[id],
+      getMeta: () => claims,
+    } as unknown as Parameters<typeof taskEnv>[0];
+  assert.deepEqual(
+    taskEnv(
+      store,
+      { id: "flat.1", planId: "flat" },
+      { github: "acme/app" },
+      "base",
+    ),
+    {
+      AVOOZL_TASK: "flat.1",
+      AVOOZL_SPEC: "specs/flat.md",
+      AVOOZL_START: "lease-start",
+    },
+  );
+  assert.deepEqual(
+    taskEnv(
+      store,
+      { id: "split.1", planId: "split" },
+      { github: "acme/app" },
+      "base",
+    ),
+    {
+      AVOOZL_TASK: "split.1",
+      AVOOZL_SPEC: ".kiro/specs/split",
+      AVOOZL_START: "base",
+    },
+  );
+  assert.deepEqual(taskEnv(store, { id: "x" }, { github: null }, null), {
+    AVOOZL_TASK: "x",
+  });
 });

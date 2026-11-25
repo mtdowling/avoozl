@@ -895,17 +895,24 @@ const BASE_ENV = [
 ];
 const ENV_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
+// The names Avoozl sets for a task's check run (check-runs.ts taskEnv):
+// never taken from Avoozl's own environment, even when listed.
+const TASK_ENV = /^AVOOZL_(?:TASK|SPEC|START)$/i;
+
 // The environment a repository check runs with: only what a process needs
 // to start (BASE_ENV) and the names the repository lists in `checksEnv`,
-// whether or not it lists any. The gateway secrets and the push and GitHub
-// credentials never reach a check, even when listed.
+// whether or not it lists any. The gateway secrets, the push and GitHub
+// credentials and the task names never reach a check, even when listed.
 export function checkEnvironment(
   env: Env = process.env,
   allow: readonly string[] = [],
 ) {
   const kept = repositoryEnvironment(env, allow);
   for (const name of Object.keys(kept))
-    if (PUSH_CREDENTIALS.some((pattern) => pattern.test(name)))
+    if (
+      TASK_ENV.test(name) ||
+      PUSH_CREDENTIALS.some((pattern) => pattern.test(name))
+    )
       delete kept[name];
   return kept;
 }
@@ -920,6 +927,9 @@ export interface CommandOptions {
   onStart?: () => void;
   onChild?: (child: import("node:child_process").ChildProcess) => void;
   env?: readonly string[];
+  // Values Avoozl sets over the allowlist: a task run's AVOOZL_TASK,
+  // AVOOZL_SPEC and AVOOZL_START.
+  taskEnv?: Readonly<Record<string, string>>;
   isolate?: (
     argv: string[],
     env: Env,
@@ -942,6 +952,7 @@ export async function commandEvidence(
     onStart,
     onChild,
     env: allow,
+    taskEnv,
     isolate,
   }: CommandOptions = {},
 ): Promise<CommandRecord> {
@@ -953,7 +964,7 @@ export async function commandEvidence(
     fail("Use a command argument array.");
   const words = argv as string[];
   const startedAt = new Date().toISOString(),
-    environment = checkEnvironment(process.env, allow),
+    environment = { ...checkEnvironment(process.env, allow), ...taskEnv },
     wrapped = isolate ? isolate(words, environment) : null;
   if (wrapped?.refused !== undefined)
     return {

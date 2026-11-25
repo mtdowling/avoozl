@@ -87,6 +87,35 @@ Push and GitHub credentials (`GH_TOKEN`, `GITHUB_TOKEN`, `SSH_AUTH_SOCK` and the
 like) never reach a check, even when listed. Neither do the variables of
 Avoozl's git credential helper, `avoozl credential`.
 
+### Task variables
+
+A check run for a task also gets the task's identity, so a check can judge
+the change against the task it belongs to. This check fails when the task
+changed a file outside `src/`:
+
+```sh
+#!/bin/sh
+[ -n "$AVOOZL_TASK" ] || exit 0
+git diff --name-only "$AVOOZL_START" HEAD | grep -v '^src/' && exit 1
+exit 0
+```
+
+Avoozl sets these variables itself, without `checksEnv`:
+
+- `AVOOZL_TASK` holds the task's ID, such as `rw-4.1`.
+- `AVOOZL_SPEC` holds the path of the task's spec in the repository that
+  holds it, such as `specs/rw.md`, or a split spec's folder, such as
+  `.kiro/specs/rw`. A task with no spec has none.
+- `AVOOZL_START` holds the start commit the claim's newest lease names, so
+  `AVOOZL_START..HEAD` is the task's work. With no lease it holds the merge
+  base with the base branch, the commit the path check diffs from.
+
+A run with no task gets none of them: the main-line check, phase and branch
+checks, and the checks on a merge batch's candidate. A value of the same name
+in Avoozl's own environment never reaches a check, even when `checksEnv`
+lists it. Each task run is its own run, so no task's result stands for
+another's.
+
 ## Isolation
 
 Every check runs in the repository's `isolation`, set in **Settings ›

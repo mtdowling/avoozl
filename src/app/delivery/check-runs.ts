@@ -29,6 +29,7 @@ import { requireDiskSpace } from "../workspace/disk-space.ts";
 import { openStops, recordSpan, readFlowPolicy } from "../flow/flow.ts";
 import { contentBinding } from "../content/content-rules.ts";
 import { fail } from "../store/store.ts";
+import { claimOf } from "../workers/claims.ts";
 import {
   type Check,
   type CheckRecord,
@@ -147,6 +148,39 @@ export const queueCheckRuns = (
   now = Date.now(),
 ) => runs.map((run) => queueCheckRun(store, { ...run, now }));
 
+// What a task's run tells its repository checks, over the `checksEnv`
+// allowlist: the task's ID, its spec's path in the repository that holds
+// it, and the start commit its claim's newest lease names, else `base` (the
+// merge base the path check diffs from). A run with no task (phase, branch,
+// integration, line) sets none, and checkEnvironment drops a stray value
+// inherited from Avoozl's own environment. Each run is one task's attempt
+// (`check-run:<task>:<attempt>`) and only plugin checks reuse a result, by
+// content, so no task's result is read as another's.
+export function taskEnv(
+  store: Pick<Store, "get" | "getMeta">,
+  task: Pick<Task, "id" | "planId">,
+  repository: Pick<Repository, "github">,
+  base: string | null,
+) {
+  const plan = task.planId
+      ? store.get<{ spec?: string; specFolder?: string; flat?: boolean }>(
+          "plans",
+          task.planId,
+        )
+      : null,
+    start =
+      (repository.github &&
+        claimOf(store, repository.github, task.id)?.lease?.start) ||
+      base,
+    out: Record<string, string> = { AVOOZL_TASK: task.id };
+  if (plan?.spec && plan.specFolder)
+    out.AVOOZL_SPEC = plan.flat
+      ? `${plan.specFolder}${plan.spec}.md`
+      : plan.specFolder.replace(/\/$/, "");
+  if (start) out.AVOOZL_START = start;
+  return out;
+}
+
 // Run every declared check at `commit` in a clean detached worktree, then
 // remove it. A worktree that cannot be made at the exact commit runs
 // nothing: every check is not run, the checking's failure, not the writer's.
@@ -159,6 +193,7 @@ export async function runChecksAt(
     timeoutFor,
     run = commandEvidence,
     plugin,
+    taskEnv,
   }: RunOptions = {},
 ): Promise<{ head: string | null; checks: CheckRecord[] }> {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-checks-")),
@@ -191,6 +226,7 @@ export async function runChecksAt(
       timeoutFor: timeoutFor || (() => timeoutMs),
       run,
       env: repository.checksEnv,
+      taskEnv,
       repository,
       plugin,
     });
@@ -521,6 +557,7 @@ async function runOne(
   );
   const held = Boolean(verdict?.outside?.length || verdict?.protected?.length),
     warm = held || scope !== "task" ? null : warmAt,
+    checkEnv = task ? taskEnv(store, task, repository, range.base) : undefined,
     pluginOptions = pluginOptionsOf(store),
     plugin = (check: PluginStep, dir: string, timeoutMs: number) =>
       // approvedPluginChecks built the plugin block runPluginCheck reads.
@@ -560,6 +597,7 @@ async function runOne(
               timeoutFor,
               run: options.run,
               env: repository.checksEnv,
+              taskEnv: checkEnv,
               repository,
               plugin,
             }),
@@ -568,6 +606,7 @@ async function runOne(
             timeoutFor,
             run: options.run,
             plugin,
+            taskEnv: checkEnv,
           }),
     endedAt = new Date().toISOString();
   store.transaction(() =>
