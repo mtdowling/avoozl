@@ -861,7 +861,9 @@ mode.
 - **[20.1](github-workflow-scenarios.md#rule-201)** A runner MUST NOT push to
   the base without the repository's checks passing on that exact head (16.3).
 - **[20.2](github-workflow-scenarios.md#rule-202)** A runner MUST NOT merge a
-  draft pull request, mark one ready, or arm auto-merge on one (17.2).
+  draft pull request, mark one ready, or arm auto-merge on one (17.2). The
+  one exception is early review: in `ready` and `auto` mode a runner marks a
+  done task's early review pull request ready for review (22.5).
 - **[20.3](github-workflow-scenarios.md#rule-203)** A runner MUST NOT act on a
   label a non-writer added. An excluded label is the one exception: it holds
   work whoever added it (9.1).
