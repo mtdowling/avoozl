@@ -997,11 +997,15 @@ export async function commandEvidence(
     };
     // A sandbox that could not start the command says so on its first line
     // and exits; that is a check that did not start, not one that failed.
-    const unstarted =
-      wrapped &&
-      /^(?:sandbox-exec: execvp\(\)|bwrap: execvp)/.test(
-        String(error.stderr || ""),
-      );
+    // caffeinate (keepAwake) reports it as `NAME: No such file or
+    // directory` and exit 127.
+    const stderr = String(error.stderr || ""),
+      unstarted =
+        wrapped &&
+        (/^(?:sandbox-exec: execvp\(\)|bwrap: execvp)/.test(stderr) ||
+          (run[0].endsWith("/caffeinate") &&
+            error.code === 127 &&
+            stderr.startsWith(`${words[0]}: No such file or directory`)));
     return {
       argv: words,
       startedAt,

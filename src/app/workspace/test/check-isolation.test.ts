@@ -10,6 +10,7 @@ import {
   checkOptions,
   isolatedCheck,
   isolationSetting,
+  keepAwake,
   prepareChecks,
 } from "../check-isolation.ts";
 import { commandEvidence } from "../../git/git.ts";
@@ -265,4 +266,22 @@ test("repository.configure with {id, labels, claims} sets the spec issue filters
   });
   const cleared = storedRow(store, "repositories", "app");
   assert.deepEqual([cleared.labels, cleared.claims], [null, null]);
+});
+
+test("a check runs under caffeinate -i -s on macOS only, and only when it exists", () => {
+  const argv = ["npm", "test"],
+    has = () => true;
+  assert.deepEqual(keepAwake(argv, { platform: "darwin", exists: has }), [
+    "/usr/bin/caffeinate",
+    "-i",
+    "-s",
+    "npm",
+    "test",
+  ]);
+  assert.deepEqual(
+    keepAwake(argv, { platform: "darwin", exists: () => false }),
+    argv,
+  );
+  for (const platform of ["linux", "win32"])
+    assert.deepEqual(keepAwake(argv, { platform, exists: has }), argv);
 });
