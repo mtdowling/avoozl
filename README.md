@@ -130,7 +130,10 @@ does, so a `git pull` updates it. Set `AVOOZL_NO_GLOBAL_LINK=1` to skip the
 link.
 
 Open Kiro Crew's App Store, review Avoozl's trust request, and enable it. The
-**Avoozl** page appears in the sidebar. To update, pull and run
+**Avoozl** page appears in the sidebar. The tick updates itself to
+Avoozl's newest green main (see
+[Engine updates](hosts/kirocrew/README.md#engine-updates)). The page, app
+backend and MCP server change only when you update the app: pull and run
 `npm run build && kirocrew app update avoozl` in the checkout.
 
 To run Avoozl without Kiro Crew, run `avoozl tick` on a timer: launchd,
