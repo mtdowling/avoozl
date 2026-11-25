@@ -188,7 +188,9 @@ function engineCheckout(workspaceRoot: string) {
       url = spawnSync("git", ["-C", root, "remote", "get-url", "origin"], {
         encoding: "utf8",
       });
-    if (url.status === 0 && named.test(url.stdout.trim())) return root;
+    // A local remote on Windows is a path with backslashes.
+    if (url.status === 0 && named.test(url.stdout.trim().replaceAll("\\", "/")))
+      return root;
   }
   return null;
 }
