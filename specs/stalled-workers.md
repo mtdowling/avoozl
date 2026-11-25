@@ -723,7 +723,7 @@ specs.
 
 ### Phase 1: One guard, one state, the settings
 
-- [ ] `stall-1.1` Guard every new worker attempt [SW2] (§D2)
+- [x] `stall-1.1` Guard every new worker attempt [SW2] (§D2)
   - `previousAttemptEnded` in `src/app/delivery/delivery.ts` returns true only for `closed`, `lost`, a settled `gone`, or `idle` after a final report
   - The planner's retry start and the vanished resume call it before they open an attempt
   - A table test drives each path with a fake executor that reads `working`, then `idle` with no report, then a failed read, and no path opens an attempt in any of the three
