@@ -207,6 +207,35 @@ export async function stillQueued(
   return false;
 }
 
+// The branch a head goes on: `branch` when the remote lacks it or the head
+// fast-forwards it, else the next free `<branch>-<n>`. A head rebased onto
+// a moved base never fast-forwards the branch it was pushed to before, and
+// Avoozl never forces a push.
+const BRANCH_TRIES = 20;
+async function freeBranch(
+  root: string,
+  url: string,
+  branch: string,
+  head: string,
+  env?: NodeJS.ProcessEnv,
+) {
+  for (let n = 1; n <= BRANCH_TRIES; n += 1) {
+    const name = n === 1 ? branch : `${branch}-${n}`,
+      listed = await remoteGit(
+        root,
+        ["ls-remote", "--heads", url, `refs/heads/${name}`],
+        { env: { ...(env ?? process.env), ...NO_PROMPT } },
+      ),
+      remote = listed.split(/\s+/)[0] || null;
+    if (!remote || remote === head) return name;
+    try {
+      await git(root, ["merge-base", "--is-ancestor", remote, head]);
+      return name;
+    } catch {}
+  }
+  return fail(`No free branch for ${branch}; delete its old copies.`, 409);
+}
+
 // Pushes one verified task's branch and queues it. Returns the delivery
 // with the queued commit recorded.
 export async function queuePullRequest(
@@ -252,10 +281,6 @@ export async function queuePullRequest(
       taskId: delivery.taskId,
       repository: target,
     }),
-    source = {
-      repository: target,
-      branch: named ? `avoozl/${named}` : worktree.branch,
-    },
     // The tick goes on the branch before the checks: the
     // pull request carries the work commit and, on top, its tick.
     head = await tickedHead(
@@ -271,6 +296,16 @@ export async function queuePullRequest(
             : undefined,
       },
     );
+  const source = {
+    repository: target,
+    branch: await freeBranch(
+      repository.root,
+      registry.get(target).url,
+      named ? `avoozl/${named}` : worktree.branch,
+      head,
+      env,
+    ),
+  };
   await pushHead(repository.root, { ...source, commit: head }, registry, {
     since,
     env,
