@@ -207,33 +207,59 @@ export async function stillQueued(
   return false;
 }
 
-// The branch a head goes on: `branch` when the remote lacks it or the head
-// fast-forwards it, else the next free `<branch>-<n>`. A head rebased onto
-// a moved base never fast-forwards the branch it was pushed to before, and
-// Avoozl never forces a push.
-const BRANCH_TRIES = 20;
-async function freeBranch(
+// The commit to push on `branch` so it stays the same pull request: `head`
+// when the remote lacks the branch or `head` fast-forwards it. Else the
+// branch already carries an earlier ticked head, and the worktree merged
+// the moved base into the work commit, not into that tick, so `head` is
+// built again on top of the pushed head: a merge of `head` into it, pushed
+// as a fast-forward and never forced. The merge must have `head`'s tree,
+// the one the checks judged; anything else goes back for verification.
+async function onPushed(
   root: string,
   url: string,
   branch: string,
   head: string,
+  base: string,
   env?: NodeJS.ProcessEnv,
 ) {
-  for (let n = 1; n <= BRANCH_TRIES; n += 1) {
-    const name = n === 1 ? branch : `${branch}-${n}`,
-      listed = await remoteGit(
-        root,
-        ["ls-remote", "--heads", url, `refs/heads/${name}`],
-        { env: { ...(env ?? process.env), ...NO_PROMPT } },
-      ),
-      remote = listed.split(/\s+/)[0] || null;
-    if (!remote || remote === head) return name;
-    try {
-      await git(root, ["merge-base", "--is-ancestor", remote, head]);
-      return name;
-    } catch {}
-  }
-  return fail(`No free branch for ${branch}; delete its old copies.`, 409);
+  const options = { env: { ...(env ?? process.env), ...NO_PROMPT } },
+    listed = await remoteGit(
+      root,
+      ["ls-remote", "--heads", url, `refs/heads/${branch}`],
+      options,
+    ),
+    remote = listed.split(/\s+/)[0] || null;
+  if (!remote || remote === head) return head;
+  await remoteGit(
+    root,
+    ["fetch", "--quiet", url, `refs/heads/${branch}`],
+    options,
+  );
+  try {
+    await git(root, ["merge-base", "--is-ancestor", remote, head]);
+    return head;
+  } catch {}
+  let tree: string | null = null;
+  try {
+    tree = (
+      await git(root, ["merge-tree", "--write-tree", remote, head])
+    ).split("\n")[0];
+  } catch {}
+  if (!tree || tree !== (await git(root, ["rev-parse", `${head}^{tree}`])))
+    return fail(
+      `${branch} on GitHub does not merge cleanly with the verified head ${head.slice(0, 12)}; verify it again.`,
+      409,
+    );
+  return git(root, [
+    "commit-tree",
+    tree,
+    "-p",
+    remote,
+    "-p",
+    head,
+    "-m",
+    `Merge ${base} into ${branch}`,
+  ]);
 }
 
 // Pushes one verified task's branch and queues it. Returns the delivery
@@ -297,16 +323,18 @@ export async function queuePullRequest(
       },
     );
   const source = {
-    repository: target,
-    branch: await freeBranch(
+      repository: target,
+      branch: named ? `avoozl/${named}` : worktree.branch,
+    },
+    pushed = await onPushed(
       repository.root,
       registry.get(target).url,
-      named ? `avoozl/${named}` : worktree.branch,
+      source.branch,
       head,
+      base,
       env,
-    ),
-  };
-  await pushHead(repository.root, { ...source, commit: head }, registry, {
+    );
+  await pushHead(repository.root, { ...source, commit: pushed }, registry, {
     since,
     env,
     machine,
@@ -317,7 +345,7 @@ export async function queuePullRequest(
     repositoryId: repository.id,
     base,
     key: delivery.taskId,
-    commit: head,
+    commit: pushed,
     spec,
     tasks: [
       {
