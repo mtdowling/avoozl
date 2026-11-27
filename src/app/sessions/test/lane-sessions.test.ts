@@ -2,6 +2,7 @@
 // review start a free lane, a lane's chat moves on to its next task, and a
 // lane a person closed waits for Resume.
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
 import {
@@ -76,6 +77,37 @@ const tick = (ops: Operations, sessions: Record<string, string> = {}) =>
 
 const workers = (result: { dispatch: Start[] }) =>
   result.dispatch.filter((d) => d.role === "worker");
+
+// Kiro Crew's slot key for a session name (dashboard/state_parts/
+// slot_directory.py _normalize_slot_key): each non-ASCII character becomes
+// "-", then anything but a word character, "-" or "." becomes "_".
+const crewSlotKey = (name: string) =>
+  name.replace(/[^\x20-\x7e]/g, "-").replace(/[^A-Za-z0-9_\-.]/g, "_");
+
+test("a lane chat's slot key is one app.json lets the backend read", () => {
+  // The backend reads each lane chat's status through
+  // GET /api/chat/slots/<slot>, and Kiro Crew refuses an app token any slot
+  // outside its granted prefixes, matched case-sensitively (403).
+  const manifest = JSON.parse(
+    fs.readFileSync(
+      path.resolve(import.meta.dirname, "../../../../hosts/kirocrew/app.json"),
+      "utf8",
+    ),
+  );
+  const prefixes = (manifest.permissions.api as string[])
+    .filter((grant) => grant.startsWith("/api/chat/slots/") && grant.endsWith("*"))
+    .map((grant) => grant.slice("/api/chat/slots/".length, -1));
+  for (const header of [
+    laneHeader("my-workspace", "worker", 1, 2),
+    laneHeader("my-workspace", "reviewer", 1, 1),
+  ]) {
+    const slot = crewSlotKey(header);
+    assert.ok(
+      prefixes.some((prefix) => slot.startsWith(prefix)),
+      `${slot} is outside ${prefixes.join(", ")}`,
+    );
+  }
+});
 
 test("one worker lane runs one task at a time, and its chat takes the next task", async (t) => {
   // Nearby inputs: a second ready task while the lane is busy, a reported

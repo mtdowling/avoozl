@@ -72,13 +72,15 @@ test("manifest declares the §4.2 app and every target ships in the package", ()
     },
   ]);
   assert.equal(manifest.permissions.cron, true);
-  // The second grant reads only the sessions the tick opened (session-observer.mjs);
-  // the third lets Settings > Repositories reveal a checkout in Finder; the
-  // fourth reads tokens and credits of the app's own sessions (rows Kiro
-  // Crew stamps with the app), and the fifth lists models for Settings > Flow.
+  // The second and third grants read only the sessions the tick opened
+  // (session-observer.mjs): `avoozl:<task>` chats and `Avoozl · …` lane chats;
+  // the fourth lets Settings > Repositories reveal a checkout in Finder; the
+  // fifth reads tokens and credits of the app's own sessions (rows Kiro
+  // Crew stamps with the app), and the sixth lists models for Settings > Flow.
   assert.deepEqual(manifest.permissions.api, [
     "/apps/avoozl/api/*",
     "/api/chat/slots/avoozl_*",
+    "/api/chat/slots/Avoozl_*",
     "/api/reveal",
     "/api/usage/turns",
     "/api/models",

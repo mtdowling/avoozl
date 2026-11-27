@@ -4,9 +4,10 @@
 // app backend reads each session the cron opened instead: the cron's slots
 // belong to the app (`_app`), so the app token may read them through
 // GET /api/chat/slots/<slot>, the per-slot read Kiro Crew's own app SDK
-// polls. app.json grants only `/api/chat/slots/avoozl_*`, the keys Kiro Crew
-// folds `avoozl:<task-id> …` titles into, and the gateway still refuses any
-// slot the app does not own.
+// polls. app.json grants only `/api/chat/slots/avoozl_*` and `Avoozl_*`, the
+// keys Kiro Crew folds `avoozl:<task-id> …` titles and `Avoozl · <workspace> ·
+// …` lane headers into (case for case), and the gateway still refuses any slot
+// the app does not own.
 //
 // What it can tell: working, queued, idle, and "gone" (the gateway does not
 // hold it). It cannot tell a closed session from a lost one, so "gone" is

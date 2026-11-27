@@ -39,7 +39,8 @@ exchange (`POST /api/apps/<name>/token`), and `POST /api/notifications/push`.
   `gone` (404). Any other answer leaves the last status in place. The slots the
   cron opens carry `_app = "avoozl"` (`derive_caller_app` reads the cron job's
   `created_by`), so the slot-ownership middleware admits the app; app.json
-  grants only `/api/chat/slots/avoozl_*`, not the session list.
+  grants only `/api/chat/slots/avoozl_*` and `/api/chat/slots/Avoozl_*`
+  (lane chats), not the session list.
 - `gone` is not final. A worker that is gone without a report opens a decision
   and a `decision` notice; Avoozl never starts another worker on its own.
   Retry ends it as `lost` and the tick starts the next attempt. A gone verifier

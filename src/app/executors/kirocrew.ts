@@ -182,7 +182,8 @@ async function usageServed(client: Gateway, slot: string) {
 
 // Stop one session's turn for Stop all agents (R64.12): Kiro Crew's own
 // session stop, on the app token. The app manifest grants
-// /api/chat/slots/avoozl_*; any refusal throws, and the caller names it.
+// /api/chat/slots/avoozl_* and Avoozl_*; any refusal throws, and the caller
+// names it.
 export function gatewaySessionStopper(env = process.env, request = fetch) {
   const client = gatewayClient(env, request);
   if (!client) return null;
