@@ -71,6 +71,7 @@
     "api": [
       "/apps/avoozl/api/*",
       "/api/chat/slots/avoozl_*",
+      "/api/chat/slots/Avoozl_*",
       "/api/reveal",
       "/api/usage/turns",
       "/api/models"

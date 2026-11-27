@@ -2516,6 +2516,7 @@ The backend's gateway grants are listed under `permissions.api`:
     "api": [
       "/apps/avoozl/api/*",
       "/api/chat/slots/avoozl_*",
+      "/api/chat/slots/Avoozl_*",
       "/api/reveal",
       "/api/usage/turns",
       "/api/models"
@@ -3100,7 +3101,7 @@ line opens no runs and pauses only dispatch.
 | # | Fact | Evidence |
 | --- | --- | --- |
 | F90 | Kiro Crew stores each tool call as a transcript row with role `tool`, the row's `ts`, and `meta` holding `tool_call_id`, the ACP `kind` (read, edit, execute, and so on), the redacted `input`, and the MCP server and tool name when the backend sends them. | Kiro Crew `dashboard/chat_turn/tool_rows.py` |
-| F91 | An app token may read `GET /api/chat/slots/<slot>` only for a slot the app owns; the answer holds the messages with their `meta`, with `limit` and an incremental `cursor=1` read. Avoozl's backend reads its tick-opened sessions this way, under the `/api/chat/slots/avoozl_*` grant in `app.json`. | Kiro Crew `dashboard/slot_ownership.py`, `dashboard/chat_api/slot_detail.py`; `src/app/executors/kirocrew/session-observer.ts` |
+| F91 | An app token may read `GET /api/chat/slots/<slot>` only for a slot the app owns; the answer holds the messages with their `meta`, with `limit` and an incremental `cursor=1` read. Avoozl's backend reads its tick-opened sessions this way, under the `/api/chat/slots/avoozl_*` and `/api/chat/slots/Avoozl_*` grants in `app.json`: Kiro Crew folds a session's name into its slot key case for case and matches a grant's prefix case-sensitively, and lane chats are named `Avoozl · <workspace> · …`. | Kiro Crew `dashboard/slot_ownership.py`, `dashboard/chat_api/slot_detail.py`; `src/app/executors/kirocrew/session-observer.ts` |
 | F92 | No end time, duration, or exit code is stored with a tool row; only its start `ts`. A call's length is estimated as the gap to the next row. | F90 |
 | F94 | A slot the app does not own answers 404 to the app token, so the owner's own chats give the app no tool rows. | Kiro Crew `slot_ownership.py` |
 | F95 | GitHub check runs carry `started_at` and `completed_at`; pull request reviews carry `submitted_at`. | REST `commits/{sha}/check-runs`, `pulls/{n}/reviews` |

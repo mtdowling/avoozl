@@ -40,8 +40,10 @@ Open Kiro Crew's App Store, review Avoozl's trust request, and enable it. The
 grants:
 
 - `/apps/avoozl/api/*` reaches the app's own backend.
-- `/api/chat/slots/avoozl_*` reads the status of the sessions the tick opened,
-  and no others.
+- `/api/chat/slots/avoozl_*` and `/api/chat/slots/Avoozl_*` read the status
+  of the sessions the tick opened, and no others. Kiro Crew keeps a session
+  name's case in its slot key, so the lane chats (`Avoozl · <workspace> · …`)
+  need the second.
 - `/api/usage/turns` reads the model each of those sessions last ran on.
 - `/api/models` fills the model lists in Settings.
 - `/api/reveal` opens a repository's folder in Finder.
